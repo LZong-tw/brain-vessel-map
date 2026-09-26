@@ -1,7 +1,7 @@
 {
   "name": "brain-vessel-map",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "assets:export": "vite-node tools/export-anatomy.ts",
+    "assets:build": "vite-node tools/export-anatomy.ts && python3 tools/build_assets.py"
   },
   "dependencies": {
     "@react-three/drei": "^9.105.4",
@@ -31,9 +33,13 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
-    "jsdom": "^29.1.1",
     "typescript": "^5.2.2",
     "vite": "^5.2.0",
     "vitest": "^1.4.0"
+  },
+  "description": "Interactive 3D cerebral artery map (cerebrum, brainstem, cerebellum) with an occlusion/embolism simulator showing downstream consequences over time. Educational only.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
   }
 }

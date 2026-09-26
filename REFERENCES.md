@@ -1,76 +1,75 @@
-# 參考資源與相關專案
-# References and Related Projects
+# 參考文獻與相關專案 · References
 
-本專案在設計時參考了以下專案，但未使用其任何原始碼。
+The same lists are shown in the app ("Sources & licences") and maintained in `src/anatomy/sources.ts`.
+Licensing details are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-This project was inspired by the following projects, but no code was copied.
+## 資料來源 · Data sources
 
-## 相關專案 / Related Projects
+- **MNI ICBM 152 Nonlinear Asymmetric 2009c template (via TemplateFlow)** — McGill/MNI permissive licence (copyright notice required). Copyright (C) 1993–2004 Louis Collins, McConnell Brain Imaging Centre, Montreal Neurological Institute, McGill University. Fonov V et al., NeuroImage 2011;54:313–327; Fonov V et al., NeuroImage 2009;47:S102. Distributed through TemplateFlow (Ciric R et al., Nat Methods 2022). <https://www.templateflow.org/>
+  - 大腦、小腦、腦幹與深部核團的 3D 表面（由機率圖與分割結果以 marching cubes 產生、簡化）。
+  - Surfaces of the cerebrum, cerebellum, brainstem and deep nuclei (marching-cubes meshes, decimated).
+- **DKT31 cortical labels in MNI152NLin2009cAsym (Mindboggle OASIS-TRT-20 joint fusion)** — CC BY 4.0. Klein A, Tourville J. 101 labeled brain images and a consistent human cortical labeling protocol. Front Neurosci 2012;6:171. Mindboggle-101 (Zenodo). <https://mindboggle.info/data>
+  - 皮質腦迴分區（決定每個表面點屬於哪個功能腦區）。
+  - Cortical gyral parcellation (assigns each surface point to a functional region).
+- **FreeSurfer aseg segmentation of MNI152NLin2009cAsym (TemplateFlow)** — Template licence (McGill/MNI notice). Fischl B et al. Neuron 2002;33:341–355 (FreeSurfer). Provided by TemplateFlow. <https://www.templateflow.org/>
+  - 深部構造（視丘、尾狀核、殼核、蒼白球、海馬迴、杏仁核）與腦幹、小腦的分割。
+  - Segmentation of deep nuclei, brainstem and cerebellum.
+- **MIAL67 probabilistic atlas of thalamic nuclei** — CC BY 4.0. Najdenovska E et al. In-vivo probabilistic atlas of human thalamic nuclei based on diffusion-weighted MRI. Sci Data 2018;5:180270. <https://doi.org/10.5281/zenodo.1241074>
+  - 把視丘分成前部、旁正中、腹外側、後部等血管供應區。
+  - Splits the thalamus into anterior, paramedian, ventrolateral and posterior vascular territories.
+- **Digital 3D Brain MRI Arterial Territories Atlas** — CC BY-SA 4.0. Digital 3D Brain MRI Arterial Territories Atlas © 2021 The Johns Hopkins University. Liu CF, Hsu J, Xu X, et al. Sci Data 2023;10:74. <https://github.com/Chin-Fu-Liu/Arterial_Atlas>
+  - 每個腦組織體素的動脈供應區（前、中、後大腦動脈各分部、豆紋、脈絡叢、小腦動脈），並據此找出分水嶺區。
+  - Arterial territory of every tissue voxel (ACA, MCA and PCA subdivisions, lenticulostriate, choroidal, cerebellar), and the border zones between them.
+- **Statistical atlas of cerebral arteries (multi-centre MRA)** — CC0 1.0. Mouches P, Forkert ND. A statistical atlas of cerebral arteries generated using multi-center MRA datasets from healthy subjects. Sci Data 2019;6:29. <https://doi.org/10.6084/m9.figshare.c.4215089>
+  - 把手繪的血管中心線校正到統計上真實的血管位置（Willis 環、基底動脈、椎動脈、M1、A1/A2、P1/P2 等）。
+  - Snaps hand-authored centrelines onto statistically real artery positions (circle of Willis, basilar, vertebral, M1, A1/A2, P1/P2 …).
 
-### 1. neuroaxis-atlas
-- **專案網址 / URL**: https://github.com/linkbag/neuroaxis-atlas
-- **授權 / License**: MIT
-- **說明 / Description**: 神經軸解剖地圖集 / Neuroanatomical atlas
+## 醫學與生理文獻 · Scientific references
 
-### 2. brain-game
-- **專案網址 / URL**: https://github.com/Rickaym/brain-game
-- **授權 / License**: MIT (code), CC BY-SA (model)
-- **說明 / Description**: 3D 大腦遊戲，包含大腦模型 / 3D brain game with brain model
+Thresholds, time courses and syndrome definitions in `src/engine/` and `src/anatomy/` are simplified from:
 
-### 3. WillisWorks
-- **專案網址 / URL**: https://github.com/abhogal-lab/WillisWorks
-- **授權 / License**: GPL-3.0
-- **說明 / Description**: Willis 環血流模擬 / Circle of Willis blood flow simulation
+- Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)
+- Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.
+- Campbell BCV et al. Cerebral blood flow is the optimal CT perfusion parameter for assessing infarct core. Stroke 2011;42:3435–3440.
+- Saver JL. Time is brain—quantified. Stroke 2006;37:263–266.
+- Albers GW et al. Magnetic resonance imaging profiles predict clinical response to early reperfusion: the DEFUSE study. Ann Neurol 2006;60:508–517.
+- Davis SM et al. Effects of alteplase beyond 3 h after stroke in the Echoplanar Imaging Thrombolytic Evaluation Trial (EPITHET). Lancet Neurol 2008;7:299–309.
+- Oppenheim C et al. Prediction of malignant middle cerebral artery infarction by diffusion-weighted imaging. Stroke 2000;31:2175–2181.
+- Vahedi K et al. Early decompressive surgery in malignant infarction of the middle cerebral artery: a pooled analysis of three randomised controlled trials. Lancet Neurol 2007;6:215–222.
+- Wijdicks EFM et al. Recommendations for the management of cerebral and cerebellar infarction with swelling. Stroke 2014;45:1222–1238.
+- Krabbe-Hartkamp MJ et al. Circle of Willis: morphologic variation on three-dimensional time-of-flight MR angiograms. Radiology 1998;207:103–111.
+- Hindenes LB et al. Variations in the circle of Willis in a large population sample using 3D TOF angiography: the Tromsø Study. PLoS One 2020;15:e0241373.
+- Dirnagl U, Iadecola C, Moskowitz MA. Pathobiology of ischaemic stroke: an integrated view. Trends Neurosci 1999;22:391–397.
+- Pantano P, Baron JC et al. Crossed cerebellar diaschisis. Brain 1986;109:677–694.
+- Kuhn MJ et al. Wallerian degeneration after cerebral infarction: evaluation with sequential MR imaging. Radiology 1989;172:179–182.
+- Thomalla G et al. DTI detects early Wallerian degeneration of the pyramidal tract after ischemic stroke. NeuroImage 2004;22:1767–1774.
+- Goto N, Kaneko M. Olivary enlargement: chronological and morphometric analyses. Acta Neuropathol 1981;54:275–282.
+- Kitajima M et al. Hypertrophic olivary degeneration: MR imaging and pathologic findings. Radiology 1994;192:539–543.
+- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of the human brain. Neurology 1998;50:1699–1708 (and brainstem & cerebellum, Neurology 1996;47:1125–1135).
+- Schmahmann JD. Vascular syndromes of the thalamus. Stroke 2003;34:2264–2278.
+- Fiester P, Rao D, Soule E et al. Anatomic, functional, and radiographic review of the brainstem. RadioGraphics 2019 (brainstem syndrome framing, also used by neuroaxis-atlas, MIT).
+- Brott T et al. Measurements of acute cerebral infarction: a clinical examination scale (NIHSS). Stroke 1989;20:864–870.
+- Donnan GA et al. Striatocapsular infarction: clinical and radiological features. Brain 1991;114:51–70.
+- Parvizi J, Damasio AR. Neuroanatomical correlates of brainstem coma. Brain 2003;126:1524–1536.
+- Goyal M et al. Endovascular treatment of stroke due to medium-vessel occlusion (ESCAPE-MeVO). N Engl J Med 2025;392:1385–1395.
+- Psychogios M et al. Endovascular treatment for stroke due to occlusion of medium or distal vessels (DISTAL). N Engl J Med 2025;392:1374–1384.
 
-## 可用的開放醫學 3D 模型資源
-## Available Open Medical 3D Model Resources
+## 參考的開源專案（未複製程式碼）· Open-source projects consulted (no code copied)
 
-### BodyParts3D 4.0
-- **網址 / URL**: https://lifesciencedb.jp/bp3d/
-- **授權 / License**: CC BY 4.0
-- **說明 / Description**: 
-  - 日本生命科學資料庫中心提供的人體 3D 解剖模型
-  - Human anatomical 3D models from Japan's Life Science Database Center
-  - 可以直接替換本專案的程序化幾何
-  - Can directly replace procedural geometry in this project
+- [openBF (INSIGNEO)](https://github.com/INSIGNEO/openBF) — Apache-2.0
+  - 參考其 Alastruey 2007 Willis 環模型的血管半徑與長度；未複製程式碼。
+  - Vessel radii/lengths of its Alastruey 2007 circle-of-Willis model used as reference; no code copied.
+- [WillisWorks](https://github.com/abhogal-lab/WillisWorks) — GPL-3.0
+  - 啟發了自動調節、竊血與側枝的教學呈現方式；因授權不相容，只參考概念、未使用任何程式碼。
+  - Inspired the teaching presentation of autoregulation, steal and collaterals; concepts only — no code used (licence incompatible).
+- [neuroaxis-atlas](https://github.com/linkbag/neuroaxis-atlas) — MIT
+  - 參考其腦幹症候群卡片與資料來源標示方式。
+  - Its brainstem syndrome cards and attribution practice informed ours.
+- [brain-game](https://github.com/Rickaym/brain-game) — MIT (code)
+  - 參考其腦區—動脈對照與中風模擬的教學構想；其 3D 模型為 CC BY-SA 2.1 JP，本專案未使用。
+  - Its region–artery mapping and stroke-simulator ideas informed ours; its 3D model (CC BY-SA 2.1 JP) is not used here.
 
-## 臨床資料來源 / Clinical Data Sources
+## 免責聲明 · Disclaimer
 
-**重要免責聲明 / Important Disclaimer**: 
-本專案中的所有臨床資料僅供教育用途，且是簡化的版本。實際臨床表現因人而異。
-
-All clinical data in this project is for educational purposes only and represents simplified versions. Actual clinical presentations vary by individual.
-
-- TODO(medical-review): 所有臨床事實需要醫療專業人員審查
-- TODO(medical-review): All clinical facts require review by medical professionals
-
-## 引用格式建議 / Suggested Citation Format
-
-如果您在學術或教育環境中使用本專案，請考慮引用：
-
-If you use this project in academic or educational settings, please consider citing:
-
-```
-Brain Vessel Interactive Map (2026)
-https://github.com/yourusername/brain-vessel-map
-Educational 3D cerebrovascular visualization tool
-License: MIT
-```
-
-## 貢獻與改進 / Contributing Improvements
-
-我們歡迎：
-- 更準確的解剖學資料
-- 醫療專業人員的審查
-- 真實 3D 模型的整合
-- 翻譯改進
-
-We welcome:
-- More accurate anatomical data
-- Review by medical professionals
-- Integration of real 3D models
-- Translation improvements
-
-請參閱 ROADMAP.md 以了解計劃的改進項目。
-
-See ROADMAP.md for planned improvements.
+本專案的臨床內容是為了教育目的而簡化的整理，未經臨床醫師正式審閱；實際臨床表現因人而異。
+The clinical content is a simplified educational synthesis and has not been formally reviewed by clinicians; real presentations vary.
