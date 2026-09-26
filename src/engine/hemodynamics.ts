@@ -31,6 +31,11 @@ export interface Occlusion {
   vessel: string;
   /** 1 = complete occlusion; <1 = diameter stenosis fraction (e.g. 0.7 = 70 %) */
   severity: number;
+  /**
+   * only ONE branch of a perforator bundle is blocked (a lacune): no measurable change in
+   * flow, handled by the tissue model (see anatomy/lacunes.ts)
+   */
+  branch?: boolean;
 }
 
 export interface HemoInput {
@@ -392,7 +397,8 @@ function stenosedG(v: Vessel, g0: number, severity: number, radiusScale: number)
 const resultCache = new Map<string, HemoResult>();
 
 export function hemoKey(input: HemoInput): string {
-  const occ = [...input.occlusions]
+  const occ = input.occlusions
+    .filter((o) => !o.branch)
     .sort((a, b) => a.vessel.localeCompare(b.vessel))
     .map((o) => `${o.vessel}:${o.severity}`)
     .join(',');
@@ -414,6 +420,7 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   const gOverride = new Map<string, number>();
   const dead = new Set<string>();
   for (const o of input.occlusions) {
+    if (o.branch) continue;
     const g0 = cfg.vesselG.get(o.vessel);
     const v = VESSEL_BY_ID[o.vessel];
     if (g0 === undefined || !v) continue;

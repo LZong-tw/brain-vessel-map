@@ -92,7 +92,7 @@ export function ClotMarkers({ sim }: { sim: SimResult }) {
         if (v.group === 'extracranial' && !layers.neck) return null;
         const p = vesselCurve(v).getPointAt(0.5);
         const r = Math.max(v.r * 1.6, 0.9) * SCALE;
-        return o.severity >= 1 ? (
+        return o.severity >= 1 && !o.branch ? (
           <mesh key={o.vessel} position={p} renderOrder={4}>
             <sphereGeometry args={[r, 20, 14]} />
             <meshStandardMaterial color="#5c0a14" emissive="#ff2a4a" emissiveIntensity={0.55} roughness={0.6} />

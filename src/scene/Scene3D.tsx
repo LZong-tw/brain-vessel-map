@@ -121,7 +121,7 @@ export function Scene3D({ sim }: { sim: SimResult }) {
         <OrbitControls makeDefault target={BRAIN_CENTER} enableDamping dampingFactor={0.08} minDistance={4} maxDistance={70} />
         <CameraRig />
         {data && <BrainMeshes data={data} sim={sim} clipPlanes={clipPlanes} />}
-        <Vessels sim={sim} />
+        <Vessels sim={sim} clipPlanes={clipPlanes} />
         <ExtraStructures sim={sim} />
         <ClotMarkers sim={sim} />
         <FlowParticles sim={sim} />

@@ -1376,6 +1376,29 @@ export const VESSEL_DEFS: VesselDef[] = [
     pathMode: 'free',
   }),
   bi({
+    id: 'pontine_paramedian_inferior',
+    name: { zh: '橋腦最下部旁正中穿通支', en: 'Inferior pontine paramedian perforators' },
+    desc: {
+      zh: '由基底動脈下段（兩條椎動脈匯合後、小腦前下動脈之前）穿入橋腦下緣。基底動脈近端阻塞時，即使後交通動脈把血逆送回來，這些分支仍會一起被堵住。',
+      en: 'Enter the lowest pons from the lower basilar (between the vertebral confluence and the AICAs). In a proximal basilar occlusion they are cut off even when the posterior communicating arteries refill the basilar from above.',
+    },
+    kind: 'perforator',
+    group: 'posterior',
+    family: 'BA',
+    from: 'basilar_lower@mid',
+    to: 'ppi_end_{s}',
+    parent: 'basilar_lower',
+    r: 0.22,
+    n: 3,
+    path: [
+      [0, -19.7, -47.5],
+      [2.5, -22, -47],
+      [3.5, -28, -45.5],
+      [4, -33, -44],
+    ],
+    pathMode: 'deep',
+  }),
+  bi({
     id: 'pontine_paramedian_caudal',
     name: { zh: '橋腦下部旁正中穿通支', en: 'Caudal pontine paramedian perforators' },
     desc: {

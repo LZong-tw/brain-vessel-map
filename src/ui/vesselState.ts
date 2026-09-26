@@ -29,7 +29,7 @@ export function vesselVisual(id: string, sim: SimResult): VesselVisual {
   const baseline = sim.hemo.baselineFlow[id] ?? 0;
   const ratio = Math.abs(baseline) > 0.2 ? Math.abs(flow) / Math.abs(baseline) : Math.abs(flow) > 0.2 ? 2 : 1;
   if (v?.visualOnly) return { state: 'normal', flow, baseline, ratio: 1, color: VESSEL_COLORS.artery };
-  if (occ && occ.severity >= 1) return { state: 'occluded', flow, baseline, ratio: 0, color: VESSEL_COLORS.occluded };
+  if (occ && occ.severity >= 1 && !occ.branch) return { state: 'occluded', flow, baseline, ratio: 0, color: VESSEL_COLORS.occluded };
   if (v?.kind === 'collateral') {
     // collaterals carry a trickle at baseline; "active" means recruited well beyond that
     const active = Math.abs(flow) > 1 && Math.abs(flow - baseline) > 1;

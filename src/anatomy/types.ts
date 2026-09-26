@@ -132,8 +132,6 @@ export type RegionCategory =
   | 'spinal'
   | 'extracranial';
 
-export type Level = 'midbrain' | 'pons_rostral' | 'pons_caudal' | 'medulla';
-
 export interface SupplyDef {
   /** vessel id (with `{s}` / `{o}` placeholders) */
   v: string;
@@ -162,6 +160,8 @@ export interface DeficitRef {
   sev?: 1 | 2 | 3;
   /** requires bilateral involvement of this region to appear */
   bilateralOnly?: boolean;
+  /** a lacune in this structure usually spares this function (e.g. sensation in a capsular pure motor lacune) */
+  spareInLacune?: boolean;
 }
 
 export interface StructureInfo {
@@ -177,7 +177,6 @@ export interface RegionDef {
   nameBySide?: Partial<Record<Side, L>>;
   func: L;
   category: RegionCategory;
-  level?: Level;
   /** baseline blood flow density, mL/100 g/min */
   cbf: number;
   /**

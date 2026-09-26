@@ -587,7 +587,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'face_weak', lat: 'contra', sev: 3 },
       { s: 'arm_weak', lat: 'contra', sev: 3 },
       { s: 'leg_weak', lat: 'contra', sev: 3 },
-      { s: 'sens_hemibody', lat: 'contra', sev: 1 },
+      // thalamocortical fibres run in the posterior third; the classic lacune spares them
+      { s: 'sens_hemibody', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'spasticity', lat: 'contra', sev: 2 },
     ],
     compartment: 'supra',
@@ -641,8 +642,9 @@ export const REGION_DEFS: RegionDef[] = [
     supply: [{ v: 'thalamogeniculate_{s}', share: 1 }],
     deficits: [
       { s: 'sens_hemibody', lat: 'contra', sev: 3 },
-      { s: 'ataxia_limb', lat: 'contra', sev: 1 },
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
+      // a sensory lacune sits in VPL/VPM; the motor thalamus (VL) is usually spared
+      { s: 'ataxia_limb', lat: 'contra', sev: 1, spareInLacune: true },
+      { s: 'movement_disorder', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'central_pain', lat: 'contra', sev: 2 },
     ],
     compartment: 'supra',
@@ -723,7 +725,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'All descending motor fibres pass here; oculomotor nerve fibres exit through it.',
     },
     category: 'brainstem',
-    level: 'midbrain',
     cbf: BS_CBF,
     supply: [
       { v: 'mesencephalic_perf_{s}', share: 0.4 },
@@ -752,7 +753,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Oculomotor nucleus, red nucleus, vertical gaze centres and the arousal (reticular) system.',
     },
     category: 'brainstem',
-    level: 'midbrain',
     cbf: BS_CBF,
     supply: [
       { v: 'mesencephalic_perf_{s}', share: 0.7 },
@@ -785,7 +785,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Ascending sensory pathways (pain, temperature, position) and descending sympathetic fibres.',
     },
     category: 'brainstem',
-    level: 'midbrain',
     cbf: BS_CBF,
     supply: [
       { v: 'quadrigeminal_{s}', share: 0.4 },
@@ -814,7 +813,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Visual and auditory reflexes, orienting, pupillary light reflex and upgaze.',
     },
     category: 'brainstem',
-    level: 'midbrain',
     cbf: BS_CBF,
     supply: [
       { v: 'quadrigeminal_{s}', share: 0.6 },
@@ -843,7 +841,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Descending motor fibres and the pontine nuclei relaying cortex to cerebellum.',
     },
     category: 'brainstem',
-    level: 'pons_rostral',
     cbf: BS_CBF,
     supply: [{ v: 'pontine_paramedian_rostral_{s}', share: 1 }],
     structures: [
@@ -870,7 +867,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'MLF (yokes the eyes), pontine reticular activating system and locus coeruleus (arousal).',
     },
     category: 'brainstem',
-    level: 'pons_rostral',
     cbf: BS_CBF,
     supply: [
       { v: 'pontine_paramedian_rostral_{s}', share: 0.7 },
@@ -897,7 +893,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Trigeminal nuclei (facial sensation, chewing), superior cerebellar peduncle (cerebellar output) and ascending sensory tracts.',
     },
     category: 'brainstem',
-    level: 'pons_rostral',
     cbf: BS_CBF,
     supply: [
       { v: 'sca_{s}', share: 0.75, at: 'mid' },
@@ -928,9 +923,11 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Descending motor fibres; the abducens nerve fascicles exit through here.',
     },
     category: 'brainstem',
-    level: 'pons_caudal',
     cbf: BS_CBF,
-    supply: [{ v: 'pontine_paramedian_caudal_{s}', share: 1 }],
+    supply: [
+      { v: 'pontine_paramedian_caudal_{s}', share: 0.65 },
+      { v: 'pontine_paramedian_inferior_{s}', share: 0.35 },
+    ],
     structures: [
       { name: { zh: '皮質脊髓徑', en: 'Corticospinal tract' }, role: { zh: '對側肢體運動', en: 'Opposite limb movement' } },
       { name: { zh: '外展神經纖維', en: 'Abducens (CN VI) fascicles' }, role: { zh: '同側眼球外展', en: 'Same-side eye abduction' } },
@@ -955,10 +952,10 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Horizontal gaze centre (abducens nucleus, PPRF) and the facial nerve genu (facial colliculus).',
     },
     category: 'brainstem',
-    level: 'pons_caudal',
     cbf: BS_CBF,
     supply: [
-      { v: 'pontine_paramedian_caudal_{s}', share: 0.6 },
+      { v: 'pontine_paramedian_caudal_{s}', share: 0.45 },
+      { v: 'pontine_paramedian_inferior_{s}', share: 0.15 },
       { v: 'pontine_circumferential_{s}', share: 0.4 },
     ],
     structures: [
@@ -984,7 +981,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Facial nucleus, vestibular and cochlear nuclei, spinal trigeminal nucleus, middle cerebellar peduncle.',
     },
     category: 'brainstem',
-    level: 'pons_caudal',
     cbf: BS_CBF,
     supply: [
       { v: 'aica_{s}', share: 0.75, at: 'mid' },
@@ -1019,7 +1015,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Pyramid (motor fibres before they cross), medial lemniscus and hypoglossal nucleus; the inferior olive, ventrolaterally, is also fed from the front (anterior spinal / vertebral branches).',
     },
     category: 'brainstem',
-    level: 'medulla',
     cbf: BS_CBF,
     supply: [
       { v: 'asa_root_{s}', share: 0.8, at: 'mid' },
@@ -1048,7 +1043,6 @@ export const REGION_DEFS: RegionDef[] = [
       en: 'Swallowing and voice (nucleus ambiguus), pain/temperature pathways, balance (vestibular nuclei), sympathetic fibres, hiccup and vomiting centres — a wedge lying behind the inferior olive.',
     },
     category: 'brainstem',
-    level: 'medulla',
     cbf: BS_CBF,
     supply: [
       { v: 'lat_medullary_perf_{s}', share: 0.72 },

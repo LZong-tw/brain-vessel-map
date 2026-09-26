@@ -4,6 +4,8 @@
  * Hash-based so it works on GitHub Pages without server routing.
  */
 
+import { VESSEL_BY_ID } from '../anatomy';
+import { canBeLacunar } from '../anatomy/lacunes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { VARIANT_BY_ID } from '../anatomy/variants';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
@@ -15,7 +17,7 @@ export function encodeState(s: AppState): string {
   const q = new URLSearchParams();
   if (s.scenario) q.set('s', s.scenario);
   if (s.occlusions.length)
-    q.set('o', s.occlusions.map((o) => (o.severity >= 1 ? o.vessel : `${o.vessel}:${o.severity}`)).join(','));
+    q.set('o', s.occlusions.map((o) => (o.branch ? `${o.vessel}:b` : o.severity >= 1 ? o.vessel : `${o.vessel}:${o.severity}`)).join(','));
   if (s.variants.length) q.set('v', s.variants.join(','));
   if (s.collateral !== 'good') q.set('c', s.collateral);
   if (s.map !== 93) q.set('p', String(s.map));
@@ -82,8 +84,16 @@ export function applyHash(hash: string) {
     patch.occlusions = [];
     for (const part of o.split(',')) {
       const [vessel, sevRaw] = part.split(':');
+      if (!isOccludable(vessel) || seen.has(vessel)) continue;
+      if (sevRaw === 'b') {
+        const v = VESSEL_BY_ID[vessel];
+        if (!canBeLacunar(v.baseId, v.n)) continue;
+        seen.add(vessel);
+        patch.occlusions.push({ vessel, severity: 1, branch: true });
+        continue;
+      }
       const sev = sevRaw === undefined ? 1 : Number(sevRaw);
-      if (!isOccludable(vessel) || seen.has(vessel) || !Number.isFinite(sev)) continue;
+      if (!Number.isFinite(sev)) continue;
       seen.add(vessel);
       patch.occlusions.push({ vessel, severity: Math.min(1, Math.max(0.3, sev)) });
     }
