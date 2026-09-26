@@ -119,12 +119,15 @@ describe('classic syndromes', () => {
     ['mid basilar', { occlusions: occl('basilar_mid') }, 'locked_in'],
     ['left AICA', { occlusions: occl('aica_l'), collateral: 'moderate' }, 'aica_l'],
     ['right SCA', { occlusions: occl('sca_r'), collateral: 'poor' }, 'sca_r'],
-    ['left lenticulostriate', { occlusions: occl('lenticulostriate_l') }, 'lacunar_pure_motor_l'],
+    ['left lenticulostriate group', { occlusions: occl('lenticulostriate_l') }, 'striatocapsular_l'],
     ['left thalamogeniculate', { occlusions: occl('thalamogeniculate_l') }, 'thalamic_sensory_l'],
     ['right AChA', { occlusions: occl('acha_r') }, 'acha_r'],
     ['Percheron', { occlusions: occl('thalamoperforator_r'), variants: ['percheron_r'] }, 'thalamic_paramedian_bilateral'],
     ['right ophthalmic', { occlusions: occl('ophthalmic_r') }, 'amaurosis_r'],
-    ['left pontine perforator', { occlusions: occl('pontine_paramedian_caudal_l') }, 'pontine_ventral_l'],
+    ['left pontine perforator', { occlusions: occl('pontine_paramedian_caudal_l') }, 'foville_l'],
+    ['right pontine circumferential', { occlusions: occl('pontine_circumferential_r') }, 'one_and_half_r'],
+    ['right mesencephalic perforators', { occlusions: occl('mesencephalic_perf_r') }, 'weber_benedikt_r'],
+    ['right ACA, poor collaterals', { occlusions: occl('aca_a2_r'), collateral: 'poor' }, 'aca_r'],
   ];
   it.each(cases)('%s', (_n, input, expected) => {
     expect(syndromeIds(sim(input))).toContain(expected);
@@ -147,6 +150,37 @@ describe('classic syndromes', () => {
     const r = sim({ occlusions: occl('pontine_paramedian_caudal_l') });
     expect(r.symptoms.find((s) => s.id === 'cn6_palsy')?.side).toBe('l');
     expect(r.symptoms.find((s) => s.id === 'arm_weak')?.side).toBe('r');
+  });
+});
+
+describe('clinical details that are easy to get wrong', () => {
+  const symptomIds = (r: ReturnType<typeof simulate>) => r.symptoms.map((x) => x.id + (x.side ? `(${x.side})` : ''));
+
+  it('a capsular infarct causes no visual field loss', () => {
+    expect(symptomIds(sim({ occlusions: occl('lenticulostriate_l') })).some((x) => x.startsWith('hemianopia'))).toBe(false);
+  });
+
+  it('locked-in patients are awake', () => {
+    const r = sim({ occlusions: occl('basilar_mid') });
+    expect(syndromeIds(r)).toContain('locked_in');
+    expect(r.symptoms.map((x) => x.id)).not.toContain('coma');
+  });
+
+  it('midbrain crossed syndrome: ipsilateral CN III, contralateral limbs', () => {
+    const ids = symptomIds(sim({ occlusions: occl('mesencephalic_perf_r') }));
+    expect(ids).toEqual(expect.arrayContaining(['cn3_palsy(r)', 'arm_weak(l)', 'leg_weak(l)']));
+  });
+
+  it('an occipital-pole lesion alone gives a central scotoma, not a hemianopia', () => {
+    const ids = symptomIds(sim({ occlusions: occl('pca_p2_l'), collateral: 'moderate' }));
+    expect(ids).toContain('central_scotoma(r)');
+  });
+
+  it('hydrocephalus causes drowsiness and upgaze palsy, not bilateral horizontal gaze palsy', () => {
+    const r = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 });
+    const ids = symptomIds(r);
+    expect(ids).toEqual(expect.arrayContaining(['coma', 'upgaze_palsy']));
+    expect(ids).not.toContain('gaze_palsy_horizontal(l)');
   });
 });
 
@@ -191,7 +225,8 @@ describe('downstream cascade', () => {
   it('predicts hypertrophic olivary degeneration after dentate infarction', () => {
     const r = sim({ occlusions: occl('sca_r'), collateral: 'poor', tH: 2160 });
     expect(r.cascade.events.map((e) => e.id)).toContain('hod_r');
-    expect(r.regions.medulla_lateral_l.effect).toBe('degeneration');
+    // the olive lies in the anterior (medial) medullary territory
+    expect(r.regions.medulla_medial_l.effect).toBe('degeneration');
   });
 });
 

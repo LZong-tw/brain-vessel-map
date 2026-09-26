@@ -122,7 +122,7 @@ export const SCENARIOS: Scenario[] = [
       en: 'Left leg weaker than arm, incontinence, abulia. Low NIHSS yet disabling.',
     },
     occlusions: [{ vessel: 'aca_a2_r', severity: 1 }],
-    collateral: 'moderate',
+    collateral: 'poor',
     tH: 24,
     view: 'top',
   },
@@ -141,10 +141,10 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'l_lsa',
     group: 'deep',
-    title: { zh: '左豆紋動脈：腔隙性純運動中風', en: 'Left lenticulostriate: pure motor lacune' },
+    title: { zh: '左豆紋動脈群：紋狀體內囊梗塞', en: 'Left lenticulostriate arteries: striatocapsular infarct' },
     summary: {
-      zh: '高血壓小血管病變的典型：右臉、手、腳同等無力，沒有失語或感覺障礙。',
-      en: 'Classic hypertensive small-vessel disease: equal right face–arm–leg weakness, no aphasia or sensory loss.',
+      zh: '這裡把整群豆紋動脈一起阻塞：殼核、尾狀核與內囊梗塞，右側偏癱為主。只塞住其中一條小分支才是「腔隙性」純運動中風（臉、手、腳同等無力）——本模型把豆紋動脈當成一束，無法細分到單一分支。',
+      en: 'Here the whole lenticulostriate group is blocked: putamen, caudate and internal capsule infarct with mainly right hemiparesis. Blocking just one small branch would give a lacunar pure motor stroke (equal face–arm–leg weakness) — the model treats the lenticulostriates as one bundle and cannot resolve single branches.',
     },
     occlusions: [{ vessel: 'lenticulostriate_l', severity: 1 }],
     tH: 24,
@@ -270,10 +270,10 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'l_pontine',
     group: 'posterior',
-    title: { zh: '左橋腦旁正中穿通支：交叉性癱瘓', en: 'Left pontine perforator: crossed paralysis' },
+    title: { zh: '左橋腦旁正中穿通支：交叉性癱瘓（Foville）', en: 'Left pontine perforator: crossed paralysis (Foville)' },
     summary: {
-      zh: '左眼無法外轉、左臉麻痺，右側手腳癱瘓——腦神經在病灶側、肢體在對側。',
-      en: 'Left eye cannot abduct, left face palsy, right limbs paralysed — cranial nerves on the lesion side, limbs on the other.',
+      zh: '雙眼無法看向左邊（水平凝視麻痺）、左臉整側麻痺，右側手腳癱瘓——腦神經徵象在病灶側、肢體在對側。',
+      en: 'Neither eye can look to the left (horizontal gaze palsy), whole left face paralysed, right limbs weak — cranial-nerve signs on the lesion side, limbs on the other.',
     },
     occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1 }],
     tH: 24,
@@ -360,10 +360,10 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'amaurosis',
     group: 'haemodynamic',
-    title: { zh: '右眼動脈栓塞：一過性黑矇', en: 'Right ophthalmic embolism: amaurosis fugax' },
+    title: { zh: '右眼動脈栓塞：單眼突然失明', en: 'Right ophthalmic embolism: sudden monocular blindness' },
     summary: {
-      zh: '頸動脈的小栓子先到眼睛：右眼突然看不見，是腦中風的警訊。',
-      en: 'A small carotid embolus reaches the eye first: sudden right-eye blindness, a warning of stroke.',
+      zh: '頸動脈的小栓子先到眼睛：右眼突然看不見。幾分鐘內自行恢復叫「一過性黑矇」（眼睛的暫時性缺血），持續不退則是視網膜中央動脈阻塞——兩者都是腦中風的警訊，要當急症處理。本模型用腦組織的時間常數，視網膜實際能撐得稍久（約 1.5–4 小時）。',
+      en: 'A small carotid embolus reaches the eye first: sudden right-eye blindness. If it clears within minutes it is amaurosis fugax (a TIA of the eye); if it persists it is a central retinal artery occlusion — both are stroke warnings and emergencies. The model uses brain-tissue time constants; the retina actually tolerates somewhat longer (~1.5–4 h).',
     },
     occlusions: [{ vessel: 'ophthalmic_r', severity: 1 }],
     tH: 1,

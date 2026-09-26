@@ -57,7 +57,7 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'ica_territory',
     group: 'anterior',
     lateral: true,
-    name: { zh: '內頸動脈末端（前＋中大腦動脈）梗塞', en: 'Carotid-T infarction (ACA + MCA territories)' },
+    name: { zh: '內頸動脈供應區梗塞（前＋中大腦動脈區）', en: 'ICA-territory infarction (ACA + MCA territories)' },
     desc: {
       zh: '前、中大腦動脈區同時受損：對側完全偏癱（腿也重）、半身感覺喪失、偏盲、雙眼偏向病灶側；左側常合併全面性失語，右側合併嚴重忽略。水腫風險極高。',
       en: 'Both ACA and MCA territories: dense contralateral hemiplegia including the leg, hemisensory loss, hemianopia, gaze deviation; global aphasia (left) or severe neglect (right). Very high oedema risk.',
@@ -228,6 +228,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides.',
     },
     test: (c) => c.both('thalamus_paramedian', 0.3),
+    supersedes: ['claude', 'weber_benedikt'],
   },
   {
     id: 'top_of_basilar',
@@ -245,8 +246,8 @@ export const SYNDROMES: SyndromeDef[] = [
         c.both('midbrain_peduncle', 0.3)),
     supersedes: [
       'thalamic_paramedian_bilateral',
-      'weber',
-      'benedikt_claude',
+      'weber_benedikt',
+      'claude',
       'parinaud',
       'thalamic_sensory',
       'lacunar_pure_sensory',
@@ -257,25 +258,25 @@ export const SYNDROMES: SyndromeDef[] = [
 
   // ─────────────── midbrain ───────────────
   {
-    id: 'weber',
+    id: 'weber_benedikt',
     group: 'brainstem',
     lateral: true,
-    name: { zh: 'Weber 症候群（中腦腹側）', en: 'Weber syndrome (ventral midbrain)' },
+    name: { zh: 'Weber／Benedikt 症候群（中腦腹側＋旁正中）', en: 'Weber / Benedikt syndrome (ventral + paramedian midbrain)' },
     desc: {
-      zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱。典型「交叉性」表現：腦神經症狀在病灶同側、肢體症狀在對側——腦幹中風的招牌特徵。',
-      en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiplegia. A classic "crossed" pattern — cranial-nerve signs on the lesion side, limb signs on the other — the hallmark of brainstem stroke.',
+      zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱：典型的「交叉性」腦幹中風。只傷到大腦腳與動眼神經束是 Weber；紅核也受損時對側再加上顫抖、不自主運動與運動失調，稱為 Benedikt。本模型的中腦分區無法把紅核和動眼神經束完全分開。',
+      en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral tremor, involuntary movements and ataxia are added (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
     },
     test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25),
-    supersedes: ['benedikt_claude'],
+    supersedes: ['claude'],
   },
   {
-    id: 'benedikt_claude',
+    id: 'claude',
     group: 'brainstem',
     lateral: true,
-    name: { zh: 'Benedikt／Claude 症候群（中腦被蓋）', en: 'Benedikt / Claude syndrome (midbrain tegmentum)' },
+    name: { zh: 'Claude 症候群（中腦被蓋）', en: 'Claude syndrome (midbrain tegmentum)' },
     desc: {
-      zh: '同側動眼神經麻痺＋對側顫抖與運動失調（紅核與小腦傳出路徑受損）。',
-      en: 'Ipsilateral oculomotor palsy + contralateral tremor and ataxia (red nucleus and cerebellar outflow).',
+      zh: '同側動眼神經麻痺＋對側運動失調（紅核與上小腦腳傳出纖維），沒有偏癱。',
+      en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis.',
     },
     test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3),
   },
@@ -302,7 +303,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking. Typical of mid-basilar occlusion; easily mistaken for coma.',
     },
     test: (c) => c.both('pons_rostral_basis', 0.4) || c.both('pons_caudal_basis', 0.4),
-    supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville', 'aica', 'sca'],
+    supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'],
   },
   {
     id: 'pontine_ventral',
@@ -320,12 +321,24 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'foville',
     group: 'brainstem',
     lateral: true,
-    name: { zh: 'Foville 症候群／一個半症候群（橋腦下部背側）', en: 'Foville / one-and-a-half syndrome (dorsal caudal pons)' },
+    name: { zh: 'Foville 症候群（橋腦下部）', en: 'Foville syndrome (caudal pons)' },
     desc: {
-      zh: '水平眼動中樞受損：雙眼無法轉向病灶側（凝視麻痺），合併內側縱束受損時連另一方向也只剩一眼能外轉（一個半症候群），並有同側整側臉麻痺。',
-      en: 'The horizontal gaze centre is hit: neither eye can look towards the lesion (gaze palsy); with MLF involvement only one eye can abduct in the other direction too (one-and-a-half syndrome), plus ipsilateral whole-face palsy.',
+      zh: '同側水平凝視麻痺（雙眼無法轉向病灶側）＋同側周邊型顏面麻痺＋對側偏癱：旁正中被蓋與腹側基底部同時受損。',
+      en: 'Ipsilateral horizontal gaze palsy (neither eye turns towards the lesion) + ipsilateral peripheral facial palsy + contralateral hemiparesis: paramedian tegmentum and ventral basis both involved.',
     },
-    test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3),
+    test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && c.has('pons_caudal_basis', s, 0.3),
+    supersedes: ['pontine_ventral', 'one_and_half', 'pontine_lacunar'],
+  },
+  {
+    id: 'one_and_half',
+    group: 'brainstem',
+    lateral: true,
+    name: { zh: '一個半症候群／八個半症候群（橋腦下部背側）', en: 'One-and-a-half / eight-and-a-half syndrome (dorsal caudal pons)' },
+    desc: {
+      zh: '外展神經核／PPRF 加上內側縱束受損：雙眼都無法轉向病灶側，轉向另一側時也只剩對側眼能外轉（一個半）；再加上同側顏面神經膝部受損就是「八個半」（1½ + 7）。沒有肢體無力。',
+      en: 'Abducens nucleus/PPRF plus MLF: neither eye looks towards the lesion, and looking away only the opposite eye abducts ("one-and-a-half"); add the ipsilateral facial genu and it becomes "eight-and-a-half" (1½ + 7). No limb weakness.',
+    },
+    test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && !c.has('pons_caudal_basis', s, 0.3),
   },
   {
     id: 'pontine_lacunar',
@@ -407,7 +420,7 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'PICA 小腦梗塞', en: 'PICA cerebellar infarction' },
     desc: {
-      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭晕合併無法站立或行走」要高度警覺。大範圍梗塞 1–3 天後可能腫脹壓迫腦幹。',
+      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。大範圍梗塞 1–3 天後可能腫脹壓迫腦幹。',
       en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. Large infarcts can swell and compress the brainstem after 1–3 days.',
     },
     test: (c, s) => c.hasAny(['cerebellum_posterior_inferior', 'vermis_inferior'], s, 0.3),
@@ -425,6 +438,22 @@ export const SYNDROMES: SyndromeDef[] = [
   },
 
   // ─────────────── lacunar (supratentorial) ───────────────
+  {
+    id: 'striatocapsular',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '紋狀體內囊梗塞', en: 'Striatocapsular infarction' },
+    desc: {
+      zh: '整群豆紋動脈（或 M1 起始處阻塞、皮質靠側枝撐住）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）。對側偏癱為主，常合併輕微的皮質徵象（左側失語、右側忽略）。',
+      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm). Mainly contralateral hemiparesis, often with subtle cortical signs (aphasia on the left, neglect on the right) — Donnan et al., Brain 1991.',
+    },
+    test: (c, s) =>
+      c.has('putamen', s, 0.4) &&
+      c.hasAny(['caudate_body', 'caudate_head'], s, 0.3) &&
+      c.hasAny(['ic_posterior_limb', 'ic_genu', 'ic_anterior_limb'], s, 0.3) &&
+      c.cortexCount(s, 0.3) === 0,
+    supersedes: ['lacunar_pure_motor', 'lacunar_sensorimotor'],
+  },
   {
     id: 'lacunar_pure_motor',
     group: 'lacunar',
@@ -471,8 +500,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '分水嶺（邊界區）缺血', en: 'Watershed (border-zone) ischaemia' },
     desc: {
-      zh: '兩條動脈末梢交界處血壓最低，當血壓下降或頸動脈嚴重狹窄時最先缺血。前分水嶺（前／中大腦動脈之間）常造成肩膀與大腿近端無力（「桶中人」）；後分水嶺（中／後大腦動脈之間）影響視覺與語言理解；內分水嶺在深部白質呈串珠狀。',
-      en: 'Where two arterial trees meet, pressure is lowest, so these zones fail first when blood pressure drops or the carotid is severely narrowed. The anterior watershed (ACA–MCA) gives proximal arm and thigh weakness ("man in a barrel"); the posterior (MCA–PCA) affects vision and comprehension; the internal watershed forms a string of deep white-matter lesions.',
+      zh: '兩條動脈末梢交界處血壓最低，當血壓下降或頸動脈嚴重狹窄時最先缺血。前分水嶺（前／中大腦動脈之間）造成對側肩膀與上臂近端無力、臉與手指相對保留，雙側時雙臂無力而雙腿正常（「桶中人」）；後分水嶺（中／後大腦動脈之間）影響視覺與語言理解；內分水嶺在深部白質呈串珠狀。',
+      en: 'Where two arterial trees meet, pressure is lowest, so these zones fail first when blood pressure drops or the carotid is severely narrowed. The anterior watershed (ACA–MCA) gives contralateral proximal arm/shoulder weakness with face and hand relatively spared; bilateral lesions weaken both arms with normal legs ("man in a barrel"); the posterior (MCA–PCA) affects vision and comprehension; the internal watershed forms a string of deep white-matter lesions.',
     },
     test: (c, s) => {
       const b = c.border(s);

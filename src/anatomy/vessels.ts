@@ -70,7 +70,7 @@ export const VESSEL_DEFS: VesselDef[] = [
   mid({
     id: 'subclavian_prox_r',
     name: { zh: '右鎖骨下動脈（近端）', en: 'Right subclavian artery (proximal)' },
-    abbr: 'SCA-sub',
+    abbr: 'SubA',
     desc: {
       zh: '供應右手臂，並分出右椎動脈。',
       en: 'Supplies the right arm and gives off the right vertebral artery.',
@@ -91,7 +91,7 @@ export const VESSEL_DEFS: VesselDef[] = [
   mid({
     id: 'subclavian_prox_l',
     name: { zh: '左鎖骨下動脈（近端）', en: 'Left subclavian artery (proximal)' },
-    abbr: 'SCA-sub',
+    abbr: 'SubA',
     desc: {
       zh: '直接由主動脈弓分出。近端阻塞時，左手臂會從左椎動脈「偷」血——鎖骨下竊血。',
       en: 'Arises directly from the arch. If blocked proximally, the left arm "steals" blood backwards down the left vertebral artery — subclavian steal.',
@@ -1655,7 +1655,7 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'posterior_choroidal',
     name: { zh: '後脈絡叢動脈', en: 'Posterior choroidal arteries' },
     desc: {
-      zh: '供應枕葉下方的視丘枕、外側膝狀體與脈絡叢；與前脈絡叢動脈相吻合。',
+      zh: '供應視丘枕、外側膝狀體與脈絡叢；與前脈絡叢動脈相吻合。',
       en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; anastomose with the anterior choroidal artery.',
     },
     kind: 'perforator',

@@ -320,8 +320,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'pain_temp_face',
     name: { zh: '臉部痛覺與溫度覺喪失', en: 'Loss of pain & temperature (face)' },
     desc: {
-      zh: '三叉神經脊髓束核受損，症狀在受損的同一側臉。',
-      en: 'Spinal trigeminal nucleus/tract damage; affects the face on the same side as the lesion.',
+      zh: '延髓與橋腦下部的三叉神經脊髓束核受損時，症狀在病灶同側臉；橋腦中段以上的病灶因痛溫覺纖維已交叉，症狀在對側臉。',
+      en: 'In the medulla and lower pons (spinal trigeminal nucleus/tract) the face on the same side as the lesion is affected; above the mid-pons the pain/temperature fibres have crossed, so the opposite side of the face is affected.',
     },
     system: 'sensory',
     lateralised: true,
@@ -337,7 +337,7 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'sensory',
     lateralised: true,
     sideWord: 'body',
-    nihss: { item: '8', pts: [1, 1, 2] },
+    // not scored: NIHSS item 8 tests pinprick only
   },
   {
     id: 'sens_face_all',
@@ -385,7 +385,8 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'vision',
     lateralised: true,
     sideWord: 'field',
-    nihss: { item: '3', pts: [2, 2, 2] },
+    // 1 = partial hemianopia, 2 = complete
+    nihss: { item: '3', pts: [1, 2, 2] },
   },
   {
     id: 'quadrant_sup',
@@ -405,6 +406,18 @@ export const SYMPTOMS: SymptomDef[] = [
     desc: {
       zh: '看不到一側下方的視野（「地上的派」）。',
       en: 'Loss of one lower quarter of the visual field ("pie on the floor").',
+    },
+    system: 'vision',
+    lateralised: true,
+    sideWord: 'field',
+    nihss: { item: '3', pts: [1, 1, 1] },
+  },
+  {
+    id: 'central_scotoma',
+    name: { zh: '同側中心暗點', en: 'Homonymous central scotoma' },
+    desc: {
+      zh: '枕極負責中心視野：只傷到枕極時，兩眼正中央同一側出現盲點，看字、看臉會缺一塊，周邊視野卻正常。',
+      en: 'The occipital pole serves central vision: a lesion confined to it blanks the same central patch in both eyes — reading and faces are affected while the periphery is normal.',
     },
     system: 'vision',
     lateralised: true,
@@ -582,7 +595,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'eye',
     lateralised: false,
-    nihss: { item: '2', pts: [1, 1, 1] },
+    // not scored: NIHSS item 2 tests horizontal gaze only
   },
   {
     id: 'upgaze_palsy',

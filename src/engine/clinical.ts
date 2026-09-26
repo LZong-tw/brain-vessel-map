@@ -98,6 +98,8 @@ export function aggregateSymptoms(
     if (get('hemianopia', fs)) {
       del('quadrant_sup', fs);
       del('quadrant_inf', fs);
+      // a central scotoma is part of a complete hemianopia
+      del('central_scotoma', fs);
     }
   }
   const occip = (h: Side) =>
@@ -107,6 +109,7 @@ export function aggregateSymptoms(
       del('hemianopia', fs);
       del('quadrant_sup', fs);
       del('quadrant_inf', fs);
+      del('central_scotoma', fs);
     }
     add('cortical_blindness', null, 3, 'cuneus_r', false);
     add('anton', null, 1, 'cuneus_r', false);
@@ -158,7 +161,8 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
         for (const sd of sides) set(`6${sd}`, p, 4);
         break;
       case '7':
-        for (const sd of sides) ataxia[sd] = Math.max(ataxia[sd], Math.min(1, p));
+        // item 7 counts limbs: arm and leg on the same side score 2
+        for (const sd of sides) ataxia[sd] = Math.max(ataxia[sd], Math.min(2, p));
         break;
       case '1a':
         set('1a', p, 3);

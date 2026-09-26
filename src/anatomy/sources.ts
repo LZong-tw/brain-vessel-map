@@ -126,6 +126,10 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Schmahmann JD. Vascular syndromes of the thalamus. Stroke 2003;34:2264–2278.',
   'Fiester P, Rao D, Soule E et al. Anatomic, functional, and radiographic review of the brainstem. RadioGraphics 2019 (brainstem syndrome framing, also used by neuroaxis-atlas, MIT).',
   'Brott T et al. Measurements of acute cerebral infarction: a clinical examination scale (NIHSS). Stroke 1989;20:864–870.',
+  'Donnan GA et al. Striatocapsular infarction: clinical and radiological features. Brain 1991;114:51–70.',
+  'Parvizi J, Damasio AR. Neuroanatomical correlates of brainstem coma. Brain 2003;126:1524–1536.',
+  'Goyal M et al. Endovascular treatment of stroke due to medium-vessel occlusion (ESCAPE-MeVO). N Engl J Med 2025;392:1385–1395.',
+  'Psychogios M et al. Endovascular treatment for stroke due to occlusion of medium or distal vessels (DISTAL). N Engl J Med 2025;392:1374–1384.',
 ];
 
 export const INSPIRATIONS: { name: string; licence: string; url: string; note: L }[] = [

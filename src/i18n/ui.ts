@@ -63,7 +63,7 @@ const zh = {
   variants: '血管變異（Willis 環）',
   variantsHint: '完整的 Willis 環只見於少數人；變異會改變阻塞後的結果。',
   treatment: '治療',
-  reperfusion: '血管再通（溶栓／取栓）',
+  reperfusion: '血管再通（血栓溶解／取栓）',
   reperfusionNone: '未再通',
   reperfusionAt: '發作後',
   decompression: '減壓手術（出現致命腫脹時）',

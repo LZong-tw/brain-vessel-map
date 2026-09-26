@@ -76,19 +76,16 @@ const LVO = [
   'ica_ophthalmic_seg',
   'ica_terminal',
   'mca_m1',
-  'mca_m2_sup',
-  'mca_m2_inf',
   'basilar_lower',
   'basilar_mid',
   'basilar_upper',
   'basilar_tip',
   'va_v4_prox',
   'va_v4_dist',
-  'aca_a1',
-  'aca_a2',
-  'pca_p1',
-  'pca_p2',
 ];
+
+/** medium / distal vessel occlusions (MeVO) */
+const MEVO = ['mca_m2_sup', 'mca_m2_inf', 'aca_a1', 'aca_a2', 'pca_p1', 'pca_p2'];
 
 const baseOf = (id: string) => id.replace(/_(r|l)$/, '');
 const sideOf = (id: string): Side | 'm' => (id.endsWith('_r') ? 'r' : id.endsWith('_l') ? 'l' : 'm');
@@ -141,6 +138,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const anyIschemia = Object.values(regionAcute).some((x) => x >= 0.05);
   const occludedBases = new Set(input.occlusions.filter((o) => o.severity >= 1).map((o) => baseOf(o.vessel)));
   const isLvo = LVO.some((b) => occludedBases.has(b));
+  const isMevo = !isLvo && MEVO.some((b) => occludedBases.has(b));
 
   // ── 1. hyperacute mechanisms ───────────────────────────────────
   if (anyIschemia) {
@@ -165,7 +163,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 336,
       title: { zh: '影像：MRI 擴散加權在數分鐘內就看得到', en: 'Imaging: diffusion MRI positive within minutes' },
       desc: {
-        zh: 'DWI 可在數分鐘內顯示梗塞核心；CT 在最初幾小時常看不出來（約 6 小時後才逐漸變暗），但能先排除腦出血——這是溶栓前必做的檢查。',
+        zh: 'DWI 可在數分鐘內顯示梗塞核心；CT 在最初幾小時常看不出來（約 6 小時後才逐漸變暗），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
         en: 'DWI shows the core within minutes; CT is often normal for the first hours (hypodensity appears after ~6 h) but excludes haemorrhage, which is required before thrombolysis.',
       },
       regions: [],
@@ -182,8 +180,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 24,
       title: { zh: '治療時間窗', en: 'Treatment windows' },
       desc: {
-        zh: `靜脈血栓溶解劑：一般在發作 4.5 小時內。${isLvo ? '這是大血管阻塞，適合動脈取栓：6 小時內效果最明確，影像顯示仍有可救組織時可延長到 24 小時。' : '此處不是典型的大血管阻塞，是否取栓需個別評估。'}每延遲一分鐘，典型大血管中風約多死亡 190 萬個神經元（Saver 2006）。`,
-        en: `IV thrombolysis: generally within 4.5 h of onset. ${isLvo ? 'This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue.' : 'This is not a typical large-vessel occlusion; thrombectomy would need individual assessment.'} Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006).`,
+        zh: `靜脈血栓溶解劑：一般在發作 4.5 小時內。${
+          isLvo
+            ? '這是大血管阻塞，適合動脈取栓：6 小時內效果最明確，影像顯示仍有可救組織時可延長到 24 小時。'
+            : isMevo
+              ? '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療；2025 年 ESCAPE-MeVO 與 DISTAL 試驗顯示常規取栓沒有額外好處，只在個別情況（例如近端、優勢側的 M2）考慮。'
+              : '此處不是大血管阻塞，一般不做取栓。'
+        }每延遲一分鐘，典型大血管中風約多死亡 190 萬個神經元（Saver 2006）。`,
+        en: `IV thrombolysis: generally within 4.5 h of onset. ${
+          isLvo
+            ? 'This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue.'
+            : isMevo
+              ? 'This is a medium/distal vessel occlusion: IV thrombolysis is standard; routine thrombectomy showed no benefit in the ESCAPE-MeVO and DISTAL trials (2025) and is considered case by case (e.g. a proximal, dominant M2).'
+              : 'This is not a large-vessel occlusion; thrombectomy is not usually done.'
+        } Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006).`,
       },
       regions: [],
     });
@@ -195,7 +205,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       kind: 'treatment',
       severity: savedVolume > 5 ? 'good' : 'info',
       onsetH: reperfusionH,
-      title: { zh: '血管再通（溶栓／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
+      title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
       desc: {
         zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞。已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
         en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct. The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
@@ -338,7 +348,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         en: `Cerebellar infarct ≈ ${cbTotal.toFixed(0)} mL. The posterior fossa is tight: over days 1–3 swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness) and compresses the pons and medulla; tonsillar herniation can then compress the medullary respiratory centre. ${decompression ? 'Suboccipital decompression (± external ventricular drain) has been performed; outcomes are often good.' : 'Neurosurgical suboccipital decompression or ventricular drainage is needed — when done in time, survivors often recover well.'}`,
       },
       regions: [...new Set(bs.map((b) => b.region))],
-      symptoms: decompression ? [] : [{ id: 'nausea_vomiting', side: null, sev: 2 }],
+      // direct pressure on the pontine tegmentum: gaze / VI palsy on the side of the infarct
+      symptoms: decompression
+        ? []
+        : [
+            { id: 'nausea_vomiting', side: null, sev: 2 },
+            { id: 'gaze_palsy_horizontal', side: vol.cerebellum.r >= vol.cerebellum.l ? 'r' : 'l', sev: 1 },
+          ],
     });
     if (!decompression) {
       hydrocephalusOnsetH = 36;
@@ -350,8 +366,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: 36,
         endH: 336,
         symptoms: [
+          // raised pressure and a dilated aqueduct: drowsiness and upgaze palsy
           { id: 'coma', side: null, sev: 2 },
-          { id: 'gaze_palsy_horizontal', side: 'both', sev: 2 },
+          { id: 'upgaze_palsy', side: null, sev: 1 },
         ],
         title: { zh: '阻塞性水腦症', en: 'Obstructive hydrocephalus' },
         desc: {
@@ -381,7 +398,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 336,
       title: { zh: `出血轉化風險：${lv.zh}`, en: `Haemorrhagic transformation risk: ${lv.en}` },
       desc: {
-        zh: '壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內。梗塞越大、再通越晚、使用血栓溶解劑，風險越高；症狀性出血在靜脈溶栓後約 2–7%。',
+        zh: '壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內。梗塞越大、再通越晚、使用血栓溶解劑，風險越高；症狀性出血在靜脈血栓溶解後約 2–7%。',
         en: 'Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days. Larger infarcts, late recanalisation and thrombolytics raise the risk; symptomatic haemorrhage occurs in roughly 2–7% after IV thrombolysis.',
       },
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex' || REGION_BY_ID[r]?.category === 'deep'),
@@ -566,9 +583,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     }
     // hypertrophic olivary degeneration (Guillain–Mollaret triangle)
     const hodTargets: string[] = [];
-    if (infarcted(`dentate_${s}`, 0.3)) hodTargets.push(`medulla_lateral_${opp(s)}`);
+    if (infarcted(`dentate_${s}`, 0.3)) hodTargets.push(`medulla_medial_${opp(s)}`);
     if (infarcted(`midbrain_paramedian_${s}`, 0.3) || infarcted(`pons_rostral_tegmentum_${s}`, 0.3) || infarcted(`pons_caudal_tegmentum_${s}`, 0.3))
-      hodTargets.push(`medulla_lateral_${s}`);
+      hodTargets.push(`medulla_medial_${s}`);
     const hod = [...new Set(hodTargets)].filter((r) => !infarcted(r, 0.5));
     if (hod.length) {
       hod.forEach((rid) =>
