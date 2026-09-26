@@ -24,7 +24,7 @@ const PRESETS: Record<CameraView, { pos: Vector3; target: Vector3 }> = {
   top: { pos: new Vector3(0.01, 30, -4.5), target: BRAIN_CENTER },
   bottom: { pos: new Vector3(0.01, -27, 5.5), target: toThree([0, -10, -15]) },
   // antero-inferior, below the temporal pole: the ventral pons/medulla with the basilar artery
-  brainstem: { pos: toThree([-45, 55, -85]), target: toThree([0, -26, -30]) },
+  brainstem: { pos: toThree([-25, 70, -100]), target: toThree([0, -26, -30]) },
 };
 
 function CameraRig() {
