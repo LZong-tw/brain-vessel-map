@@ -1,5 +1,4 @@
 import { VESSEL_BY_ID } from '../anatomy';
-import type { Occlusion } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
 import { VESSEL_COLORS, hex, mix, toHex } from './colors';
 
@@ -22,9 +21,10 @@ export interface VesselVisual {
   color: string;
 }
 
-export function vesselVisual(id: string, sim: SimResult, occlusions: Occlusion[]): VesselVisual {
+/** Visual state of a vessel at the simulated time (a recanalised occlusion shows as open). */
+export function vesselVisual(id: string, sim: SimResult): VesselVisual {
   const v = VESSEL_BY_ID[id];
-  const occ = occlusions.find((o) => o.vessel === id);
+  const occ = sim.activeOcclusions.find((o) => o.vessel === id);
   const flow = sim.hemo.vesselFlow[id] ?? 0;
   const baseline = sim.hemo.baselineFlow[id] ?? 0;
   const ratio = Math.abs(baseline) > 0.2 ? Math.abs(flow) / Math.abs(baseline) : Math.abs(flow) > 0.2 ? 2 : 1;

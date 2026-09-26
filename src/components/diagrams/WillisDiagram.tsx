@@ -117,7 +117,6 @@ function midAndAngle(d: string): { x: number; y: number; a: number } {
 export function WillisDiagram({ sim }: { sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
-  const occlusions = useApp((s) => s.occlusions);
   const selected = useApp((s) => s.selected);
   const select = useApp((s) => s.select);
   const toggle = useApp((s) => s.toggleOcclusion);
@@ -150,7 +149,7 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
         {Object.entries(SEG).map(([id, d]) => {
           const v = VESSEL_BY_ID[id];
           if (!v) return null;
-          const vis = vesselVisual(id, sim, occlusions);
+          const vis = vesselVisual(id, sim);
           const w = Math.max(1.6, v.r * 3.2);
           const m = midAndAngle(d);
           const sel = selected?.kind === 'vessel' && selected.id === id;
@@ -208,7 +207,7 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
       </svg>
       {hover && (
         <div className="diagram-tip">
-          {vesselName(VESSEL_BY_ID[hover], lang)} · {fmtFlow(vesselVisual(hover, sim, occlusions).flow)} {t.mlMin}
+          {vesselName(VESSEL_BY_ID[hover], lang)} · {fmtFlow(vesselVisual(hover, sim).flow)} {t.mlMin}
         </div>
       )}
     </div>

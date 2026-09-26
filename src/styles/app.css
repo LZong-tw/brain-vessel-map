@@ -411,6 +411,12 @@ input[type='range'] {
   color: var(--text-2);
   font-weight: 600;
 }
+.badge.good {
+  margin-left: 6px;
+  color: #7ee2a8;
+  border-color: rgba(126, 226, 168, 0.45);
+  background: rgba(46, 160, 90, 0.15);
+}
 
 .group {
   margin-bottom: 18px;

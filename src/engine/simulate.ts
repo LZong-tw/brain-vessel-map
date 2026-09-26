@@ -7,7 +7,7 @@ import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy
 import type { Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
-import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult } from './hemodynamics';
+import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion } from './hemodynamics';
 import { NEURONS_PER_ML, PENUMBRA_REL, unitState, infarctFraction, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
@@ -37,7 +37,14 @@ export interface RegionTimeState {
 
 export interface SimResult {
   input: SimInput;
+  /** blood flow at the displayed time (after recanalisation if it has happened) */
   hemo: HemoResult;
+  /** blood flow while the occlusions are in place */
+  hemoAcute: HemoResult;
+  /** occlusions still in effect at the displayed time */
+  activeOcclusions: Occlusion[];
+  /** the occlusions have been reopened by the displayed time */
+  recanalized: boolean;
   beds: Record<string, BedTimeState>;
   regions: Record<string, RegionTimeState>;
   symptoms: SymptomItem[];
@@ -54,10 +61,10 @@ const FINAL_H = 96;
 
 const cascadeCache = new Map<string, CascadeOutput>();
 
-function bedInfarctAt(units: ReturnType<typeof getUnits>, hemo: HemoResult, tH: number, reperf: number | null) {
+function bedInfarctAt(units: ReturnType<typeof getUnits>, hemo: HemoResult, after: HemoResult, tH: number, reperf: number | null) {
   const out: Record<string, number> = {};
   for (const u of units) {
-    const f = infarctFraction(hemo.unitRel[u.id] ?? 1, tH, reperf);
+    const f = infarctFraction(hemo.unitRel[u.id] ?? 1, tH, reperf, after.unitRel[u.id] ?? 1);
     out[u.bed] = (out[u.bed] ?? 0) + f * u.frac;
   }
   return out;
@@ -82,30 +89,35 @@ function regionAgg(values: Record<string, number>): Record<string, number> {
 const EFFECT_PRIORITY: BedEffectKind[] = ['secondary', 'compressed', 'degeneration', 'diaschisis'];
 
 export function simulate(input: SimInput): SimResult {
-  const hemo = simulateHemodynamics(input);
+  const hemoAcute = simulateHemodynamics(input);
   const units = getUnits(input.variants, input.collateral);
   const t = input.tH;
   const reperf = input.reperfusionH;
+  // thrombolysis / thrombectomy reopens complete (thrombo-embolic) occlusions; a stenosis stays
+  const remaining = input.occlusions.filter((o) => o.severity < 1);
+  const hemoAfter = reperf !== null ? simulateHemodynamics({ ...input, occlusions: remaining }) : hemoAcute;
+  const recanalized = reperf !== null && t >= reperf;
+  const hemo = recanalized ? hemoAfter : hemoAcute;
 
   // ── cascade (independent of t; cached) ──
   const ckey = `${hemoKey(input)}|${reperf}|${input.decompression}`;
   let cascade = cascadeCache.get(ckey);
   if (!cascade) {
-    const bedFinal = bedInfarctAt(units, hemo, FINAL_H, reperf);
-    const bedFinalUntreated = reperf === null ? bedFinal : bedInfarctAt(units, hemo, FINAL_H, null);
+    const bedFinal = bedInfarctAt(units, hemoAcute, hemoAfter, FINAL_H, reperf);
+    const bedFinalUntreated = reperf === null ? bedFinal : bedInfarctAt(units, hemoAcute, hemoAcute, FINAL_H, null);
     const acute: Record<string, number> = {};
     for (const u of units) {
       // dysfunctional (core or penumbra) in the first hour
-      if ((hemo.unitRel[u.id] ?? 1) < PENUMBRA_REL) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
+      if ((hemoAcute.unitRel[u.id] ?? 1) < PENUMBRA_REL) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
     }
     cascade = computeCascade({
       reperfusionH: reperf,
       decompression: input.decompression,
       occlusions: input.occlusions,
-      hemo,
+      hemo: hemoAcute,
       bedFinal,
       bedFinalUntreated,
-      bedEarly: bedInfarctAt(units, hemo, 14, reperf),
+      bedEarly: bedInfarctAt(units, hemoAcute, hemoAfter, 14, reperf),
       regionAcute: regionAgg(acute),
     });
     if (cascadeCache.size > 200) cascadeCache.clear();
@@ -125,7 +137,7 @@ export function simulate(input: SimInput): SimResult {
   }
   for (const u of units) {
     const bs = beds[u.bed];
-    const { f, rest } = unitState(hemo.unitRel[u.id] ?? 1, t, reperf);
+    const { f, rest } = unitState(hemoAcute.unitRel[u.id] ?? 1, t, reperf, hemoAfter.unitRel[u.id] ?? 1);
     bs.frac.core += f * u.frac;
     bs.frac[rest] += (1 - f) * u.frac;
     bs.infarct += f * u.frac;
@@ -202,7 +214,7 @@ export function simulate(input: SimInput): SimResult {
   const nihss = estimateNihss(symptoms, affected);
 
   const occl = new Set(input.occlusions.filter((o) => o.severity >= 1).map((o) => o.vessel));
-  const rev = new Set(hemo.reversed);
+  const rev = new Set(hemoAcute.reversed);
   const idOf = (base: string, side?: Side | 'm') => (side && side !== 'm' ? `${base}_${side}` : base);
   const syndromes = detectSyndromes({
     f: (base, side) => rPrim[`${base}_${side}`] ?? 0,
@@ -245,6 +257,9 @@ export function simulate(input: SimInput): SimResult {
   return {
     input,
     hemo,
+    hemoAcute,
+    activeOcclusions: recanalized ? remaining : input.occlusions,
+    recanalized,
     beds,
     regions,
     symptoms,

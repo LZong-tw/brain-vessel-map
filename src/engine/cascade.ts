@@ -198,7 +198,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       regions: [],
     });
   }
-  if (reperfusionH !== null && anyIschemia) {
+  if (reperfusionH !== null && anyIschemia && input.occlusions.some((o) => o.severity >= 1)) {
     const late = reperfusionH > 6;
     events.push({
       id: 'reperfusion',

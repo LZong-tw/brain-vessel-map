@@ -70,7 +70,7 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
   const st = useApp();
   const v = VESSEL_BY_ID[id];
   const occ = st.occlusions.find((o) => o.vessel === id);
-  const vis = vesselVisual(id, sim, st.occlusions);
+  const vis = vesselVisual(id, sim);
   const territory = useMemo(() => vesselTerritory(id), [id]);
   const preview = useMemo(
     () =>
@@ -344,7 +344,7 @@ function Results({ sim }: { sim: SimResult }) {
     .sort((a, b) => Math.max(b[1].dys, b[1].infarct) - Math.max(a[1].dys, a[1].infarct))
     .slice(0, 40);
   const flowChanges = Object.keys(sim.hemo.vesselFlow)
-    .map((id) => ({ id, vis: vesselVisual(id, sim, occlusions) }))
+    .map((id) => ({ id, vis: vesselVisual(id, sim) }))
     .filter((x) => x.vis.state === 'reversed' || x.vis.state === 'noflow' || (x.vis.state === 'reduced' && Math.abs(x.vis.baseline) > 2) || x.vis.state === 'collateral_active')
     .sort((a, b) => Math.abs(b.vis.flow - b.vis.baseline) - Math.abs(a.vis.flow - a.vis.baseline))
     .slice(0, 14);
@@ -357,6 +357,7 @@ function Results({ sim }: { sim: SimResult }) {
             <span className="dot" style={{ background: o.severity >= 1 ? STATE_COLORS.core : '#f28c28' }} />
             {vesselName(VESSEL_BY_ID[o.vessel], lang)}
             {o.severity < 1 && ` ${Math.round(o.severity * 100)}%`}
+            {o.severity >= 1 && sim.recanalized && <span className="badge good">{t.recanalized}</span>}
             <button
               className="x"
               aria-label={`${lang === 'en' ? 'Remove' : '移除'} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
