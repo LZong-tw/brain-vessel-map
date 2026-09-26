@@ -8,6 +8,7 @@
  */
 
 import type { SymptomDef } from './types';
+import { indexById } from './indexById';
 
 export const SYMPTOMS: SymptomDef[] = [
   // ── Consciousness ────────────────────────────────────────────────
@@ -929,6 +930,4 @@ export const SYMPTOMS: SymptomDef[] = [
   },
 ];
 
-export const SYMPTOM_BY_ID: Record<string, SymptomDef> = Object.fromEntries(
-  SYMPTOMS.map((s) => [s.id, s]),
-);
+export const SYMPTOM_BY_ID: Record<string, SymptomDef> = indexById(SYMPTOMS, (s) => s.id);

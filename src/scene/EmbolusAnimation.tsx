@@ -32,8 +32,9 @@ export function EmbolusAnimation() {
     return { pts, cum, total: cum[cum.length - 1] };
   }, [embolus]);
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
     if (!track || !ref.current) return;
+    state.invalidate();
     // generous clamp so slow (software-rendered) devices still finish in about the same wall time
     clock.current += Math.min(dt, 0.25);
     const duration = Math.min(7, Math.max(2.5, track.total / 5));

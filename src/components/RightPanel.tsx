@@ -23,9 +23,9 @@ export function RightPanel({ sim }: { sim: SimResult }) {
   ];
   return (
     <aside className="panel right-panel">
-      <nav className="tabs" role="tablist">
+      <nav className="tabs">
         {tabs.map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
+          <button key={k} aria-pressed={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
             {label}
             {k === 'results' && hasOcc && <span className="pip" aria-hidden="true" />}
           </button>
@@ -120,9 +120,9 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
           <button className={`btn ${occ ? '' : 'danger'} block`} onClick={() => st.toggleOcclusion(id)}>
             {occ ? t.unocclude : t.occlude}
           </button>
-          <div className="seg small" aria-label={t.stenosis}>
+          <div className="seg small" role="group" aria-label={t.stenosis}>
             {([0.5, 0.7, 0.9, 1] as const).map((sv) => (
-              <button key={sv} className={occ?.severity === sv ? 'active' : ''} onClick={() => st.setOcclusion(id, occ?.severity === sv ? null : sv)}>
+              <button key={sv} aria-pressed={occ?.severity === sv} className={occ?.severity === sv ? 'active' : ''} onClick={() => st.setOcclusion(id, occ?.severity === sv ? null : sv)}>
                 {t.stenosisOptions[sv]}
               </button>
             ))}
@@ -357,7 +357,11 @@ function Results({ sim }: { sim: SimResult }) {
             <span className="dot" style={{ background: o.severity >= 1 ? STATE_COLORS.core : '#f28c28' }} />
             {vesselName(VESSEL_BY_ID[o.vessel], lang)}
             {o.severity < 1 && ` ${Math.round(o.severity * 100)}%`}
-            <button className="x" aria-label="remove" onClick={() => setOcclusion(o.vessel, null)}>
+            <button
+              className="x"
+              aria-label={`${lang === 'en' ? 'Remove' : '移除'} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
+              onClick={() => setOcclusion(o.vessel, null)}
+            >
               ×
             </button>
           </span>

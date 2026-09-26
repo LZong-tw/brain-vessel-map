@@ -3,6 +3,7 @@
  */
 
 import type { L } from './types';
+import { indexById } from './indexById';
 
 export type CameraView = 'left' | 'right' | 'top' | 'bottom' | 'front' | 'back' | 'brainstem';
 
@@ -371,4 +372,4 @@ export const SCENARIOS: Scenario[] = [
   },
 ];
 
-export const SCENARIO_BY_ID: Record<string, Scenario> = Object.fromEntries(SCENARIOS.map((s) => [s.id, s]));
+export const SCENARIO_BY_ID: Record<string, Scenario> = indexById(SCENARIOS, (s) => s.id);

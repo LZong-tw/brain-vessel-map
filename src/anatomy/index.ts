@@ -10,6 +10,7 @@ import { REGION_DEFS } from './regions';
 import { bedSupply } from './territories';
 import type { Bed, L, Lang, Region, RegionDef, SideOrMid, TerritoryCode, Vec3, Vessel } from './types';
 import { VESSEL_DEFS } from './vessels';
+import { indexById } from './indexById';
 
 export * from './types';
 
@@ -34,9 +35,9 @@ export const VESSELS: Vessel[] = expandVessels(VESSEL_DEFS).map((v) => ({
   path: paths[v.id] && paths[v.id].length >= 2 ? paths[v.id] : v.path,
 }));
 
-export const VESSEL_BY_ID: Record<string, Vessel> = Object.fromEntries(VESSELS.map((v) => [v.id, v]));
+export const VESSEL_BY_ID: Record<string, Vessel> = indexById(VESSELS, (v) => v.id);
 
-const DEF_BY_BASE: Record<string, RegionDef> = Object.fromEntries(REGION_DEFS.map((d) => [d.id, d]));
+const DEF_BY_BASE: Record<string, RegionDef> = indexById(REGION_DEFS, (d) => d.id);
 
 const splitRegion = (rid: string): { base: string; side: SideOrMid } => {
   const m = /^(.*)_(r|l)$/.exec(rid);
@@ -88,7 +89,7 @@ function buildBeds(): { beds: Bed[]; scale: number } {
 const built = buildBeds();
 export const BEDS: Bed[] = built.beds;
 export const VOLUME_SCALE = built.scale;
-export const BED_BY_ID: Record<string, Bed> = Object.fromEntries(BEDS.map((b) => [b.id, b]));
+export const BED_BY_ID: Record<string, Bed> = indexById(BEDS, (b) => b.id);
 
 function buildRegions(): Region[] {
   const bedsByRegion = new Map<string, Bed[]>();
@@ -121,7 +122,7 @@ function buildRegions(): Region[] {
 }
 
 export const REGIONS: Region[] = buildRegions();
-export const REGION_BY_ID: Record<string, Region> = Object.fromEntries(REGIONS.map((r) => [r.id, r]));
+export const REGION_BY_ID: Record<string, Region> = indexById(REGIONS, (r) => r.id);
 
 /** Localised text helper. */
 export const tr = (l: L, lang: Lang): string => (lang === 'en' ? l.en : l.zh);
@@ -132,18 +133,21 @@ export const sideLabel = (side: SideOrMid, lang: Lang): string => {
   return side === 'r' ? '右側' : '左側';
 };
 
+/** "Middle cerebral artery" → "middle cerebral artery", but keep acronyms such as "ICA" or "MCA". */
+const lowerFirst = (n: string) => (/^[A-Z][a-z]/.test(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n);
+
 /** Region display name including side. */
 export function regionName(r: Region, lang: Lang): string {
   const n = tr(r.name, lang);
   if (r.side === 'm' || r.sideInName) return n;
-  return lang === 'en' ? `${sideLabel(r.side, lang)} ${n.charAt(0).toLowerCase()}${n.slice(1)}` : `${sideLabel(r.side, lang)}${n}`;
+  return lang === 'en' ? `${sideLabel(r.side, lang)} ${lowerFirst(n)}` : `${sideLabel(r.side, lang)}${n}`;
 }
 
 /** Vessel display name including side. */
 export function vesselName(v: Vessel, lang: Lang): string {
   const n = tr(v.name, lang);
   if (v.side === 'm') return n;
-  return lang === 'en' ? `${sideLabel(v.side, lang)} ${n.charAt(0).toLowerCase()}${n.slice(1)}` : `${sideLabel(v.side, lang)}${n}`;
+  return lang === 'en' ? `${sideLabel(v.side, lang)} ${lowerFirst(n)}` : `${sideLabel(v.side, lang)}${n}`;
 }
 
 /** Sanity checks used by tests. */

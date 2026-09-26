@@ -13,9 +13,15 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks: {
-          three: ['three'],
-          r3f: ['@react-three/fiber', '@react-three/drei'],
+        // React gets its own chunk so the entry does not pull in three.js: the 3D scene
+        // (three + react-three-fiber) is only loaded when the 3D view is first shown
+        manualChunks(id) {
+          // shared helpers must not land in a lazy chunk, or the entry would import it eagerly
+          if (id.includes('vite/preload-helper') || id.includes('commonjsHelpers')) return 'react';
+          if (/node_modules[\\/](react|react-dom|scheduler|zustand|use-sync-external-store)[\\/]/.test(id)) return 'react';
+          if (/node_modules[\\/]three[\\/]/.test(id)) return 'three';
+          if (/node_modules[\\/](@react-three|three-stdlib)[\\/]/.test(id)) return 'r3f';
+          return undefined;
         },
       },
     },

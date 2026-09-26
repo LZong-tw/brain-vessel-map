@@ -5,6 +5,7 @@
  */
 
 import type { L, Side, SupplyDef } from './types';
+import { indexById } from './indexById';
 
 export interface VariantDef {
   id: string;
@@ -104,4 +105,4 @@ export const VARIANTS: VariantDef[] = [
   })),
 ];
 
-export const VARIANT_BY_ID: Record<string, VariantDef> = Object.fromEntries(VARIANTS.map((v) => [v.id, v]));
+export const VARIANT_BY_ID: Record<string, VariantDef> = indexById(VARIANTS, (v) => v.id);

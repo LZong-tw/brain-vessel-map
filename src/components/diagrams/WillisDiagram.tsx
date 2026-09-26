@@ -137,7 +137,7 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
           {lang === 'en' ? 'Click to block / unblock' : '點一下即阻塞／解除'}
         </label>
       </div>
-      <svg viewBox="0 0 420 520" className="willis" role="img" aria-label={t.viewWillis}>
+      <svg viewBox="0 0 420 520" className="willis" role="group" aria-label={t.viewWillis}>
         <text x="30" y="30" className="dir">
           {lang === 'en' ? 'R' : '右'}
         </text>
@@ -160,7 +160,18 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
             <g
               key={id}
               className={`seg${sel ? ' sel' : ''}${hover === id ? ' hov' : ''}`}
+              role="button"
+              tabIndex={0}
+              aria-label={`${vesselName(v, lang)}: ${fmtFlow(vis.flow)} ${t.mlMin}`}
               onClick={() => (clickToBlock ? toggle(id) : select({ kind: 'vessel', id }))}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                if (clickToBlock) toggle(id);
+                else select({ kind: 'vessel', id });
+              }}
+              onFocus={() => setHover(id)}
+              onBlur={() => setHover(null)}
               onMouseEnter={() => setHover(id)}
               onMouseLeave={() => setHover(null)}
             >

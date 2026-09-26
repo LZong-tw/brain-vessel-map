@@ -21,14 +21,37 @@ function Links({ urls }: { urls: string }) {
   );
 }
 
-function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+function Modal({
+  title,
+  onClose,
+  children,
+  wide,
+  closeLabel,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  wide?: boolean;
+  closeLabel: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const k = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     window.addEventListener('keydown', k);
+    // keep keyboard and screen-reader focus inside the dialog, then give it back
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const backdrop = ref.current?.parentElement;
+    const outside = backdrop?.parentElement ? [...backdrop.parentElement.children].filter((el) => el !== backdrop) : [];
+    outside.forEach((el) => el.setAttribute('inert', ''));
     ref.current?.focus();
-    return () => window.removeEventListener('keydown', k);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', k);
+      outside.forEach((el) => el.removeAttribute('inert'));
+      opener?.focus();
+    };
+  }, []);
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
@@ -42,7 +65,7 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
       >
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="close">
+          <button className="icon-btn" onClick={onClose} aria-label={closeLabel}>
             ×
           </button>
         </div>
@@ -61,7 +84,7 @@ export function Modals() {
   if (modal === 'none') return null;
   if (modal === 'disclaimer')
     return (
-      <Modal title={t.disclaimerTitle} onClose={close}>
+      <Modal title={t.disclaimerTitle} onClose={close} closeLabel={t.close}>
         {t.disclaimerBody.map((p) => (
           <p key={p}>{p}</p>
         ))}
@@ -76,7 +99,7 @@ export function Modals() {
     );
   if (modal === 'befast')
     return (
-      <Modal title={t.befastTitle} onClose={close}>
+      <Modal title={t.befastTitle} onClose={close} closeLabel={t.close}>
         <ul className="befast">
           {t.befastItems.map(([k, v]) => (
             <li key={k}>
@@ -92,7 +115,7 @@ export function Modals() {
       </Modal>
     );
   return (
-    <Modal title={t.sourcesTitle} onClose={close} wide>
+    <Modal title={t.sourcesTitle} onClose={close} closeLabel={t.close} wide>
       <section className="about">
         <h3>{lang === 'en' ? 'How the model works' : '模型怎麼運作'}</h3>
         <p>

@@ -7,6 +7,7 @@ import type { NihssItem, Side } from '../anatomy';
 import { REGION_DEFS } from '../anatomy/regions';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
+import { indexById } from '../anatomy/indexById';
 
 export interface SymptomItem {
   id: string;
@@ -29,7 +30,7 @@ export interface SyndromeMatch {
   side: Side | null;
 }
 
-const DEF_BY_BASE = Object.fromEntries(REGION_DEFS.map((d) => [d.id, d]));
+const DEF_BY_BASE = indexById(REGION_DEFS, (d) => d.id);
 const opp = (s: Side): Side => (s === 'r' ? 'l' : 'r');
 const DYS_THR = 0.25;
 const DELAY_H = 336;

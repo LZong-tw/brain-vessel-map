@@ -219,7 +219,11 @@ export const useApp = create<AppState>((set, get) => ({
     if (h?.id === hovered?.id && h?.kind === hovered?.kind) return;
     set({ hovered });
   },
-  setView: (view) => set({ view }),
+  setView: (view) => {
+    set({ view });
+    // the embolus is animated in the 3D view only; elsewhere apply its result at once
+    if (view !== '3d') get().finishEmbolus();
+  },
   setColorMode: (colorMode) => set({ colorMode }),
   toggleLayer: (k) => set({ layers: { ...get().layers, [k]: !get().layers[k] } }),
   toggleHemi: (s) => set({ hemis: { ...get().hemis, [s]: !get().hemis[s] } }),

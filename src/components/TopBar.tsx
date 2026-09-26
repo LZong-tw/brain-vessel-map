@@ -25,7 +25,7 @@ export function TopBar() {
         <button className="btn ghost" onClick={() => setModal('about')}>
           {t.about}
         </button>
-        <button className="btn ghost" onClick={() => setLang(lang === 'en' ? 'zh-TW' : 'en')} aria-label="language">
+        <button className="btn ghost" onClick={() => setLang(lang === 'en' ? 'zh-TW' : 'en')} lang={lang === 'en' ? 'zh-TW' : 'en'}>
           {t.language}
         </button>
       </div>

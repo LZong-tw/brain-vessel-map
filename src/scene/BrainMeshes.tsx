@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import type { ThreeEvent } from '@react-three/fiber';
+import { useEffect, useMemo, useRef } from 'react';
+import { useThree, type ThreeEvent } from '@react-three/fiber';
 import { DoubleSide, FrontSide, type BufferAttribute, type Plane } from 'three';
 import { BED_BY_ID } from '../anatomy';
 import { TIME_STOPS } from '../anatomy/timeline';
@@ -21,8 +21,11 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
   const hemis = useApp((s) => s.hemis);
   const opacity = useApp((s) => s.cortexOpacity);
   const colorMode = useApp((s) => s.colorMode);
-  const hovered = useApp((s) => s.hovered);
-  const selected = useApp((s) => s.selected);
+  // only region highlights matter here; hovering a vessel must not recolour the brain
+  const hoveredRegion = useApp((s) => (s.hovered?.kind === 'region' ? s.hovered.id : null));
+  const selectedRegion = useApp((s) => (s.selected?.kind === 'region' ? s.selected.id : null));
+  const invalidate = useThree((s) => s.invalidate);
+  const lastColors = useRef<RGB[] | null>(null);
   const tIndex = useApp((s) => s.tIndex);
   const hover = useApp((s) => s.hover);
   const select = useApp((s) => s.select);
@@ -41,31 +44,41 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
       if (colorMode === 'territory') c = territoryColor(bed);
       else if (colorMode === 'anatomy') c = regionColor(bed.region);
       else c = stateColor(bed, sim.beds[id], tH);
-      const hl = (hovered?.kind === 'region' && hovered.id === bed.region) || (selected?.kind === 'region' && selected.id === bed.region);
+      const hl = hoveredRegion === bed.region || selectedRegion === bed.region;
       cols.push(hl ? mix(c, HIGHLIGHT, 0.45) : c);
     }
     return cols;
-  }, [data.beds, colorMode, sim, tH, hovered, selected]);
+  }, [data.beds, colorMode, sim, tH, hoveredRegion, selectedRegion]);
 
   useEffect(() => {
+    // re-upload only the meshes that contain a bed whose colour actually changed
+    const prev = lastColors.current;
+    const changed = bedColors.map((c, i) => !prev || !prev[i] || c[0] !== prev[i][0] || c[1] !== prev[i][1] || c[2] !== prev[i][2]);
+    lastColors.current = bedColors;
     for (const m of data.meshes) {
       const attr = m.geometry.getAttribute('color') as BufferAttribute;
       const arr = attr.array as Float32Array;
       if (m.kind === 'ventricle') {
+        if (prev) continue;
         const c = hex('#5aa7ff');
         for (let i = 0; i < arr.length; i += 3) arr.set(c, i);
+        attr.needsUpdate = true;
       } else if (m.bed) {
+        let dirty = !prev;
         for (let i = 0; i < m.bed.length; i++) {
           const b = m.bed[i];
+          if (prev && (b < 0 || !changed[b])) continue;
           const c = b >= 0 ? bedColors[b] : ([0.75, 0.68, 0.64] as RGB);
           arr[i * 3] = c[0];
           arr[i * 3 + 1] = c[1];
           arr[i * 3 + 2] = c[2];
+          dirty = true;
         }
+        if (dirty) attr.needsUpdate = true;
       }
-      attr.needsUpdate = true;
     }
-  }, [data, bedColors]);
+    invalidate();
+  }, [data, bedColors, invalidate]);
 
   const regionAt = (m: MeshData, e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>): string | null => {
     if (!m.bed || !e.face) return null;

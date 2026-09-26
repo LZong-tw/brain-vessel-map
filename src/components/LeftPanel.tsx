@@ -23,9 +23,9 @@ export function LeftPanel({ sim }: { sim: SimResult }) {
   ];
   return (
     <aside className="panel left-panel">
-      <nav className="tabs" role="tablist">
+      <nav className="tabs">
         {tabs.map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
+          <button key={k} aria-pressed={tab === k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
             {label}
           </button>
         ))}
@@ -137,7 +137,18 @@ function VesselsTab({ sim }: { sim: SimResult }) {
   );
   return (
     <div>
-      <input className="search" type="search" placeholder={t.searchVessels} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t.searchVessels} />
+      <input
+        className="search"
+        type="search"
+        placeholder={t.searchVessels}
+        value={q}
+        onChange={(e) => {
+          // the hovered row may disappear from the filtered list without a mouseleave
+          hover(null);
+          setQ(e.target.value);
+        }}
+        aria-label={t.searchVessels}
+      />
       {regionHits.length > 0 && (
         <section className="group">
           <h3>{t.region}</h3>
@@ -269,7 +280,7 @@ function ViewTab() {
         <h3>{t.colorMode}</h3>
         <div className="seg">
           {(['state', 'territory', 'anatomy'] as const).map((m) => (
-            <button key={m} className={st.colorMode === m ? 'active' : ''} onClick={() => st.setColorMode(m)}>
+            <button key={m} aria-pressed={st.colorMode === m} className={st.colorMode === m ? 'active' : ''} onClick={() => st.setColorMode(m)}>
               {t.colorModes[m]}
             </button>
           ))}
@@ -305,7 +316,7 @@ function ViewTab() {
         <h3>{t.clipping}</h3>
         <div className="seg">
           {(['none', 'x', 'y', 'z'] as const).map((a) => (
-            <button key={a} className={st.clip.axis === a ? 'active' : ''} onClick={() => st.setClip({ axis: a, pos: a === 'y' ? -20 : a === 'z' ? 0 : 0 })}>
+            <button key={a} aria-pressed={st.clip.axis === a} className={st.clip.axis === a ? 'active' : ''} onClick={() => st.setClip({ axis: a, pos: a === 'y' ? -20 : a === 'z' ? 0 : 0 })}>
               {t.clipAxis[a]}
             </button>
           ))}

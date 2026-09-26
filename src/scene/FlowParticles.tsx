@@ -60,8 +60,9 @@ export function FlowParticles({ sim }: { sim: SimResult }) {
 
   useEffect(() => () => geom.dispose(), [geom]);
 
-  useFrame((_, dt) => {
+  useFrame((state, dt) => {
     if (!ref.current) return;
+    state.invalidate();
     const pos = geom.getAttribute('position') as BufferAttribute;
     const arr = pos.array as Float32Array;
     const d = Math.min(dt, 0.05);

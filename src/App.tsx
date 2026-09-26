@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Legend } from './components/Legend';
 import { LeftPanel } from './components/LeftPanel';
 import { Modals } from './components/Modals';
@@ -24,7 +25,7 @@ function HoverTip() {
       : REGION_BY_ID[hovered.id] && regionName(REGION_BY_ID[hovered.id], lang);
   if (!label) return null;
   return (
-    <div className="hover-tip" role="status">
+    <div className="hover-tip" aria-hidden="true">
       {label}
     </div>
   );
@@ -38,6 +39,11 @@ export default function App() {
   const mobilePanel = useApp((s) => s.mobilePanel);
   const setMobilePanel = useApp((s) => s.setMobilePanel);
   const lang = useApp((s) => s.lang);
+  // keep the WebGL canvas alive once opened: switching views must not rebuild the scene
+  const [scene3dMounted, setScene3dMounted] = useState(view === '3d');
+  useEffect(() => {
+    if (view === '3d') setScene3dMounted(true);
+  }, [view]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -56,18 +62,32 @@ export default function App() {
       <div className="main">
         <LeftPanel sim={sim} />
         <main className="center">
-          <nav className="view-tabs" role="tablist">
+          <nav className="view-tabs">
             {views.map(([k, label]) => (
-              <button key={k} role="tab" aria-selected={view === k} className={view === k ? 'active' : ''} onClick={() => setView(k)}>
+              <button key={k} aria-pressed={view === k} className={view === k ? 'active' : ''} onClick={() => setView(k)}>
                 {label}
               </button>
             ))}
           </nav>
           <div className="stage">
-            {view === '3d' && (
-              <Suspense fallback={<div className="scene-message loading">{t.loading}</div>}>
-                <Scene3D sim={sim} />
-              </Suspense>
+            {scene3dMounted && (
+              <div className="scene-slot" hidden={view !== '3d'}>
+                <ErrorBoundary
+                  onError={() => useApp.getState().finishEmbolus()}
+                  fallback={() => (
+                    <div className="scene-message error">
+                      {t.webglUnavailable}{' '}
+                      <button className="btn small" onClick={() => window.location.reload()}>
+                        {lang === 'en' ? 'Reload' : '重新載入'}
+                      </button>
+                    </div>
+                  )}
+                >
+                  <Suspense fallback={<div className="scene-message loading">{t.loading}</div>}>
+                    <Scene3D sim={sim} />
+                  </Suspense>
+                </ErrorBoundary>
+              </div>
             )}
             {view === 'willis' && <WillisDiagram sim={sim} />}
             {view === 'brainstem' && <BrainstemSections sim={sim} />}

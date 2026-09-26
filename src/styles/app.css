@@ -213,9 +213,13 @@ p {
   min-height: 0;
   overflow: hidden;
 }
-.scene-wrap {
+.scene-wrap,
+.scene-slot {
   position: absolute;
   inset: 0;
+}
+.scene-slot[hidden] {
+  display: none;
 }
 .scene-message {
   position: absolute;
@@ -969,6 +973,10 @@ svg .seg .hit {
 svg .seg {
   cursor: pointer;
 }
+svg .seg:focus {
+  outline: none;
+}
+svg .seg:focus-visible path:not(.hit),
 svg .seg.hov path:not(.hit) {
   filter: drop-shadow(0 0 3px rgba(255, 220, 150, 0.8));
 }

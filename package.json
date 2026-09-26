@@ -40,6 +40,6 @@
   "description": "Interactive 3D cerebral artery map (cerebrum, brainstem, cerebellum) with an occlusion/embolism simulator showing downstream consequences over time. Educational only.",
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

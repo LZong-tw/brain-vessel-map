@@ -4,11 +4,11 @@
  * Hash-based so it works on GitHub Pages without server routing.
  */
 
-import { TIME_STOPS } from '../anatomy/timeline';
-import { VESSEL_BY_ID } from '../anatomy';
+import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { VARIANT_BY_ID } from '../anatomy/variants';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import type { CollateralGrade } from '../engine/hemodynamics';
+import { isOccludable } from '../engine/simulate';
 import { useApp, type AppState } from './store';
 
 export function encodeState(s: AppState): string {
@@ -26,43 +26,79 @@ export function encodeState(s: AppState): string {
   return q.toString();
 }
 
+/** State that a link fully determines; anything the hash leaves out falls back to these. */
+const LINK_DEFAULTS = {
+  occlusions: [],
+  variants: [],
+  collateral: 'good',
+  map: 93,
+  reperfusionH: null,
+  decompression: false,
+  scenario: null,
+  view: '3d',
+} satisfies Partial<AppState>;
+
+function nearestStop(h: number): number {
+  let best = 0;
+  TIME_STOPS.forEach((stop, i) => {
+    if (Math.abs(stop.h - h) < Math.abs(TIME_STOPS[best].h - h)) best = i;
+  });
+  return best;
+}
+
+/**
+ * Replace the simulation state with what the hash describes. Unknown ids and malformed
+ * values are ignored, so a hand-edited or truncated link can never break the page.
+ */
 export function applyHash(hash: string) {
-  const q = new URLSearchParams(hash.replace(/^#/, ''));
+  const raw = hash.replace(/^#/, '');
+  const q = new URLSearchParams(raw);
   if (![...q.keys()].length) return;
   const st = useApp.getState();
+  if (raw === encodeState(st)) return;
+
   const s = q.get('s');
-  if (s && SCENARIO_BY_ID[s] && !q.get('o')) {
-    st.loadScenario(s);
+  const scenario = s && SCENARIO_BY_ID[s] ? s : null;
+  let patch: Partial<AppState> = { ...LINK_DEFAULTS };
+  if (scenario && !q.get('o')) {
+    // a bare scenario link: load it, then let the other parameters (time, view) override
+    st.loadScenario(scenario);
+    const n = useApp.getState();
+    patch = {
+      occlusions: n.occlusions,
+      variants: n.variants,
+      collateral: n.collateral,
+      map: n.map,
+      reperfusionH: n.reperfusionH,
+      decompression: n.decompression,
+      scenario,
+      view: '3d',
+      tIndex: n.tIndex,
+    };
   }
-  const patch: Partial<AppState> = {};
   const o = q.get('o');
   if (o) {
-    patch.occlusions = o
-      .split(',')
-      .map((x) => {
-        const [vessel, sev] = x.split(':');
-        return { vessel, severity: sev ? Math.min(1, Math.max(0.3, Number(sev))) : 1 };
-      })
-      .filter((x) => VESSEL_BY_ID[x.vessel] && !VESSEL_BY_ID[x.vessel].visualOnly);
-    patch.scenario = s && SCENARIO_BY_ID[s] ? s : null;
+    const seen = new Set<string>();
+    patch.occlusions = [];
+    for (const part of o.split(',')) {
+      const [vessel, sevRaw] = part.split(':');
+      const sev = sevRaw === undefined ? 1 : Number(sevRaw);
+      if (!isOccludable(vessel) || seen.has(vessel) || !Number.isFinite(sev)) continue;
+      seen.add(vessel);
+      patch.occlusions.push({ vessel, severity: Math.min(1, Math.max(0.3, sev)) });
+    }
+    patch.scenario = scenario;
   }
   const v = q.get('v');
-  if (v) patch.variants = v.split(',').filter((x) => VARIANT_BY_ID[x]);
+  if (v) patch.variants = [...new Set(v.split(',').filter((x) => VARIANT_BY_ID[x]))];
   const c = q.get('c') as CollateralGrade | null;
   if (c && ['good', 'moderate', 'poor'].includes(c)) patch.collateral = c;
   const p = Number(q.get('p'));
-  if (p >= 30 && p <= 180) patch.map = p;
-  const t = q.get('t');
-  if (t !== null) {
-    const h = Number(t);
-    let best = 0;
-    TIME_STOPS.forEach((stop, i) => {
-      if (Math.abs(stop.h - h) < Math.abs(TIME_STOPS[best].h - h)) best = i;
-    });
-    patch.tIndex = best;
-  }
-  const r = q.get('r');
-  if (r !== null && Number.isFinite(Number(r))) patch.reperfusionH = Number(r);
+  if (Number.isFinite(p) && p >= 30 && p <= 180) patch.map = p;
+  const t = Number(q.get('t'));
+  if (q.get('t') !== null && Number.isFinite(t)) patch.tIndex = nearestStop(t);
+  const r = Number(q.get('r'));
+  if (q.get('r') !== null && REPERFUSION_STOPS.includes(r)) patch.reperfusionH = r;
   if (q.get('d') === '1') patch.decompression = true;
   const view = q.get('view');
   if (view === 'willis' || view === 'brainstem') patch.view = view;
@@ -70,9 +106,17 @@ export function applyHash(hash: string) {
   useApp.setState(patch);
 }
 
+function applyHashSafely(hash: string) {
+  try {
+    applyHash(hash);
+  } catch (e) {
+    console.warn('Ignoring unreadable link state', e);
+  }
+}
+
 /** Keep the hash in sync with the state (debounced, no history spam). */
 export function startUrlSync() {
-  applyHash(window.location.hash);
+  applyHashSafely(window.location.hash);
   let timer: number | undefined;
   let last = '';
   useApp.subscribe((s) => {
@@ -85,5 +129,5 @@ export function startUrlSync() {
       window.history.replaceState(null, '', url);
     }, 250);
   });
-  window.addEventListener('hashchange', () => applyHash(window.location.hash));
+  window.addEventListener('hashchange', () => applyHashSafely(window.location.hash));
 }

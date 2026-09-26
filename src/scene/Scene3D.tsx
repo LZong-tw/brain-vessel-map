@@ -29,14 +29,15 @@ const PRESETS: Record<CameraView, { pos: Vector3; target: Vector3 }> = {
 
 function CameraRig() {
   const req = useApp((s) => s.camera);
-  const { camera, controls } = useThree();
+  const { camera, controls, invalidate } = useThree();
   const anim = useRef<{ t: number; fromP: Vector3; fromT: Vector3; toP: Vector3; toT: Vector3 } | null>(null);
   useEffect(() => {
     const ctl = controls as unknown as OrbitControlsImpl | null;
     const p = PRESETS[req.view];
     if (!ctl || !p) return;
     anim.current = { t: 0, fromP: camera.position.clone(), fromT: ctl.target.clone(), toP: p.pos, toT: p.target };
-  }, [req, camera, controls]);
+    invalidate();
+  }, [req, camera, controls, invalidate]);
   useFrame((_, dt) => {
     const a = anim.current;
     const ctl = controls as unknown as OrbitControlsImpl | null;
@@ -47,6 +48,7 @@ function CameraRig() {
     ctl.target.lerpVectors(a.fromT, a.toT, e);
     ctl.update();
     if (a.t >= 1) anim.current = null;
+    else invalidate();
   });
   return null;
 }
@@ -62,13 +64,19 @@ function Lights() {
   );
 }
 
+let webglSupport: boolean | null = null;
+/** probe once per page and release the probe context right away */
 function hasWebGL(): boolean {
+  if (webglSupport !== null) return webglSupport;
   try {
     const c = document.createElement('canvas');
-    return !!(c.getContext('webgl2') || c.getContext('webgl'));
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    webglSupport = !!gl;
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
   } catch {
-    return false;
+    webglSupport = false;
   }
+  return webglSupport;
 }
 
 export function Scene3D({ sim }: { sim: SimResult }) {
@@ -76,7 +84,16 @@ export function Scene3D({ sim }: { sim: SimResult }) {
   const { data, error } = useBrainData();
   const clip = useApp((s) => s.clip);
   const select = useApp((s) => s.select);
+  const hover = useApp((s) => s.hover);
+  const embolusRunning = useApp((s) => !!s.embolus && !s.embolus.done);
+  const finishEmbolus = useApp((s) => s.finishEmbolus);
   const [webgl] = useState(hasWebGL);
+  // without WebGL the embolus cannot be animated: apply its result straight away
+  useEffect(() => {
+    if (!webgl && embolusRunning) finishEmbolus();
+  }, [webgl, embolusRunning, finishEmbolus]);
+  // a hovered mesh that unmounts never fires pointer-out
+  useEffect(() => () => hover(null), [hover]);
   const clipPlanes = useMemo(() => {
     if (clip.axis === 'none') return [];
     const c = clip.pos * 0.1;
@@ -90,6 +107,8 @@ export function Scene3D({ sim }: { sim: SimResult }) {
     <div className="scene-wrap">
       <Canvas
         camera={{ position: PRESETS.left.pos.toArray(), fov: 38, near: 0.1, far: 400 }}
+        // render only when something changes (camera, state, animations call invalidate())
+        frameloop="demand"
         gl={{ antialias: true, localClippingEnabled: true, preserveDrawingBuffer: false }}
         dpr={[1, 2]}
         onPointerMissed={() => select(null)}
