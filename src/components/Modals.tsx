@@ -4,6 +4,23 @@ import { tr } from '../anatomy';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 
+const REPO_URL = 'https://github.com/LZong-tw/brain-vessel-map';
+
+function Links({ urls }: { urls: string }) {
+  return (
+    <div className="src-url">
+      {urls.split(' · ').map((u, i) => (
+        <span key={u}>
+          {i > 0 && ' · '}
+          <a href={u} target="_blank" rel="noopener noreferrer">
+            {u.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+          </a>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -90,17 +107,36 @@ export function Modals() {
               <div className="src-name">{s.name}</div>
               <div className="src-use">{tr(s.use, lang)}</div>
               <div className="src-lic">
-                <span className="badge">{s.licence}</span> {s.modified ? (lang === 'en' ? 'modified (meshed / resampled / relabelled)' : '已修改（網格化／重取樣／重新標記）') : ''}
+                {s.licenceUrl ? (
+                  <a className="badge" href={s.licenceUrl} target="_blank" rel="noopener noreferrer">
+                    {s.licence}
+                  </a>
+                ) : (
+                  <span className="badge">{s.licence}</span>
+                )}{' '}
+                {s.modified ? (lang === 'en' ? 'modified (meshed / resampled / relabelled)' : '已修改（網格化／重取樣／重新標記）') : ''}
               </div>
               <div className="src-attr">{s.attribution}</div>
-              <div className="src-url">{s.url}</div>
+              {s.notice && <blockquote className="src-notice">{s.notice}</blockquote>}
+              <Links urls={s.url} />
             </li>
           ))}
         </ul>
         <p className="muted">
           {lang === 'en'
             ? 'Because the territory atlas is CC BY-SA 4.0, the derived data files (public/data, src/anatomy/generated) are shared under CC BY-SA 4.0. The application code is MIT-licensed.'
-            : '因動脈供應區圖譜採 CC BY-SA 4.0，衍生的資料檔（public/data、src/anatomy/generated）以 CC BY-SA 4.0 釋出；程式碼本身為 MIT 授權。'}
+            : '因動脈供應區圖譜採 CC BY-SA 4.0，衍生的資料檔（public/data、src/anatomy/generated）以 CC BY-SA 4.0 釋出；程式碼本身為 MIT 授權。'}{' '}
+          <a href="data/LICENSE.txt" target="_blank" rel="noopener noreferrer">
+            {lang === 'en' ? 'Data licence' : '資料授權全文'}
+          </a>
+          {' · '}
+          <a href={`${REPO_URL}/blob/main/THIRD_PARTY_NOTICES.md`} target="_blank" rel="noopener noreferrer">
+            THIRD_PARTY_NOTICES.md
+          </a>
+          {' · '}
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+            {lang === 'en' ? 'Source code (MIT)' : '原始碼（MIT）'}
+          </a>
         </p>
         <h3>{lang === 'en' ? 'Projects that inspired parts of this app' : '參考與啟發的開源專案'}</h3>
         <ul className="sources">
@@ -110,7 +146,7 @@ export function Modals() {
                 {p.name} <span className="badge">{p.licence}</span>
               </div>
               <div className="src-use">{tr(p.note, lang)}</div>
-              <div className="src-url">{p.url}</div>
+              <Links urls={p.url} />
             </li>
           ))}
         </ul>

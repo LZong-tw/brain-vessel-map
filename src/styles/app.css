@@ -1166,6 +1166,18 @@ svg .flow-num {
   color: var(--text-2);
   word-break: break-word;
 }
+.src-url a {
+  color: var(--accent, #6ea8ff);
+  word-break: break-all;
+}
+.src-notice {
+  margin: 6px 0 4px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--line-2);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
 .refs {
   padding-left: 20px;
   font-size: 12.5px;

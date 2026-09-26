@@ -10,10 +10,17 @@ export interface DataSource {
   name: string;
   use: L;
   licence: string;
+  licenceUrl?: string;
   attribution: string;
   url: string;
   modified: boolean;
+  /** licence text that must accompany copies */
+  notice?: string;
 }
+
+/** Verbatim from the template's LICENSE file; required in all copies. */
+export const MNI_NOTICE =
+  'Copyright (C) 1993–2004 Louis Collins, McConnell Brain Imaging Centre, Montreal Neurological Institute, McGill University. Permission to use, copy, modify, and distribute this software and its documentation for any purpose and without fee is hereby granted, provided that the above copyright notice appear in all copies. The authors and McGill University make no representations about the suitability of this software for any purpose. It is provided “as is” without express or implied warranty. The authors are not responsible for any data loss, equipment damage, property loss, or injury to subjects or patients resulting from the use or misuse of this software package.';
 
 export const DATA_SOURCES: DataSource[] = [
   {
@@ -28,6 +35,7 @@ export const DATA_SOURCES: DataSource[] = [
       'Copyright (C) 1993–2004 Louis Collins, McConnell Brain Imaging Centre, Montreal Neurological Institute, McGill University. Fonov V et al., NeuroImage 2011;54:313–327; Fonov V et al., NeuroImage 2009;47:S102. Distributed through TemplateFlow (Ciric R et al., Nat Methods 2022).',
     url: 'https://www.templateflow.org/ · http://nist.mni.mcgill.ca/icbm-152-nonlinear-atlases-2009/',
     modified: true,
+    notice: MNI_NOTICE,
   },
   {
     id: 'dkt',
@@ -37,6 +45,7 @@ export const DATA_SOURCES: DataSource[] = [
       en: 'Cortical gyral parcellation (assigns each surface point to a functional region).',
     },
     licence: 'CC BY 4.0',
+    licenceUrl: 'https://creativecommons.org/licenses/by/4.0/',
     attribution: 'Klein A, Tourville J. 101 labeled brain images and a consistent human cortical labeling protocol. Front Neurosci 2012;6:171. Mindboggle-101 (Zenodo).',
     url: 'https://mindboggle.info/data',
     modified: true,
@@ -61,6 +70,7 @@ export const DATA_SOURCES: DataSource[] = [
       en: 'Splits the thalamus into anterior, paramedian, ventrolateral and posterior vascular territories.',
     },
     licence: 'CC BY 4.0',
+    licenceUrl: 'https://creativecommons.org/licenses/by/4.0/',
     attribution: 'Najdenovska E et al. In-vivo probabilistic atlas of human thalamic nuclei based on diffusion-weighted MRI. Sci Data 2018;5:180270.',
     url: 'https://doi.org/10.5281/zenodo.1241074',
     modified: true,
@@ -73,6 +83,7 @@ export const DATA_SOURCES: DataSource[] = [
       en: 'Arterial territory of every tissue voxel (ACA, MCA and PCA subdivisions, lenticulostriate, choroidal, cerebellar), and the border zones between them.',
     },
     licence: 'CC BY-SA 4.0',
+    licenceUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
     attribution:
       'Digital 3D Brain MRI Arterial Territories Atlas © 2021 The Johns Hopkins University. Liu CF, Hsu J, Xu X, et al. Sci Data 2023;10:74.',
     url: 'https://github.com/Chin-Fu-Liu/Arterial_Atlas',
@@ -86,6 +97,7 @@ export const DATA_SOURCES: DataSource[] = [
       en: 'Snaps hand-authored centrelines onto statistically real artery positions (circle of Willis, basilar, vertebral, M1, A1/A2, P1/P2 …).',
     },
     licence: 'CC0 1.0',
+    licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
     attribution: 'Mouches P, Forkert ND. A statistical atlas of cerebral arteries generated using multi-center MRA datasets from healthy subjects. Sci Data 2019;6:29.',
     url: 'https://doi.org/10.6084/m9.figshare.c.4215089',
     modified: true,
