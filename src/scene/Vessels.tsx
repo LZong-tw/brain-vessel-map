@@ -44,7 +44,6 @@ const LABELLED = new Set([
 
 export function Vessels({ sim }: { sim: SimResult }) {
   const layers = useApp((s) => s.layers);
-  const occlusions = useApp((s) => s.occlusions);
   const hovered = useApp((s) => s.hovered);
   const selected = useApp((s) => s.selected);
   const lang = useApp((s) => s.lang);
@@ -57,7 +56,7 @@ export function Vessels({ sim }: { sim: SimResult }) {
     <group>
       {built.map((b) => {
         const { v } = b;
-        const vis = vesselVisual(v.id, sim, occlusions);
+        const vis = vesselVisual(v.id, sim);
         if (v.group === 'extracranial' && !layers.neck) return null;
         if (v.kind === 'collateral' && !layers.collaterals && vis.state !== 'collateral_active') return null;
         const isHover = hovered?.kind === 'vessel' && hovered.id === v.id;

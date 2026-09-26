@@ -42,28 +42,50 @@ export function finalInfarctProb(rel: number): number {
 /** the penumbra "resolves" (dies or stabilises) after about three time constants */
 export const penumbraResolveH = (rel: number) => 3 * tauHours(rel);
 
-/** infarcted fraction of a unit at time t (hours) with optional reperfusion time */
-export function infarctFraction(rel: number, tH: number, reperfusionH: number | null): number {
+function lossAt(rel: number, tH: number): number {
   const tau = tauHours(rel);
   if (!Number.isFinite(tau)) return 0;
-  const tEff = reperfusionH !== null ? Math.min(tH, reperfusionH) : tH;
-  return finalInfarctProb(rel) * (1 - Math.exp(-Math.max(tEff, 0) / tau));
+  return finalInfarctProb(rel) * (1 - Math.exp(-Math.max(tH, 0) / tau));
+}
+
+/**
+ * Infarcted fraction of a unit at time t (hours). Perfusion is `rel` until the occlusion is
+ * reopened at `reperfusionH`, and `relAfter` from then on — full recanalisation stops the
+ * damage, but tissue that stays under-perfused (e.g. behind a residual stenosis) keeps dying.
+ */
+export function infarctFraction(rel: number, tH: number, reperfusionH: number | null, relAfter = 1): number {
+  if (reperfusionH === null || tH <= reperfusionH) return lossAt(rel, tH);
+  const f1 = lossAt(rel, reperfusionH);
+  // continue on the post-reperfusion curve from the point that matches the damage so far,
+  // so an unchanged flow gives exactly the untreated course
+  const p = finalInfarctProb(relAfter);
+  const tau = tauHours(relAfter);
+  if (f1 >= p || !Number.isFinite(tau)) return f1;
+  const tEquivalent = -tau * Math.log(1 - f1 / p);
+  return lossAt(relAfter, tEquivalent + (tH - reperfusionH));
 }
 
 /**
  * Split a unit at time t into its infarcted fraction `f` (state "core") and the state of the
  * surviving remainder.
  */
-export function unitState(rel: number, tH: number, reperfusionH: number | null): { f: number; rest: TissueState } {
-  const f = infarctFraction(rel, tH, reperfusionH);
+export function unitState(
+  rel: number,
+  tH: number,
+  reperfusionH: number | null,
+  relAfter = 1,
+): { f: number; rest: TissueState } {
+  const f = infarctFraction(rel, tH, reperfusionH, relAfter);
   const reperfused = reperfusionH !== null && tH >= reperfusionH;
+  const cur = reperfused ? relAfter : rel;
+  const since = reperfused ? tH - (reperfusionH as number) : tH;
   let rest: TissueState;
-  if (rel < PENUMBRA_REL) {
-    if (reperfused) rest = 'salvaged';
-    // penumbra that outlived its time window without reperfusion has stabilised (collaterals
-    // held or the vessel partly reopened): hypoperfused but functioning
-    else rest = tH < penumbraResolveH(rel) ? 'penumbra' : 'oligemia';
-  } else rest = rel < OLIGEMIA_REL && !reperfused ? 'oligemia' : 'normal';
+  if (cur < PENUMBRA_REL) {
+    // penumbra that outlived its time window has stabilised (collaterals held or the vessel
+    // partly reopened): hypoperfused but functioning
+    rest = since < penumbraResolveH(cur) ? 'penumbra' : 'oligemia';
+  } else if (reperfused && rel < PENUMBRA_REL) rest = 'salvaged';
+  else rest = cur < OLIGEMIA_REL ? 'oligemia' : 'normal';
   return { f, rest };
 }
 

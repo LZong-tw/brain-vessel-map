@@ -61,7 +61,7 @@ Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 85 個測試：血流、組織、症候群、連鎖反應、栓子
+npm test           # 87 個測試：血流、組織、症候群、連鎖反應、栓子
 npm run lint && npm run typecheck
 npm run build      # 輸出到 dist/，相對路徑，可放在任何子目錄
 ```

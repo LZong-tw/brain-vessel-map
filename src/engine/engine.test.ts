@@ -102,6 +102,26 @@ describe('tissue fate over time', () => {
     expect(early.volumes.saved).toBeGreaterThan(50);
   });
 
+  it('recanalisation reopens the vessel at the chosen time, not before', () => {
+    const before = sim({ occlusions: occl('mca_m1_l'), reperfusionH: 2, tH: 1 });
+    const after = sim({ occlusions: occl('mca_m1_l'), reperfusionH: 2, tH: 24 });
+    expect(before.recanalized).toBe(false);
+    expect(before.activeOcclusions).toHaveLength(1);
+    expect(before.hemo.totalCbf).toBeLessThan(before.hemo.baselineCbf * 0.95);
+    expect(after.recanalized).toBe(true);
+    expect(after.activeOcclusions).toHaveLength(0);
+    expect(after.hemo.totalCbf).toBeCloseTo(after.hemo.baselineCbf, 0);
+    expect(after.volumes.penumbra).toBeLessThan(1);
+  });
+
+  it('"reperfusion" does not remove a stenosis', () => {
+    const occ = [{ vessel: 'ica_cervical_r', severity: 0.85 }];
+    const untreated = sim({ occlusions: occ, map: 60, tH: 2160 });
+    const treated = sim({ occlusions: occ, map: 60, tH: 2160, reperfusionH: 2 });
+    expect(treated.activeOcclusions).toEqual(occ);
+    expect(treated.volumes.core).toBeCloseTo(untreated.volumes.core, 5);
+  });
+
   it('infarct grows between 1 h and 24 h when untreated', () => {
     expect(sim({ occlusions: occl('mca_m1_l'), tH: 1 }).volumes.core).toBeLessThan(
       sim({ occlusions: occl('mca_m1_l'), tH: 24 }).volumes.core,

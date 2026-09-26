@@ -123,7 +123,6 @@ const GROUP_ORDER: VesselGroup[] = ['anterior', 'willis', 'posterior', 'extracra
 function VesselsTab({ sim }: { sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
-  const occlusions = useApp((s) => s.occlusions);
   const selected = useApp((s) => s.selected);
   const select = useApp((s) => s.select);
   const hover = useApp((s) => s.hover);
@@ -178,7 +177,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
             <h3>{t.vesselGroups[g]}</h3>
             <ul className="list">
               {vs.map((v) => {
-                const vis = vesselVisual(v.id, sim, occlusions);
+                const vis = vesselVisual(v.id, sim);
                 return (
                   <li key={v.id}>
                     <button
@@ -239,6 +238,7 @@ function SettingsTab() {
             ))}
           </select>
         </label>
+        <p className="muted small">{t.reperfusionHint}</p>
         <label className="check">
           <input type="checkbox" checked={st.decompression} onChange={(e) => st.setDecompression(e.target.checked)} />
           {t.decompression}

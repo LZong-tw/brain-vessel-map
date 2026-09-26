@@ -79,9 +79,9 @@ export function ExtraStructures({ sim }: { sim: SimResult }) {
   );
 }
 
-/** Clots (complete occlusions) and stenoses. */
-export function ClotMarkers() {
-  const occlusions = useApp((s) => s.occlusions);
+/** Clots (complete occlusions) and stenoses still in place at the simulated time. */
+export function ClotMarkers({ sim }: { sim: SimResult }) {
+  const occlusions = sim.activeOcclusions;
   const layers = useApp((s) => s.layers);
   if (!layers.vessels) return null;
   return (

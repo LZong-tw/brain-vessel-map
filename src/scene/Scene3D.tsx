@@ -123,7 +123,7 @@ export function Scene3D({ sim }: { sim: SimResult }) {
         {data && <BrainMeshes data={data} sim={sim} clipPlanes={clipPlanes} />}
         <Vessels sim={sim} />
         <ExtraStructures sim={sim} />
-        <ClotMarkers />
+        <ClotMarkers sim={sim} />
         <FlowParticles sim={sim} />
         <EmbolusAnimation />
       </Canvas>
