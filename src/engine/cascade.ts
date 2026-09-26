@@ -70,6 +70,21 @@ export interface CascadeOutput {
   midlineShift: { side: Side; peakMm: number; onsetH: number } | null;
 }
 
+/**
+ * Midline shift (mm) at time t: builds from the onset of oedema to a peak around day 3–5 and
+ * resolves over the following weeks; a decompressive craniectomy lets the swelling expand
+ * outwards and largely removes the shift.
+ */
+export function midlineShiftAt(ms: CascadeOutput['midlineShift'], tH: number, decompression: boolean): number {
+  if (!ms || tH < ms.onsetH) return 0;
+  const peakH = 72;
+  const plateauEndH = 120;
+  const goneH = 500;
+  const f =
+    tH <= peakH ? (tH - ms.onsetH) / (peakH - ms.onsetH) : tH <= plateauEndH ? 1 : Math.max(0, 1 - (tH - plateauEndH) / (goneH - plateauEndH));
+  return ms.peakMm * f * (decompression && tH >= 36 ? 0.3 : 1);
+}
+
 const LVO = [
   'ica_cervical',
   'ica_petrous_cavernous',
@@ -119,20 +134,22 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   let untreatedTotal = 0;
   for (const b of BEDS) {
     const reg = REGION_BY_ID[b.region];
-    if (!['cortex', 'deep', 'brainstem', 'cerebellum'].includes(reg.category)) continue;
+    // the compartment decides where swelling goes: above the tentorium (hemispheric mass
+    // effect, herniation) or in the tight posterior fossa (brainstem compression, hydrocephalus)
+    if (reg.compartment === 'none') continue;
     const v = (bedFinal[b.id] ?? 0) * b.volume;
     untreatedTotal += (bedFinalUntreated[b.id] ?? 0) * b.volume;
     vol.total += v;
     const s = reg.side === 'm' ? 'r' : reg.side;
-    if (reg.category === 'brainstem') vol.brainstem += v;
-    else if (reg.category === 'cerebellum') vol.cerebellum[s] += v;
-    else vol.supra[s] += v;
+    if (reg.compartment === 'supra') vol.supra[s] += v;
+    else if (reg.category === 'brainstem') vol.brainstem += v;
+    else vol.cerebellum[s] += v;
   }
   const savedVolume = Math.max(0, untreatedTotal - vol.total);
   const earlySupra: Record<Side, number> = { r: 0, l: 0 };
   for (const b of BEDS) {
     const reg = REGION_BY_ID[b.region];
-    if (reg.category !== 'cortex' && reg.category !== 'deep') continue;
+    if (reg.compartment !== 'supra') continue;
     earlySupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedEarly[b.id] ?? 0) * b.volume;
   }
   const anyIschemia = Object.values(regionAcute).some((x) => x >= 0.05);

@@ -69,7 +69,7 @@ export interface AppState {
 
   setLang: (l: Lang) => void;
   toggleOcclusion: (vessel: string, severity?: number) => void;
-  setOcclusion: (vessel: string, severity: number | null) => void;
+  setOcclusion: (vessel: string, severity: number | null, branch?: boolean) => void;
   clearOcclusions: () => void;
   toggleVariant: (id: string) => void;
   setMap: (v: number) => void;
@@ -177,9 +177,9 @@ export const useApp = create<AppState>((set, get) => ({
     const exists = get().occlusions.some((o) => o.vessel === vessel);
     get().setOcclusion(vessel, exists ? null : severity);
   },
-  setOcclusion: (vessel, severity) => {
+  setOcclusion: (vessel, severity, branch) => {
     const rest = get().occlusions.filter((o) => o.vessel !== vessel);
-    const occlusions = severity === null ? rest : [...rest, { vessel, severity }];
+    const occlusions = severity === null ? rest : [...rest, branch ? { vessel, severity: 1, branch: true } : { vessel, severity }];
     set({ occlusions, scenario: null, rightTab: occlusions.length ? get().rightTab : 'details' });
   },
   clearOcclusions: () => set({ occlusions: [], scenario: null, reperfusionH: null, decompression: false, embolus: null }),

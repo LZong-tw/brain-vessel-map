@@ -120,6 +120,14 @@ export function territorySupply(regionBase: string, terr: TerritoryCode): Supply
       { v: 'mca_m2_inf_{s}', share: 0.5, at: 'mid' },
     ];
   }
+  if (regionBase === 'occipital_pole' && terr === 'PCAO') {
+    // the macular cortex at the pole also receives MCA (temporo-occipital) leptomeningeal
+    // supply — the classic explanation of macular sparing in PCA infarcts
+    return [
+      { v: 'pca_calcarine_{s}', share: 0.7 },
+      { v: 'mca_temporooccipital_{s}', share: 0.3, distal: true },
+    ];
+  }
   const rule = MAP[terr] ?? MAP.MCAF!;
   const vessel = rule[regionBase] ?? rule.default;
   const at = vessel === 'mca_m2_sup' ? 'mid' : undefined;

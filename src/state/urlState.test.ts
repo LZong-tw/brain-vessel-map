@@ -34,7 +34,8 @@ describe('shareable URL state', () => {
   });
 
   it('round-trips through encodeState', () => {
-    applyHash('#o=mca_m1_l,ica_cervical_r:0.7&c=moderate&t=24&r=2');
+    applyHash('#o=mca_m1_l,ica_cervical_r:0.7,lenticulostriate_r:b&c=moderate&t=24&r=2');
+    expect(useApp.getState().occlusions).toContainEqual({ vessel: 'lenticulostriate_r', severity: 1, branch: true });
     const enc = encodeState(useApp.getState());
     applyHash('#o=aca_a1_r');
     applyHash(`#${enc}`);

@@ -67,17 +67,29 @@ export function regionSupply(r: Region): { vessel: string; share: number }[] {
     .sort((a, b) => b.share - a.share);
 }
 
-/** Regions supplied (directly) by a vessel, with the share of each region it feeds. */
+/**
+ * Regions fed by a vessel, with the share of each region it feeds. Trunks (e.g. M1, ICA)
+ * feed no tissue directly, so their territory is the sum of everything downstream of them.
+ */
 export function vesselTerritory(vesselId: string): { region: string; share: number }[] {
-  const out: { region: string; share: number }[] = [];
-  const seen = new Set<string>();
+  const vessels = new Set<string>();
+  const walk = (id: string) => {
+    if (vessels.has(id) || !VESSEL_BY_ID[id]) return;
+    vessels.add(id);
+    for (const c of VESSEL_BY_ID[id].children) walk(c);
+  };
+  walk(vesselId);
+  const acc = new Map<string, number>();
   for (const bid of Object.keys(BED_BY_ID)) {
     const b = BED_BY_ID[bid];
-    if (!b.supply.some((s) => s.v === vesselId)) continue;
-    if (seen.has(b.region)) continue;
-    seen.add(b.region);
-    const share = regionSupply(REGION_BY_ID[b.region]).find((x) => x.vessel === vesselId)?.share ?? 0;
-    if (share > 0.02) out.push({ region: b.region, share });
+    if (acc.has(b.region) || !b.supply.some((s) => vessels.has(s.v))) continue;
+    const share = regionSupply(REGION_BY_ID[b.region])
+      .filter((x) => vessels.has(x.vessel))
+      .reduce((a, x) => a + x.share, 0);
+    acc.set(b.region, Math.min(1, share));
   }
-  return out.sort((a, b) => b.share - a.share);
+  return [...acc.entries()]
+    .filter(([, share]) => share > 0.02)
+    .map(([region, share]) => ({ region, share }))
+    .sort((a, b) => b.share - a.share);
 }

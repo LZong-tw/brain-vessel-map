@@ -1,16 +1,19 @@
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
+import { canBeLacunar } from '../anatomy/lacunes';
 import type { SymptomSystem } from '../anatomy/types';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
 import { REGION_DEFS } from '../anatomy/regions';
-import type { CascadeEvent } from '../engine/cascade';
+import { midlineShiftAt, type CascadeEvent } from '../engine/cascade';
+import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
 import { isOccludable, previewOcclusion, type SimResult } from '../engine/simulate';
+import type { Strings } from '../i18n/ui';
 import { useT } from '../state/hooks';
 import { useApp, type RightTab } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
 import { fmtFlow, fmtMl, fmtNeurons, pct, regionSupply, symptomLabel, vesselTerritory } from '../ui/format';
-import { vesselVisual } from '../ui/vesselState';
+import { vesselVisual, type VesselVisual } from '../ui/vesselState';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
   const t = useT();
@@ -72,6 +75,11 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
   const occ = st.occlusions.find((o) => o.vessel === id);
   const vis = vesselVisual(id, sim);
   const territory = useMemo(() => vesselTerritory(id), [id]);
+  const baselinePressure = useMemo(
+    () => simulateHemodynamics({ occlusions: [], variants: st.variants, map: st.map, collateral: st.collateral }).vesselPressure[id],
+    [id, st.variants, st.map, st.collateral],
+  );
+  const pressure = sim.hemo.vesselPressure[id];
   const preview = useMemo(
     () =>
       isOccludable(id) && !occ
@@ -99,18 +107,23 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
               {t.baseline} {fmtFlow(vis.baseline)} {t.mlMin}
             </div>
           </div>
+          {pressure !== undefined && (
+            <div className="stat">
+              <div className="stat-label">{t.pressure}</div>
+              <div className="stat-value">
+                {Math.round(pressure)} <small>{t.mmHg}</small>
+              </div>
+              {baselinePressure !== undefined && (
+                <div className="stat-sub">
+                  {t.baseline} {Math.round(baselinePressure)} {t.mmHg}
+                </div>
+              )}
+            </div>
+          )}
           <div className="stat">
             <div className="stat-label">{t.state}</div>
             <div className="stat-value small" style={{ color: vis.color === '#1c1c1c' ? '#ff6b7d' : vis.color }}>
-              {vis.state === 'occluded'
-                ? t.states.occluded
-                : vis.state === 'reversed'
-                  ? t.reversedFlow
-                  : vis.state === 'noflow'
-                    ? t.noFlow
-                    : vis.state === 'reduced'
-                      ? `${t.states.reduced} (${pct(vis.ratio)})`
-                      : t.states.normal}
+              {vesselStateLabel(vis, occ, t)}
             </div>
           </div>
         </div>
@@ -121,12 +134,27 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
             {occ ? t.unocclude : t.occlude}
           </button>
           <div className="seg small" role="group" aria-label={t.stenosis}>
-            {([0.5, 0.7, 0.9, 1] as const).map((sv) => (
-              <button key={sv} aria-pressed={occ?.severity === sv} className={occ?.severity === sv ? 'active' : ''} onClick={() => st.setOcclusion(id, occ?.severity === sv ? null : sv)}>
-                {t.stenosisOptions[sv]}
-              </button>
-            ))}
+            {([0.5, 0.7, 0.9, 1] as const).map((sv) => {
+              const on = !!occ && !occ.branch && occ.severity === sv;
+              return (
+                <button key={sv} aria-pressed={on} className={on ? 'active' : ''} onClick={() => st.setOcclusion(id, on ? null : sv)}>
+                  {t.stenosisOptions[sv]}
+                </button>
+              );
+            })}
           </div>
+          {canBeLacunar(v.baseId, v.n) && (
+            <>
+              <button
+                className={`btn block${occ?.branch ? ' active' : ''}`}
+                aria-pressed={!!occ?.branch}
+                onClick={() => st.setOcclusion(id, occ?.branch ? null : 1, true)}
+              >
+                {t.lacuneOption}
+              </button>
+              <p className="muted small">{t.lacuneHint}</p>
+            </>
+          )}
         </div>
       )}
       {preview && (
@@ -219,6 +247,17 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
   if (!r || !def) return null;
   const rs = sim.regions[id];
   const stateKey = rs?.dominant ?? 'normal';
+  const tH = sim.input.tH;
+  // cascade events responsible for secondary effects (compression, degeneration …) here
+  const causes = [
+    ...new Set(
+      r.beds.flatMap((b) =>
+        (sim.cascade.bedEffects[b] ?? []).filter((e) => e.onsetH <= tH && tH < (e.endH ?? Infinity)).map((e) => e.event),
+      ),
+    ),
+  ]
+    .map((eid) => sim.cascade.events.find((e) => e.id === eid))
+    .filter((e): e is CascadeEvent => !!e);
   const deficits = def.deficits.filter((d) => !d.only || d.only === r.side);
   return (
     <div className="details">
@@ -234,6 +273,12 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
           <div className="stat-label">{t.state}</div>
           <div className="stat-value small">{t.states[stateKey as keyof typeof t.states] ?? stateKey}</div>
         </div>
+        {rs && rs.infarct >= 0.01 && (
+          <div className="stat">
+            <div className="stat-label">{t.infarctShare}</div>
+            <div className="stat-value">{pct(rs.infarct)}</div>
+          </div>
+        )}
         {r.volume > 0.05 && (
           <div className="stat">
             <div className="stat-label">{t.volume}</div>
@@ -243,6 +288,11 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
           </div>
         )}
       </div>
+      {causes.length > 0 && (
+        <p className="callout warn">
+          {t.cause}: {causes.map((e) => tr(e.title, lang)).join('；')}
+        </p>
+      )}
       <section>
         <h3>{t.suppliedBy}</h3>
         <div className="chips">
@@ -330,6 +380,8 @@ function Results({ sim }: { sim: SimResult }) {
   const [showAllEvents, setShowAllEvents] = useState(false);
   const tH = TIME_STOPS[tIndex].h;
   if (!occlusions.length && map >= 70) return <p className="muted">{t.noOcclusion}</p>;
+  const shift = midlineShiftAt(sim.cascade.midlineShift, tH, sim.input.decompression);
+  const nihssItems = NIHSS_ORDER.filter((k) => (sim.nihss.items[k] ?? 0) > 0);
 
   const bySystem = new Map<SymptomSystem, typeof sim.symptoms>();
   for (const s of sim.symptoms) {
@@ -354,10 +406,11 @@ function Results({ sim }: { sim: SimResult }) {
       <div className="chips occ-list">
         {occlusions.map((o) => (
           <span key={o.vessel} className="chip occ">
-            <span className="dot" style={{ background: o.severity >= 1 ? STATE_COLORS.core : '#f28c28' }} />
+            <span className="dot" style={{ background: o.severity >= 1 && !o.branch ? STATE_COLORS.core : '#f28c28' }} />
             {vesselName(VESSEL_BY_ID[o.vessel], lang)}
             {o.severity < 1 && ` ${Math.round(o.severity * 100)}%`}
-            {o.severity >= 1 && sim.recanalized && <span className="badge good">{t.recanalized}</span>}
+            {o.branch && ` · ${t.lacuneTag}`}
+            {o.severity >= 1 && !o.branch && sim.recanalized && <span className="badge good">{t.recanalized}</span>}
             <button
               className="x"
               aria-label={`${lang === 'en' ? 'Remove' : '移除'} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
@@ -409,12 +462,33 @@ function Results({ sim }: { sim: SimResult }) {
             {Math.round(sim.hemo.totalCbf)} / {Math.round(sim.hemo.baselineCbf)} {t.mlMin}
           </div>
         </div>
+        {shift >= 0.5 && (
+          <div className="stat" title={t.midlineShiftNote}>
+            <div className="stat-label">{t.midlineShift}</div>
+            <div className="stat-value small" style={{ color: shift >= 5 ? STATE_COLORS.core : undefined }}>
+              {shift.toFixed(1)} mm{sim.input.decompression && tH >= 36 ? ` · ${t.decompressed}` : ''}
+            </div>
+          </div>
+        )}
       </div>
 
       <section className="nihss">
         <h3>
           {t.nihss}: <span className="num big">{sim.nihss.total}</span> <span className={`badge sev-${sim.nihss.category}`}>{t.nihssCategory[sim.nihss.category]}</span>
         </h3>
+        {nihssItems.length > 0 && (
+          <details className="nihss-items">
+            <summary>{t.nihssBreakdown}</summary>
+            <ul>
+              {nihssItems.map((k) => (
+                <li key={k}>
+                  <span>{t.nihssItems[k] ?? k}</span>
+                  <span className="num">{sim.nihss.items[k]}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
         <p className="muted small">{t.nihssNote}</p>
         {sim.nihss.posteriorCaveat && <p className="callout warn">{t.posteriorCaveat}</p>}
       </section>
@@ -508,6 +582,18 @@ function Results({ sim }: { sim: SimResult }) {
   );
 }
 
+function vesselStateLabel(vis: VesselVisual, occ: Occlusion | undefined, t: Strings): string {
+  if (vis.state === 'occluded') return t.states.occluded;
+  if (occ?.branch) return t.states.branchOccluded;
+  if (vis.state === 'stenosed') return `${t.states.stenosed} ${Math.round((occ?.severity ?? 0) * 100)}%`;
+  if (vis.state === 'reversed') return t.reversedFlow;
+  if (vis.state === 'noflow') return t.noFlow;
+  if (vis.state === 'reduced') return `${t.states.reduced} (${pct(vis.ratio)})`;
+  return t.states.normal;
+}
+
+const NIHSS_ORDER = ['1a', '1b', '1c', '2', '3', '4', '5l', '5r', '6l', '6r', '7', '8', '9', '10', '11'];
+
 function nearestStop(h: number) {
   let best = 0;
   TIME_STOPS.forEach((s, i) => {
@@ -528,7 +614,10 @@ function EventItem({ e, tH, onJump, onRegion }: { e: CascadeEvent; tH: number; o
         {formatHours(e.onsetH, lang)}
       </button>
       <div className="ev-body">
-        <div className="ev-kind">{t.eventKinds[e.kind]}</div>
+        <div className="ev-kind">
+          {t.eventKinds[e.kind]}
+          {e.peakH !== undefined && ` · ${t.peakAt} ${formatHours(e.peakH, lang)}`}
+        </div>
         <div className="ev-title">{tr(e.title, lang)}</div>
         <p>{tr(e.desc, lang)}</p>
         {e.regions.length > 0 && (

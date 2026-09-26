@@ -12,7 +12,7 @@ export interface Scenario {
   group: 'anterior' | 'posterior' | 'deep' | 'haemodynamic';
   title: L;
   summary: L;
-  occlusions: { vessel: string; severity: number }[];
+  occlusions: { vessel: string; severity: number; branch?: boolean }[];
   variants?: string[];
   collateral?: 'good' | 'moderate' | 'poor';
   map?: number;
@@ -144,10 +144,22 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: '左豆紋動脈群：紋狀體內囊梗塞', en: 'Left lenticulostriate arteries: striatocapsular infarct' },
     summary: {
-      zh: '這裡把整群豆紋動脈一起阻塞：殼核、尾狀核與內囊梗塞，右側偏癱為主。只塞住其中一條小分支才是「腔隙性」純運動中風（臉、手、腳同等無力）——本模型把豆紋動脈當成一束，無法細分到單一分支。',
-      en: 'Here the whole lenticulostriate group is blocked: putamen, caudate and internal capsule infarct with mainly right hemiparesis. Blocking just one small branch would give a lacunar pure motor stroke (equal face–arm–leg weakness) — the model treats the lenticulostriates as one bundle and cannot resolve single branches.',
+      zh: '這裡把整群豆紋動脈一起阻塞：殼核、尾狀核與內囊梗塞，右側偏癱為主。只塞住其中一條小分支則是下一個情境的「腔隙性」中風。',
+      en: 'Here the whole lenticulostriate group is blocked: putamen, caudate and internal capsule infarct with mainly right hemiparesis. Blocking just one small branch gives the lacunar stroke of the next scenario.',
     },
     occlusions: [{ vessel: 'lenticulostriate_l', severity: 1 }],
+    tH: 24,
+    view: 'left',
+  },
+  {
+    id: 'l_lacune',
+    group: 'deep',
+    title: { zh: '左豆紋動脈單一分支：純運動性腔隙中風', en: 'One left lenticulostriate branch: pure motor lacune' },
+    summary: {
+      zh: '高血壓小血管病變的典型：梗塞不到 1 mL，卻因內囊後肢的運動纖維非常密集，右臉、手、腳同等無力；沒有失語、視野或感覺障礙。',
+      en: 'Classic hypertensive small-vessel disease: an infarct under 1 mL, yet because motor fibres are packed tightly in the posterior limb, the right face, arm and leg are equally weak — no aphasia, field or sensory loss.',
+    },
+    occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }],
     tH: 24,
     view: 'left',
   },
@@ -277,6 +289,18 @@ export const SCENARIOS: Scenario[] = [
       en: 'Neither eye can look to the left (horizontal gaze palsy), whole left face paralysed, right limbs weak — cranial-nerve signs on the lesion side, limbs on the other.',
     },
     occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1 }],
+    tH: 24,
+    view: 'brainstem',
+  },
+  {
+    id: 'r_pontine_lacune',
+    group: 'posterior',
+    title: { zh: '右橋腦小穿通支：運動失調性偏癱', en: 'Small right pontine branch: ataxic hemiparesis' },
+    summary: {
+      zh: '一條橋腦旁正中小分支阻塞：左側無力加上同側的笨拙與運動失調（或構音障礙—笨拙手）。和內囊腔隙一樣是小血管病，但位置在腦幹。',
+      en: 'One small paramedian pontine branch: left-sided weakness with clumsiness and ataxia on the same side (or dysarthria–clumsy hand). Small-vessel disease like a capsular lacune, but in the brainstem.',
+    },
+    occlusions: [{ vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true }],
     tH: 24,
     view: 'brainstem',
   },

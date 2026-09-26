@@ -8,6 +8,7 @@ import type { Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
 import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion } from './hemodynamics';
+import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
 import { NEURONS_PER_ML, PENUMBRA_REL, unitState, infarctFraction, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
@@ -39,8 +40,6 @@ export interface SimResult {
   input: SimInput;
   /** blood flow at the displayed time (after recanalisation if it has happened) */
   hemo: HemoResult;
-  /** blood flow while the occlusions are in place */
-  hemoAcute: HemoResult;
   /** occlusions still in effect at the displayed time */
   activeOcclusions: Occlusion[];
   /** the occlusions have been reopened by the displayed time */
@@ -70,6 +69,31 @@ function bedInfarctAt(units: ReturnType<typeof getUnits>, hemo: HemoResult, afte
   return out;
 }
 
+/** target regions of lacunar (single-branch) occlusions */
+function lacuneRegions(occlusions: Occlusion[]): string[] {
+  const out: string[] = [];
+  for (const o of occlusions) {
+    const v = VESSEL_BY_ID[o.vessel];
+    if (!o.branch || !v || !canBeLacunar(v.baseId, v.n) || v.side === 'm') continue;
+    const rid = `${LACUNE_TARGET[v.baseId]}_${v.side}`;
+    if (REGION_BY_ID[rid] && !out.includes(rid)) out.push(rid);
+  }
+  return out.sort();
+}
+
+/** fraction of a region occupied by one lacune */
+const lacuneFraction = (rid: string) => Math.min(1, LACUNE_ML / Math.max(REGION_BY_ID[rid].volume, LACUNE_ML));
+
+function addLacunes(bedInfarct: Record<string, number>, lacunes: string[], loss: number): Record<string, number> {
+  if (!lacunes.length) return bedInfarct;
+  const out = { ...bedInfarct };
+  for (const rid of lacunes) {
+    const x = lacuneFraction(rid) * loss;
+    for (const bid of REGION_BY_ID[rid].beds) out[bid] = (out[bid] ?? 0) + x * (1 - (out[bid] ?? 0));
+  }
+  return out;
+}
+
 function regionAgg(values: Record<string, number>): Record<string, number> {
   const out: Record<string, number> = {};
   for (const r of REGIONS) {
@@ -93,18 +117,22 @@ export function simulate(input: SimInput): SimResult {
   const units = getUnits(input.variants, input.collateral);
   const t = input.tH;
   const reperf = input.reperfusionH;
-  // thrombolysis / thrombectomy reopens complete (thrombo-embolic) occlusions; a stenosis stays
-  const remaining = input.occlusions.filter((o) => o.severity < 1);
+  // lacunes: one branch of a perforator bundle → a small infarct in its target structure
+  const lacunes = lacuneRegions(input.occlusions);
+  // thrombolysis / thrombectomy reopens complete (thrombo-embolic) occlusions; a stenosis and
+  // a small-vessel (lacunar) occlusion stay
+  const remaining = input.occlusions.filter((o) => o.severity < 1 || o.branch);
   const hemoAfter = reperf !== null ? simulateHemodynamics({ ...input, occlusions: remaining }) : hemoAcute;
   const recanalized = reperf !== null && t >= reperf;
   const hemo = recanalized ? hemoAfter : hemoAcute;
 
   // ── cascade (independent of t; cached) ──
-  const ckey = `${hemoKey(input)}|${reperf}|${input.decompression}`;
+  const ckey = `${hemoKey(input)}|${lacunes.join(',')}|${reperf}|${input.decompression}`;
   let cascade = cascadeCache.get(ckey);
   if (!cascade) {
-    const bedFinal = bedInfarctAt(units, hemoAcute, hemoAfter, FINAL_H, reperf);
-    const bedFinalUntreated = reperf === null ? bedFinal : bedInfarctAt(units, hemoAcute, hemoAcute, FINAL_H, null);
+    const bedFinal = addLacunes(bedInfarctAt(units, hemoAcute, hemoAfter, FINAL_H, reperf), lacunes, 1);
+    const bedFinalUntreated =
+      reperf === null ? bedFinal : addLacunes(bedInfarctAt(units, hemoAcute, hemoAcute, FINAL_H, null), lacunes, 1);
     const acute: Record<string, number> = {};
     for (const u of units) {
       // dysfunctional (core or penumbra) in the first hour
@@ -117,7 +145,7 @@ export function simulate(input: SimInput): SimResult {
       hemo: hemoAcute,
       bedFinal,
       bedFinalUntreated,
-      bedEarly: bedInfarctAt(units, hemoAcute, hemoAfter, 14, reperf),
+      bedEarly: addLacunes(bedInfarctAt(units, hemoAcute, hemoAfter, 14, reperf), lacunes, 1),
       regionAcute: regionAgg(acute),
     });
     if (cascadeCache.size > 200) cascadeCache.clear();
@@ -141,6 +169,29 @@ export function simulate(input: SimInput): SimResult {
     bs.frac.core += f * u.frac;
     bs.frac[rest] += (1 - f) * u.frac;
     bs.infarct += f * u.frac;
+  }
+  const lacuneLoss = infarctFraction(0, t, null);
+  // regions whose damage comes from the lacune alone (before it is added)
+  const lacuneOnly = lacunes.filter((rid) => {
+    const r = REGION_BY_ID[rid];
+    let d = 0;
+    let w = 0;
+    for (const bid of r.beds) {
+      const bs = beds[bid];
+      const vol = BED_BY_ID[bid].volume || 1;
+      d += Math.max(bs.frac.core + bs.frac.penumbra, bs.infarct) * vol;
+      w += vol;
+    }
+    return d / (w || 1) < 0.25;
+  });
+  for (const rid of lacunes) {
+    const x = lacuneFraction(rid) * lacuneLoss;
+    for (const bid of REGION_BY_ID[rid].beds) {
+      const bs = beds[bid];
+      for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - x;
+      bs.frac.core += x;
+      bs.infarct += x * (1 - bs.infarct);
+    }
   }
   // dysfunction caused directly by the arterial occlusion(s), before secondary effects
   // (herniation etc.) are overlaid — syndromes describe the primary vascular pattern,
@@ -174,6 +225,13 @@ export function simulate(input: SimInput): SimResult {
   const rPrim = regionAgg(primaryDys);
   const rInf = regionAgg(infMap);
   const rRel = regionAgg(relMap);
+  // a lacune is small but sits in a compact fibre tract: it knocks out most of its function
+  for (const rid of lacunes) {
+    const level = LACUNE_DYSFUNCTION * lacuneLoss;
+    rDys[rid] = Math.max(rDys[rid] ?? 0, level);
+    rPrim[rid] = Math.max(rPrim[rid] ?? 0, level);
+    rInf[rid] = Math.max(rInf[rid] ?? 0, level);
+  }
   const regions: Record<string, RegionTimeState> = {};
   for (const r of REGIONS) {
     const acc: Record<string, number> = {};
@@ -197,6 +255,10 @@ export function simulate(input: SimInput): SimResult {
     regions[r.id] = { rel: rRel[r.id], infarct: rInf[r.id], dys: rDys[r.id], dominant, effect };
   }
 
+  for (const rid of lacunes) {
+    if (lacuneLoss >= 0.5 && regions[rid] && !regions[rid].effect) regions[rid].dominant = 'core';
+  }
+
   // ── symptoms, NIHSS, syndromes ──
   const extra: SymptomItem[] = [];
   if (cascade.events.some((e) => e.id.startsWith('hod_')) && t >= 2160) {
@@ -209,7 +271,7 @@ export function simulate(input: SimInput): SimResult {
       for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
     }
   }
-  const symptoms = aggregateSymptoms(rDys, rInf, t, extra);
+  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly);
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
 
@@ -257,7 +319,6 @@ export function simulate(input: SimInput): SimResult {
   return {
     input,
     hemo,
-    hemoAcute,
     activeOcclusions: recanalized ? remaining : input.occlusions,
     recanalized,
     beds,

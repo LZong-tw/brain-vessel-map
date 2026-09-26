@@ -5,6 +5,7 @@ import { dropEmbolus } from './embolus';
 import { simulateHemodynamics, type HemoInput } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
 import { finalInfarctProb, infarctFraction, tauHours } from './tissue';
+import { midlineShiftAt } from './cascade';
 
 const base: HemoInput = { occlusions: [], variants: [], map: 93, collateral: 'good' };
 const occl = (...ids: string[]) => ids.map((vessel) => ({ vessel, severity: 1 }));
@@ -146,6 +147,20 @@ describe('classic syndromes', () => {
     ['right ophthalmic', { occlusions: occl('ophthalmic_r') }, 'amaurosis_r'],
     ['left pontine perforator', { occlusions: occl('pontine_paramedian_caudal_l') }, 'foville_l'],
     ['right pontine circumferential', { occlusions: occl('pontine_circumferential_r') }, 'one_and_half_r'],
+    ['right VA with a unilateral ASA', { occlusions: occl('va_v4_dist_r'), variants: ['asa_unilateral_r'] }, 'hemimedullary_r'],
+    ['one lenticulostriate branch', { occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }] }, 'lacunar_pure_motor_l'],
+    ['one rostral pontine branch', { occlusions: [{ vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true }] }, 'pontine_lacunar_r'],
+    ['one caudal pontine branch', { occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1, branch: true }] }, 'pontine_ventral_l'],
+    [
+      'thalamic + capsular lacunes',
+      {
+        occlusions: [
+          { vessel: 'thalamogeniculate_l', severity: 1, branch: true },
+          { vessel: 'lenticulostriate_l', severity: 1, branch: true },
+        ],
+      },
+      'lacunar_sensorimotor_l',
+    ],
     ['right mesencephalic perforators', { occlusions: occl('mesencephalic_perf_r') }, 'weber_benedikt_r'],
     ['right ACA, poor collaterals', { occlusions: occl('aca_a2_r'), collateral: 'poor' }, 'aca_r'],
   ];
@@ -175,6 +190,29 @@ describe('classic syndromes', () => {
 
 describe('clinical details that are easy to get wrong', () => {
   const symptomIds = (r: ReturnType<typeof simulate>) => r.symptoms.map((x) => x.id + (x.side ? `(${x.side})` : ''));
+
+  it('a lacune is tiny but strategic, and spares sensation when it is pure motor', () => {
+    const r = sim({ occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }] });
+    expect(r.volumes.finalInfarct).toBeLessThan(2);
+    const ids = symptomIds(r);
+    expect(ids).toEqual(expect.arrayContaining(['face_weak(r)', 'arm_weak(r)', 'leg_weak(r)']));
+    expect(ids.some((x) => x.startsWith('sens_'))).toBe(false);
+    // flow is unchanged and recanalisation does not remove it
+    expect(r.hemo.totalCbf).toBeCloseTo(r.hemo.baselineCbf, 0);
+    const late = sim({ occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }], reperfusionH: 1 });
+    expect(late.activeOcclusions).toHaveLength(1);
+  });
+
+  it('PCA infarcts can spare central vision (dual supply of the occipital pole)', () => {
+    const ids = symptomIds(sim({ occlusions: occl('pca_p2_l'), collateral: 'poor' }));
+    expect(ids).toEqual(expect.arrayContaining(['hemianopia(r)', 'macular_sparing']));
+  });
+
+  it('a proximal basilar occlusion still cuts off the lowest pontine perforators', () => {
+    const r = sim({ occlusions: occl('basilar_lower') });
+    expect(r.regions.pons_caudal_basis_r.dys).toBeGreaterThan(0.25);
+    expect(r.regions.pons_caudal_basis_l.dys).toBeGreaterThan(0.25);
+  });
 
   it('a capsular infarct causes no visual field loss', () => {
     expect(symptomIds(sim({ occlusions: occl('lenticulostriate_l') })).some((x) => x.startsWith('hemianopia'))).toBe(false);
@@ -212,6 +250,17 @@ describe('downstream cascade', () => {
     const withSurgery = sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH: 96, decompression: true });
     expect(withSurgery.cascade.events.map((e) => e.id)).not.toContain('uncal_r');
     expect(withSurgery.volumes.core).toBeLessThan(r.volumes.core);
+  });
+
+  it('midline shift peaks around day 3 and is largely relieved by decompression', () => {
+    const r = sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH: 72 });
+    const ms = r.cascade.midlineShift;
+    expect(ms).not.toBeNull();
+    const at = (h: number, d = false) => midlineShiftAt(ms, h, d);
+    expect(at(12)).toBe(0);
+    expect(at(72)).toBeGreaterThan(at(36));
+    expect(at(72)).toBeGreaterThan(at(720));
+    expect(at(72, true)).toBeLessThan(at(72) / 2);
   });
 
   it('good collaterals keep an untreated M1 infarct below the malignant range', () => {

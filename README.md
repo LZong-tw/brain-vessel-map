@@ -27,14 +27,14 @@ Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain.
 | | |
 |---|---|
 | **真實解剖幾何** | 大腦半球、小腦、腦幹、視丘、基底核、內囊、胼胝體、齒狀核、腦室——由 MNI ICBM152 2009c 模板產生的 3D 表面，不是手捏的形狀。 |
-| **176 段動脈** | 主動脈弓 → 頸動脈／椎動脈 → Willis 環 → 皮質分支、豆紋動脈、脈絡叢動脈、腦幹穿通支、PICA／AICA／SCA，另有 38 段軟腦膜／顱外側枝；主幹位置校正到多中心 MRA 統計圖譜。125 個功能腦區、268 個「腦區 × 供應區」單位。 |
+| **178 段動脈** | 主動脈弓 → 頸動脈／椎動脈 → Willis 環 → 皮質分支、豆紋動脈、脈絡叢動脈、腦幹穿通支、PICA／AICA／SCA，另有 38 段軟腦膜／顱外側枝；主幹位置校正到多中心 MRA 統計圖譜。125 個功能腦區、268 個「腦區 × 供應區」單位。 |
 | **血流模擬** | 以 Poiseuille 阻力網路解每條血管的流量與方向：Willis 環逆流代償、鎖骨下動脈竊血、自動調節、低血壓時的分水嶺缺血、胚胎型 PCA、缺 AComm/PComm 等變異。 |
 | **時間軸** | 發生時 → 15 分 → 1、3、4.5、6、12 小時 → 1、2、3、5 天 → 1、2 週 → 1、3、6 個月；可設定取栓／溶栓時間、減壓手術。 |
 | **連鎖反應（對其他部位的影響）** | 惡性 MCA 水腫 → 大腦鐮下疝脫（壓 ACA）與鉤迴疝脫（壓中腦、PCA）；小腦水腫 → 阻塞性水腦；出血轉化風險；交叉性小腦失聯（CCD）；錐體徑 Wallerian 退化；下橄欖核肥大退化與軟顎顫抖；視丘萎縮；吸入性肺炎、心律不整、癲癇、憂鬱…… |
 | **臨床輸出** | 預期症狀（依系統分組、左右側）、具名症候群（Wallenberg、Weber／Benedikt、Foville、閉鎖症候群、Percheron、Gerstmann、腔隙性……共 39 條規則）、NIHSS 估計（並提醒後循環常被低估）。 |
 | **三種視圖** | 3D（可切面、調透明度、只看單側）、Willis 環示意圖（即時流量與方向，可直接點擊阻塞）、腦幹四個層面的血管分區切面。 |
 | **栓子模擬** | 選來源（心臟、左右頸動脈、椎動脈）與大小，依各分支流量隨機漂流，卡在比它窄的血管——大栓子多卡在 ICA 末端或 M1，小栓子進到皮質分支。 |
-| **27 個教學情境** | 左 M1、取栓對照、惡性水腫與減壓、T 型栓塞、Broca／Wernicke、ACA、AChA、腔隙、視丘、Percheron、PCA、基底動脈頂端、閉鎖症候群、Wallenberg、PICA 水腦、AICA、SCA → 軟顎顫抖、Dejerine、頸動脈狹窄、分水嶺、竊血、一過性黑矇…… |
+| **29 個教學情境** | 左 M1、取栓對照、惡性水腫與減壓、T 型栓塞、Broca／Wernicke、ACA、AChA、紋狀體內囊梗塞、內囊與橋腦腔隙、視丘、Percheron、PCA、基底動脈頂端、閉鎖症候群、Wallenberg、PICA 水腦、AICA、SCA → 軟顎顫抖、Dejerine、頸動脈狹窄、分水嶺、竊血、一過性黑矇…… |
 | **其他** | 繁中／英文、可分享的網址（狀態存在 `#` 後面）、手機版面、BE-FAST 衛教。 |
 
 ## 這個模型「怎麼算」的 / How the simulation works
@@ -61,7 +61,7 @@ Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 87 個測試：血流、組織、症候群、連鎖反應、栓子
+npm test           # 99 個測試：血流、組織、症候群、連鎖反應、栓子、每條規則都能被觸發
 npm run lint && npm run typecheck
 npm run build      # 輸出到 dist/，相對路徑，可放在任何子目錄
 ```
@@ -118,7 +118,7 @@ App 內的「資料來源與授權」視窗也列出同樣的內容。
 
 An educational, browser-only (static, GitHub Pages) app built with React, three.js / react-three-fiber and zustand.
 The brain surfaces come from the MNI ICBM152 2009c template; every surface point is labelled with a functional
-region and its arterial territory (Liu et al. atlas). 176 arterial segments — from the aortic arch to brainstem
+region and its arterial territory (Liu et al. atlas). 178 arterial segments — from the aortic arch to brainstem
 perforators, plus leptomeningeal collaterals — form a Poiseuille resistance network with autoregulation and
 collateral grades. Tissue fate uses relative-CBF thresholds (core < 30 %, penumbra < 55 %) with flow-dependent
 time constants and reperfusion. A rule-based cascade projects consequences onto *other* regions over time

@@ -40,6 +40,8 @@ export function aggregateSymptoms(
   regionInf: Record<string, number>,
   tH: number,
   extra: SymptomItem[] = [],
+  /** regions damaged only by a lacune (functions marked spareInLacune are kept) */
+  lacuneOnly: string[] = [],
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean) => {
@@ -63,6 +65,7 @@ export function aggregateSymptoms(
       const sym = SYMPTOM_BY_ID[d.s];
       if (!sym) continue;
       if (d.only && r.side !== d.only) continue;
+      if (d.spareInLacune && lacuneOnly.includes(r.id)) continue;
       const delayed = !!sym.delayed;
       const level = delayed ? inf : dys;
       if (level < DYS_THR) continue;
@@ -117,7 +120,10 @@ export function aggregateSymptoms(
   } else {
     for (const h of ['r', 'l'] as Side[]) {
       const fs = opp(h);
-      if (occip(h) && get('hemianopia', fs) && (regionDys[`occipital_pole_${h}`] ?? 0) < DYS_THR) {
+      // the pole (central vision) has dual PCA + MCA supply: when it is clearly less damaged
+      // than the calcarine cortex, the centre of the field is (at least partly) spared
+      const calcarine = Math.min(regionDys[`cuneus_${h}`] ?? 0, regionDys[`lingual_${h}`] ?? 0);
+      if (occip(h) && get('hemianopia', fs) && (regionDys[`occipital_pole_${h}`] ?? 0) < 0.75 * calcarine) {
         add('macular_sparing', null, 1, `occipital_pole_${h}`, false);
       }
     }

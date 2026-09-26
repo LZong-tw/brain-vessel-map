@@ -86,6 +86,23 @@ export const VARIANTS: VariantDef[] = [
     },
   })),
   ...perSide((s) => ({
+    id: `asa_unilateral_${s}`,
+    name: { zh: `前脊髓動脈只由${sideZh(s)}側椎動脈發出`, en: `Anterior spinal artery from the ${sideEn(s).toLowerCase()} vertebral only` },
+    desc: {
+      zh: `${o(s) === 'r' ? '右' : '左'}側的前脊髓動脈根部缺如，整條前脊髓動脈只靠${sideZh(s)}側椎動脈。${sideZh(s)}側椎動脈顱內段阻塞時，延髓外側與內側會一起梗塞（半側延髓／Babinski–Nageotte 症候群），甚至雙側延髓內側。`,
+      en: `The ${o(s) === 'r' ? 'right' : 'left'} ASA root is missing, so the whole anterior spinal artery hangs on the ${sideEn(s).toLowerCase()} vertebral. Occluding that vertebral then infarcts both the lateral and medial medulla (hemimedullary / Babinski–Nageotte syndrome), sometimes both medial medullae.`,
+    },
+    prevalence: { zh: '常見，但各研究比例差異很大', en: 'Common; reported frequencies vary widely' },
+    vesselScale: { [`asa_root_${o(s)}`]: 0 },
+    supplyOverride: {
+      [`medulla_medial_${o(s)}`]: [
+        { v: 'asa', share: 0.8, at: 'mid' },
+        { v: `va_v4_dist_${o(s)}`, share: 0.2, at: 'mid' },
+      ],
+    },
+    excludes: [`asa_unilateral_${o(s)}`],
+  })),
+  ...perSide((s) => ({
     id: `percheron_${s}`,
     name: { zh: `Percheron 動脈（起自${sideZh(s)}側 P1）`, en: `Artery of Percheron (from ${sideEn(s).toLowerCase()} P1)` },
     desc: {

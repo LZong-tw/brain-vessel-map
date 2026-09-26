@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Html } from '@react-three/drei';
-import { TubeGeometry, type CatmullRomCurve3, type Vector3 } from 'three';
+import { TubeGeometry, type CatmullRomCurve3, type Plane, type Vector3 } from 'three';
 import { VESSELS, tr, vesselName } from '../anatomy';
 import type { Vessel } from '../anatomy';
 import type { SimResult } from '../engine/simulate';
@@ -42,8 +42,12 @@ const LABELLED = new Set([
   'aca_pericallosal', 'aca_callosomarginal', 'pca_calcarine',
 ]);
 
-export function Vessels({ sim }: { sim: SimResult }) {
+/** families whose surface branches lie on the cerebral hemispheres */
+const CEREBRAL = new Set(['ACA', 'MCA', 'PCA', 'COLL']);
+
+export function Vessels({ sim, clipPlanes }: { sim: SimResult; clipPlanes: Plane[] }) {
   const layers = useApp((s) => s.layers);
+  const hemis = useApp((s) => s.hemis);
   const hovered = useApp((s) => s.hovered);
   const selected = useApp((s) => s.selected);
   const lang = useApp((s) => s.lang);
@@ -59,6 +63,8 @@ export function Vessels({ sim }: { sim: SimResult }) {
         const vis = vesselVisual(v.id, sim);
         if (v.group === 'extracranial' && !layers.neck) return null;
         if (v.kind === 'collateral' && !layers.collaterals && vis.state !== 'collateral_active') return null;
+        // cortical branches lying on a hidden hemisphere would float in the air
+        if (v.pathMode === 'surface' && CEREBRAL.has(v.family) && !/pica|aica|sca/.test(v.baseId) && v.side !== 'm' && !hemis[v.side]) return null;
         const isHover = hovered?.kind === 'vessel' && hovered.id === v.id;
         const isSel = selected?.kind === 'vessel' && selected.id === v.id;
         const color = isSel ? VESSEL_COLORS.selected : vis.color;
@@ -72,6 +78,7 @@ export function Vessels({ sim }: { sim: SimResult }) {
                 emissiveIntensity={isHover || isSel ? 0.55 : 0.4}
                 roughness={0.38}
                 metalness={0.05}
+                clippingPlanes={clipPlanes}
               />
             </mesh>
             {!v.visualOnly && (
