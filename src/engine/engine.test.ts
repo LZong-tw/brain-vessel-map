@@ -4,7 +4,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import { dropEmbolus } from './embolus';
 import { simulateHemodynamics, type HemoInput } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
-import { infarctFraction, tauHours } from './tissue';
+import { finalInfarctProb, infarctFraction, tauHours } from './tissue';
 
 const base: HemoInput = { occlusions: [], variants: [], map: 93, collateral: 'good' };
 const occl = (...ids: string[]) => ids.map((vessel) => ({ vessel, severity: 1 }));
@@ -85,7 +85,11 @@ describe('tissue fate over time', () => {
     expect(infarctFraction(0.1, 0.25, null)).toBeGreaterThan(0.8);
     expect(tauHours(0.45)).toBeGreaterThan(3);
     expect(infarctFraction(0.45, 1, null)).toBeLessThan(0.3);
-    expect(infarctFraction(0.45, 48, null)).toBeGreaterThan(0.9);
+    expect(infarctFraction(0.32, 48, null)).toBeGreaterThan(0.9);
+    // untreated penumbra is partly lost, the more the lower its flow
+    expect(infarctFraction(0.45, 240, null)).toBeGreaterThan(0.4);
+    expect(infarctFraction(0.45, 240, null)).toBeLessThan(0.7);
+    expect(finalInfarctProb(0.35)).toBeGreaterThan(finalInfarctProb(0.5));
     expect(infarctFraction(0.7, 48, null)).toBe(0);
   });
 
@@ -108,7 +112,7 @@ describe('tissue fate over time', () => {
 describe('classic syndromes', () => {
   const cases: [string, Partial<SimInput>, string][] = [
     ['left M1', { occlusions: occl('mca_m1_l') }, 'mca_complete_l'],
-    ['left M2 superior', { occlusions: occl('mca_m2_sup_l') }, 'mca_superior_l'],
+    ['left M2 superior', { occlusions: occl('mca_m2_sup_l'), collateral: 'moderate' }, 'mca_superior_l'],
     ['left M2 inferior', { occlusions: occl('mca_m2_inf_l') }, 'mca_inferior_l'],
     ['right vertebral V4', { occlusions: occl('va_v4_dist_r') }, 'wallenberg_r'],
     ['right ASA root', { occlusions: occl('asa_root_r') }, 'dejerine_r'],
@@ -154,6 +158,21 @@ describe('downstream cascade', () => {
     const withSurgery = sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH: 96, decompression: true });
     expect(withSurgery.cascade.events.map((e) => e.id)).not.toContain('uncal_r');
     expect(withSurgery.volumes.core).toBeLessThan(r.volumes.core);
+  });
+
+  it('good collaterals keep an untreated M1 infarct below the malignant range', () => {
+    const good = sim({ occlusions: occl('mca_m1_l'), collateral: 'good', tH: 96 });
+    const ids = good.cascade.events.map((e) => e.id);
+    expect(ids).not.toContain('malignant_edema_l');
+    expect(ids).toContain('mass_effect_l');
+    expect(good.volumes.finalInfarct).toBeLessThan(sim({ occlusions: occl('mca_m1_l'), collateral: 'moderate' }).volumes.finalInfarct);
+  });
+
+  it('describes the primary vascular syndrome, not the herniation-related secondary infarcts', () => {
+    const r = sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH: 120 });
+    const ids = syndromeIds(r);
+    expect(ids).toContain('mca_complete_r');
+    expect(ids).not.toContain('ica_territory_r');
   });
 
   it('large cerebellar infarcts cause hydrocephalus', () => {

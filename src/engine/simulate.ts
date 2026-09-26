@@ -8,7 +8,7 @@ import type { Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
 import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult } from './hemodynamics';
-import { NEURONS_PER_ML, unitState, infarctFraction, type TissueState } from './tissue';
+import { NEURONS_PER_ML, PENUMBRA_REL, unitState, infarctFraction, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
   tH: number;
@@ -95,8 +95,8 @@ export function simulate(input: SimInput): SimResult {
     const bedFinalUntreated = reperf === null ? bedFinal : bedInfarctAt(units, hemo, FINAL_H, null);
     const acute: Record<string, number> = {};
     for (const u of units) {
-      const st = unitState(hemo.unitRel[u.id] ?? 1, 1, null).state;
-      if (st === 'core' || st === 'penumbra') acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
+      // dysfunctional (core or penumbra) in the first hour
+      if ((hemo.unitRel[u.id] ?? 1) < PENUMBRA_REL) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
     }
     cascade = computeCascade({
       reperfusionH: reperf,
@@ -105,6 +105,7 @@ export function simulate(input: SimInput): SimResult {
       hemo,
       bedFinal,
       bedFinalUntreated,
+      bedEarly: bedInfarctAt(units, hemo, 14, reperf),
       regionAcute: regionAgg(acute),
     });
     if (cascadeCache.size > 200) cascadeCache.clear();
@@ -124,14 +125,20 @@ export function simulate(input: SimInput): SimResult {
   }
   for (const u of units) {
     const bs = beds[u.bed];
-    const { f, state } = unitState(hemo.unitRel[u.id] ?? 1, t, reperf);
-    bs.frac[state] += u.frac;
+    const { f, rest } = unitState(hemo.unitRel[u.id] ?? 1, t, reperf);
+    bs.frac.core += f * u.frac;
+    bs.frac[rest] += (1 - f) * u.frac;
     bs.infarct += f * u.frac;
   }
+  // dysfunction caused directly by the arterial occlusion(s), before secondary effects
+  // (herniation etc.) are overlaid — syndromes describe the primary vascular pattern,
+  // the secondary damage is reported as cascade events instead
+  const primaryDys: Record<string, number> = {};
   for (const b of BEDS) {
     const bs = beds[b.id];
     const sum = Object.values(bs.frac).reduce((a, x) => a + x, 0);
     if (sum === 0) bs.frac.normal = 1;
+    primaryDys[b.id] = bs.frac.core + bs.frac.penumbra;
     const effects = (cascade.bedEffects[b.id] ?? []).filter((e) => e.onsetH <= t && t < (e.endH ?? Infinity));
     const eff = EFFECT_PRIORITY.find((k) => effects.some((e) => e.kind === k)) ?? null;
     bs.effect = eff;
@@ -152,6 +159,7 @@ export function simulate(input: SimInput): SimResult {
     relMap[b.id] = beds[b.id].rel;
   }
   const rDys = regionAgg(dysMap);
+  const rPrim = regionAgg(primaryDys);
   const rInf = regionAgg(infMap);
   const rRel = regionAgg(relMap);
   const regions: Record<string, RegionTimeState> = {};
@@ -197,10 +205,10 @@ export function simulate(input: SimInput): SimResult {
   const rev = new Set(hemo.reversed);
   const idOf = (base: string, side?: Side | 'm') => (side && side !== 'm' ? `${base}_${side}` : base);
   const syndromes = detectSyndromes({
-    f: (base, side) => rDys[`${base}_${side}`] ?? 0,
-    has: (base, side, thr = 0.25) => (rDys[`${base}_${side}`] ?? 0) >= thr,
-    hasAny: (bases, side, thr = 0.25) => bases.some((b) => (rDys[`${b}_${side}`] ?? 0) >= thr),
-    both: (base, thr = 0.25) => (rDys[`${base}_r`] ?? 0) >= thr && (rDys[`${base}_l`] ?? 0) >= thr,
+    f: (base, side) => rPrim[`${base}_${side}`] ?? 0,
+    has: (base, side, thr = 0.25) => (rPrim[`${base}_${side}`] ?? 0) >= thr,
+    hasAny: (bases, side, thr = 0.25) => bases.some((b) => (rPrim[`${b}_${side}`] ?? 0) >= thr),
+    both: (base, thr = 0.25) => (rPrim[`${base}_r`] ?? 0) >= thr && (rPrim[`${base}_l`] ?? 0) >= thr,
     occluded: (base, side) => occl.has(idOf(base, side)) || (!side && (occl.has(`${base}_r`) || occl.has(`${base}_l`))),
     reversed: (base, side) => rev.has(idOf(base, side)),
     border: (side) => {
@@ -211,7 +219,7 @@ export function simulate(input: SimInput): SimResult {
         if (!b.region.endsWith(`_${side}`)) continue;
         const reg = REGION_BY_ID[b.region];
         if (!BRAIN.has(reg.category)) continue;
-        const v = beds[b.id].dys * b.volume;
+        const v = primaryDys[b.id] * b.volume;
         total += v;
         if (b.terr.length === 2 && v > 0) {
           border += v;
@@ -221,7 +229,7 @@ export function simulate(input: SimInput): SimResult {
       return { border, total, kinds: [...kinds] };
     },
     cortexCount: (side, thr = 0.2) =>
-      REGIONS.filter((r) => r.side === side && r.category === 'cortex' && rDys[r.id] >= thr).length,
+      REGIONS.filter((r) => r.side === side && r.category === 'cortex' && rPrim[r.id] >= thr).length,
     map: input.map,
   });
 

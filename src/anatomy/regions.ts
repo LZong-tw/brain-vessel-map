@@ -1015,8 +1015,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'medulla_medial',
     name: { zh: '延髓內側', en: 'Medial medulla' },
     func: {
-      zh: '錐體（運動纖維，尚未交叉）、內側蹄系與舌下神經核。',
-      en: 'Pyramid (motor fibres before they cross), medial lemniscus and hypoglossal nucleus.',
+      zh: '錐體（運動纖維，尚未交叉）、內側蹄系與舌下神經核；腹外側的下橄欖核也由前方的脊髓前動脈／椎動脈分支供應。',
+      en: 'Pyramid (motor fibres before they cross), medial lemniscus and hypoglossal nucleus; the inferior olive, ventrolaterally, is also fed from the front (anterior spinal / vertebral branches).',
     },
     category: 'brainstem',
     level: 'medulla',
@@ -1029,6 +1029,7 @@ export const REGION_DEFS: RegionDef[] = [
       { name: { zh: '錐體', en: 'Pyramid' }, role: { zh: '對側手腳運動（臉部已在上方分出）', en: 'Opposite arm & leg movement (face fibres already left)' } },
       { name: { zh: '內側蹄系', en: 'Medial lemniscus' }, role: { zh: '對側本體與振動覺', en: 'Opposite position & vibration sense' } },
       { name: { zh: '舌下神經核', en: 'Hypoglossal nucleus' }, role: { zh: '同側舌頭運動', en: 'Same-side tongue movement' } },
+      { name: { zh: '下橄欖核', en: 'Inferior olive' }, role: { zh: '運動學習；齒狀核或紅核受損後可能肥大退化', en: 'Motor learning; may degenerate after dentate or red nucleus lesions' } },
     ],
     deficits: [
       { s: 'arm_weak', lat: 'contra', sev: 3 },
@@ -1043,8 +1044,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'medulla_lateral',
     name: { zh: '延髓外側', en: 'Lateral medulla' },
     func: {
-      zh: '吞嚥與發聲（疑核）、臉與身體痛溫覺路徑、平衡（前庭核）、交感神經、打嗝與嘔吐中樞；腹外側有下橄欖核。',
-      en: 'Swallowing and voice (nucleus ambiguus), pain/temperature pathways, balance (vestibular nuclei), sympathetic fibres, hiccup and vomiting centres; the inferior olive lies ventrolaterally.',
+      zh: '吞嚥與發聲（疑核）、臉與身體痛溫覺路徑、平衡（前庭核）、交感神經、打嗝與嘔吐中樞——位在下橄欖核後方的楔形區。',
+      en: 'Swallowing and voice (nucleus ambiguus), pain/temperature pathways, balance (vestibular nuclei), sympathetic fibres, hiccup and vomiting centres — a wedge lying behind the inferior olive.',
     },
     category: 'brainstem',
     level: 'medulla',
@@ -1060,7 +1061,6 @@ export const REGION_DEFS: RegionDef[] = [
       { name: { zh: '前庭神經核', en: 'Vestibular nuclei' }, role: { zh: '平衡、眼震、眩暈', en: 'Balance, nystagmus, vertigo' } },
       { name: { zh: '下小腦腳', en: 'Inferior cerebellar peduncle' }, role: { zh: '同側協調', en: 'Same-side coordination' } },
       { name: { zh: '下行交感纖維', en: 'Descending sympathetic fibres' }, role: { zh: '同側霍納氏症候群', en: 'Same-side Horner' } },
-      { name: { zh: '下橄欖核', en: 'Inferior olive' }, role: { zh: '運動學習；齒狀核或紅核受損後可能肥大退化', en: 'Motor learning; may degenerate after dentate or red nucleus lesions' } },
     ],
     deficits: [
       { s: 'dysphagia', lat: 'none', sev: 3 },

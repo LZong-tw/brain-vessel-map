@@ -54,6 +54,8 @@ export interface CascadeInput {
   bedFinal: Record<string, number>;
   /** eventual infarcted fraction per bed if nothing were done */
   bedFinalUntreated: Record<string, number>;
+  /** infarcted fraction per bed at 14 h (≈ the early DWI lesion used to predict malignant oedema) */
+  bedEarly: Record<string, number>;
   /** fraction of each region that is dysfunctional in the first hours (core + penumbra) */
   regionAcute: Record<string, number>;
 }
@@ -130,6 +132,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     else vol.supra[s] += v;
   }
   const savedVolume = Math.max(0, untreatedTotal - vol.total);
+  const earlySupra: Record<Side, number> = { r: 0, l: 0 };
+  for (const b of BEDS) {
+    const reg = REGION_BY_ID[b.region];
+    if (reg.category !== 'cortex' && reg.category !== 'deep') continue;
+    earlySupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedEarly[b.id] ?? 0) * b.volume;
+  }
   const anyIschemia = Object.values(regionAcute).some((x) => x >= 0.05);
   const occludedBases = new Set(input.occlusions.filter((o) => o.severity >= 1).map((o) => baseOf(o.vessel)));
   const isLvo = LVO.some((b) => occludedBases.has(b));
@@ -219,7 +227,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const v = vol.supra[s];
     const sideZh = s === 'r' ? '右' : '左';
     const sideEn = s === 'r' ? 'right' : 'left';
-    if (v >= 145) {
+    // malignant course: early (≤ 14 h) lesion > 145 mL (Oppenheim 2000) or a very large final infarct
+    if (earlySupra[s] >= 145 || v >= 250) {
       midlineShift = { side: s, peakMm: Math.min(15, 5 + (v - 145) / 20), onsetH: 24 };
       events.push({
         id: `malignant_edema_${s}`,
@@ -230,8 +239,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         endH: 336,
         title: { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` },
         desc: {
-          zh: `梗塞體積約 ${v.toFixed(0)} mL（> 145 mL 為惡性水腫高風險）。腫脹的半球把中線推向對側，造成意識變差。${decompression ? '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。' : '若未減壓，死亡率可高達約 70–80%。'}`,
-          en: `Infarct ≈ ${v.toFixed(0)} mL (> 145 mL carries high risk). The swollen hemisphere pushes the midline across and consciousness falls. ${decompression ? 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' : 'Without decompression mortality can reach ~70–80%.'}`,
+          zh: `發病 14 小時內的梗塞已約 ${earlySupra[s].toFixed(0)} mL（> 145 mL 為惡性水腫高風險），最終約 ${v.toFixed(0)} mL。腫脹的半球把中線推向對側，造成意識變差。${decompression ? '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。' : '若未減壓，死亡率可高達約 70–80%。'}`,
+          en: `Infarct ≈ ${earlySupra[s].toFixed(0)} mL within 14 h (> 145 mL carries high risk), ≈ ${v.toFixed(0)} mL in the end. The swollen hemisphere pushes the midline across and consciousness falls. ${decompression ? 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' : 'Without decompression mortality can reach ~70–80%.'}`,
         },
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
         symptoms: [{ id: 'somnolence', side: null, sev: 2 }],

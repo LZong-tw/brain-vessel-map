@@ -191,6 +191,11 @@ def mesh_from_field(field, level, target_faces, sigma=0.0, keep_largest=True, sm
     if smooth_iters:
         taubin(m, smooth_iters)
     m.fix_normals()
+    # fix_normals() cannot orient meshes that are not watertight after decimation; make sure
+    # the faces wind outward (positive signed volume) so front-face culling works in the viewer
+    tri = m.vertices[m.faces]
+    if np.einsum('ij,ij->i', tri[:, 0], np.cross(tri[:, 1], tri[:, 2])).sum() < 0:
+        m.invert()
     log(f'  mesh {name}: {len(m.vertices)} v / {len(m.faces)} f  ({time.time() - t:.1f}s)')
     return m
 

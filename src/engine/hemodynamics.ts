@@ -89,7 +89,7 @@ const DP_LINK_DISTAL = 30;
 /** autoregulation limits (microvascular conductance multipliers) */
 export const D_MAX = 1.8;
 export const D_MIN = 0.6;
-const COLL_GRADE: Record<CollateralGrade, number> = { good: 1, moderate: 0.6, poor: 0.15 };
+const COLL_GRADE: Record<CollateralGrade, number> = { good: 1.5, moderate: 0.8, poor: 0.15 };
 /** overall anastomotic capacity (mL/min/mmHg per mL/min of territory flow) */
 const COLL_SCALE = 1 / 36;
 /** stenosis: length of the narrowed segment (mm); the jet through a tight stenosis follows the
@@ -434,7 +434,7 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   const dil = new Map<string, number>();
   for (const u of live) dil.set(u.id, 1);
   const unitFlow: Record<string, number> = {};
-  let p = new Float64Array(0);
+  let p: Float64Array = new Float64Array(0);
   let iterations = 0;
   for (let it = 0; it < 40; it++) {
     iterations = it + 1;

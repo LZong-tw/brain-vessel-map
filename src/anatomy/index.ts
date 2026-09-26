@@ -27,7 +27,7 @@ interface RawBed {
  */
 export const TARGET_BRAIN_VOLUME = 1250;
 
-const paths = vesselPaths as Record<string, Vec3[]>;
+const paths = vesselPaths as unknown as Record<string, Vec3[]>;
 
 export const VESSELS: Vessel[] = expandVessels(VESSEL_DEFS).map((v) => ({
   ...v,

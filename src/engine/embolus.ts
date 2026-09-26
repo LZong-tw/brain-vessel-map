@@ -5,7 +5,8 @@
  * branches with probability proportional to that branch's flow (so emboli favour the MCA,
  * which carries most of the carotid flow). It lodges in the first vessel whose lumen is
  * narrower than the embolus. Perforators are rarely entered by emboli (they leave at right
- * angles and are tiny), so they are excluded unless nothing else is available.
+ * angles and are tiny), and a clot much wider than a side branch's mouth is usually swept
+ * past it, so both are strongly down-weighted.
  */
 
 import { VESSELS, VESSEL_BY_ID } from '../anatomy';
@@ -85,6 +86,8 @@ export function dropEmbolus(source: EmbolusSource, diameterMm: number, hemo: Hem
   const flow = (id: string) => hemo.vesselFlow[id] ?? 0;
   const steps: EmbolusStep[] = [];
   const fits = (id: string) => 2 * VESSEL_BY_ID[id].r * 1.05 >= diameterMm;
+  // a clot much wider than a side branch's mouth is swept past it by the main stream
+  const mouth = (id: string) => (2 * VESSEL_BY_ID[id].r < 0.6 * diameterMm ? 0.05 : 1);
 
   // candidate exits from a node: vessels carrying flow away from it
   const exits = (node: string, cameFrom: string | null) => {
@@ -92,12 +95,12 @@ export function dropEmbolus(source: EmbolusSource, diameterMm: number, hemo: Hem
     for (const id of byFrom.get(node) ?? []) {
       if (id === cameFrom) continue;
       const f = flow(id);
-      if (f > 0.2) out.push({ item: { vessel: id, dir: 1 }, w: f * bias(id) });
+      if (f > 0.2) out.push({ item: { vessel: id, dir: 1 }, w: f * bias(id) * mouth(id) });
     }
     for (const id of byTo.get(node) ?? []) {
       if (id === cameFrom) continue;
       const f = flow(id);
-      if (f < -0.2) out.push({ item: { vessel: id, dir: -1 }, w: -f * bias(id) });
+      if (f < -0.2) out.push({ item: { vessel: id, dir: -1 }, w: -f * bias(id) * mouth(id) });
     }
     return out;
   };
@@ -123,7 +126,7 @@ export function dropEmbolus(source: EmbolusSource, diameterMm: number, hemo: Hem
       const choice = pick(
         [
           { item: '__through', w: through },
-          ...midKids.map((c) => ({ item: c.id, w: flow(c.id) * bias(c.id) })),
+          ...midKids.map((c) => ({ item: c.id, w: flow(c.id) * bias(c.id) * mouth(c.id) })),
         ],
         rand,
       );

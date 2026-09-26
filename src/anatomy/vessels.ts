@@ -1881,7 +1881,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [45, -66, 37],
     ],
     pathMode: 'surface',
-    collStrength: 1,
+    collStrength: 0.8,
   }),
   bi({
     id: 'lepto_pca_mca_superior_parietal',
@@ -1899,7 +1899,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [43, -55, 54],
     ],
     pathMode: 'surface',
-    collStrength: 0.7,
+    collStrength: 0.55,
   }),
   bi({
     id: 'lepto_pca_mca_occipital',
@@ -1920,7 +1920,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [38, -88, 2],
     ],
     pathMode: 'surface',
-    collStrength: 1,
+    collStrength: 0.7,
   }),
   bi({
     id: 'lepto_pca_mca_temporal',
@@ -1938,7 +1938,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [63, -36, -12],
     ],
     pathMode: 'surface',
-    collStrength: 0.8,
+    collStrength: 0.6,
   }),
   bi({
     id: 'lepto_aca_pca_callosal',
@@ -1959,7 +1959,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [3, -40, 24],
     ],
     pathMode: 'surface',
-    collStrength: 0.8,
+    collStrength: 0.6,
   }),
   bi({
     id: 'lepto_pica_aica',
@@ -1977,7 +1977,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [32, -48, -42],
     ],
     pathMode: 'surface',
-    collStrength: 0.16,
+    collStrength: 0.08,
   }),
   bi({
     id: 'lepto_aica_sca',
@@ -1995,7 +1995,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [42, -70, -28],
     ],
     pathMode: 'surface',
-    collStrength: 0.16,
+    collStrength: 0.08,
   }),
   bi({
     id: 'lepto_pica_sca_lateral',
@@ -2013,7 +2013,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [42, -70, -28],
     ],
     pathMode: 'surface',
-    collStrength: 0.16,
+    collStrength: 0.08,
   }),
   bi({
     id: 'lepto_pica_sca_vermian',
@@ -2031,7 +2031,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [3, -66, -14],
     ],
     pathMode: 'surface',
-    collStrength: 0.16,
+    collStrength: 0.08,
   }),
   mid({
     id: 'lepto_pica_crossed',
@@ -2049,7 +2049,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [-3, -80, -35],
     ],
     pathMode: 'surface',
-    collStrength: 0.16,
+    collStrength: 0.08,
   }),
   mid({
     id: 'lepto_sca_crossed',
@@ -2067,7 +2067,7 @@ export const VESSEL_DEFS: VesselDef[] = [
       [-3, -66, -14],
     ],
     pathMode: 'surface',
-    collStrength: 0.16,
+    collStrength: 0.08,
   }),
   bi({
     id: 'coll_acha_pchor',
