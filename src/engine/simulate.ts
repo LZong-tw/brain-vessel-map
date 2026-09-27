@@ -46,6 +46,7 @@ import {
   type ScheduleEvent,
 } from './schedule';
 import { tissueParamsForBed } from './tissueParams';
+import type { TreatmentOptions } from './treatment';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
@@ -53,6 +54,8 @@ export interface SimInput extends HemoInput {
   tH: number;
   reperfusionH: number | null;
   decompression: boolean;
+  /** how and how well the artery is reopened at reperfusionH (see treatment.ts); default: completely */
+  treatment?: TreatmentOptions;
 }
 
 export interface BedTimeState {
