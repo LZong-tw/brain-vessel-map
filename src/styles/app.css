@@ -1760,6 +1760,7 @@ svg .flow-num {
 }
 .now-symptoms .now-event {
   cursor: default;
+}
 
 /* ───────────── occlusion schedules ───────────── */
 /* timeline: ▼ an occlusion begins, ▲ it reopens by itself (the treatment mark is the green bar) */
