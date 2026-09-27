@@ -8,6 +8,9 @@ import source from './app.css?raw';
  */
 describe('app.css', () => {
   it('has balanced braces, never closing more than it opened', () => {
+    // the test runner must hand over the real file (see test.css in vite.config.ts), or this test
+    // would pass on an empty string
+    expect(source.length).toBeGreaterThan(10_000);
     const css = source.replace(/\/\*[\s\S]*?\*\//g, '');
     let depth = 0;
     let line = 1;
