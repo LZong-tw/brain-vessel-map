@@ -45,7 +45,13 @@ export interface BedEffect {
   event: string;
 }
 
+/**
+ * All times in and out of the cascade are hours after the onset of ONE ischaemic event. With an
+ * occlusion schedule, simulate() passes the index event's clock (t − onset) and shifts the
+ * output onto the timeline for display.
+ */
 export interface CascadeInput {
+  /** recanalisation, hours after onset (null: never, or treatment before this event) */
   reperfusionH: number | null;
   decompression: boolean;
   occlusions: Occlusion[];
