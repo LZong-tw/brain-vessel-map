@@ -68,6 +68,8 @@ export interface CascadeOutput {
   volumes: { supra: Record<Side, number>; cerebellum: Record<Side, number>; brainstem: number; total: number; withSecondary: number };
   savedVolume: number;
   hydrocephalusOnsetH: number | null;
+  /** when the acute obstructive episode is over (the 'hydrocephalus' event's endH) */
+  hydrocephalusEndH: number | null;
   midlineShift: { side: Side; peakMm: number; onsetH: number } | null;
 }
 
@@ -234,6 +236,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   // ── 3. oedema & mass effect ────────────────────────────────────
   let hydrocephalusOnsetH: number | null = null;
+  let hydrocephalusEndH: number | null = null;
   let midlineShift: CascadeOutput['midlineShift'] = null;
   if (vol.total >= 3) {
     events.push({
@@ -376,13 +379,14 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
     if (!decompression) {
       hydrocephalusOnsetH = 36;
+      hydrocephalusEndH = 336;
       bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: 48, endH: 336, event: 'cerebellar_edema' }));
       events.push({
         id: 'hydrocephalus',
         kind: 'secondary',
         severity: 'danger',
         onsetH: 36,
-        endH: 336,
+        endH: hydrocephalusEndH,
         symptoms: [
           // raised pressure and a dilated aqueduct: drowsiness and upgaze palsy
           { id: 'coma', side: null, sev: 2 },
@@ -780,6 +784,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     volumes: { ...vol, withSecondary: vol.total + secondaryLoss },
     savedVolume,
     hydrocephalusOnsetH,
+    hydrocephalusEndH,
     midlineShift,
   };
 }

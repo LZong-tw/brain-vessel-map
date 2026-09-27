@@ -344,7 +344,7 @@ export function simulate(input: SimInput): SimResult {
     cascade,
     volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume },
     neuronsLost: core * NEURONS_PER_ML,
-    hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH,
+    hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH && (cascade.hydrocephalusEndH === null || t < cascade.hydrocephalusEndH),
     edema: computeEdema({ tH: t, reperfusionH: reperf, decompression: input.decompression, beds: edemaBeds, cascade }),
   };
 }
