@@ -134,6 +134,9 @@ export function aggregateSymptoms(
     del('aphasia_broca', null);
     del('aphasia_wernicke', null);
   }
+  // bilateral ventral pons: anarthria (no speech at all) replaces, rather than adds to, the
+  // milder unilateral dysarthria picture
+  if (map.has('anarthria|')) del('dysarthria', null);
   if (map.has('coma|')) del('somnolence', null);
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {

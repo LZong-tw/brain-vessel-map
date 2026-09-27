@@ -856,6 +856,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
       { s: 'hand_clumsy', lat: 'contra', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // both corticobulbar tracts cut together (not just one) is anarthria + severe dysphagia,
+      // not merely a worse version of the unilateral picture (Bauer et al. 1979; Patterson &
+      // Grabois 1986)
+      { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
+      { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -941,6 +946,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // both corticobulbar tracts cut together (not just one) is anarthria + severe dysphagia,
+      // not merely a worse version of the unilateral picture (Bauer et al. 1979; Patterson &
+      // Grabois 1986)
+      { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
+      { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -970,6 +980,12 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'face_weak_peripheral', lat: 'ipsi', sev: 2 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 2 },
+      // extending into the caudal pontine tegmentum on both sides can also disturb automatic
+      // (non-volitional) breathing — apneustic or cluster patterns (Plum & Posner, The
+      // Diagnosis of Stupor and Coma). TODO(medical-review): "moderate" (sev 2) is an
+      // educational approximation; real severity ranges from mild irregularity to
+      // ventilator dependence and is not captured by this model.
+      { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
