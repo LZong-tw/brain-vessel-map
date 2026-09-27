@@ -135,6 +135,12 @@ function VesselsTab({ sim }: { sim: SimResult }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [query],
   );
+  const anyVesselHit = useMemo(
+    () => VESSELS.some((v) => !v.visualOnly && (match(vesselName(v, 'zh-TW')) || match(vesselName(v, 'en')) || match(v.abbr ?? '') || match(v.id))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [query],
+  );
+  const noMatches = query !== '' && regionHits.length === 0 && !anyVesselHit;
   return (
     <div>
       <input
@@ -149,6 +155,14 @@ function VesselsTab({ sim }: { sim: SimResult }) {
         }}
         aria-label={t.searchVessels}
       />
+      {noMatches && (
+        <div className="empty-state">
+          <p className="muted">{t.noVesselMatches(q.trim())}</p>
+          <button className="btn small" onClick={() => setQ('')}>
+            {t.clearSearch}
+          </button>
+        </div>
+      )}
       {regionHits.length > 0 && (
         <section className="group">
           <h3>{t.region}</h3>

@@ -23,6 +23,11 @@ export interface NihssResult {
   items: Partial<Record<string, number>>;
   category: 'none' | 'minor' | 'moderate' | 'moderate_severe' | 'severe';
   posteriorCaveat: boolean;
+  /**
+   * total is 0, but there are symptoms the NIHSS simply does not score (e.g. monocular vision
+   * loss, isolated vertigo). A 0 here means "no NIHSS-captured deficit", not "no symptoms".
+   */
+  uncaptured: boolean;
 }
 
 export interface SyndromeMatch {
@@ -228,7 +233,7 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
     const reg = REGION_BY_ID[r];
     return reg && (reg.category === 'brainstem' || reg.category === 'cerebellum' || /^(cuneus|lingual|occipital_pole)/.test(reg.baseId));
   });
-  return { total, items, category, posteriorCaveat: posterior && total <= 6 };
+  return { total, items, category, posteriorCaveat: posterior && total <= 6, uncaptured: total === 0 && symptoms.length > 0 };
 }
 
 export function detectSyndromes(ctx: SyndromeCtx): SyndromeMatch[] {

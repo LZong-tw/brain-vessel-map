@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useApp } from './store';
 import { applyHash, encodeState } from './urlState';
+import { __setWebGLForTests } from './webgl';
 
 describe('shareable URL state', () => {
+  // these tests are about hash parsing, not the WebGL fallback (covered below) — assume WebGL works
+  beforeEach(() => __setWebGLForTests(true));
+
   it('ignores ids that only exist on Object.prototype', () => {
     for (const h of ['#o=constructor', '#s=constructor', '#o=__proto__,toString', '#v=hasOwnProperty']) {
       expect(() => applyHash(h)).not.toThrow();
@@ -40,5 +44,32 @@ describe('shareable URL state', () => {
     applyHash('#o=aca_a1_r');
     applyHash(`#${enc}`);
     expect(encodeState(useApp.getState())).toBe(enc);
+  });
+});
+
+describe('the 3D view falls back to Willis when WebGL is unavailable', () => {
+  it('honours an explicit view=willis/brainstem regardless of WebGL', () => {
+    __setWebGLForTests(false);
+    applyHash('#view=brainstem');
+    expect(useApp.getState().view).toBe('brainstem');
+  });
+
+  it('falls back to willis when the link explicitly asks for 3d but WebGL is unavailable', () => {
+    __setWebGLForTests(false);
+    applyHash('#view=3d');
+    expect(useApp.getState().view).toBe('willis');
+  });
+
+  it('honours an explicit view=3d when WebGL is available', () => {
+    __setWebGLForTests(true);
+    applyHash('#view=willis');
+    applyHash('#view=3d');
+    expect(useApp.getState().view).toBe('3d');
+  });
+
+  it('a link with no view falls back to willis (not a blank 3D canvas) when WebGL is unavailable', () => {
+    __setWebGLForTests(false);
+    applyHash('#o=mca_m1_l');
+    expect(useApp.getState().view).toBe('willis');
   });
 });

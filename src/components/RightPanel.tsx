@@ -26,6 +26,7 @@ import {
   symptomLabel,
   vesselTerritory,
 } from '../ui/format';
+import { regionAffectedPct } from '../ui/regionLabel';
 import { vesselVisual, type VesselVisual } from '../ui/vesselState';
 import { FunctionTimeline } from './FunctionTimeline';
 import { NowSummary } from './NowSummary';
@@ -561,6 +562,7 @@ function Results({ sim }: { sim: SimResult }) {
           </details>
         )}
         <p className="muted small">{t.nihssNote}</p>
+        {sim.nihss.uncaptured && <p className="callout warn">{t.nihssUncaptured}</p>}
         {sim.nihss.posteriorCaveat && <p className="callout warn">{t.posteriorCaveat}</p>}
       </section>
 
@@ -638,15 +640,18 @@ function Results({ sim }: { sim: SimResult }) {
       <section>
         <h3>{t.affectedRegions}</h3>
         <ul className="region-list">
-          {affected.map(([id, r]) => (
-            <li key={id}>
-              <button onClick={() => select({ kind: 'region', id })}>
-                <span className="grow">{regionName(REGION_BY_ID[id], lang)}</span>
-                <span className={`state-tag st-${r.dominant}`}>{t.states[r.dominant as keyof typeof t.states]}</span>
-                <span className="num">{pct(Math.max(r.dys, r.infarct))}</span>
-              </button>
-            </li>
-          ))}
+          {affected.map(([id, r]) => {
+            const pctLabel = regionAffectedPct(r);
+            return (
+              <li key={id}>
+                <button onClick={() => select({ kind: 'region', id })}>
+                  <span className="grow">{regionName(REGION_BY_ID[id], lang)}</span>
+                  <span className={`state-tag st-${r.dominant}`}>{t.states[r.dominant as keyof typeof t.states]}</span>
+                  {pctLabel && <span className="num">{pctLabel}</span>}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>
