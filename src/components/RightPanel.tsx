@@ -7,8 +7,11 @@ import { TIME_STOPS, formatHours } from '../anatomy/timeline';
 import { REGION_DEFS } from '../anatomy/regions';
 import type { CascadeEvent } from '../engine/cascade';
 import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
+import { endOf, isTreatable, phasesOf, progressed, startOf } from '../engine/schedule';
 import { isOccludable, simulate, type SimResult } from '../engine/simulate';
 import type { Strings } from '../i18n/ui';
+import { SCHEDULE_UI } from '../i18n/uiSchedule';
+import { REOPEN_AFTER_H, formatClock, occlusionWindow } from '../ui/scheduleFormat';
 import { useT } from '../state/hooks';
 import { useApp, type RightTab } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
@@ -26,6 +29,7 @@ import {
   symptomLabel,
   vesselTerritory,
 } from '../ui/format';
+import { regionAffectedPct } from '../ui/regionLabel';
 import { vesselVisual, type VesselVisual } from '../ui/vesselState';
 import { FunctionTimeline } from './FunctionTimeline';
 import { NowSummary } from './NowSummary';
@@ -137,6 +141,9 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
   const st = useApp();
   const v = VESSEL_BY_ID[id];
   const occ = st.occlusions.find((o) => o.vessel === id);
+  // the phase in effect at the displayed time (a vessel may have several over time)
+  const occNow = sim.activeOcclusions.find((o) => o.vessel === id);
+  const phaseCount = st.occlusions.filter((o) => o.vessel === id).length;
   const vis = vesselVisual(id, sim);
   const territory = useMemo(() => vesselTerritory(id), [id]);
   const baselinePressure = useMemo(
@@ -197,7 +204,7 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
           <div className="stat">
             <div className="stat-label">{t.state}</div>
             <div className="stat-value small" style={{ color: vis.color === '#1c1c1c' ? '#ff6b7d' : vis.color }}>
-              {vesselStateLabel(vis, occ, t)}
+              {vesselStateLabel(vis, occNow, t)}
             </div>
           </div>
         </div>
@@ -207,17 +214,19 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
           <button className={`btn ${occ ? '' : 'danger'} block`} onClick={() => st.toggleOcclusion(id)}>
             {occ ? t.unocclude : t.occlude}
           </button>
-          <div className="seg small" role="group" aria-label={t.stenosis}>
-            {([0.5, 0.7, 0.9, 1] as const).map((sv) => {
-              const on = !!occ && !occ.branch && occ.severity === sv;
-              return (
-                <button key={sv} aria-pressed={on} className={on ? 'active' : ''} onClick={() => st.setOcclusion(id, on ? null : sv)}>
-                  {t.stenosisOptions[sv]}
-                </button>
-              );
-            })}
-          </div>
-          {canBeLacunar(v.baseId, v.n) && (
+          {phaseCount <= 1 && (
+            <div className="seg small" role="group" aria-label={t.stenosis}>
+              {([0.5, 0.7, 0.9, 1] as const).map((sv) => {
+                const on = !!occ && !occ.branch && occ.severity === sv;
+                return (
+                  <button key={sv} aria-pressed={on} className={on ? 'active' : ''} onClick={() => st.setOcclusion(id, on ? null : sv)}>
+                    {t.stenosisOptions[sv]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {phaseCount <= 1 && canBeLacunar(v.baseId, v.n) && (
             <>
               <button
                 className={`btn block${occ?.branch ? ' active' : ''}`}
@@ -229,6 +238,7 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
               <p className="muted small">{t.lacuneHint}</p>
             </>
           )}
+          {occ && <ScheduleEditor vessel={id} sim={sim} />}
         </div>
       )}
       {preview && (
@@ -325,6 +335,137 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
           )}
         </section>
       )}
+    </div>
+  );
+}
+
+const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+const uniqSorted = (xs: number[]) => [...new Set(xs)].sort((a, b) => a - b);
+const SEVERITIES = [0.5, 0.7, 0.9, 1] as const;
+
+/**
+ * When a vessel's occlusion begins, whether it reopens by itself, and later phases (a stenosis
+ * that becomes an occlusion). Times are on the timeline clock.
+ */
+function ScheduleEditor({ vessel, sim }: { vessel: string; sim: SimResult }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const occlusions = useApp((s) => s.occlusions);
+  const update = useApp((s) => s.updateOcclusion);
+  const remove = useApp((s) => s.removeOcclusionAt);
+  const addPhase = useApp((s) => s.addOcclusionPhase);
+  const [laterAt, setLaterAt] = useState<number | null>(null);
+  const s = SCHEDULE_UI[lang];
+  const idx = phasesOf(occlusions, vessel);
+  if (!idx.length) return null;
+  const v = VESSEL_BY_ID[vessel];
+  const lacunar = !!v && canBeLacunar(v.baseId, v.n);
+  const multi = idx.length > 1;
+  const last = occlusions[idx[idx.length - 1]];
+  // a later complete occlusion makes sense after a stenosis or after a transient occlusion
+  const canAdd = !(isTreatable(last) && endOf(last) === null);
+  const laterOptions = TIME_STOPS.map((x) => x.h).filter((h) => h > startOf(last));
+  const laterDefault = laterOptions.find((h) => h >= Math.max(72, endOf(last) ?? 0)) ?? laterOptions[laterOptions.length - 1];
+  const later = laterAt !== null && laterOptions.includes(laterAt) ? laterAt : laterDefault;
+  return (
+    <div className="sched">
+      <div className="sched-title">{s.timing}</div>
+      {idx.map((i, k) => {
+        const o = occlusions[i];
+        const prev = k > 0 ? occlusions[idx[k - 1]] : null;
+        const next = k + 1 < idx.length ? occlusions[idx[k + 1]] : null;
+        const from = startOf(o);
+        const to = endOf(o);
+        const nextFrom = next ? startOf(next) : Infinity;
+        const startOpts = uniqSorted([...TIME_STOPS.map((x) => x.h), from]).filter((h) => (!prev || h > startOf(prev)) && h < nextFrom);
+        const endOpts = REOPEN_AFTER_H.filter((d) => from + d < nextFrom - 1e-9);
+        const endValue = to === null ? 'never' : next && near(to, nextFrom) ? 'next' : String(to - from);
+        const custom = endValue !== 'never' && endValue !== 'next' && !endOpts.some((d) => String(d) === endValue);
+        const status = sim.schedule.status[i] ?? 'active';
+        return (
+          <div className="sched-row" key={i}>
+            <div className="sched-row-head">
+              {multi && <span className="sched-k">{s.phase(k + 1)}</span>}
+              {multi && (
+                <select
+                  className="sched-sev"
+                  aria-label={s.severity}
+                  value={o.branch ? 'b' : String(o.severity)}
+                  onChange={(e) =>
+                    update(i, e.target.value === 'b' ? { severity: 1, branch: true } : { severity: Number(e.target.value), branch: undefined })
+                  }
+                >
+                  {SEVERITIES.map((sv) => (
+                    <option key={sv} value={String(sv)}>
+                      {t.stenosisOptions[sv]}
+                    </option>
+                  ))}
+                  {lacunar && <option value="b">{t.lacuneTag}</option>}
+                </select>
+              )}
+              {status === 'reopened' && progressed(occlusions, o) ? (
+                <span className="sched-status">{s.progressed}</span>
+              ) : (
+                <span className={`sched-status st-${status}`}>{s.status[status]}</span>
+              )}
+              {multi && (
+                <button className="x" aria-label={s.removePhase} title={s.removePhase} onClick={() => remove(i)}>
+                  ×
+                </button>
+              )}
+            </div>
+            <div className="sched-fields">
+              <label className="sched-field">
+                <span>{s.starts}</span>
+                <select value={String(from)} onChange={(e) => update(i, { fromH: Number(e.target.value) })}>
+                  {startOpts.map((h) => (
+                    <option key={h} value={String(h)}>
+                      {formatClock(h, lang)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="sched-field">
+                <span>{s.reopens}</span>
+                <select
+                  value={endValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    update(i, { toH: val === 'never' ? null : val === 'next' ? nextFrom : from + Number(val) });
+                  }}
+                >
+                  {!next && <option value="never">{s.never}</option>}
+                  {endOpts.map((d) => (
+                    <option key={d} value={String(d)}>
+                      {s.after(formatClock(d, lang))}
+                    </option>
+                  ))}
+                  {custom && <option value={endValue}>{s.after(formatClock(Number(endValue), lang))}</option>}
+                  {next && <option value="next">{s.untilNext}</option>}
+                </select>
+              </label>
+            </div>
+          </div>
+        );
+      })}
+      {canAdd && laterOptions.length > 0 && (
+        <div className="sched-add">
+          <label className="sched-field">
+            <span>{s.laterOcclusion}</span>
+            <select value={String(later)} onChange={(e) => setLaterAt(Number(e.target.value))}>
+              {laterOptions.map((h) => (
+                <option key={h} value={String(h)}>
+                  {formatClock(h, lang)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="btn small" onClick={() => addPhase(vessel, later)}>
+            {s.add}
+          </button>
+        </div>
+      )}
+      <p className="muted small">{s.timingHint}</p>
     </div>
   );
 }
@@ -441,9 +582,10 @@ function Results({ sim }: { sim: SimResult }) {
   const tIndex = useApp((s) => s.tIndex);
   const setTIndex = useApp((s) => s.setTIndex);
   const select = useApp((s) => s.select);
-  const setOcclusion = useApp((s) => s.setOcclusion);
+  const removeOcclusionAt = useApp((s) => s.removeOcclusionAt);
   const map = useApp((s) => s.map);
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const sched = SCHEDULE_UI[lang];
   const series = useSimSeries();
   const tH = TIME_STOPS[tIndex].h;
   if (!occlusions.length && map >= 70) return <p className="muted">{t.noOcclusion}</p>;
@@ -472,23 +614,33 @@ function Results({ sim }: { sim: SimResult }) {
   return (
     <div className="results">
       <div className="chips occ-list">
-        {occlusions.map((o) => (
-          <span key={o.vessel} className="chip occ">
-            <span className="dot" style={{ background: o.severity >= 1 && !o.branch ? STATE_COLORS.core : '#f28c28' }} />
-            {vesselName(VESSEL_BY_ID[o.vessel], lang)}
-            {o.severity < 1 && ` ${Math.round(o.severity * 100)}%`}
-            {o.branch && ` · ${t.lacuneTag}`}
-            {o.severity >= 1 && !o.branch && sim.recanalized && <span className="badge good">{t.recanalized}</span>}
-            <button
-              className="x"
-              aria-label={`${lang === 'en' ? 'Remove' : '移除'} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
-              onClick={() => setOcclusion(o.vessel, null)}
-            >
-              ×
-            </button>
-          </span>
-        ))}
+        {occlusions.map((o, i) => {
+          const status = sim.schedule.status[i] ?? 'active';
+          const when = occlusionWindow(o, lang, sched);
+          // a phase that ended because the vessel's next phase began (e.g. stenosis → occlusion)
+          const worse = status === 'reopened' && progressed(occlusions, o);
+          return (
+            <span key={i} className={`chip occ${status === 'active' ? '' : ' occ-inactive'}`}>
+              <span className="dot" style={{ background: o.severity >= 1 && !o.branch ? STATE_COLORS.core : '#f28c28' }} />
+              {vesselName(VESSEL_BY_ID[o.vessel], lang)}
+              {o.severity < 1 && ` ${Math.round(o.severity * 100)}%`}
+              {o.branch && ` · ${t.lacuneTag}`}
+              {when && <span className="occ-when">{when}</span>}
+              {status === 'treated' && <span className="badge good">{t.recanalized}</span>}
+              {status === 'reopened' && <span className={`badge${worse ? '' : ' good'}`}>{worse ? sched.progressed : sched.status.reopened}</span>}
+              {status === 'pending' && <span className="badge">{sched.status.pending}</span>}
+              <button
+                className="x"
+                aria-label={`${lang === 'en' ? 'Remove' : '移除'} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
+                onClick={() => removeOcclusionAt(i)}
+              >
+                ×
+              </button>
+            </span>
+          );
+        })}
       </div>
+      {sim.schedule.onsetH > 0 && <p className="muted small">{sched.indexOnset(formatClock(sim.schedule.onsetH, lang))}</p>}
       <NowSummary sim={sim} series={series} />
       <div className="stat-row">
         <div className="stat">
@@ -545,7 +697,7 @@ function Results({ sim }: { sim: SimResult }) {
 
       <section className="nihss">
         <h3>
-          {t.nihss}: <span className="num big">{sim.nihss.total}</span> <span className={`badge sev-${sim.nihss.category}`}>{t.nihssCategory[sim.nihss.category]}</span>
+          {t.nihss}: <span className="num big">{sim.nihss.total}</span> <span className={`badge sev-${sim.nihss.category}`}>{sim.nihss.uncaptured ? t.nihssNotCaptured : t.nihssCategory[sim.nihss.category]}</span>
         </h3>
         {nihssItems.length > 0 && (
           <details className="nihss-items">
@@ -561,6 +713,7 @@ function Results({ sim }: { sim: SimResult }) {
           </details>
         )}
         <p className="muted small">{t.nihssNote}</p>
+        {sim.nihss.uncaptured && <p className="callout warn">{t.nihssUncaptured}</p>}
         {sim.nihss.posteriorCaveat && <p className="callout warn">{t.posteriorCaveat}</p>}
       </section>
 
@@ -638,15 +791,18 @@ function Results({ sim }: { sim: SimResult }) {
       <section>
         <h3>{t.affectedRegions}</h3>
         <ul className="region-list">
-          {affected.map(([id, r]) => (
-            <li key={id}>
-              <button onClick={() => select({ kind: 'region', id })}>
-                <span className="grow">{regionName(REGION_BY_ID[id], lang)}</span>
-                <span className={`state-tag st-${r.dominant}`}>{t.states[r.dominant as keyof typeof t.states]}</span>
-                <span className="num">{pct(Math.max(r.dys, r.infarct))}</span>
-              </button>
-            </li>
-          ))}
+          {affected.map(([id, r]) => {
+            const pctLabel = regionAffectedPct(r);
+            return (
+              <li key={id}>
+                <button onClick={() => select({ kind: 'region', id })}>
+                  <span className="grow">{regionName(REGION_BY_ID[id], lang)}</span>
+                  <span className={`state-tag st-${r.dominant}`}>{t.states[r.dominant as keyof typeof t.states]}</span>
+                  {pctLabel && <span className="num">{pctLabel}</span>}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </section>
     </div>

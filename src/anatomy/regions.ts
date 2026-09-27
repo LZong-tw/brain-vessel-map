@@ -856,6 +856,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
       { s: 'hand_clumsy', lat: 'contra', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // both corticobulbar tracts cut together (not just one) is anarthria + severe dysphagia,
+      // not merely a worse version of the unilateral picture (Bauer et al. 1979; Patterson &
+      // Grabois 1986)
+      { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
+      { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -895,8 +900,12 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'brainstem',
     cbf: BS_CBF,
     supply: [
-      { v: 'sca_{s}', share: 0.75, at: 'mid' },
-      { v: 'pontine_circumferential_{s}', share: 0.25 },
+      // the lateral tegmentum (trigeminal, vestibular and cochlear nuclei, spinothalamic tract) is
+      // the territory of the long circumferential arteries; the short circumferential branches of
+      // the basilar mainly supply the anterolateral basis, so a basilar occlusion with patent
+      // AICA/SCA spares it (Tatu L et al. Neurology 1996;47:1125–1135). TODO(medical-review): share
+      { v: 'sca_{s}', share: 0.9, at: 'mid' },
+      { v: 'pontine_circumferential_{s}', share: 0.1 },
     ],
     structures: [
       { name: { zh: '三叉神經主感覺核與運動核', en: 'Trigeminal principal sensory & motor nuclei' }, role: { zh: '同側臉部感覺、咀嚼', en: 'Same-side facial sensation, chewing' } },
@@ -941,6 +950,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // both corticobulbar tracts cut together (not just one) is anarthria + severe dysphagia,
+      // not merely a worse version of the unilateral picture (Bauer et al. 1979; Patterson &
+      // Grabois 1986)
+      { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
+      { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -970,6 +984,12 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'face_weak_peripheral', lat: 'ipsi', sev: 2 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 2 },
+      // extending into the caudal pontine tegmentum on both sides can also disturb automatic
+      // (non-volitional) breathing — apneustic or cluster patterns (Plum & Posner, The
+      // Diagnosis of Stupor and Coma). TODO(medical-review): "moderate" (sev 2) is an
+      // educational approximation; real severity ranges from mild irregularity to
+      // ventilator dependence and is not captured by this model.
+      { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -983,8 +1003,12 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'brainstem',
     cbf: BS_CBF,
     supply: [
-      { v: 'aica_{s}', share: 0.75, at: 'mid' },
-      { v: 'pontine_circumferential_{s}', share: 0.25 },
+      // the lateral tegmentum (trigeminal, vestibular and cochlear nuclei, spinothalamic tract) is
+      // the territory of the long circumferential arteries; the short circumferential branches of
+      // the basilar mainly supply the anterolateral basis, so a basilar occlusion with patent
+      // AICA/SCA spares it (Tatu L et al. Neurology 1996;47:1125–1135). TODO(medical-review): share
+      { v: 'aica_{s}', share: 0.9, at: 'mid' },
+      { v: 'pontine_circumferential_{s}', share: 0.1 },
     ],
     structures: [
       { name: { zh: '顏面神經核', en: 'Facial nucleus' }, role: { zh: '同側整側臉運動', en: 'Same-side whole-face movement' } },

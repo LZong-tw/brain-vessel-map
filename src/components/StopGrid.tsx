@@ -26,7 +26,21 @@ const AXIS_H = [0, 1, 6, 24, 168, 4320];
  * A compact rows × time-stops grid: phase band on top, one row per series, clickable columns
  * (jump the timeline) and landmark time labels underneath. The current stop is outlined.
  */
-export function StopGrid({ rows, label, labelWidth = 74 }: { rows: StopRow[]; label: string; labelWidth?: number }) {
+export function StopGrid({
+  rows,
+  label,
+  labelWidth = 74,
+  onPickCell,
+  selectedRow,
+}: {
+  rows: StopRow[];
+  label: string;
+  labelWidth?: number;
+  /** also called when a cell is clicked (the timeline jumps to its column either way) */
+  onPickCell?: (rowKey: string, index: number) => void;
+  /** row whose cell in the current column is shown as selected */
+  selectedRow?: string | null;
+}) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const current = useApp((s) => s.tIndex);
@@ -63,15 +77,37 @@ export function StopGrid({ rows, label, labelWidth = 74 }: { rows: StopRow[]; la
           <span className="sg-label" title={r.title ?? r.label}>
             {r.label}
           </span>
-          {r.cells.map((c, i) => (
-            <span
-              key={i}
-              className={`sg-cell${i === current ? ' cur' : ''}${c.color ? '' : ' empty'}`}
-              style={c.color ? { background: c.color } : undefined}
-              title={`${tr(TIME_STOPS[i].label, lang)}${sep}${c.title}`}
-              onClick={() => pick(i)}
-            />
-          ))}
+          {r.cells.map((c, i) => {
+            const title = `${tr(TIME_STOPS[i].label, lang)}${sep}${c.title}`;
+            const selected = !!onPickCell && selectedRow === r.key && i === current;
+            const choose = () => {
+              pick(i);
+              onPickCell?.(r.key, i);
+            };
+            return (
+              <span
+                key={i}
+                className={`sg-cell${i === current ? ' cur' : ''}${c.color ? '' : ' empty'}${selected ? ' sel' : ''}`}
+                style={c.color ? { background: c.color } : undefined}
+                title={title}
+                onClick={choose}
+                {...(onPickCell
+                  ? {
+                      role: 'button',
+                      tabIndex: 0,
+                      'aria-label': `${r.title ?? r.label} · ${title}`,
+                      'aria-pressed': selected,
+                      onKeyDown: (e: React.KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          choose();
+                        }
+                      },
+                    }
+                  : {})}
+              />
+            );
+          })}
         </Fragment>
       ))}
       <span className="sg-label" />

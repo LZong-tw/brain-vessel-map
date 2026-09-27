@@ -120,6 +120,19 @@ export const SYMPTOMS: SymptomDef[] = [
     nihss: { item: '10', pts: [1, 1, 2] },
   },
   {
+    id: 'anarthria',
+    name: { zh: '構音不能（完全無法發聲說話）', en: 'Anarthria (unable to produce any speech)' },
+    desc: {
+      zh: '雙側橋腦腹側的皮質延髓徑一起受損，發聲與構音的肌肉完全癱瘓：清醒、聽得懂，卻連一個音也發不出來，是閉鎖症候群的特徵。與構音障礙（口齒不清但仍能發聲）不同，這是完全的失聲。',
+      en: 'Both corticobulbar tracts in the ventral pons are cut, paralysing the muscles of speech entirely: the person is awake and understands language but cannot produce any sound at all — the hallmark of locked-in syndrome. This is not merely worse dysarthria (slurred but present speech); it is a total loss of speech output.',
+    },
+    // Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol. 1979;220:191-198.
+    // Patterson JR, Grabois M. Locked-in syndrome: a review of 139 cases. Stroke. 1986;17:758-764.
+    system: 'motor',
+    lateralised: false,
+    nihss: { item: '10', pts: [2, 2, 2] },
+  },
+  {
     id: 'dysphagia',
     name: { zh: '吞嚥困難', en: 'Dysphagia (swallowing difficulty)' },
     desc: {

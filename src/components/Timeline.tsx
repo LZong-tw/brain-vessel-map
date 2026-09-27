@@ -3,8 +3,10 @@ import { tr } from '../anatomy';
 import type { Lang } from '../anatomy/types';
 import { PHASE_LABEL, TIME_STOPS, formatHours, phaseOf } from '../anatomy/timeline';
 import type { SimResult } from '../engine/simulate';
+import { SCHEDULE_UI } from '../i18n/uiSchedule';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
+import { formatClock, stopPosition } from '../ui/scheduleFormat';
 
 /** the range thumb's half-width: stop i sits at 8px + i/n of the remaining width */
 const INSET = 8;
@@ -87,6 +89,11 @@ export function Timeline({ sim }: { sim: SimResult }) {
       return { i, id: e.id, sev: e.severity };
     });
   const repIdx = reperfusionH === null ? null : TIME_STOPS.findIndex((s) => s.h >= reperfusionH);
+  // occlusions that begin later (▼) or reopen by themselves (▲), placed between the stops
+  const schedMarks = sim.schedule.events
+    .filter((e) => e.h > 0 && e.kind !== 'treatment')
+    .map((e) => ({ key: `${e.kind}${e.index}`, kind: e.kind === 'reopen' ? 'off' : 'on', pos: stopPosition(e.h), h: e.h }));
+  const sched = SCHEDULE_UI[lang];
   return (
     <div className="timeline" role="group" aria-label={t.time}>
       <button
@@ -130,7 +137,15 @@ export function Timeline({ sim }: { sim: SimResult }) {
               <span key={m.id} className={`tl-mark ${m.sev}`} style={{ left: `${(m.i / n) * 100}%` }} />
             ))}
             {repIdx !== null && repIdx >= 0 && <span className="tl-mark reperf" style={{ left: `${(repIdx / n) * 100}%` }} />}
+            {schedMarks.map((m) => (
+              <span key={m.key} className={`tl-sched ${m.kind}`} style={{ left: `${(m.pos / n) * 100}%` }} />
+            ))}
           </div>
+          {schedMarks.length > 0 && (
+            <span className="tl-sr">
+              {schedMarks.map((m) => `${m.kind === 'on' ? sched.markOnset : sched.markReopen} ${formatClock(m.h, lang)}`).join('; ')}
+            </span>
+          )}
           <div className="tl-labels" aria-hidden="true">
             {TIME_STOPS.map((s, i) =>
               shown.has(i) ? (

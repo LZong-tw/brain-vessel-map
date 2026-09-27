@@ -370,6 +370,13 @@ select,
 .search {
   margin-bottom: 10px;
 }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 2px;
+}
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
@@ -1632,4 +1639,314 @@ svg .flow-num {
 .tl-labels span.cur {
   color: var(--text);
   font-weight: 650;
+}
+
+/* recovery: dead / temporarily silenced / compensated / no backup */
+.rec-status {
+  margin-top: 8px;
+}
+.rec-status ul {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rec-status li {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  margin: 3px 0;
+  line-height: 1.45;
+}
+.rec-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transform: translateY(-1px);
+}
+.rec-status li.dead .rec-dot {
+  background: var(--danger);
+}
+.rec-status li.silenced .rec-dot {
+  background: var(--accent);
+}
+.rec-status li.comp .rec-dot {
+  background: var(--ok);
+}
+.rec-status li.nobackup .rec-dot {
+  background: transparent;
+  border: 2px solid var(--danger);
+}
+.rec-head {
+  font-weight: 650;
+  font-size: 12.5px;
+}
+.rec-status li.silenced .rec-head {
+  color: #b9d4ff;
+}
+.rec-status li.comp .rec-head {
+  color: #a8e6bf;
+}
+.rec-status li.nobackup .rec-head {
+  color: #ffb3b6;
+}
+.rec-caveat {
+  margin: 6px 0 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-left: 2px solid var(--line-2);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-3);
+}
+.rec-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 17px;
+  vertical-align: 1px;
+  cursor: help;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+.rec-tag.nobackup {
+  border-color: rgba(229, 72, 77, 0.6);
+  color: #ffb3b6;
+}
+.rec-tag.comp {
+  border-color: rgba(67, 181, 129, 0.6);
+  color: #a8e6bf;
+}
+.func-group.silenced {
+  border-left-color: var(--accent);
+}
+.func-group.silenced .func-title {
+  color: #b9d4ff;
+}
+.func-group.mixed.silenced {
+  border-left-color: var(--danger);
+  background: linear-gradient(90deg, rgba(110, 168, 255, 0.09), rgba(255, 255, 255, 0.02));
+}
+.func-group.mixed.silenced .func-title {
+  color: #ffc8c0;
+}
+.func-group.lost.compensating {
+  background: linear-gradient(90deg, rgba(67, 181, 129, 0.07), rgba(255, 255, 255, 0.02));
+}
+.func-group.compensated {
+  border-left-color: var(--ok);
+  background: repeating-linear-gradient(135deg, rgba(67, 181, 129, 0.07) 0 3px, transparent 3px 8px);
+}
+.func-group.compensated .func-title {
+  color: #a8e6bf;
+}
+.now-symptoms.improved .now-event::before {
+  background: var(--ok);
+}
+.now-symptoms.nobackup .now-event::before {
+  background: transparent;
+  border: 1.5px solid var(--danger);
+  width: 4px;
+  height: 4px;
+}
+.rec-status li.little .rec-dot {
+  background: transparent;
+  border: 2px solid var(--warn);
+}
+.rec-status li.little .rec-head {
+  color: #ffd79c;
+}
+.now-symptoms .now-event {
+  cursor: default;
+
+/* ───────────── occlusion schedules ───────────── */
+/* timeline: ▼ an occlusion begins, ▲ it reopens by itself (the treatment mark is the green bar) */
+.tl-sched {
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+.tl-sched.on {
+  border-top: 7px solid var(--danger);
+}
+.tl-sched.off {
+  border-bottom: 7px solid #5fd0c7;
+}
+.tl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* vessel details: timing of each phase */
+.sched {
+  margin-top: 10px;
+  padding: 6px 10px 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
+.sched-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.sched-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sched-row-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.sched-k {
+  font-size: 12px;
+  font-weight: 600;
+}
+select.sched-sev {
+  width: auto;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.sched-status {
+  font-size: 11px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+.sched-status.st-active {
+  color: #ffb4bd;
+  border-color: var(--danger);
+}
+.sched-status.st-treated,
+.sched-status.st-reopened {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.sched-row-head .x {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.sched-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.sched-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.sched-field select {
+  padding: 4px 6px;
+  font-size: 12.5px;
+}
+.sched-add {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+.sched-add .sched-field {
+  flex: 1;
+}
+.sched .muted.small {
+  margin: 6px 0 0;
+}
+/* results: occlusion chips with their timing */
+.occ-when {
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+.chip.occ-inactive {
+  border-style: dashed;
+  opacity: 0.8;
+}
+.chip.occ {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.occ-when,
+.chip.occ .badge {
+  white-space: nowrap;
+}
+.chip.occ .x {
+  margin-left: auto;
+}
+
+/* ── function heat-map: clicked-cell detail ─────────────────────────── */
+.sg-cell[role='button']:focus-visible {
+  outline: 2px solid var(--accent, #5aa9ff);
+  outline-offset: 1px;
+}
+.sg-cell.sel {
+  box-shadow: 0 0 0 2px var(--accent, #5aa9ff);
+}
+.cell-detail {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.cell-detail .cd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.cell-detail .btn-icon {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.cd-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cd-list li {
+  padding: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cd-list li:first-child {
+  border-top: 0;
+}
+.cd-list .sw {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.cd-src {
+  margin: 2px 0 0 18px;
+}
+.badge.cd-new,
+.badge.cd-worse {
+  color: #ffb4a8;
+}
+.badge.cd-better {
+  color: #a8e6b4;
 }

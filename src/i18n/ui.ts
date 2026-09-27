@@ -47,6 +47,8 @@ const zh = {
   embolusSystemic: '栓子流到腦部以外（手臂或臉部），沒有造成腦中風，但仍可能造成那個部位缺血。',
   // vessels
   searchVessels: '搜尋血管或腦區…',
+  noVesselMatches: (q: string) => `找不到符合「${q}」的血管`,
+  clearSearch: '清除搜尋',
   vesselGroups: {
     extracranial: '主動脈弓與頸部',
     anterior: '前循環（內頸動脈系統）',
@@ -262,6 +264,8 @@ const zh = {
   },
   nihssNote: '依受損腦區推估的教育性分數，不是臨床評估。',
   posteriorCaveat: 'NIHSS 偏重前循環：後循環中風（眩暈、走不穩、吞嚥困難）分數常很低，卻可能很危險。',
+  nihssUncaptured: 'NIHSS 未涵蓋這些症狀（例如單眼視力喪失）：分數 0 不代表沒有症狀。',
+  nihssNotCaptured: '量表未涵蓋',
   syndromes: '可能的症候群',
   symptoms: '預期症狀',
   noSymptoms: '此時間點沒有明顯症狀。',
@@ -375,6 +379,8 @@ const en: Strings = {
   embolusLodged: 'Embolus lodged in',
   embolusSystemic: 'The embolus left the head (arm or face): no brain stroke, but that tissue may still become ischaemic.',
   searchVessels: 'Search vessels or regions…',
+  noVesselMatches: (q: string) => `No vessels match “${q}”`,
+  clearSearch: 'Clear search',
   vesselGroups: {
     extracranial: 'Aortic arch & neck',
     anterior: 'Anterior circulation (carotid)',
@@ -577,6 +583,8 @@ const en: Strings = {
   nihssCategory: { none: 'No deficit', minor: 'Minor', moderate: 'Moderate', moderate_severe: 'Moderate–severe', severe: 'Severe' },
   nihssNote: 'Educational estimate from the affected regions — not a clinical assessment.',
   posteriorCaveat: 'NIHSS is weighted to the anterior circulation: posterior strokes (vertigo, ataxia, dysphagia) can score low yet be dangerous.',
+  nihssUncaptured: 'The NIHSS does not capture these deficits (e.g. monocular vision loss): a score of 0 does not mean no symptoms.',
+  nihssNotCaptured: 'Not captured',
   syndromes: 'Possible syndromes',
   symptoms: 'Expected symptoms',
   noSymptoms: 'No clear symptoms at this time point.',

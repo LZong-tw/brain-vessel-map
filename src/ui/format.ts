@@ -7,7 +7,8 @@ import type { SymptomItem } from '../engine/clinical';
 import type { EdemaState } from '../engine/edemaTypes';
 import { getUnits } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
-import { CORE_REL, PENUMBRA_REL, finalInfarctProb, penumbraResolveH, tauHours, type TissueState } from '../engine/tissue';
+import { finalInfarctProb, penumbraResolveH, tauHours, type TissueState } from '../engine/tissue';
+import { tissueParamsForBed } from '../engine/tissueParams';
 import type { Strings } from '../i18n/ui';
 import { STATE_COLORS } from './colors';
 
@@ -271,7 +272,8 @@ export interface PenumbraEstimate {
 
 /**
  * How long the penumbra of a region is likely to last without reperfusion, from the perfusion of
- * each of its supply units (educational: uses the illustrative time constants of engine/tissue.ts).
+ * each of its supply units (educational: uses the illustrative per-bed time constants of
+ * engine/tissueParams.ts).
  */
 export function penumbraEstimate(sim: SimResult, regionId: string): PenumbraEstimate | null {
   const r = REGION_BY_ID[regionId];
@@ -285,11 +287,12 @@ export function penumbraEstimate(sim: SimResult, regionId: string): PenumbraEsti
   for (const u of getUnits(sim.input.variants, sim.input.collateral)) {
     if (!beds.has(u.bed)) continue;
     const rel = sim.hemo.unitRel[u.id] ?? 1;
-    if (rel < CORE_REL || rel >= PENUMBRA_REL) continue;
-    const resolve = penumbraResolveH(rel);
+    const tp = tissueParamsForBed(u.bed);
+    if (rel < tp.coreRel || rel >= tp.penumbraRel) continue;
+    const resolve = penumbraResolveH(rel, tp);
     if (resolve <= tH) continue;
-    const p = finalInfarctProb(rel);
-    const dead = p * (1 - Math.exp(-tH / tauHours(rel)));
+    const p = finalInfarctProb(rel, tp);
+    const dead = p * (1 - Math.exp(-Math.max(tH - tp.lagH, 0) / tauHours(rel, tp)));
     const alive = (1 - dead) * u.frac * bedWeight(u.bed);
     if (alive <= 0) continue;
     parts.push({ resolve, alive });

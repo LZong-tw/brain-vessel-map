@@ -4,7 +4,8 @@
  * The arterial tree is an electrical-style resistor network:
  *   • each vessel segment is a Poiseuille conductance  G = K·n·r⁴ / L
  *   • leptomeningeal / extracranial anastomoses are small conductances scaled by the
- *     chosen collateral grade
+ *     chosen collateral grade; the pial collaterals of the brainstem are part of the network
+ *     without being drawn (see BRAINSTEM_PIAL)
  *   • tissue is divided into perfusion "units": the part of a bed fed by one supplying artery.
  *     Each unit drains to the venous side through a microvascular conductance calibrated so
  *     that normal flow matches its metabolic demand. Units never pass blood between arterial
@@ -36,6 +37,15 @@ export interface Occlusion {
    * flow, handled by the tissue model (see anatomy/lacunes.ts)
    */
   branch?: boolean;
+  /**
+   * hours after the start of the timeline at which this occlusion begins (default 0). The same
+   * vessel may be listed more than once with non-overlapping windows (e.g. a stenosis that later
+   * occludes). simulateHemodynamics ignores the timing: it treats every occlusion it is given as
+   * present, so callers pass the set active at one moment (see engine/schedule.ts).
+   */
+  fromH?: number;
+  /** hours at which it reopens by itself (spontaneous recanalisation); null / absent = never */
+  toH?: number | null;
 }
 
 export interface HemoInput {
@@ -104,6 +114,67 @@ const K_PHYSICAL = 900;
 const G_LEAK = 1e-9;
 const FIXED = 'arch';
 
+/**
+ * Pial collaterals of the pons and midbrain (not drawn as vessels).
+ *
+ * The long circumferential arteries (AICA and SCA; PICA near the pontomedullary junction; the
+ * collicular artery around the midbrain) wind around the brainstem and supply its lateral
+ * surface. The model assumes that they anastomose on the pial surface with the short
+ * (paramedian and circumferential) branches of the basilar artery before these penetrate, so
+ * that when a basilar thrombus covers the origins of those branches, blood can still enter them
+ * beyond their origin. Proposed reasons why brainstem tissue can stay salvageable for many
+ * hours in basilar artery occlusion are the collateral network of the posterior circulation,
+ * retrograde filling of the distal basilar artery (here: through the PComms, already in the
+ * vessel network) and residual flow past the clot, which may keep the brainstem perforators
+ * marginally patent (Lindsberg PJ et al. Time window for recanalization in basilar artery
+ * occlusion: speculative synthesis. Neurology 2015;85:1806–1815); posterior-circulation
+ * collateral status predicts outcome (posterior circulation collateral score: van der Hoeven
+ * EJRJ et al. Int J Stroke 2016;11:768–775; BATMAN score, which combines thrombus burden and
+ * collaterals: Alemseged F et al. Stroke 2017;48:631–637). The medulla is left out: its
+ * perforators come from the vertebral arteries.
+ *
+ * Each link joins a donor node (mid-course or end of the circumferential artery) to the
+ * mid-course node of a perforator group; a group near two donors shares the link between them.
+ * An occlusion of the perforator group itself (branch disease) therefore closes this route too,
+ * and its territory stays an end-artery territory. The conductance is proportional to the
+ * baseline flow of the perforator's territory and has two parts in series: the anastomotic
+ * channels, which scale with the collateral grade, and a fixed limit on how much blood can
+ * reach the deep perforator territory this way. The fixed part keeps even good collaterals from
+ * fully replacing the basilar supply, so an untreated mid-basilar occlusion still leaves the
+ * ventral pons ischaemic.
+ */
+const BRAINSTEM_PIAL: { perforator: string; from: string; share: number }[] = [
+  { perforator: 'pontine_paramedian_inferior_{s}', from: 'aica_{s}@mid', share: 0.6 },
+  { perforator: 'pontine_paramedian_inferior_{s}', from: 'pica_{s}@mid', share: 0.4 },
+  { perforator: 'pontine_paramedian_caudal_{s}', from: 'aica_{s}@mid', share: 0.7 },
+  { perforator: 'pontine_paramedian_caudal_{s}', from: 'sca_{s}@mid', share: 0.3 },
+  { perforator: 'pontine_circumferential_{s}', from: 'aica_{s}@mid', share: 0.5 },
+  { perforator: 'pontine_circumferential_{s}', from: 'sca_{s}@mid', share: 0.5 },
+  { perforator: 'pontine_paramedian_rostral_{s}', from: 'sca_{s}@mid', share: 0.7 },
+  { perforator: 'pontine_paramedian_rostral_{s}', from: 'aica_{s}@mid', share: 0.3 },
+  { perforator: 'mesencephalic_perf_{s}', from: 'sca_{s}@mid', share: 0.5 },
+  { perforator: 'mesencephalic_perf_{s}', from: 'quad_end_{s}', share: 0.5 },
+];
+/** TODO(medical-review): anastomotic conductance per mL/min of territory flow at grade factor 1
+ * (tuned so that a mid-basilar occlusion leaves the paramedian pons at about 50 % / 40 % / 15 %
+ * of normal flow with good / moderate / poor collaterals, i.e. slowly dying penumbra, faster
+ * dying penumbra and core — a qualitative target, not a measurement) */
+const PIAL_ANAST = 0.02;
+/** TODO(medical-review): fixed series limit of the surface-to-perforator entry (same units) */
+const PIAL_ENTRY = 0.015;
+/**
+ * Above normal pressure the pial collaterals, like other small arteries, constrict (myogenic
+ * tone), so hypertension adds only a little collateral flow instead of pushing it up in step
+ * with the pressure. Without this, a complete mid-basilar occlusion with good collaterals caused
+ * no ischaemia at all from a mean pressure of ~110 mmHg, which is not how acute basilar
+ * occlusion behaves. At or below normal pressure the conductance is unchanged (hypotension
+ * still starves the collateral territory).
+ * TODO(medical-review): the exponent is tuned so that good collaterals stay in the penumbra range
+ * over the whole blood-pressure slider; it is not a measured value.
+ */
+const PIAL_PRESSURE_EXP = 1.4;
+export const pialPressureFactor = (map: number) => (map <= MAP_REF ? 1 : Math.pow(MAP_REF / map, PIAL_PRESSURE_EXP));
+
 const BRAIN_CATEGORIES = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
 
 const pathLength = (v: Vessel): number => {
@@ -120,9 +191,18 @@ const nodeOf = (s: SupplyDef): string => (s.at === 'mid' ? `${s.v}@mid` : VESSEL
 
 const FLOW_VESSELS = VESSELS.filter((v) => !v.visualOnly);
 
+interface CollateralLink {
+  id: string;
+  a: string;
+  b: string;
+  g: number;
+}
+
 interface Config {
   key: string;
   vesselG: Map<string, number>;
+  /** anastomoses that are part of the flow network but not drawn (see BRAINSTEM_PIAL) */
+  hiddenLinks: CollateralLink[];
   midNeeded: Set<string>;
   units: Unit[];
   /** calibrated conductances per unit: feeding link and microvascular bed (in series) */
@@ -239,9 +319,11 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
     }
   }
 
+  const hiddenLinks = brainstemPialLinks(units, vesselG, midNeeded, collateral);
   const cfg: Config = {
     key,
     vesselG,
+    hiddenLinks,
     midNeeded,
     units,
     gLink: new Map(),
@@ -252,6 +334,39 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
   calibrate(cfg);
   configCache.set(key, cfg);
   return cfg;
+}
+
+/**
+ * Conductances of the brainstem pial collaterals (see BRAINSTEM_PIAL). Adds the mid-course
+ * nodes of the perforators they enter to `midNeeded`.
+ */
+function brainstemPialLinks(
+  units: Unit[],
+  vesselG: Map<string, number>,
+  midNeeded: Set<string>,
+  collateral: CollateralGrade,
+): CollateralLink[] {
+  const territoryFlow = new Map<string, number>();
+  for (const u of units) territoryFlow.set(u.node, (territoryFlow.get(u.node) ?? 0) + u.baseFlow);
+  const links: CollateralLink[] = [];
+  for (const s of ['r', 'l']) {
+    for (const l of BRAINSTEM_PIAL) {
+      const perf = VESSEL_BY_ID[l.perforator.replace('{s}', s)];
+      const a = l.from.replace('{s}', s);
+      const mid = a.endsWith('@mid');
+      const donor = mid ? a.slice(0, -4) : FLOW_VESSELS.find((v) => v.to === a)?.id;
+      const q = perf ? territoryFlow.get(perf.to) ?? 0 : 0;
+      // both arteries must exist in this anatomy, and a donor's mid-course node must be in the network
+      if (!perf || !(q > 0) || !((vesselG.get(perf.id) ?? 0) > 0)) continue;
+      if (!donor || (mid && !midNeeded.has(donor)) || !((vesselG.get(donor) ?? 0) > 0)) continue;
+      const gAnast = COLL_GRADE[collateral] * PIAL_ANAST * q;
+      const gEntry = PIAL_ENTRY * q;
+      const g = (l.share * gAnast * gEntry) / (gAnast + gEntry);
+      links.push({ id: `pial:${a}>${perf.id}`, a, b: `${perf.id}@mid`, g });
+    }
+  }
+  for (const l of links) midNeeded.add(l.b.slice(0, -4));
+  return links;
 }
 
 // ── network assembly ─────────────────────────────────────────────
@@ -279,6 +394,10 @@ function vesselEdges(cfg: Config, gOverride: Map<string, number>, dead: Set<stri
     } else {
       push(v.from, v.to, g, true);
     }
+  }
+  // undrawn anastomoses carry flow but are not reported as vessels (first = false)
+  for (const l of cfg.hiddenLinks) {
+    if (!dead.has(l.a) && !dead.has(l.b)) edges.push({ vessel: l.id, a: l.a, b: l.b, g: l.g, first: false });
   }
   return edges;
 }
@@ -433,6 +552,8 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
     }
   }
   const edges = vesselEdges(cfg, gOverride, dead);
+  const pialFactor = pialPressureFactor(input.map);
+  if (pialFactor !== 1) for (const e of edges) if (e.vessel.startsWith('pial:')) e.g *= pialFactor;
   const live = cfg.units.filter((u) => !dead.has(u.node));
   const asm = assemble(edges, live);
   const base = Float64Array.from(asm.sys.a);
