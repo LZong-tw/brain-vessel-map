@@ -8,6 +8,8 @@ import { REGION_DEFS } from '../anatomy/regions';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
 import { indexById } from '../anatomy/indexById';
+import { lesionSides, symptomCompensation } from './recovery';
+import type { SymptomRecovery } from './recoveryTypes';
 
 export interface SymptomItem {
   id: string;
@@ -16,6 +18,8 @@ export interface SymptomItem {
   sev: 1 | 2 | 3;
   sources: string[];
   delayed: boolean;
+  /** how far spared pathways have taken this deficit over (from its dominant source), if it comes from a region */
+  recovery?: SymptomRecovery;
 }
 
 export interface NihssResult {
@@ -34,6 +38,8 @@ const DEF_BY_BASE = indexById(REGION_DEFS, (d) => d.id);
 const opp = (s: Side): Side => (s === 'r' ? 'l' : 'r');
 const DYS_THR = 0.25;
 const DELAY_H = 336;
+/** a deficit compensated below this (continuous) severity is no longer noticeable */
+const COMPENSATED_OUT = 0.35;
 
 export function aggregateSymptoms(
   regionDys: Record<string, number>,
@@ -44,17 +50,22 @@ export function aggregateSymptoms(
   lacuneOnly: string[] = [],
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
-  const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean) => {
+  const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
     const key = `${id}|${side ?? ''}`;
     const s = Math.max(1, Math.min(3, Math.round(sev))) as 1 | 2 | 3;
     const prev = map.get(key);
     if (prev) {
+      // the outlook follows the source that sets the severity (on a tie, the less compensated one)
+      if (recovery && (!prev.recovery || s > prev.sev || (s === prev.sev && recovery.compensated < prev.recovery.compensated)))
+        prev.recovery = recovery;
       prev.sev = Math.max(prev.sev, s) as 1 | 2 | 3;
       if (!prev.sources.includes(src)) prev.sources.push(src);
     } else {
-      map.set(key, { id, side, sev: s, sources: [src], delayed });
+      map.set(key, recovery ? { id, side, sev: s, sources: [src], delayed, recovery } : { id, side, sev: s, sources: [src], delayed });
     }
   };
+  // which sides have dead tissue serving each function: a one-sided loss compensates better
+  const lesions = lesionSides(regionInf);
 
   for (const r of REGIONS) {
     const dys = regionDys[r.id] ?? 0;
@@ -81,8 +92,14 @@ export function aggregateSymptoms(
         if (r.side === 'm' || d.lat === 'none') side = r.side === 'm' ? 'both' : null;
         else side = d.lat === 'contra' ? opp(r.side) : r.side;
       }
-      const sevEff = (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, level / 0.8));
-      add(d.s, side, sevEff, r.id, delayed);
+      let sevEff = (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, level / 0.8));
+      // weeks–months later, spared pathways take over part of what the dead tissue did
+      const rec = symptomCompensation(d.s, r, level, inf, lesions, tH);
+      if (rec.compensated > 0) {
+        sevEff *= 1 - rec.compensated;
+        if (sevEff < COMPENSATED_OUT) continue;
+      }
+      add(d.s, side, sevEff, r.id, delayed, rec);
     }
   }
   for (const e of extra) add(e.id, e.side, e.sev, e.sources[0] ?? '', e.delayed);

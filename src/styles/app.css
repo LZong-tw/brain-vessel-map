@@ -1633,3 +1633,124 @@ svg .flow-num {
   color: var(--text);
   font-weight: 650;
 }
+
+/* recovery: dead / temporarily silenced / compensated / no backup */
+.rec-status {
+  margin-top: 8px;
+}
+.rec-status ul {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rec-status li {
+  display: flex;
+  gap: 7px;
+  align-items: baseline;
+  margin: 3px 0;
+  line-height: 1.45;
+}
+.rec-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transform: translateY(-1px);
+}
+.rec-status li.dead .rec-dot {
+  background: var(--danger);
+}
+.rec-status li.silenced .rec-dot {
+  background: var(--accent);
+}
+.rec-status li.comp .rec-dot {
+  background: var(--ok);
+}
+.rec-status li.nobackup .rec-dot {
+  background: transparent;
+  border: 2px solid var(--danger);
+}
+.rec-head {
+  font-weight: 650;
+  font-size: 12.5px;
+}
+.rec-status li.silenced .rec-head {
+  color: #b9d4ff;
+}
+.rec-status li.comp .rec-head {
+  color: #a8e6bf;
+}
+.rec-status li.nobackup .rec-head {
+  color: #ffb3b6;
+}
+.rec-caveat {
+  margin: 6px 0 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-left: 2px solid var(--line-2);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-3);
+}
+.rec-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 17px;
+  vertical-align: 1px;
+  cursor: help;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+.rec-tag.nobackup {
+  border-color: rgba(229, 72, 77, 0.6);
+  color: #ffb3b6;
+}
+.rec-tag.comp {
+  border-color: rgba(67, 181, 129, 0.6);
+  color: #a8e6bf;
+}
+.func-group.silenced {
+  border-left-color: var(--accent);
+}
+.func-group.silenced .func-title {
+  color: #b9d4ff;
+}
+.func-group.mixed.silenced {
+  border-left-color: var(--danger);
+  background: linear-gradient(90deg, rgba(110, 168, 255, 0.09), rgba(255, 255, 255, 0.02));
+}
+.func-group.mixed.silenced .func-title {
+  color: #ffc8c0;
+}
+.func-group.lost.compensating {
+  background: linear-gradient(90deg, rgba(67, 181, 129, 0.07), rgba(255, 255, 255, 0.02));
+}
+.func-group.compensated {
+  border-left-color: var(--ok);
+  background: repeating-linear-gradient(135deg, rgba(67, 181, 129, 0.07) 0 3px, transparent 3px 8px);
+}
+.func-group.compensated .func-title {
+  color: #a8e6bf;
+}
+.now-symptoms.improved .now-event::before {
+  background: var(--ok);
+}
+.now-symptoms.nobackup .now-event::before {
+  background: transparent;
+  border: 1.5px solid var(--danger);
+  width: 4px;
+  height: 4px;
+}
+.rec-status li.little .rec-dot {
+  background: transparent;
+  border: 2px solid var(--warn);
+}
+.rec-status li.little .rec-head {
+  color: #ffd79c;
+}
+.now-symptoms .now-event {
+  cursor: default;
+}
