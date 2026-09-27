@@ -55,7 +55,45 @@ function Details({ sim }: { sim: SimResult }) {
         <p className="muted">{t.select}</p>
       </div>
     );
+  if (sel.kind === 'structure') return <VentricleDetails sim={sim} />;
   return sel.kind === 'vessel' ? <VesselDetails id={sel.id} sim={sim} /> : <RegionDetails id={sel.id} sim={sim} />;
+}
+
+function VentricleDetails({ sim }: { sim: SimResult }) {
+  const lang = useApp((s) => s.lang);
+  const en = lang === 'en';
+  const onset = sim.cascade.hydrocephalusOnsetH;
+  const event = sim.cascade.events.find((e) => e.id === 'hydrocephalus');
+  return (
+    <div className="details">
+      <div className="kicker">{en ? 'Structure' : '構造'}</div>
+      <h2>{en ? 'Ventricles' : '腦室系統'}</h2>
+      <p>
+        {en
+          ? 'Fluid-filled cavities (two lateral ventricles, third and fourth ventricle) that make and drain cerebrospinal fluid. They have no arterial territory of their own, so they are shown for orientation only; the fluid leaves through the narrow aqueduct and the 4th ventricle, which a swollen cerebellum can block.'
+          : '充滿腦脊髓液的腔室（左右側腦室、第三與第四腦室），負責製造與引流腦脊髓液。它們本身沒有動脈供血區，這裡只作為定位參考；腦脊髓液要經過狹窄的中腦導水管與第四腦室流出，小腦腫脹時可能被堵住。'}
+      </p>
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat-label">{en ? 'State' : '狀態'}</div>
+          <div className="stat-value small" style={{ color: sim.hydrocephalus ? STATE_COLORS.core : undefined }}>
+            {sim.hydrocephalus
+              ? en
+                ? 'Enlarged (obstructive hydrocephalus)'
+                : '擴大（阻塞性水腦）'
+              : onset !== null
+                ? en
+                  ? `Expected to enlarge from ${formatHours(onset, lang)}`
+                  : `預計 ${formatHours(onset, lang)} 起擴大`
+                : en
+                  ? 'Normal'
+                  : '正常'}
+          </div>
+        </div>
+      </div>
+      {event && <p className="callout warn">{tr(event.desc, lang)}</p>}
+    </div>
+  );
 }
 
 function Chip({ label, onClick, color }: { label: string; onClick?: () => void; color?: string }) {

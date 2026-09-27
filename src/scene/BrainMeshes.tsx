@@ -24,6 +24,8 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
   // only region highlights matter here; hovering a vessel must not recolour the brain
   const hoveredRegion = useApp((s) => (s.hovered?.kind === 'region' ? s.hovered.id : null));
   const selectedRegion = useApp((s) => (s.selected?.kind === 'region' ? s.selected.id : null));
+  const hoveredStructure = useApp((s) => (s.hovered?.kind === 'structure' ? s.hovered.id : null));
+  const selectedStructure = useApp((s) => (s.selected?.kind === 'structure' ? s.selected.id : null));
   const invalidate = useThree((s) => s.invalidate);
   const lastColors = useRef<RGB[] | null>(null);
   const tIndex = useApp((s) => s.tIndex);
@@ -109,40 +111,66 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
       {data.meshes.map((m) => {
         if (!visible(m)) return null;
         const isCortex = m.kind === 'cortex';
-        const transparent = (isCortex && opacity < 0.99) || m.kind === 'ventricle';
-        const op = m.kind === 'ventricle' ? 0.45 : isCortex ? opacity : 1;
-        const scale = m.kind === 'ventricle' && sim.hydrocephalus ? 1.18 : 1;
+        const isVentricle = m.kind === 'ventricle';
+        const transparent = (isCortex && opacity < 0.99) || isVentricle;
+        const op = isVentricle ? 0.45 : isCortex ? opacity : 1;
+        const scale = isVentricle && sim.hydrocephalus ? 1.18 : 1;
+        const side = clipPlanes.length ? DoubleSide : FrontSide;
+        // a see-through cortex should not block clicks on what is visible inside it
+        const passThrough = isCortex && opacity < 0.6;
+        const ventHighlight = isVentricle && (hoveredStructure === 'ventricles' || selectedStructure === 'ventricles');
         return (
-          <mesh
-            key={m.name}
-            geometry={m.geometry}
-            scale={scale}
-            renderOrder={transparent ? 2 : 0}
-            onPointerMove={(e) => {
-              if (m.kind === 'ventricle') return;
-              e.stopPropagation();
-              const r = regionAt(m, e);
-              hover(r ? { kind: 'region', id: r } : null);
-            }}
-            onPointerOut={() => hover(null)}
-            onClick={(e) => {
-              if (m.kind === 'ventricle' || e.delta > 4) return;
-              e.stopPropagation();
-              const r = regionAt(m, e);
-              if (r) select({ kind: 'region', id: r });
-            }}
-          >
+          <group key={m.name}>
+            {/* A see-through cortex is a folded surface that overlaps itself many times; blending
+                every layer in arbitrary order gives flickering dark patches. Write its depth
+                first (invisible pass) so only the outermost layer is blended over what lies inside. */}
+            {isCortex && transparent && (
+              <mesh geometry={m.geometry} renderOrder={3} raycast={() => null}>
+                <meshBasicMaterial colorWrite={false} transparent opacity={0} depthWrite side={side} clippingPlanes={clipPlanes} />
+              </mesh>
+            )}
+            <mesh
+              geometry={m.geometry}
+              scale={scale}
+              renderOrder={isCortex && transparent ? 4 : transparent ? 2 : 0}
+              onPointerMove={(e) => {
+                if (passThrough) return;
+                e.stopPropagation();
+                if (isVentricle) {
+                  hover({ kind: 'structure', id: 'ventricles' });
+                  return;
+                }
+                const r = regionAt(m, e);
+                hover(r ? { kind: 'region', id: r } : null);
+              }}
+              onPointerOut={() => !passThrough && hover(null)}
+              onClick={(e) => {
+                if (passThrough || e.delta > 4) return;
+                e.stopPropagation();
+                if (isVentricle) {
+                  select({ kind: 'structure', id: 'ventricles' });
+                  return;
+                }
+                const r = regionAt(m, e);
+                if (r) select({ kind: 'region', id: r });
+              }}
+            >
             <meshStandardMaterial
+              // three.js bakes "opaque" into the compiled shader; recreate the material when the
+              // cortex switches between opaque and see-through or the alpha stays locked at 1
+              key={transparent ? 'transparent' : 'opaque'}
               vertexColors
               roughness={m.kind === 'deep' ? 0.55 : 0.72}
               metalness={0}
               transparent={transparent}
-              opacity={op}
+              opacity={ventHighlight ? 0.7 : op}
+              emissive={ventHighlight ? '#3a6ea8' : '#000000'}
               depthWrite={!transparent}
-              side={clipPlanes.length ? DoubleSide : FrontSide}
+              side={side}
               clippingPlanes={clipPlanes}
             />
-          </mesh>
+            </mesh>
+          </group>
         );
       })}
     </group>

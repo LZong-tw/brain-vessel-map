@@ -11,7 +11,8 @@ import { VARIANT_BY_ID } from '../anatomy/variants';
 import type { EmbolusResult, EmbolusSource } from '../engine/embolus';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 
-export type Selection = { kind: 'vessel' | 'region'; id: string } | null;
+/** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
+export type Selection = { kind: 'vessel' | 'region' | 'structure'; id: string } | null;
 export type ViewMode = '3d' | 'willis' | 'brainstem';
 export type ColorMode = 'state' | 'territory' | 'anatomy';
 export type LeftTab = 'scenarios' | 'vessels' | 'settings' | 'view';
