@@ -1760,6 +1760,7 @@ svg .flow-num {
 }
 .now-symptoms .now-event {
   cursor: default;
+}
 
 /* ───────────── occlusion schedules ───────────── */
 /* timeline: ▼ an occlusion begins, ▲ it reopens by itself (the treatment mark is the green bar) */
@@ -1949,4 +1950,84 @@ select.sched-sev {
 }
 .badge.cd-better {
   color: #a8e6b4;
+}
+
+/* treatment details (Settings) and the treatment summary (Results) */
+.tx-details {
+  margin: 10px 0 8px;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: rgba(110, 168, 255, 0.05);
+}
+.tx-title {
+  font-weight: 650;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.tx-label {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.tx-details .field {
+  margin: 8px 0 4px;
+}
+.tx-details .seg {
+  margin: 4px 0;
+}
+.tx-details .seg.small button {
+  min-height: 32px;
+  line-height: 1.2;
+}
+.tx-details .callout {
+  margin: 8px 0 0;
+}
+.badge.tx-limited {
+  margin-left: 4px;
+  color: #ffdca8;
+  border-color: rgba(240, 161, 50, 0.45);
+  background: rgba(240, 161, 50, 0.12);
+  font-weight: 600;
+}
+.tx-evidence {
+  margin-top: 10px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line-2);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.tx-evidence .tx-label {
+  margin-top: 0;
+}
+.tx-choice {
+  color: var(--text);
+  font-size: 12px;
+}
+.tx-evidence ul {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+.tx-evidence li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+.tx-evidence li:first-child {
+  border-top: 0;
+}
+.tx-ev-head {
+  color: var(--text);
+}
+.tx-ev-source {
+  font-style: normal;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+.tx-summary {
+  margin: 2px 0 6px;
+  color: #7ee2a8;
 }
