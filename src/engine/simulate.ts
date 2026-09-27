@@ -111,7 +111,10 @@ export interface ScheduleInfo {
 }
 
 const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
-const FINAL_H = 96;
+/** the final infarct is the course's end point: slow penumbra (flow just under the threshold,
+ * brainstem with collaterals) is still being lost days after the event, so a 96 h horizon let
+ * the displayed core overtake the "final" volume */
+const FINAL_H = 4320;
 /**
  * A unit's flow history gets a new phase only where its flow changes by more than this — or at
  * treatment, where the two-phase model always started one — so that an event elsewhere in the

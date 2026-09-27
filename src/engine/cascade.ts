@@ -80,6 +80,16 @@ export interface CascadeOutput {
 }
 
 /**
+ * A bed counts as living tissue that a secondary process (herniation, compression) can kill when
+ * less than half of it would be infarcted without treatment. Deciding this on the untreated
+ * course keeps the targets fixed when treatment saves a sliver of a bed — otherwise saving 1 % of
+ * a half-infarcted border-zone bed pushed it under the line and the whole bed died secondarily,
+ * so early treatment looked worse than none. The tolerance keeps beds that are exactly half
+ * infarcted (one of two supplying arteries lost) from being decided by floating-point rounding.
+ */
+const stillAlive = (finalFraction: number | undefined) => (finalFraction ?? 0) < 0.5 - 1e-6;
+
+/**
  * Midline shift (mm) at time t: builds from the onset of oedema to a peak around day 3–5 and
  * resolves over the following weeks; a decompressive craniectomy lets the swelling expand
  * outwards and largely removes the shift.
@@ -297,7 +307,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         });
       } else {
         const aca = BEDS.filter(
-          (b) => b.region.endsWith(`_${s}`) && b.supply.some((x) => /^aca_(callosomarginal|pericallosal|paracentral|frontopolar)/.test(x.v)) && (bedFinal[b.id] ?? 0) < 0.5,
+          (b) => b.region.endsWith(`_${s}`) && b.supply.some((x) => /^aca_(callosomarginal|pericallosal|paracentral|frontopolar)/.test(x.v)) && stillAlive(bedFinalUntreated[b.id]),
         );
         aca.forEach((b) => addEffect(b.id, { kind: 'secondary', onsetH: 60, event: `subfalcine_${s}` }));
         events.push({
@@ -313,7 +323,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           regions: [...new Set(aca.map((b) => b.region))],
         });
         const pca = BEDS.filter(
-          (b) => b.region.endsWith(`_${s}`) && b.supply.some((x) => /^pca_(temporal|calcarine|parietooccipital|splenial|p2)/.test(x.v)) && (bedFinal[b.id] ?? 0) < 0.5,
+          (b) => b.region.endsWith(`_${s}`) && b.supply.some((x) => /^pca_(temporal|calcarine|parietooccipital|splenial|p2)/.test(x.v)) && stillAlive(bedFinalUntreated[b.id]),
         );
         pca.forEach((b) => addEffect(b.id, { kind: 'secondary', onsetH: 72, event: `uncal_${s}` }));
         const mid = BEDS.filter((b) => /^midbrain_/.test(b.region));
@@ -594,7 +604,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     }
     // pontine basis → bilateral middle cerebellar peduncle degeneration
     if (infarcted(`pons_rostral_basis_${s}`, 0.4) || infarcted(`pons_caudal_basis_${s}`, 0.4)) {
-      const mcp = BEDS.filter((b) => /^cerebellum_anterior_inferior_/.test(b.region) && (bedFinal[b.id] ?? 0) < 0.5);
+      const mcp = BEDS.filter((b) => /^cerebellum_anterior_inferior_/.test(b.region) && stillAlive(bedFinalUntreated[b.id]));
       mcp.forEach((b) => addEffect(b.id, { kind: 'degeneration', onsetH: 720, event: `mcp_${s}` }));
       events.push({
         id: `mcp_${s}`,
@@ -639,7 +649,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       0,
     );
     if (cortexVol >= 30) {
-      const thal = BEDS.filter((b) => /^thalamus_/.test(b.region) && b.region.endsWith(`_${s}`) && (bedFinal[b.id] ?? 0) < 0.5);
+      const thal = BEDS.filter((b) => /^thalamus_/.test(b.region) && b.region.endsWith(`_${s}`) && stillAlive(bedFinalUntreated[b.id]));
       thal.forEach((b) => addEffect(b.id, { kind: 'degeneration', onsetH: 1440, event: `thalamic_atrophy_${s}` }));
       events.push({
         id: `thalamic_atrophy_${s}`,
