@@ -37,6 +37,15 @@ export interface Occlusion {
    * flow, handled by the tissue model (see anatomy/lacunes.ts)
    */
   branch?: boolean;
+  /**
+   * hours after the start of the timeline at which this occlusion begins (default 0). The same
+   * vessel may be listed more than once with non-overlapping windows (e.g. a stenosis that later
+   * occludes). simulateHemodynamics ignores the timing: it treats every occlusion it is given as
+   * present, so callers pass the set active at one moment (see engine/schedule.ts).
+   */
+  fromH?: number;
+  /** hours at which it reopens by itself (spontaneous recanalisation); null / absent = never */
+  toH?: number | null;
 }
 
 export interface HemoInput {

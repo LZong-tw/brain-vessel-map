@@ -58,7 +58,9 @@ export interface EdemaBedInput {
 }
 
 export interface EdemaInput {
+  /** hours after onset; with an occlusion schedule, after the index onset (see simulate.ts) */
   tH: number;
+  /** first reopening of the occlusion(s), on the same clock */
   reperfusionH: number | null;
   decompression: boolean;
   beds: Record<string, EdemaBedInput>;

@@ -48,8 +48,8 @@ export interface RecoveryInput {
   cascade: CascadeOutput;
   /** regions hit by a lacune (small, but it knocks out most of a compact tract) */
   lacunes?: string[];
-  /** fraction of a lacune that is infarcted at tH */
-  lacuneLoss?: number;
+  /** fraction of each lacune that is infarcted at tH (lacunes can start at different times) */
+  lacuneLoss?: Record<string, number>;
 }
 
 // ── temporary dysfunction ────────────────────────────────────────────
@@ -206,8 +206,8 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
       regionInf[r.id] = w > 0 ? v / w : 0;
     }
     // a lacune is small but knocks out most of its tract (as in simulate)
-    const lacuneLevel = LACUNE_DYSFUNCTION * (input.lacuneLoss ?? 0);
-    for (const rid of input.lacunes ?? []) regionInf[rid] = Math.max(regionInf[rid] ?? 0, lacuneLevel);
+    for (const rid of input.lacunes ?? [])
+      regionInf[rid] = Math.max(regionInf[rid] ?? 0, LACUNE_DYSFUNCTION * (input.lacuneLoss?.[rid] ?? 0));
     const lesions = lesionSides(regionInf);
     for (const r of REGIONS) {
       const inf = regionInf[r.id] ?? 0;

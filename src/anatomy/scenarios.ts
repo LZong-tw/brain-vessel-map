@@ -12,7 +12,11 @@ export interface Scenario {
   group: 'anterior' | 'posterior' | 'deep' | 'haemodynamic';
   title: L;
   summary: L;
-  occlusions: { vessel: string; severity: number; branch?: boolean }[];
+  /**
+   * fromH / toH: when an occlusion begins and when it reopens by itself (hours; default 0 and
+   * never). A vessel may appear more than once with non-overlapping windows.
+   */
+  occlusions: { vessel: string; severity: number; branch?: boolean; fromH?: number; toH?: number | null }[];
   variants?: string[];
   collateral?: 'good' | 'moderate' | 'poor';
   map?: number;
@@ -112,6 +116,20 @@ export const SCENARIOS: Scenario[] = [
     },
     occlusions: [{ vessel: 'mca_m2_inf_l', severity: 1 }],
     tH: 24,
+    view: 'left',
+  },
+  {
+    // a classic carotid-territory TIA; whether any tissue dies in 5 min is decided by the
+    // tissue parameters (lagH) — the text covers both outcomes
+    id: 'tia_l_mca',
+    group: 'anterior',
+    title: { zh: '暫時性腦缺血發作（TIA）：左 MCA 上分支 5 分鐘', en: 'Transient ischaemic attack (TIA): left MCA superior division for 5 minutes' },
+    summary: {
+      zh: '小栓子卡住左中大腦動脈上分支，約 5 分鐘後自行溶解。發作當下說不出話、右臉右手出現症狀；血流一恢復症狀就消失（把時間軸從「發生時」往後拉）。依組織學定義，TIA 不留下梗塞；若缺血期間已有組織壞死（擴散加權 MRI 看得到），就算是小中風——模型會不會留下病灶，取決於組織能撐多久的參數。TIA 後幾天內中風風險最高，要當急症處理。',
+      en: 'A small embolus lodges in the left MCA superior division and breaks up after about 5 minutes. During the attack speech fails and the right face and arm are affected; once flow returns the symptoms are gone (move the timeline on from "Onset"). By the tissue-based definition a TIA leaves no infarct; if tissue died during the ischaemia (visible on diffusion MRI) it is a minor stroke — whether the model leaves a lesion depends on how long its tissue parameters let ischaemic tissue survive. Stroke risk is highest in the days after a TIA, so it is an emergency.',
+    },
+    occlusions: [{ vessel: 'mca_m2_sup_l', severity: 1, fromH: 0, toH: 1 / 12 }],
+    tH: 0,
     view: 'left',
   },
   {
@@ -227,6 +245,25 @@ export const SCENARIOS: Scenario[] = [
     },
     occlusions: [{ vessel: 'basilar_mid', severity: 1 }],
     tH: 24,
+    view: 'brainstem',
+  },
+  {
+    // prodromes: Ferbert A, Brückmann H, Drummen R, Stroke 1990;21:1135–42 (vertigo, nausea and
+    // headache were the commonest, in the 2 weeks before); von Campe G, Regli F, Bogousslavsky J,
+    // J Neurol Neurosurg Psychiatry 2003;74:1621–6 (warning signs in 22 of 24 patients)
+    id: 'basilar_stuttering',
+    group: 'posterior',
+    title: { zh: '進展性基底動脈血栓：前驅 TIA → 閉鎖症候群', en: 'Progressive basilar thrombosis: prodromal TIA → locked-in syndrome' },
+    summary: {
+      zh: '基底動脈中段重度狹窄。第 0 天血栓暫時完全塞住約 5 分鐘：頭暈、複視、講話不清、肢體無力，隨後消失（前驅 TIA）；之後只剩 90% 狹窄，沒有症狀。第 3 天完全阻塞：雙側橋腦腹側梗塞 → 閉鎖症候群。後循環的短暫症狀常被當成「頭暈」忽略，卻可能是基底動脈閉塞的警訊：Ferbert 等（Stroke 1990）的病人最常見的前驅症狀是眩暈、噁心與頭痛，多在中風前 2 週內；von Campe 等（J Neurol Neurosurg Psychiatry 2003）的 24 位重度或致死的基底動脈閉塞病人中，只有 2 位事前沒有警訊。',
+      en: 'Severe stenosis of the mid basilar artery. On day 0 a thrombus blocks it completely for about 5 minutes: dizziness, double vision, slurred speech, limb weakness — then everything clears (a prodromal TIA), leaving a silent 90 % stenosis. On day 3 it occludes completely: bilateral ventral pontine infarction → locked-in syndrome. Transient posterior-circulation symptoms are easily dismissed as "dizziness" but can herald basilar occlusion: in Ferbert et al. (Stroke 1990) the commonest prodromes were vertigo, nausea and headache, mostly in the 2 weeks before the stroke; of 24 patients with severe or fatal basilar occlusion in von Campe et al. (J Neurol Neurosurg Psychiatry 2003), only 2 had no warning signs.',
+    },
+    occlusions: [
+      { vessel: 'basilar_mid', severity: 1, fromH: 0, toH: 1 / 12 },
+      { vessel: 'basilar_mid', severity: 0.9, fromH: 1 / 12, toH: 72 },
+      { vessel: 'basilar_mid', severity: 1, fromH: 72 },
+    ],
+    tH: 0,
     view: 'brainstem',
   },
   {
