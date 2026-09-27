@@ -13,9 +13,10 @@
  * TODO(medical-review): thresholds and timings are educational approximations.
  */
 
-import { BEDS, REGION_BY_ID } from '../anatomy';
+import { BEDS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { L, Side } from '../anatomy';
 import type { HemoResult, Occlusion } from './hemodynamics';
+import type { ReperfusionGrade, TreatmentMethod } from './treatment';
 
 export type EventKind = 'mechanism' | 'imaging' | 'treatment' | 'secondary' | 'complication' | 'recovery';
 export type EventSeverity = 'info' | 'warn' | 'danger' | 'good';
@@ -64,6 +65,137 @@ export interface CascadeInput {
   bedEarly: Record<string, number>;
   /** fraction of each region that is dysfunctional in the first hours (core + penumbra) */
   regionAcute: Record<string, number>;
+  /**
+   * how the treatment at reperfusionH went (engine/treatment.ts); left out for the default
+   * treatment (complete, lasting reperfusion), which keeps the general event texts
+   */
+  treatment?: CascadeTreatment;
+}
+
+/** The treatment details the event texts need (times on the clinical clock, like reperfusionH). */
+export interface CascadeTreatment {
+  method: TreatmentMethod;
+  grade: ReperfusionGrade;
+  /** share of the reperfused territory whose microcirculation still does not reperfuse */
+  noReflow: number;
+  /** share of the territory that gets its flow back (grade less no-reflow) */
+  reperfusedFraction: number;
+  /** eTICI 0: the attempt reopened nothing */
+  failed: boolean;
+  /** when the reopened artery closes again (h after onset), or null */
+  reocclusionH: number | null;
+  /** the branch a clot fragment blocked during the treatment (vessel id), or null */
+  distalEmbolus: string | null;
+  /** regions supplied by that branch */
+  embolusRegions: string[];
+}
+
+const METHOD_NAME: Record<TreatmentMethod, L> = {
+  evt: { zh: '動脈取栓', en: 'thrombectomy' },
+  ivt: { zh: '靜脈血栓溶解', en: 'IV thrombolysis' },
+  bridging: { zh: '靜脈血栓溶解＋動脈取栓', en: 'IV thrombolysis + thrombectomy' },
+};
+
+/** what each expanded-TICI grade means (the ranges of treatment.GRADE_REPERFUSED) */
+const GRADE_MEANING: Record<ReperfusionGrade, L> = {
+  '0': { zh: '沒有再灌流', en: 'no reperfusion' },
+  '1': { zh: '血流通過血栓，但遠端幾乎沒有灌流', en: 'flow past the clot, but hardly any distal filling' },
+  '2a': { zh: '下游區域有 1–49 % 恢復灌流', en: '1–49 % of the downstream territory reperfused' },
+  '2b50': { zh: '下游區域有 50–66 % 恢復灌流', en: '50–66 % of the downstream territory reperfused' },
+  '2b67': { zh: '下游區域有 67–89 % 恢復灌流', en: '67–89 % of the downstream territory reperfused' },
+  '2c': { zh: '下游區域有 90–99 % 恢復灌流', en: '90–99 % of the downstream territory reperfused' },
+  '3': { zh: '完全再灌流', en: 'complete reperfusion' },
+};
+
+const pct = (x: number) => `${Math.round(x * 100)} %`;
+const hoursZh = (h: number) => `${+h.toFixed(1)} 小時`;
+const hoursEn = (h: number) => `${+h.toFixed(1)} h`;
+/** "Left MCA …" → "left MCA …" inside a sentence (acronyms stay) */
+const lowerFirst = (n: string) => (/^[A-Z][a-z]/.test(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n);
+
+/**
+ * The recanalisation event when the treatment details differ from the default: it names the
+ * method and the eTICI grade, says how much of the territory got its flow back, and says so when
+ * the attempt failed.
+ */
+function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number): CascadeEvent {
+  const m = METHOD_NAME[t.method];
+  const g = GRADE_MEANING[t.grade];
+  // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
+  const ivtNote: L =
+    t.method === 'ivt'
+      ? { zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例）', en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused)' }
+      : { zh: '', en: '' };
+  if (t.failed) {
+    return {
+      id: 'reperfusion',
+      kind: 'treatment',
+      severity: 'warn',
+      onsetH: reperfusionH,
+      title: { zh: `再通失敗：${m.zh}（eTICI 0）`, en: `Recanalisation failed: ${m.en} (eTICI 0)` },
+      desc: {
+        zh: `${m.zh}沒有打通阻塞的血管（eTICI 0，${g.zh}）：血栓留在原處，組織的結果和沒有治療時一樣。這次嘗試本身仍可能帶來出血等併發症。`,
+        en: `${m.en.charAt(0).toUpperCase()}${m.en.slice(1)} did not reopen the occluded artery (eTICI 0, ${g.en}): the clot stays, and the tissue fares as it would without treatment. The attempt itself can still bring complications such as bleeding.`,
+      },
+      regions: [],
+    };
+  }
+  const late = reperfusionH > 6;
+  const partial = t.reperfusedFraction < 1;
+  const noReflowZh = t.noReflow > 0 ? `其中約 ${pct(t.noReflow)} 的組織大血管雖通、微血管仍不通（無再流現象）。` : '';
+  const noReflowEn = t.noReflow > 0 ? ` In about ${pct(t.noReflow)} of it the microcirculation stays shut although the artery is open (no-reflow).` : '';
+  const shareZh = partial ? `模型讓約 ${pct(t.reperfusedFraction)} 的下游區域恢復血流，其餘仍照未治療的病程。` : '';
+  const shareEn = partial ? ` The model gives about ${pct(t.reperfusedFraction)} of the downstream territory its flow back; the rest follows the untreated course.` : '';
+  const reclosesZh = t.reocclusionH !== null ? '（血管之後又再阻塞，見「再阻塞」）' : '';
+  const reclosesEn = t.reocclusionH !== null ? ' in the end (the artery later closes again: see "Reocclusion")' : '';
+  return {
+    id: 'reperfusion',
+    kind: 'treatment',
+    severity: savedVolume > 5 ? 'good' : 'info',
+    onsetH: reperfusionH,
+    title: { zh: `血管再通：${m.zh}，eTICI ${t.grade}`, en: `Recanalisation: ${m.en}, eTICI ${t.grade}` },
+    desc: {
+      zh: `eTICI ${t.grade}：${g.zh}${ivtNote.zh}。${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}。已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+      en: `eTICI ${t.grade}: ${g.en}${ivtNote.en}.${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}. The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+    },
+    regions: [],
+  };
+}
+
+/** The complications the treatment itself caused: the artery closing again, a clot fragment in a branch. */
+function pushTreatmentComplications(events: CascadeEvent[], t: CascadeTreatment, reperfusionH: number): void {
+  if (t.reocclusionH !== null) {
+    const after = t.reocclusionH - reperfusionH;
+    events.push({
+      id: 'reocclusion',
+      kind: 'complication',
+      severity: 'danger',
+      onsetH: t.reocclusionH,
+      title: { zh: '再阻塞：打通的血管又塞住了', en: 'Reocclusion: the reopened artery closes again' },
+      desc: {
+        zh: `再通約 ${hoursZh(after)}後，同一條血管又完全阻塞（例如在殘餘狹窄或受損的血管壁上再形成血栓）。這區組織再度缺血，症狀常再次惡化。在模型裡，側枝撐不住的組織最後仍會壞死，和從未打通時差不多：再通只是把損失延後。越晚再阻塞，梗塞長得越慢；但只要血管沒有再打開，最終梗塞就和沒有治療時相當。`,
+        en: `About ${hoursEn(after)} after reperfusion the same artery occludes completely again (e.g. new thrombus on a residual stenosis or a damaged vessel wall). Its territory becomes ischaemic again and the deficit often worsens again. In the model, tissue that collaterals cannot sustain is still lost in the end, about as much as if the artery had never been opened: reopening only postponed the loss. The later it recloses, the more slowly the infarct grows, but unless the artery is opened again the final infarct is about that of no treatment.`,
+      },
+      regions: [],
+    });
+  }
+  if (t.distalEmbolus !== null && VESSEL_BY_ID[t.distalEmbolus]) {
+    const v = VESSEL_BY_ID[t.distalEmbolus];
+    const zh = vesselName(v, 'zh-TW');
+    const en = vesselName(v, 'en');
+    events.push({
+      id: 'distal_embolus',
+      kind: 'complication',
+      severity: 'warn',
+      onsetH: reperfusionH,
+      title: { zh: `遠端栓塞：${zh}`, en: `Distal embolus: ${en}` },
+      desc: {
+        zh: `血栓被取出或溶解時，一小塊碎片被沖到下游，塞住了${zh}。主幹雖然打通，這條分支供應的區域仍然缺血，側枝循環補不上的部分會梗塞（血管攝影上這常是只達 eTICI 2b、而非 3 的原因）。有時還能再取出，但細小的遠端分支常只能靠側枝循環。`,
+        en: `While the clot was retrieved or dissolved, a fragment was carried downstream and blocked the ${lowerFirst(en)}. The main artery is open, but the territory of this branch stays ischaemic, and what collaterals cannot make up for infarcts (on angiography such a cut-off branch is often why the result is eTICI 2b rather than 3). It can sometimes be retrieved too, but small distal branches often have to rely on collaterals.`,
+      },
+      regions: t.embolusRegions,
+    });
+  }
 }
 
 export interface CascadeOutput {
@@ -335,7 +467,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
   }
 
-  if (reperfusionH !== null && anyIschemia && !eyeOnly && input.occlusions.some((o) => o.severity >= 1)) {
+  const treatment = input.treatment;
+  if (reperfusionH !== null && anyIschemia && !eyeOnly && input.occlusions.some((o) => o.severity >= 1) && treatment) {
+    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume));
+    pushTreatmentComplications(events, treatment, reperfusionH);
+  } else if (reperfusionH !== null && anyIschemia && !eyeOnly && input.occlusions.some((o) => o.severity >= 1)) {
     const late = reperfusionH > 6;
     events.push({
       id: 'reperfusion',
@@ -521,8 +657,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   // ── 4. haemorrhagic transformation ─────────────────────────────
   if (vol.total >= 1) {
-    let level = vol.total > 100 ? 2 : vol.total > 30 ? 1 : 0;
-    if (reperfusionH !== null && (reperfusionH > 6 || vol.total > 70)) level = Math.min(2, level + 1);
+    // A thrombolytic drug (IV thrombolysis alone, or before thrombectomy) raises the bleeding risk
+    // modestly compared with thrombectomy alone. In the trials of thrombectomy with or without
+    // IV thrombolysis first, intracranial haemorrhage was somewhat more frequent with the drug but
+    // symptomatic haemorrhage differed only slightly. Conservatively, the drug lowers the
+    // infarct-volume thresholds of the risk steps by a quarter: an infarct near a threshold moves
+    // up by one step, never more, and one under 22.5 mL does not move at all.
+    // Published rates are shown next to the treatment options (anatomy/recanalisation.ts). An
+    // attempt that reopened nothing (eTICI 0) brings no blood back into dead tissue, so late or
+    // large reperfusion adds nothing then.
+    const lytic = !!treatment && treatment.method !== 'evt';
+    const k = lytic ? 0.75 : 1;
+    const reperfused = reperfusionH !== null && !treatment?.failed;
+    let level = vol.total > 100 * k ? 2 : vol.total > 30 * k ? 1 : 0;
+    if (reperfused && ((reperfusionH as number) > 6 || vol.total > 70 * k)) level = Math.min(2, level + 1);
     const lv = [
       { zh: '低', en: 'low' },
       { zh: '中等', en: 'moderate' },
@@ -537,8 +685,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 336,
       title: { zh: `出血轉化風險：${lv.zh}`, en: `Haemorrhagic transformation risk: ${lv.en}` },
       desc: {
-        zh: '壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內。梗塞越大、再通越晚、使用血栓溶解劑，風險越高；症狀性出血在靜脈血栓溶解後約 2–7%。',
-        en: 'Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days. Larger infarcts, late recanalisation and thrombolytics raise the risk; symptomatic haemorrhage occurs in roughly 2–7% after IV thrombolysis.',
+        zh: `壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內。梗塞越大、再通越晚、使用血栓溶解劑，風險越高；症狀性出血在靜脈血栓溶解後約 2–7%。${
+          lytic ? `這次用了血栓溶解劑（${METHOD_NAME[treatment.method].zh}），模型把風險略為調高；與單純取栓相比，差距不大。` : ''
+        }`,
+        en: `Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days. Larger infarcts, late recanalisation and thrombolytics raise the risk; symptomatic haemorrhage occurs in roughly 2–7% after IV thrombolysis.${
+          lytic ? ` A thrombolytic was given (${METHOD_NAME[treatment.method].en}), so the model raises the risk a little; the difference from thrombectomy alone is small.` : ''
+        }`,
       },
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex' || REGION_BY_ID[r]?.category === 'deep'),
     });
