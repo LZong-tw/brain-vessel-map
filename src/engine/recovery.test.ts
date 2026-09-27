@@ -56,8 +56,10 @@ describe('compensation of lost function', () => {
   });
 
   it('a bilateral ventral pontine infarct (locked-in) recovers little', () => {
-    const d1 = sim({ ...BASILAR, tH: 24 });
-    const m3 = sim({ ...BASILAR, tH: 2160 });
+    // poor collaterals: the pons is fully infarcted within the first hours, so any later change
+    // is compensation (with better collaterals part of the 24 h deficit is penumbra that survives)
+    const d1 = sim({ ...BASILAR, collateral: 'poor', tH: 24 });
+    const m3 = sim({ ...BASILAR, collateral: 'poor', tH: 2160 });
     expect(m3.nihss.total).toBeGreaterThanOrEqual(0.8 * d1.nihss.total);
     for (const side of ['r', 'l'] as const) {
       const arm = find(m3, 'arm_weak', side)?.recovery;
