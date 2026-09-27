@@ -232,7 +232,7 @@ export function simulate(input: SimInput): SimResult {
   const edema = computeEdema({ tH: t, reperfusionH: reperf, decompression: input.decompression, beds: edemaBeds, cascade });
   const recoveryBeds: Record<string, RecoveryBedInput> = {};
   for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra };
-  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade });
+  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss });
   for (const b of BEDS) {
     const bs = beds[b.id];
     bs.dys = Math.min(1, bs.frac.core + bs.frac.penumbra + (recovery.extraDys[b.id] ?? 0));

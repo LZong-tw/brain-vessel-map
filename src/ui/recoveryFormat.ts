@@ -1,0 +1,133 @@
+/**
+ * Panel helpers for temporary dysfunction and compensation (engine/recovery.ts): per-region
+ * status, per-symptom outlook, what improved since the previous time stop, heat-map fills.
+ */
+
+import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
+import { NO_BACKUP_KINDS, redundancyFor, type RedundancyKind } from '../anatomy/redundancy';
+import type { NihssResult, SymptomItem } from '../engine/clinical';
+import type { SimResult } from '../engine/simulate';
+import { SEV_FILL, symptomKey } from './format';
+
+/** a symptom counts as "partly compensated" from this share */
+export const COMPENSATION_SHOWN = 0.1;
+/** a region counts as "temporarily silenced" from this share */
+export const SILENCED_SHOWN = 0.02;
+
+const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
+
+export interface RegionRecovery {
+  /** infarcted fraction */
+  dead: number;
+  /** alive but temporarily silenced (oedema + remote depression) */
+  silenced: number;
+  /** … of which remote depression (diaschisis) */
+  remote: number;
+  /** share of the function lost to dead tissue that other pathways have taken over */
+  compensated: number;
+}
+
+/** Volume-weighted recovery status of a region at the simulated time. */
+export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery {
+  const r = REGION_BY_ID[regionId];
+  const out: RegionRecovery = { dead: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0 };
+  if (!r) return out;
+  let tot = 0;
+  for (const bid of r.beds) {
+    const w = BED_BY_ID[bid]?.volume || 1;
+    out.dead += (sim.beds[bid]?.infarct ?? 0) * w;
+    out.silenced += (sim.recovery.extraDys[bid] ?? 0) * w;
+    out.remote += (sim.recovery.diaschisisDys[bid] ?? 0) * w;
+    tot += w;
+  }
+  if (tot > 0) {
+    out.dead = Math.max(out.dead / tot, sim.regions[regionId]?.infarct ?? 0);
+    out.silenced /= tot;
+    out.remote /= tot;
+  }
+  return out;
+}
+
+/** Redundancy of a symptom (from its dominant source when the engine attached it). */
+export const symptomBackup = (s: SymptomItem): RedundancyKind => s.recovery?.kind ?? redundancyFor(s.id).kind;
+export const hasNoBackup = (s: SymptomItem) => NO_BACKUP_KINDS.has(symptomBackup(s));
+export const compensatedShare = (s: SymptomItem) => s.recovery?.compensated ?? 0;
+
+/** Living brain tissue (mL) silenced by oedema and by remote depression at the simulated time. */
+export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: number } {
+  let edemaMl = 0;
+  let remoteMl = 0;
+  for (const b of BEDS) {
+    const x = sim.recovery.extraDys[b.id];
+    if (!x || !BRAIN.has(REGION_BY_ID[b.region].category)) continue;
+    const remote = sim.recovery.diaschisisDys[b.id] ?? 0;
+    edemaMl += (x - remote) * b.volume;
+    remoteMl += remote * b.volume;
+  }
+  return { edemaMl, remoteMl };
+}
+
+// symptoms that "disappear" only because they were merged into a larger one
+const MERGED_INTO: Record<string, string[]> = {
+  quadrant_sup: ['hemianopia', 'cortical_blindness'],
+  quadrant_inf: ['hemianopia', 'cortical_blindness'],
+  central_scotoma: ['hemianopia', 'cortical_blindness'],
+  hemianopia: ['cortical_blindness'],
+  aphasia_broca: ['aphasia_global'],
+  aphasia_wernicke: ['aphasia_global'],
+  somnolence: ['coma'],
+};
+
+export interface Improvement {
+  s: SymptomItem;
+  from: number;
+  /** 0 = no longer present */
+  to: number;
+}
+
+/** Symptoms that are milder (or gone) now than in `before`, worst first. */
+export function improvedSince(before: SymptomItem[], now: SymptomItem[]): Improvement[] {
+  const nowByKey = new Map(now.map((s) => [symptomKey(s), s]));
+  const nowIds = new Set(now.map((s) => s.id));
+  const out: Improvement[] = [];
+  for (const b of before) {
+    if (b.delayed) continue;
+    const n = nowByKey.get(symptomKey(b));
+    if (n) {
+      if (n.sev < b.sev) out.push({ s: n, from: b.sev, to: n.sev });
+    } else if (!(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id))) {
+      out.push({ s: b, from: b.sev, to: 0 });
+    }
+  }
+  return out.sort((a, b) => b.from - b.to - (a.from - a.to) || b.from - a.from);
+}
+
+/** Highest severity each symptom (id + side) has reached in `series`. */
+export function peakSeverity(series: SimResult[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const s of series) for (const sy of s.symptoms) out.set(symptomKey(sy), Math.max(out.get(symptomKey(sy)) ?? 0, sy.sev));
+  return out;
+}
+
+// ── heat-map fills ──
+/** diagonal stripes laid over a severity fill: "partly compensated" */
+const HATCH = 'repeating-linear-gradient(135deg, rgba(150, 235, 190, 0.8) 0 1.5px, transparent 1.5px 5px)';
+export const withHatch = (color: string) => `${HATCH}, ${color}`;
+/** fills of the "temporarily silenced" and "compensated" strips (index 1–3 = intensity) */
+export const SILENCED_FILL: (string | null)[] = [null, 'rgba(110, 168, 255, 0.35)', 'rgba(110, 168, 255, 0.62)', 'rgba(110, 168, 255, 0.9)'];
+export const COMPENSATED_FILL: (string | null)[] = [null, 'rgba(67, 181, 129, 0.35)', 'rgba(67, 181, 129, 0.62)', 'rgba(67, 181, 129, 0.9)'];
+export const shareLevel = (x: number) => (x >= 0.3 ? 3 : x >= 0.12 ? 2 : x >= SILENCED_SHOWN ? 1 : 0);
+
+/** fill of an NIHSS cell by category */
+export function nihssFill(n: NihssResult): string | null {
+  switch (n.category) {
+    case 'none':
+      return null;
+    case 'minor':
+      return SEV_FILL[1];
+    case 'moderate':
+      return SEV_FILL[2];
+    default:
+      return SEV_FILL[3];
+  }
+}
