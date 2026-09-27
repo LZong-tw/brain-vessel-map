@@ -166,6 +166,13 @@ function buildCourse(input: SimInput, reperfusionH: number | null): Course {
   return { pieces, units, histories, lacunes: lacuneRegions(input.occlusions) };
 }
 
+/** a unit's relative flow at time t (1 before its history starts) */
+function currentRel(history: FlowPhase[], tH: number): number {
+  let rel = 1;
+  for (const ph of history) if (ph.fromH <= tH) rel = ph.rel;
+  return rel;
+}
+
 function bedInfarctAt(course: Course, tH: number) {
   const out: Record<string, number> = {};
   course.units.forEach((u, i) => {
@@ -287,6 +294,11 @@ interface Model {
   cascade: CascadeOutput;
   /** … and on the simulation clock, for display */
   shownCascade: CascadeOutput;
+  /**
+   * per unit (same order as course.units): the fraction that treatment saves, i.e. that would be
+   * lost by the end of the untreated course but survives this one (0 without treatment)
+   */
+  unitSaved: number[];
 }
 
 const modelCache = new Map<string, Model>();
@@ -321,9 +333,14 @@ function modelFor(input: SimInput): Model {
 
   const bedFinal = addLacunes(bedInfarctAt(course, finalH), course, finalH);
   let bedFinalUntreated = bedFinal;
+  let unitSaved: number[] = units.map(() => 0);
   if (reperf !== null) {
     const untreated = buildCourse(input, null);
     bedFinalUntreated = addLacunes(bedInfarctAt(untreated, finalH), untreated, finalH);
+    unitSaved = units.map((u, i) => {
+      const p = tissueParamsForBed(u.bed);
+      return Math.max(0, infarctFractionOf(untreated.histories[i], finalH, p) - infarctFractionOf(course.histories[i], finalH, p));
+    });
   }
   const acute: Record<string, number> = {};
   for (const u of units) {
@@ -348,6 +365,7 @@ function modelFor(input: SimInput): Model {
     afterIdx,
     edemaReperfusionH: episodeEndH === null ? null : episodeEndH - onsetH,
     cascade,
+    unitSaved,
     shownCascade: onsetH === 0 ? cascade : shiftTimes(cascade, onsetH),
   };
   if (modelCache.size > 200) modelCache.clear();
@@ -419,9 +437,17 @@ export function simulate(input: SimInput): SimResult {
   }
   units.forEach((u, i) => {
     const bs = beds[u.bed];
-    const { f, rest } = tissueCourse(course.histories[i], tAbs, tissueParamsForBed(u.bed));
+    const p = tissueParamsForBed(u.bed);
+    const { f, rest } = tissueCourse(course.histories[i], tAbs, p);
     bs.frac.core += f * u.frac;
-    bs.frac[rest] += (1 - f) * u.frac;
+    if (rest === 'salvaged') {
+      // "salvaged" is only what treatment saved (would have died untreated); the rest of the
+      // reperfused tissue would have survived on its collaterals anyway and is simply perfused
+      // again — calling all of it salvaged made a late recanalisation look like a rescue
+      const saved = Math.min(1 - f, model.unitSaved[i]);
+      bs.frac.salvaged += saved * u.frac;
+      bs.frac[currentRel(course.histories[i], tAbs) < p.oligemiaRel ? 'oligemia' : 'normal'] += (1 - f - saved) * u.frac;
+    } else bs.frac[rest] += (1 - f) * u.frac;
     bs.infarct += f * u.frac;
   });
   // regions whose damage comes from the lacune alone (before it is added)

@@ -106,15 +106,26 @@ describe('tissue: the piecewise model reduces exactly to the two-phase model', (
       const expected: Record<string, Record<TissueState, number>> = {};
       for (const b of BEDS) expected[b.id] = { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 };
       for (const u of units) {
-        const { f, rest } = expectedUnitState(acute.unitRel[u.id] ?? 1, tH, 2, after.unitRel[u.id] ?? 1, tissueParamsForBed(u.bed));
+        const p = tissueParamsForBed(u.bed);
+        const rel = acute.unitRel[u.id] ?? 1;
+        const relAfter = after.unitRel[u.id] ?? 1;
+        const { f, rest } = expectedUnitState(rel, tH, 2, relAfter, p);
         expected[u.bed].core += f * u.frac;
-        expected[u.bed][rest] += (1 - f) * u.frac;
+        if (rest === 'salvaged') {
+          // intended change: only what treatment saved (lost untreated, alive treated, at the end
+          // of the course) is "salvaged"; the rest of the reperfused tissue is perfused again
+          const END = 4320;
+          const saved = Math.min(1 - f, Math.max(0, legacyInfarctFraction(rel, END, null, rel, p) - legacyInfarctFraction(rel, END, 2, relAfter, p)));
+          expected[u.bed].salvaged += saved * u.frac;
+          expected[u.bed][relAfter < p.oligemiaRel ? 'oligemia' : 'normal'] += (1 - f - saved) * u.frac;
+        } else expected[u.bed][rest] += (1 - f) * u.frac;
       }
       for (const b of BEDS) {
         if (r.beds[b.id].effect === 'secondary') continue;
         const sum = Object.values(expected[b.id]).reduce((a, x) => a + x, 0);
         if (sum === 0) expected[b.id].normal = 1;
-        expect(r.beds[b.id].frac, `${b.id} @${tH}`).toEqual(expected[b.id]);
+        for (const k of Object.keys(expected[b.id]) as TissueState[])
+          expect(r.beds[b.id].frac[k], `${b.id} ${k} @${tH}`).toBeCloseTo(expected[b.id][k], 12);
       }
     }
   });
