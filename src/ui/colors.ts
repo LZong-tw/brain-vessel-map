@@ -93,6 +93,41 @@ export function stateColor(bed: Bed, st: BedTimeState | undefined, tH: number): 
   return c;
 }
 
+/**
+ * "Oedema / imaging" mode: what MRI would show at this time. DWI-bright only (cytotoxic, the
+ * first hours) is cyan, T2/FLAIR-bright only (vasogenic, after DWI has faded) orange, both at
+ * once yellow, shrunken chronic tissue near-black. Cyan vs. yellow/orange stays apart with
+ * red–green colour-vision deficiency; orange vs. yellow vs. grey differ in lightness.
+ */
+export const EDEMA_COLORS = {
+  normal: '#9aa0a8',
+  normalDeep: '#8c929b',
+  cytotoxic: '#62dcf7',
+  both: '#f5d63d',
+  vasogenic: '#f08a24',
+  chronic: '#2c2f36',
+} as const;
+
+/** swelling (volume fraction) at which shrunk tissue is drawn fully dark */
+const CHRONIC_FULL = -0.25;
+
+export function edemaColor(bed: Bed, cytotoxic = 0, vasogenic = 0, swelling = 0): RGB {
+  const cat = REGION_BY_ID[bed.region].category;
+  const normal = hex(cat === 'deep' || cat === 'brainstem' ? EDEMA_COLORS.normalDeep : EDEMA_COLORS.normal);
+  // a gentle curve so that moderate signal is already visible
+  const d = Math.pow(Math.max(0, Math.min(1, cytotoxic)), 0.7);
+  const f = Math.pow(Math.max(0, Math.min(1, vasogenic)), 0.7);
+  const cyto = hex(EDEMA_COLORS.cytotoxic);
+  const vaso = hex(EDEMA_COLORS.vasogenic);
+  const both = hex(EDEMA_COLORS.both);
+  // bilinear over (DWI, FLAIR): normal → DWI only / FLAIR only → both
+  let c: RGB = [0, 1, 2].map(
+    (k) => normal[k] * (1 - d) * (1 - f) + cyto[k] * d * (1 - f) + vaso[k] * (1 - d) * f + both[k] * d * f,
+  ) as RGB;
+  if (swelling < 0) c = mix(c, hex(EDEMA_COLORS.chronic), Math.min(1, swelling / CHRONIC_FULL) * (1 - 0.6 * Math.max(d, f)));
+  return c;
+}
+
 /** Colour of a bed in "territory" mode (by its dominant supplying artery family). */
 export function territoryColor(bed: Bed): RGB {
   if (bed.terr.length) {

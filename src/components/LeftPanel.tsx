@@ -8,7 +8,8 @@ import { EMBOLUS_SIZES, dropEmbolus, type EmbolusSource } from '../engine/embolu
 import { simulateHemodynamics } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
-import { useApp, type Layers, type LeftTab } from '../state/store';
+import { EDEMA_UI } from '../i18n/uiEdema';
+import { useApp, type ColorMode, type EdemaScale, type Layers, type LeftTab } from '../state/store';
 import { vesselVisual } from '../ui/vesselState';
 
 export function LeftPanel({ sim }: { sim: SimResult }) {
@@ -269,9 +270,13 @@ function SettingsTab() {
   );
 }
 
+const COLOR_MODES: ColorMode[] = ['state', 'territory', 'anatomy', 'edema'];
+const EDEMA_SCALES: EdemaScale[] = [1, 3, 5];
+
 function ViewTab() {
   const t = useT();
   const st = useApp();
+  const et = EDEMA_UI[st.lang];
   const layerKeys = Object.keys(t.layerNames) as (keyof Layers)[];
   const views: CameraView[] = ['left', 'right', 'front', 'back', 'top', 'bottom', 'brainstem'];
   return (
@@ -279,12 +284,28 @@ function ViewTab() {
       <section className="group">
         <h3>{t.colorMode}</h3>
         <div className="seg">
-          {(['state', 'territory', 'anatomy'] as const).map((m) => (
+          {COLOR_MODES.map((m) => (
             <button key={m} aria-pressed={st.colorMode === m} className={st.colorMode === m ? 'active' : ''} onClick={() => st.setColorMode(m)}>
-              {t.colorModes[m]}
+              {m === 'edema' ? et.colorMode : t.colorModes[m]}
             </button>
           ))}
         </div>
+      </section>
+      <section className="group">
+        <h3>{et.scaleTitle}</h3>
+        <div className="seg" role="radiogroup" aria-label={et.scaleTitle}>
+          {EDEMA_SCALES.map((k) => (
+            <button key={k} role="radio" aria-checked={st.edemaScale === k} className={st.edemaScale === k ? 'active' : ''} onClick={() => st.setEdemaScale(k)}>
+              {et.scaleOption(k)}
+            </button>
+          ))}
+        </div>
+        {st.edemaScale > 1 && (
+          <p className="callout warn" role="status">
+            {et.exaggerated(st.edemaScale)}
+          </p>
+        )}
+        <p className="muted small">{et.scaleHint}</p>
       </section>
       <section className="group">
         <h3>{t.layers}</h3>

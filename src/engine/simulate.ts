@@ -8,6 +8,8 @@ import type { Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
 import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion } from './hemodynamics';
+import { computeEdema, type EdemaBedInput } from './edema';
+import type { EdemaState } from './edemaTypes';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
 import { NEURONS_PER_ML, PENUMBRA_REL, unitState, infarctFraction, type TissueState } from './tissue';
 
@@ -53,6 +55,8 @@ export interface SimResult {
   volumes: { core: number; penumbra: number; finalInfarct: number; saved: number };
   neuronsLost: number;
   hydrocephalus: boolean;
+  /** swelling / oedema at the displayed time (see engine/edemaTypes.ts) */
+  edema: EdemaState;
 }
 
 const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
@@ -197,6 +201,8 @@ export function simulate(input: SimInput): SimResult {
   // (herniation etc.) are overlaid — syndromes describe the primary vascular pattern,
   // the secondary damage is reported as cascade events instead
   const primaryDys: Record<string, number> = {};
+  // tissue state for the oedema model, captured before secondary infarcts overwrite it
+  const edemaBeds: Record<string, EdemaBedInput> = {};
   for (const b of BEDS) {
     const bs = beds[b.id];
     const sum = Object.values(bs.frac).reduce((a, x) => a + x, 0);
@@ -204,6 +210,14 @@ export function simulate(input: SimInput): SimResult {
     primaryDys[b.id] = bs.frac.core + bs.frac.penumbra;
     const effects = (cascade.bedEffects[b.id] ?? []).filter((e) => e.onsetH <= t && t < (e.endH ?? Infinity));
     const eff = EFFECT_PRIORITY.find((k) => effects.some((e) => e.kind === k)) ?? null;
+    edemaBeds[b.id] = {
+      infarct: bs.infarct,
+      penumbra: bs.frac.penumbra,
+      salvaged: bs.frac.salvaged,
+      relAcute: hemoAcute.bedRel[b.id] ?? 1,
+      relAfter: hemoAfter.bedRel[b.id] ?? 1,
+      secondaryOnsetH: effects.find((e) => e.kind === 'secondary')?.onsetH ?? null,
+    };
     bs.effect = eff;
     if (eff === 'secondary') {
       bs.infarct = 1;
@@ -315,7 +329,8 @@ export function simulate(input: SimInput): SimResult {
     core += beds[b.id].infarct * b.volume;
     pen += beds[b.id].frac.penumbra * b.volume;
   }
-  const finalInfarct = cascade.volumes.total;
+  // everything that will eventually be dead, including secondary (herniation) infarcts
+  const finalInfarct = cascade.volumes.withSecondary;
   return {
     input,
     hemo,
@@ -330,6 +345,7 @@ export function simulate(input: SimInput): SimResult {
     volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume },
     neuronsLost: core * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH,
+    edema: computeEdema({ tH: t, reperfusionH: reperf, decompression: input.decompression, beds: edemaBeds, cascade }),
   };
 }
 

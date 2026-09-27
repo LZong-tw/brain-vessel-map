@@ -5,15 +5,32 @@ import type { SymptomSystem } from '../anatomy/types';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
 import { REGION_DEFS } from '../anatomy/regions';
-import { midlineShiftAt, type CascadeEvent } from '../engine/cascade';
+import type { CascadeEvent } from '../engine/cascade';
 import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
-import { isOccludable, previewOcclusion, type SimResult } from '../engine/simulate';
+import { isOccludable, simulate, type SimResult } from '../engine/simulate';
 import type { Strings } from '../i18n/ui';
 import { useT } from '../state/hooks';
 import { useApp, type RightTab } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
-import { fmtFlow, fmtMl, fmtNeurons, pct, regionSupply, symptomLabel, vesselTerritory } from '../ui/format';
+import {
+  SYSTEM_LABEL,
+  SYSTEM_ORDER,
+  fmtFlow,
+  fmtMl,
+  fmtNeurons,
+  midlineShiftOf,
+  pct,
+  regionSupply,
+  signedPct,
+  stopTime,
+  symptomLabel,
+  vesselTerritory,
+} from '../ui/format';
 import { vesselVisual, type VesselVisual } from '../ui/vesselState';
+import { FunctionTimeline } from './FunctionTimeline';
+import { NowSummary } from './NowSummary';
+import { RegionNow } from './RegionNow';
+import { useSimSeries } from './useSimSeries';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
   const t = useT();
@@ -62,8 +79,10 @@ function Details({ sim }: { sim: SimResult }) {
 function VentricleDetails({ sim }: { sim: SimResult }) {
   const lang = useApp((s) => s.lang);
   const en = lang === 'en';
+  const t = useT();
   const onset = sim.cascade.hydrocephalusOnsetH;
   const event = sim.cascade.events.find((e) => e.id === 'hydrocephalus');
+  const vc = sim.edema.ventricleChange;
   return (
     <div className="details">
       <div className="kicker">{en ? 'Structure' : '構造'}</div>
@@ -90,6 +109,13 @@ function VentricleDetails({ sim }: { sim: SimResult }) {
                   : '正常'}
           </div>
         </div>
+        {Math.abs(vc) >= 0.01 && (
+          <div className="stat">
+            <div className="stat-label">{t.ventricleSize}</div>
+            <div className="stat-value">{signedPct(vc)}</div>
+            <div className="stat-sub">{vc < 0 ? t.ventricleCompressed : t.ventricleEnlarged}</div>
+          </div>
+        )}
       </div>
       {event && <p className="callout warn">{tr(event.desc, lang)}</p>}
     </div>
@@ -118,12 +144,22 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
     [id, st.variants, st.map, st.collateral],
   );
   const pressure = sim.hemo.vesselPressure[id];
+  // "what if this vessel were blocked?" — alone, untreated, at the time shown on the timeline
+  const tH = TIME_STOPS[st.tIndex].h;
   const preview = useMemo(
     () =>
       isOccludable(id) && !occ
-        ? previewOcclusion(id, { occlusions: [], variants: st.variants, map: st.map, collateral: st.collateral })
+        ? simulate({
+            occlusions: [{ vessel: id, severity: 1 }],
+            variants: st.variants,
+            map: st.map,
+            collateral: st.collateral,
+            tH,
+            reperfusionH: null,
+            decompression: false,
+          })
         : null,
-    [id, occ, st.variants, st.map, st.collateral],
+    [id, occ, st.variants, st.map, st.collateral, tH],
   );
   if (!v) return null;
   const parent = v.parent ? VESSEL_BY_ID[v.parent] : null;
@@ -197,23 +233,41 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
       )}
       {preview && (
         <section className="whatif">
-          <h3>{t.whatIf}</h3>
-          {preview.volumes.core < 0.5 && preview.syndromes.length === 0 ? (
+          <h3>{t.whatIfAt(tH === 0 ? null : stopTime(st.tIndex, lang))}</h3>
+          {preview.volumes.core < 0.5 &&
+          preview.volumes.finalInfarct < 0.5 &&
+          preview.syndromes.length === 0 &&
+          !preview.symptoms.some((s) => !s.delayed) ? (
             <p className="muted">{t.whatIfNone}</p>
           ) : (
             <>
               <div className="stat-row">
                 <div className="stat">
                   <div className="stat-label">{t.infarct}</div>
-                  <div className="stat-value">
+                  <div className="stat-value" style={{ color: STATE_COLORS.core }}>
                     {fmtMl(preview.volumes.core)} <small>{t.ml}</small>
                   </div>
                 </div>
+                {preview.volumes.penumbra >= 0.5 && (
+                  <div className="stat">
+                    <div className="stat-label">{t.penumbra}</div>
+                    <div className="stat-value" style={{ color: STATE_COLORS.penumbra }}>
+                      {fmtMl(preview.volumes.penumbra)} <small>{t.ml}</small>
+                    </div>
+                  </div>
+                )}
                 <div className="stat">
                   <div className="stat-label">{t.nihss}</div>
                   <div className="stat-value">{preview.nihss.total}</div>
                 </div>
+                <div className="stat">
+                  <div className="stat-label">{t.finalInfarct}</div>
+                  <div className="stat-value small">
+                    {fmtMl(preview.volumes.finalInfarct)} <small>{t.ml}</small>
+                  </div>
+                </div>
               </div>
+              <p className="muted small">{t.whatIfTimeNote}</p>
               {preview.syndromes.slice(0, 3).map((s) => (
                 <div key={s.def.id + s.side} className="syndrome-mini">
                   {tr(s.def.name, lang)}
@@ -331,6 +385,7 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
           {t.cause}: {causes.map((e) => tr(e.title, lang)).join('；')}
         </p>
       )}
+      <RegionNow id={id} sim={sim} />
       <section>
         <h3>{t.suppliedBy}</h3>
         <div className="chips">
@@ -379,33 +434,6 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
 }
 
 // ─────────────────────────── results ───────────────────────────
-const SYSTEM_ORDER: SymptomSystem[] = [
-  'consciousness',
-  'motor',
-  'sensory',
-  'language',
-  'vision',
-  'eye',
-  'cranial',
-  'balance',
-  'cognition',
-  'autonomic',
-  'limb',
-];
-const SYSTEM_LABEL: Record<SymptomSystem, { zh: string; en: string }> = {
-  consciousness: { zh: '意識', en: 'Consciousness' },
-  motor: { zh: '運動', en: 'Motor' },
-  sensory: { zh: '感覺', en: 'Sensation' },
-  language: { zh: '語言', en: 'Language' },
-  vision: { zh: '視覺', en: 'Vision' },
-  eye: { zh: '眼球運動', en: 'Eye movements' },
-  cranial: { zh: '腦神經（臉、吞嚥、聽覺）', en: 'Cranial nerves (face, swallowing, hearing)' },
-  balance: { zh: '平衡與協調', en: 'Balance & coordination' },
-  cognition: { zh: '認知與行為', en: 'Cognition & behaviour' },
-  autonomic: { zh: '自主神經', en: 'Autonomic' },
-  limb: { zh: '肢體血流', en: 'Limb circulation' },
-};
-
 function Results({ sim }: { sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -416,9 +444,11 @@ function Results({ sim }: { sim: SimResult }) {
   const setOcclusion = useApp((s) => s.setOcclusion);
   const map = useApp((s) => s.map);
   const [showAllEvents, setShowAllEvents] = useState(false);
+  const series = useSimSeries();
   const tH = TIME_STOPS[tIndex].h;
   if (!occlusions.length && map >= 70) return <p className="muted">{t.noOcclusion}</p>;
-  const shift = midlineShiftAt(sim.cascade.midlineShift, tH, sim.input.decompression);
+  // the oedema model's shift when it reports one, else the cascade's estimate
+  const shift = midlineShiftOf(sim);
   const nihssItems = NIHSS_ORDER.filter((k) => (sim.nihss.items[k] ?? 0) > 0);
 
   const bySystem = new Map<SymptomSystem, typeof sim.symptoms>();
@@ -459,6 +489,7 @@ function Results({ sim }: { sim: SimResult }) {
           </span>
         ))}
       </div>
+      <NowSummary sim={sim} series={series} />
       <div className="stat-row">
         <div className="stat">
           <div className="stat-label">
@@ -509,6 +540,8 @@ function Results({ sim }: { sim: SimResult }) {
           </div>
         )}
       </div>
+
+      <FunctionTimeline series={series} />
 
       <section className="nihss">
         <h3>

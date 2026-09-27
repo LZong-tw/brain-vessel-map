@@ -64,7 +64,8 @@ export interface CascadeOutput {
   events: CascadeEvent[];
   bedEffects: Record<string, BedEffect[]>;
   /** mL, eventual infarct volume per compartment */
-  volumes: { supra: Record<Side, number>; cerebellum: Record<Side, number>; brainstem: number; total: number };
+  /** eventual infarct volumes of the arterial occlusion itself (mL); `withSecondary` adds tissue lost to herniation etc. */
+  volumes: { supra: Record<Side, number>; cerebellum: Record<Side, number>; brainstem: number; total: number; withSecondary: number };
   savedVolume: number;
   hydrocephalusOnsetH: number | null;
   midlineShift: { side: Side; peakMm: number; onsetH: number } | null;
@@ -766,7 +767,21 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   }
 
   events.sort((a, b) => a.onsetH - b.onsetH);
-  return { events, bedEffects, volumes: vol, savedVolume, hydrocephalusOnsetH, midlineShift };
+  // tissue that dies later from herniation / compression of other arteries (permanent effects)
+  let secondaryLoss = 0;
+  for (const b of BEDS) {
+    if (REGION_BY_ID[b.region].compartment === 'none') continue;
+    if ((bedEffects[b.id] ?? []).some((e) => e.kind === 'secondary' && e.endH === undefined))
+      secondaryLoss += (1 - (bedFinal[b.id] ?? 0)) * b.volume;
+  }
+  return {
+    events,
+    bedEffects,
+    volumes: { ...vol, withSecondary: vol.total + secondaryLoss },
+    savedVolume,
+    hydrocephalusOnsetH,
+    midlineShift,
+  };
 }
 
 export { baseOf, sideOf };
