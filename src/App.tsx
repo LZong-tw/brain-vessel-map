@@ -22,7 +22,11 @@ function HoverTip() {
   const label =
     hovered.kind === 'vessel'
       ? VESSEL_BY_ID[hovered.id] && vesselName(VESSEL_BY_ID[hovered.id], lang)
-      : REGION_BY_ID[hovered.id] && regionName(REGION_BY_ID[hovered.id], lang);
+      : hovered.kind === 'structure'
+        ? lang === 'en'
+          ? 'Ventricles (cerebrospinal fluid)'
+          : '腦室（腦脊髓液）'
+        : REGION_BY_ID[hovered.id] && regionName(REGION_BY_ID[hovered.id], lang);
   if (!label) return null;
   return (
     <div className="hover-tip" aria-hidden="true">
