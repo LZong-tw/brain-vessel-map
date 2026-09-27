@@ -10,6 +10,9 @@ import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, ty
 import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion } from './hemodynamics';
 import { computeEdema, type EdemaBedInput } from './edema';
 import type { EdemaState } from './edemaTypes';
+import { computeRecovery, type RecoveryBedInput } from './recovery';
+import type { RecoveryState } from './recoveryTypes';
+import { tissueParamsForBed } from './tissueParams';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
 import { NEURONS_PER_ML, PENUMBRA_REL, unitState, infarctFraction, type TissueState } from './tissue';
 
@@ -57,6 +60,8 @@ export interface SimResult {
   hydrocephalus: boolean;
   /** swelling / oedema at the displayed time (see engine/edemaTypes.ts) */
   edema: EdemaState;
+  /** temporary dysfunction and compensation at the displayed time (see engine/recoveryTypes.ts) */
+  recovery: RecoveryState;
 }
 
 const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
@@ -67,7 +72,7 @@ const cascadeCache = new Map<string, CascadeOutput>();
 function bedInfarctAt(units: ReturnType<typeof getUnits>, hemo: HemoResult, after: HemoResult, tH: number, reperf: number | null) {
   const out: Record<string, number> = {};
   for (const u of units) {
-    const f = infarctFraction(hemo.unitRel[u.id] ?? 1, tH, reperf, after.unitRel[u.id] ?? 1);
+    const f = infarctFraction(hemo.unitRel[u.id] ?? 1, tH, reperf, after.unitRel[u.id] ?? 1, tissueParamsForBed(u.bed));
     out[u.bed] = (out[u.bed] ?? 0) + f * u.frac;
   }
   return out;
@@ -169,7 +174,7 @@ export function simulate(input: SimInput): SimResult {
   }
   for (const u of units) {
     const bs = beds[u.bed];
-    const { f, rest } = unitState(hemoAcute.unitRel[u.id] ?? 1, t, reperf, hemoAfter.unitRel[u.id] ?? 1);
+    const { f, rest } = unitState(hemoAcute.unitRel[u.id] ?? 1, t, reperf, hemoAfter.unitRel[u.id] ?? 1, tissueParamsForBed(u.bed));
     bs.frac.core += f * u.frac;
     bs.frac[rest] += (1 - f) * u.frac;
     bs.infarct += f * u.frac;
@@ -223,7 +228,14 @@ export function simulate(input: SimInput): SimResult {
       bs.infarct = 1;
       bs.frac = { normal: 0, oligemia: 0, penumbra: 0, core: 1, salvaged: 0 };
     }
-    bs.dys = bs.frac.core + bs.frac.penumbra;
+  }
+  const edema = computeEdema({ tH: t, reperfusionH: reperf, decompression: input.decompression, beds: edemaBeds, cascade });
+  const recoveryBeds: Record<string, RecoveryBedInput> = {};
+  for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra };
+  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade });
+  for (const b of BEDS) {
+    const bs = beds[b.id];
+    bs.dys = Math.min(1, bs.frac.core + bs.frac.penumbra + (recovery.extraDys[b.id] ?? 0));
   }
 
   // ── per-region ──
@@ -345,7 +357,8 @@ export function simulate(input: SimInput): SimResult {
     volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume },
     neuronsLost: core * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH,
-    edema: computeEdema({ tH: t, reperfusionH: reperf, decompression: input.decompression, beds: edemaBeds, cascade }),
+    edema,
+    recovery,
   };
 }
 
