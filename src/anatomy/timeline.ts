@@ -9,7 +9,9 @@ export interface TimeStop {
 export const TIME_STOPS: TimeStop[] = [
   { h: 0, label: { zh: '發生時', en: 'Onset' } },
   { h: 0.25, label: { zh: '15 分', en: '15 min' } },
+  { h: 0.5, label: { zh: '30 分', en: '30 min' } },
   { h: 1, label: { zh: '1 小時', en: '1 h' } },
+  { h: 2, label: { zh: '2 小時', en: '2 h' } },
   { h: 3, label: { zh: '3 小時', en: '3 h' } },
   { h: 4.5, label: { zh: '4.5 小時', en: '4.5 h' } },
   { h: 6, label: { zh: '6 小時', en: '6 h' } },

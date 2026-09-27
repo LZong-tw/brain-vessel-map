@@ -8,6 +8,7 @@ import type { Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
 import { getUnits, hemoKey, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion } from './hemodynamics';
+import { NO_EDEMA, type EdemaState } from './edemaTypes';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
 import { NEURONS_PER_ML, PENUMBRA_REL, unitState, infarctFraction, type TissueState } from './tissue';
 
@@ -53,6 +54,8 @@ export interface SimResult {
   volumes: { core: number; penumbra: number; finalInfarct: number; saved: number };
   neuronsLost: number;
   hydrocephalus: boolean;
+  /** swelling / oedema at the displayed time (see engine/edemaTypes.ts) */
+  edema: EdemaState;
 }
 
 const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
@@ -330,6 +333,8 @@ export function simulate(input: SimInput): SimResult {
     volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume },
     neuronsLost: core * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH,
+    // TODO(edema model): computed by engine/edema.ts
+    edema: NO_EDEMA,
   };
 }
 
