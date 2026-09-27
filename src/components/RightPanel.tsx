@@ -697,7 +697,7 @@ function Results({ sim }: { sim: SimResult }) {
 
       <section className="nihss">
         <h3>
-          {t.nihss}: <span className="num big">{sim.nihss.total}</span> <span className={`badge sev-${sim.nihss.category}`}>{t.nihssCategory[sim.nihss.category]}</span>
+          {t.nihss}: <span className="num big">{sim.nihss.total}</span> <span className={`badge sev-${sim.nihss.category}`}>{sim.nihss.uncaptured ? t.nihssNotCaptured : t.nihssCategory[sim.nihss.category]}</span>
         </h3>
         {nihssItems.length > 0 && (
           <details className="nihss-items">

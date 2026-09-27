@@ -31,6 +31,9 @@ describe('NIHSS total of 0 with symptoms the scale does not capture', () => {
     render(<RightPanel sim={sim} />);
     // throws if not found
     screen.getByText('NIHSS 未涵蓋這些症狀（例如單眼視力喪失）：分數 0 不代表沒有症狀。');
+    // the score may be 0, but the label must not claim there are no symptoms
+    expect(screen.queryByText('無症狀')).toBeNull();
+    screen.getByText('量表未涵蓋');
   });
 
   it('does not show the note when there is nothing uncaptured', () => {
