@@ -982,7 +982,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'diplopia', lat: 'none', sev: 2 },
       // extending into the caudal pontine tegmentum on both sides can also disturb automatic
       // (non-volitional) breathing — apneustic or cluster patterns (Plum & Posner, The
-      // Diagnosis of Stupor and Coma)
+      // Diagnosis of Stupor and Coma). TODO(medical-review): "moderate" (sev 2) is an
+      // educational approximation; real severity ranges from mild irregularity to
+      // ventilator dependence and is not captured by this model.
       { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
