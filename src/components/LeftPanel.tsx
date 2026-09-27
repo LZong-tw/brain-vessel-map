@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
-import { REGIONS, VESSELS, regionName, tr, vesselName } from '../anatomy';
+import { REGIONS, VESSELS, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
 import type { VesselGroup } from '../anatomy';
 import { SCENARIOS, type CameraView } from '../anatomy/scenarios';
-import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
+import { REPERFUSION_STOPS, TIME_STOPS, formatHours } from '../anatomy/timeline';
 import { VARIANTS } from '../anatomy/variants';
 import { EMBOLUS_SIZES, dropEmbolus, type EmbolusSource } from '../engine/embolus';
-import { simulateHemodynamics } from '../engine/hemodynamics';
+import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
+import { activeAt, isTreatable, startOf } from '../engine/schedule';
 import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
 import { EDEMA_UI } from '../i18n/uiEdema';
+import { SCHEDULE_UI } from '../i18n/uiSchedule';
+import type { Lang } from '../anatomy/types';
 import { useApp, type ColorMode, type EdemaScale, type Layers, type LeftTab } from '../state/store';
+import { formatClock } from '../ui/scheduleFormat';
 import { vesselVisual } from '../ui/vesselState';
 
 export function LeftPanel({ sim }: { sim: SimResult }) {
@@ -74,10 +78,13 @@ function EmbolusBox() {
   const map = useApp((s) => s.map);
   const collateral = useApp((s) => s.collateral);
   const occlusions = useApp((s) => s.occlusions);
+  const tIndex = useApp((s) => s.tIndex);
+  const reperfusionH = useApp((s) => s.reperfusionH);
   const [source, setSource] = useState<EmbolusSource>('heart');
   const [size, setSize] = useState<(typeof EMBOLUS_SIZES)[number]['id']>('medium');
   const release = () => {
-    const hemo = simulateHemodynamics({ occlusions, variants, map, collateral });
+    // the embolus travels through the vessels as they are at the displayed time
+    const hemo = simulateHemodynamics({ occlusions: activeAt(occlusions, TIME_STOPS[tIndex].h, reperfusionH), variants, map, collateral });
     const seed = Math.floor(Math.random() * 1e9);
     const mm = EMBOLUS_SIZES.find((x) => x.id === size)!.mm;
     start({ source, size, seed, result: dropEmbolus(source, mm, hemo, seed) });
@@ -232,11 +239,7 @@ function SettingsTab() {
           <span>{t.reperfusion}</span>
           <select value={st.reperfusionH ?? ''} onChange={(e) => st.setReperfusion(e.target.value === '' ? null : Number(e.target.value))}>
             <option value="">{t.reperfusionNone}</option>
-            {REPERFUSION_STOPS.map((h) => (
-              <option key={h} value={h}>
-                {t.reperfusionAt} {formatHours(h, lang)}
-              </option>
-            ))}
+            <TreatmentOptions occlusions={st.occlusions} lang={lang} reperfusionAt={t.reperfusionAt} />
           </select>
         </label>
         <p className="muted small">{t.reperfusionHint}</p>
@@ -267,6 +270,41 @@ function SettingsTab() {
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Treatment times: the usual delays after onset and, when complete occlusions begin later, the
+ * same delays after each of those starts (treatment reopens whatever is occluded at that time).
+ */
+function TreatmentOptions({ occlusions, lang, reperfusionAt }: { occlusions: Occlusion[]; lang: Lang; reperfusionAt: string }) {
+  const s = SCHEDULE_UI[lang];
+  const later = [...new Set(occlusions.filter(isTreatable).map(startOf))].filter((h) => h > 0).sort((a, b) => a - b);
+  const first = REPERFUSION_STOPS.map((h) => (
+    <option key={h} value={h}>
+      {reperfusionAt} {formatHours(h, lang)}
+    </option>
+  ));
+  if (!later.length) return <>{first}</>;
+  return (
+    <>
+      <optgroup label={s.treatAfterFirst}>{first}</optgroup>
+      {later.map((at) => {
+        const names = occlusions
+          .filter((o) => isTreatable(o) && startOf(o) === at)
+          .map((o) => vesselName(VESSEL_BY_ID[o.vessel], lang))
+          .join(lang === 'en' ? ', ' : '、');
+        return (
+          <optgroup key={at} label={s.treatAfter(names, formatClock(at, lang))}>
+            {REPERFUSION_STOPS.map((d) => (
+              <option key={d} value={at + d}>
+                {s.plus(formatClock(d, lang))}
+              </option>
+            ))}
+          </optgroup>
+        );
+      })}
+    </>
   );
 }
 

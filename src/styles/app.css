@@ -1633,3 +1633,135 @@ svg .flow-num {
   color: var(--text);
   font-weight: 650;
 }
+
+/* ───────────── occlusion schedules ───────────── */
+/* timeline: ▼ an occlusion begins, ▲ it reopens by itself (the treatment mark is the green bar) */
+.tl-sched {
+  position: absolute;
+  top: -8px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+.tl-sched.on {
+  border-top: 7px solid var(--danger);
+}
+.tl-sched.off {
+  border-bottom: 7px solid #5fd0c7;
+}
+.tl-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+/* vessel details: timing of each phase */
+.sched {
+  margin-top: 10px;
+  padding: 6px 10px 8px;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
+.sched-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.sched-row {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sched-row-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.sched-k {
+  font-size: 12px;
+  font-weight: 600;
+}
+select.sched-sev {
+  width: auto;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.sched-status {
+  font-size: 11px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+.sched-status.st-active {
+  color: #ffb4bd;
+  border-color: var(--danger);
+}
+.sched-status.st-treated,
+.sched-status.st-reopened {
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.sched-row-head .x {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.sched-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.sched-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.sched-field select {
+  padding: 4px 6px;
+  font-size: 12.5px;
+}
+.sched-add {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+.sched-add .sched-field {
+  flex: 1;
+}
+.sched .muted.small {
+  margin: 6px 0 0;
+}
+/* results: occlusion chips with their timing */
+.occ-when {
+  color: var(--text-2);
+  font-size: 11.5px;
+}
+.chip.occ-inactive {
+  border-style: dashed;
+  opacity: 0.8;
+}
+.chip.occ {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+.occ-when,
+.chip.occ .badge {
+  white-space: nowrap;
+}
+.chip.occ .x {
+  margin-left: auto;
+}

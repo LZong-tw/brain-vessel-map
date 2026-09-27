@@ -10,6 +10,7 @@ import type { Lang } from '../anatomy/types';
 import { VARIANT_BY_ID } from '../anatomy/variants';
 import type { EmbolusResult, EmbolusSource } from '../engine/embolus';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
+import { endOf, fitSchedule, startOf, tidy } from '../engine/schedule';
 
 /** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
 export type Selection = { kind: 'vessel' | 'region' | 'structure'; id: string } | null;
@@ -73,7 +74,13 @@ export interface AppState {
 
   setLang: (l: Lang) => void;
   toggleOcclusion: (vessel: string, severity?: number) => void;
+  /** set a vessel's occlusion (null removes every phase of it); a single phase keeps its timing */
   setOcclusion: (vessel: string, severity: number | null, branch?: boolean) => void;
+  /** change one occlusion (phase) of the list; ignored if its vessel's windows would overlap */
+  updateOcclusion: (index: number, patch: Partial<Occlusion>) => void;
+  removeOcclusionAt: (index: number) => void;
+  /** a later phase of a vessel: a complete occlusion from `fromH` (the previous phase ends then) */
+  addOcclusionPhase: (vessel: string, fromH: number) => void;
   clearOcclusions: () => void;
   toggleVariant: (id: string) => void;
   setMap: (v: number) => void;
@@ -196,9 +203,49 @@ export const useApp = create<AppState>((set, get) => ({
     get().setOcclusion(vessel, exists ? null : severity);
   },
   setOcclusion: (vessel, severity, branch) => {
-    const rest = get().occlusions.filter((o) => o.vessel !== vessel);
-    const occlusions = severity === null ? rest : [...rest, branch ? { vessel, severity: 1, branch: true } : { vessel, severity }];
+    const cur = get().occlusions;
+    const rest = cur.filter((o) => o.vessel !== vessel);
+    let occlusions = rest;
+    if (severity !== null) {
+      const next: Occlusion = branch ? { vessel, severity: 1, branch: true } : { vessel, severity };
+      const phases = cur.filter((o) => o.vessel === vessel);
+      if (phases.length) {
+        // keep the vessel's place in the list and the window it covers
+        const from = Math.min(...phases.map(startOf));
+        const ends = phases.map(endOf);
+        const to = ends.includes(null) ? null : Math.max(...(ends as number[]));
+        if (from > 0) next.fromH = from;
+        if (to !== null) next.toH = to;
+        const at = cur.findIndex((o) => o.vessel === vessel);
+        occlusions = [...cur.slice(0, at).filter((o) => o.vessel !== vessel), next, ...cur.slice(at).filter((o) => o.vessel !== vessel)];
+      } else occlusions = [...rest, next];
+    }
     set({ occlusions, scenario: null, rightTab: occlusions.length ? get().rightTab : 'details' });
+  },
+  updateOcclusion: (index, patch) => {
+    const cur = get().occlusions;
+    const old = cur[index];
+    if (!old) return;
+    const o: Occlusion = { ...old, ...patch };
+    // moving the start keeps the duration
+    if ('fromH' in patch && !('toH' in patch) && endOf(old) !== null) o.toH = (endOf(old) as number) + startOf(o) - startOf(old);
+    const occlusions = fitSchedule(
+      cur.map((x, i) => (i === index ? tidy(o) : x)),
+      o.vessel,
+    );
+    if (occlusions) set({ occlusions, scenario: null });
+  },
+  removeOcclusionAt: (index) => {
+    const occlusions = get().occlusions.filter((_, i) => i !== index);
+    set({ occlusions, scenario: null, rightTab: occlusions.length ? get().rightTab : 'details' });
+  },
+  addOcclusionPhase: (vessel, fromH) => {
+    const cur = get().occlusions;
+    const last = cur.map((o, i) => [o, i] as const).filter(([o]) => o.vessel === vessel).pop();
+    if (!last) return;
+    const occlusions = [...cur.slice(0, last[1] + 1), tidy({ vessel, severity: 1, fromH }), ...cur.slice(last[1] + 1)];
+    const fitted = fitSchedule(occlusions, vessel);
+    if (fitted) set({ occlusions: fitted, scenario: null });
   },
   clearOcclusions: () => set({ occlusions: [], scenario: null, reperfusionH: null, decompression: false, embolus: null }),
   toggleVariant: (id) => {
@@ -217,7 +264,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!s) return;
     set({
       scenario: id,
-      occlusions: s.occlusions.map((o) => ({ ...o })),
+      occlusions: s.occlusions.map((o) => tidy({ ...o })),
       variants: s.variants ?? [],
       collateral: s.collateral ?? 'good',
       map: s.map ?? 93,
