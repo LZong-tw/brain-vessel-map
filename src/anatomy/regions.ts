@@ -900,8 +900,12 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'brainstem',
     cbf: BS_CBF,
     supply: [
-      { v: 'sca_{s}', share: 0.75, at: 'mid' },
-      { v: 'pontine_circumferential_{s}', share: 0.25 },
+      // the lateral tegmentum (trigeminal, vestibular and cochlear nuclei, spinothalamic tract) is
+      // the territory of the long circumferential arteries; the short circumferential branches of
+      // the basilar mainly supply the anterolateral basis, so a basilar occlusion with patent
+      // AICA/SCA spares it (Tatu L et al. Neurology 1996;47:1125–1135). TODO(medical-review): share
+      { v: 'sca_{s}', share: 0.9, at: 'mid' },
+      { v: 'pontine_circumferential_{s}', share: 0.1 },
     ],
     structures: [
       { name: { zh: '三叉神經主感覺核與運動核', en: 'Trigeminal principal sensory & motor nuclei' }, role: { zh: '同側臉部感覺、咀嚼', en: 'Same-side facial sensation, chewing' } },
@@ -999,8 +1003,12 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'brainstem',
     cbf: BS_CBF,
     supply: [
-      { v: 'aica_{s}', share: 0.75, at: 'mid' },
-      { v: 'pontine_circumferential_{s}', share: 0.25 },
+      // the lateral tegmentum (trigeminal, vestibular and cochlear nuclei, spinothalamic tract) is
+      // the territory of the long circumferential arteries; the short circumferential branches of
+      // the basilar mainly supply the anterolateral basis, so a basilar occlusion with patent
+      // AICA/SCA spares it (Tatu L et al. Neurology 1996;47:1125–1135). TODO(medical-review): share
+      { v: 'aica_{s}', share: 0.9, at: 'mid' },
+      { v: 'pontine_circumferential_{s}', share: 0.1 },
     ],
     structures: [
       { name: { zh: '顏面神經核', en: 'Facial nucleus' }, role: { zh: '同側整側臉運動', en: 'Same-side whole-face movement' } },

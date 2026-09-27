@@ -222,8 +222,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '基底動脈中段阻塞：閉鎖症候群', en: 'Mid-basilar occlusion: locked-in' },
     summary: {
-      zh: '雙側橋腦腹側梗塞：清醒但全身癱瘓，只能用眼睛溝通。',
-      en: 'Bilateral ventral pontine infarction: awake but paralysed, communicating only with the eyes.',
+      zh: '雙側橋腦腹側缺血：清醒但四肢癱瘓、不能說話與吞嚥，只能用垂直眼動和眨眼溝通。側枝循環決定組織能撐多久——在「設定」改變側枝等級或再通時間比較看看。',
+      en: 'Bilateral ventral pontine ischaemia: awake but quadriplegic, unable to speak or swallow, communicating only by vertical eye movements and blinking. Collaterals decide how long the tissue holds out — compare collateral grades or recanalisation times in Settings.',
     },
     occlusions: [{ vessel: 'basilar_mid', severity: 1 }],
     tH: 24,

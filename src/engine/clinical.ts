@@ -37,6 +37,10 @@ export interface SyndromeMatch {
 const DEF_BY_BASE = indexById(REGION_DEFS, (d) => d.id);
 const opp = (s: Side): Side => (s === 'r' ? 'l' : 'r');
 const DYS_THR = 0.25;
+/** a region counts as affected at DYS_THR; fractions are sums of exponentials, so a region that
+ * is exactly at the threshold (e.g. one quarter-share artery lost) must not flicker on and off
+ * with floating-point rounding */
+const reaches = (x: number | undefined, thr = DYS_THR) => (x ?? 0) >= thr - 1e-6;
 const DELAY_H = 336;
 /** a deficit compensated below this (continuous) severity is no longer noticeable */
 const COMPENSATED_OUT = 0.35;
@@ -70,7 +74,7 @@ export function aggregateSymptoms(
   for (const r of REGIONS) {
     const dys = regionDys[r.id] ?? 0;
     const inf = regionInf[r.id] ?? 0;
-    if (dys < DYS_THR && inf < DYS_THR) continue;
+    if (!reaches(dys) && !reaches(inf)) continue;
     const def = DEF_BY_BASE[r.baseId];
     for (const d of def.deficits) {
       const sym = SYMPTOM_BY_ID[d.s];
@@ -79,13 +83,13 @@ export function aggregateSymptoms(
       if (d.spareInLacune && lacuneOnly.includes(r.id)) continue;
       const delayed = !!sym.delayed;
       const level = delayed ? inf : dys;
-      if (level < DYS_THR) continue;
+      if (!reaches(level)) continue;
       if (delayed && tH < DELAY_H) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
         const lvl2 = delayed ? regionInf[other] ?? 0 : regionDys[other] ?? 0;
-        if (lvl2 < DYS_THR) continue;
+        if (!reaches(lvl2)) continue;
       }
       let side: SymptomItem['side'] = null;
       if (sym.lateralised) {
@@ -124,7 +128,7 @@ export function aggregateSymptoms(
     }
   }
   const occip = (h: Side) =>
-    (regionDys[`cuneus_${h}`] ?? 0) >= DYS_THR || (regionDys[`lingual_${h}`] ?? 0) >= DYS_THR;
+    reaches(regionDys[`cuneus_${h}`]) || reaches(regionDys[`lingual_${h}`]);
   if (occip('r') && occip('l')) {
     for (const fs of ['r', 'l'] as Side[]) {
       del('hemianopia', fs);
@@ -154,6 +158,14 @@ export function aggregateSymptoms(
   // bilateral ventral pons: anarthria (no speech at all) replaces, rather than adds to, the
   // milder unilateral dysarthria picture
   if (map.has('anarthria|')) del('dysarthria', null);
+  // with horizontal gaze palsies to both sides no horizontal eye movement is left at all, so a
+  // separate abducens palsy or INO can no longer be seen (a one-sided gaze palsy keeps them)
+  if (get('gaze_palsy_horizontal', 'r') && get('gaze_palsy_horizontal', 'l')) {
+    for (const fs of ['r', 'l'] as Side[]) {
+      del('cn6_palsy', fs);
+      del('ino', fs);
+    }
+  }
   if (map.has('coma|')) del('somnolence', null);
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {

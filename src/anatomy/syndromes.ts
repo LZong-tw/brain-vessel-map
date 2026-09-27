@@ -299,8 +299,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: false,
     name: { zh: '閉鎖症候群', en: 'Locked-in syndrome' },
     desc: {
-      zh: '雙側橋腦腹側受損：四肢癱瘓、不能說話與吞嚥，但意識與感覺清楚，只能用垂直眼動和眨眼溝通。常見於基底動脈中段阻塞，常被誤認為昏迷。',
-      en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking. Typical of mid-basilar occlusion; easily mistaken for coma.',
+      zh: '雙側橋腦腹側受損：四肢癱瘓、不能說話與吞嚥，但意識清楚，只能用垂直眼動和眨眼溝通（由中腦控制）。水平眼動常一起喪失，因為外展神經核與 PPRF 就在旁邊的橋腦被蓋。感覺通常保留；病灶延伸到被蓋時可能有部分感覺異常。常見於基底動脈中段阻塞，常被誤認為昏迷。',
+      en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking (controlled by the midbrain). Horizontal gaze is usually lost too, because the abducens nuclei and PPRF lie in the adjacent pontine tegmentum. Sensation is usually preserved; it can be partly affected when the lesion extends into the tegmentum. Typical of mid-basilar occlusion; easily mistaken for coma.',
     },
     test: (c) => c.both('pons_rostral_basis', 0.4) || c.both('pons_caudal_basis', 0.4),
     supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'],
