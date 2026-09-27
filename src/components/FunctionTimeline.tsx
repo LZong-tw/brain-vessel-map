@@ -171,20 +171,22 @@ function CellDetailBox({ rowKey, series, onClose }: { rowKey: string; series: Si
                     {s.side && `（${sideWord(s.side)}）`}
                   </span>{' '}
                   <span className="muted small">{t.sevWords[s.sev]}</span>{' '}
-                  {index > 0 && <span className={`badge cd-${s.change}`}>{ct.change[s.change]}</span>}
+                  {index > 0 && s.change !== 'same' && <span className={`badge cd-${s.change}`}>{ct.change[s.change]}</span>}
                   {s.compensated >= COMPENSATION_SHOWN && <span className="badge">{ct.compensated(Math.round(s.compensated * 100))}</span>}
                   {(s.regions.length > 0 || s.events.length > 0) && (
                     <div className="small muted cd-src">
                       {s.regions.length > 0 && (
                         <>
                           {ct.from}{' '}
-                          {s.regions.map((rid) =>
-                            REGION_BY_ID[rid] ? (
-                              <button key={rid} type="button" className="linklike" onClick={() => openRegion(rid)}>
-                                {regionName(REGION_BY_ID[rid], lang)}
-                              </button>
-                            ) : null,
-                          )}
+                          <span className="chips small">
+                            {s.regions.map((rid) =>
+                              REGION_BY_ID[rid] ? (
+                                <button key={rid} type="button" className="chip" onClick={() => openRegion(rid)}>
+                                  {regionName(REGION_BY_ID[rid], lang)}
+                                </button>
+                              ) : null,
+                            )}
+                          </span>
                         </>
                       )}
                       {s.events.length > 0 && (

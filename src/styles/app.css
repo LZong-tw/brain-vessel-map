@@ -1943,16 +1943,6 @@ select.sched-sev {
 .cd-src {
   margin: 2px 0 0 18px;
 }
-.linklike {
-  border: 0;
-  background: none;
-  padding: 0 4px 0 0;
-  color: var(--accent, #5aa9ff);
-  cursor: pointer;
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 .badge.cd-new,
 .badge.cd-worse {
   color: #ffb4a8;

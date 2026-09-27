@@ -32,6 +32,8 @@ describe('function heat-map cell detail', () => {
     expect(box).not.toBeNull();
     within(box).getByText(/運動 · 1 天/);
     within(box).getAllByText(/右側/); // a left M1 weakens the right side
+    // only real changes get a badge; "unchanged" on every line would be noise
+    expect(within(box).queryByText('與前一時間點相同')).toBeNull();
 
     // a source region is a link that opens that region's details
     const armSource = series[i24].symptoms.find((s) => s.id === 'arm_weak' && s.side === 'r')!.sources[0];
