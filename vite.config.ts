@@ -1,5 +1,6 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
+import { configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 // `base: './'` makes every asset URL relative, so the same build works at
@@ -29,5 +30,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // local tooling (e.g. agent worktrees under .claude/) must not be picked up as tests
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
 });
