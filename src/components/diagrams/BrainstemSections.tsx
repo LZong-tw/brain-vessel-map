@@ -4,7 +4,7 @@ import type { L } from '../../anatomy/types';
 import { TIME_STOPS } from '../../anatomy/timeline';
 import type { SimResult } from '../../engine/simulate';
 import { useApp } from '../../state/store';
-import { stateColor, territoryColor, regionColor, toHex } from '../../ui/colors';
+import { edemaColor, stateColor, territoryColor, regionColor, toHex } from '../../ui/colors';
 
 /**
  * Schematic axial sections through the brainstem showing vascular sectors and the key
@@ -135,7 +135,14 @@ export function BrainstemSections({ sim }: { sim: SimResult }) {
   const fill = (rid: string) => {
     const bed = BED_BY_ID[REGION_BY_ID[rid]?.beds[0] ?? ''];
     if (!bed) return '#444';
-    const c = colorMode === 'territory' ? territoryColor(bed) : colorMode === 'anatomy' ? regionColor(rid) : stateColor(bed, sim.beds[bed.id], tH);
+    const c =
+      colorMode === 'territory'
+        ? territoryColor(bed)
+        : colorMode === 'anatomy'
+          ? regionColor(rid)
+          : colorMode === 'edema'
+            ? edemaColor(bed, sim.edema.cytotoxic[bed.id], sim.edema.vasogenic[bed.id], sim.edema.swelling[bed.id])
+            : stateColor(bed, sim.beds[bed.id], tH);
     return toHex(c);
   };
 

@@ -5,7 +5,7 @@ import type { Vec3 } from '../anatomy/types';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
-import { stateColor, territoryColor, regionColor, toHex } from '../ui/colors';
+import { edemaColor, stateColor, territoryColor, regionColor, toHex } from '../ui/colors';
 import { SCALE, toThree, toThreeArr, vesselCurve } from './coords';
 
 /** Small structures not in the MNI mesh set: eyes, inner ears, optic tracts. */
@@ -47,7 +47,13 @@ export function ExtraStructures({ sim }: { sim: SimResult }) {
         const bed = BED_BY_ID[e.region];
         if (!bed) return null;
         const c =
-          colorMode === 'territory' ? territoryColor(bed) : colorMode === 'anatomy' ? regionColor(bed.region) : stateColor(bed, sim.beds[bed.id], tH);
+          colorMode === 'territory'
+            ? territoryColor(bed)
+            : colorMode === 'anatomy'
+              ? regionColor(bed.region)
+              : colorMode === 'edema'
+                ? edemaColor(bed, sim.edema.cytotoxic[bed.id], sim.edema.vasogenic[bed.id], sim.edema.swelling[bed.id])
+                : stateColor(bed, sim.beds[bed.id], tH);
         const handlers = {
           onPointerMove: (ev: { stopPropagation: () => void }) => {
             ev.stopPropagation();

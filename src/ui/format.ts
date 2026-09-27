@@ -2,7 +2,7 @@ import { BED_BY_ID, REGION_BY_ID, VESSEL_BY_ID, tr } from '../anatomy';
 import type { L, Lang, Region, SymptomSystem } from '../anatomy';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
-import { midlineShiftAt, type BedEffectKind } from '../engine/cascade';
+import type { BedEffectKind } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
 import type { EdemaState } from '../engine/edemaTypes';
 import { getUnits } from '../engine/hemodynamics';
@@ -199,10 +199,9 @@ export function regionEdema(edema: EdemaState, regionId: string): RegionEdema {
   return out;
 }
 
-/** Midline shift (mm) at the simulated time: the oedema model when it reports one, else the cascade's estimate. */
+/** Midline shift (mm) at the simulated time, from the oedema model — the same number that moves the 3D brain. */
 export function midlineShiftOf(sim: SimResult): number {
-  if (sim.edema.midlineShiftMm > 0) return sim.edema.midlineShiftMm;
-  return midlineShiftAt(sim.cascade.midlineShift, sim.input.tH, sim.input.decompression);
+  return sim.edema.midlineShiftMm;
 }
 
 /** Net extra volume (mL) from swelling, summed over compartments (tissue loss is ignored). */
