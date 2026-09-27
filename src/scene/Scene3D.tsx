@@ -7,6 +7,7 @@ import type { CameraView } from '../anatomy/scenarios';
 import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
+import { hasWebGL } from '../state/webgl';
 import { BrainMeshes } from './BrainMeshes';
 import { useBrainData } from './brainData';
 import { BRAIN_CENTER, toThree } from './coords';
@@ -62,21 +63,6 @@ function Lights() {
       <directionalLight position={[-14, -6, -12]} intensity={0.55} color="#b8c8ff" />
     </>
   );
-}
-
-let webglSupport: boolean | null = null;
-/** probe once per page and release the probe context right away */
-function hasWebGL(): boolean {
-  if (webglSupport !== null) return webglSupport;
-  try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2') || c.getContext('webgl');
-    webglSupport = !!gl;
-    gl?.getExtension('WEBGL_lose_context')?.loseContext();
-  } catch {
-    webglSupport = false;
-  }
-  return webglSupport;
 }
 
 export function Scene3D({ sim }: { sim: SimResult }) {

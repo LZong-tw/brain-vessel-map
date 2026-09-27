@@ -11,6 +11,7 @@ import { VARIANT_BY_ID } from '../anatomy/variants';
 import type { EmbolusResult, EmbolusSource } from '../engine/embolus';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, fitSchedule, startOf, tidy } from '../engine/schedule';
+import { defaultView, hasWebGL } from './webgl';
 
 /** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
 export type Selection = { kind: 'vessel' | 'region' | 'structure'; id: string } | null;
@@ -178,7 +179,8 @@ export const useApp = create<AppState>((set, get) => ({
   selected: null,
   hovered: null,
 
-  view: '3d',
+  // first visit: default to a view that works even where WebGL is unavailable
+  view: defaultView(),
   colorMode: 'state',
   edemaScale: 1,
   layers: typeof window !== 'undefined' ? initialLayers() : DEFAULT_LAYERS,
@@ -309,7 +311,13 @@ export const useApp = create<AppState>((set, get) => ({
   setLeftTab: (leftTab) => set({ leftTab }),
   setRightTab: (rightTab) => set({ rightTab }),
   setMobilePanel: (mobilePanel) => set({ mobilePanel }),
-  startEmbolus: (run) => set({ embolus: { ...run, done: false }, mobilePanel: 'none', view: '3d' }),
+  startEmbolus: (run) => {
+    // the embolus is only animated in the 3D view; without WebGL there is nothing to switch to
+    // (and the 3D scene, which normally resolves the animation, may never even mount), so stay
+    // on whatever view works and apply the result immediately instead of animating it
+    set({ embolus: { ...run, done: false }, mobilePanel: 'none', ...(hasWebGL() ? { view: '3d' } : {}) });
+    if (!hasWebGL()) get().finishEmbolus();
+  },
   finishEmbolus: () => {
     const e = get().embolus;
     if (!e || e.done) return;

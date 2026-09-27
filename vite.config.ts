@@ -30,6 +30,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // component tests need a DOM; everything else (engine/state/anatomy) stays on the
+    // faster 'node' environment. A per-file `// @vitest-environment jsdom` docblock
+    // also works and takes precedence over this glob.
+    environmentMatchGlobs: [['src/components/**', 'jsdom']],
     // local tooling (e.g. agent worktrees under .claude/) must not be picked up as tests
     exclude: [...configDefaults.exclude, '.claude/**'],
   },

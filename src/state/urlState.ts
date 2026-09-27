@@ -19,6 +19,7 @@ import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, overlap, startOf, tidy } from '../engine/schedule';
 import { isOccludable } from '../engine/simulate';
 import { useApp, type AppState } from './store';
+import { hasWebGL } from './webgl';
 
 /** hours in a link: at most 4 decimals (5 min = 0.0833) */
 const fmtH = (h: number) => String(+h.toFixed(4));
@@ -161,7 +162,9 @@ export function applyHash(hash: string) {
   }
   if (q.get('d') === '1') patch.decompression = true;
   const view = q.get('view');
-  if (view === 'willis' || view === 'brainstem') patch.view = view;
+  if (view === '3d' || view === 'willis' || view === 'brainstem') patch.view = view;
+  // honour an explicit (or scenario-default) 3D view, but not onto a blank canvas
+  if (patch.view === '3d' && !hasWebGL()) patch.view = 'willis';
   if (patch.occlusions?.length) patch.rightTab = 'results';
   useApp.setState(patch);
 }

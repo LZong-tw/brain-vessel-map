@@ -370,6 +370,13 @@ select,
 .search {
   margin-bottom: 10px;
 }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 2px;
+}
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent);
