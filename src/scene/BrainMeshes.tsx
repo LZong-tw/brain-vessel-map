@@ -124,6 +124,22 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
             {/* A see-through cortex is a folded surface that overlaps itself many times; blending
                 every layer in arbitrary order gives flickering dark patches. Write its depth
                 first (invisible pass) so only the outermost layer is blended over what lies inside. */}
+            {/* The ventricles sit inside the thalami and basal ganglia, so from most angles the
+                opaque deep nuclei hide them completely. A faint x-ray pass keeps their outline
+                visible through whatever is in front. */}
+            {isVentricle && (
+              <mesh geometry={m.geometry} scale={scale} renderOrder={5} raycast={() => null}>
+                <meshBasicMaterial
+                  color="#5aa7ff"
+                  transparent
+                  opacity={ventHighlight ? 0.35 : 0.18}
+                  depthTest={false}
+                  depthWrite={false}
+                  side={side}
+                  clippingPlanes={clipPlanes}
+                />
+              </mesh>
+            )}
             {isCortex && transparent && (
               <mesh geometry={m.geometry} renderOrder={3} raycast={() => null}>
                 <meshBasicMaterial colorWrite={false} transparent opacity={0} depthWrite side={side} clippingPlanes={clipPlanes} />

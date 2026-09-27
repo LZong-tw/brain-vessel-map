@@ -126,6 +126,18 @@ function safeGet(key: string): string | null {
     return null;
   }
 }
+function initialLayers(): Layers {
+  try {
+    const saved = JSON.parse(safeGet('bvm.layers') ?? 'null') as Partial<Layers> | null;
+    if (!saved || typeof saved !== 'object') return DEFAULT_LAYERS;
+    const out = { ...DEFAULT_LAYERS };
+    for (const k of Object.keys(DEFAULT_LAYERS) as (keyof Layers)[]) if (typeof saved[k] === 'boolean') out[k] = saved[k]!;
+    return out;
+  } catch {
+    return DEFAULT_LAYERS;
+  }
+}
+
 function safeSet(key: string, v: string) {
   try {
     window.localStorage.setItem(key, v);
@@ -157,7 +169,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   view: '3d',
   colorMode: 'state',
-  layers: DEFAULT_LAYERS,
+  layers: typeof window !== 'undefined' ? initialLayers() : DEFAULT_LAYERS,
   hemis: { r: true, l: true },
   cortexOpacity: 1,
   clip: { axis: 'none', pos: 0 },
@@ -226,7 +238,12 @@ export const useApp = create<AppState>((set, get) => ({
     if (view !== '3d') get().finishEmbolus();
   },
   setColorMode: (colorMode) => set({ colorMode }),
-  toggleLayer: (k) => set({ layers: { ...get().layers, [k]: !get().layers[k] } }),
+  toggleLayer: (k) => {
+    const layers = { ...get().layers, [k]: !get().layers[k] };
+    // remembered per browser: which layers someone likes to see is a viewing preference
+    safeSet('bvm.layers', JSON.stringify(layers));
+    set({ layers });
+  },
   toggleHemi: (s) => set({ hemis: { ...get().hemis, [s]: !get().hemis[s] } }),
   setCortexOpacity: (cortexOpacity) => set({ cortexOpacity }),
   setClip: (c) => set({ clip: { ...get().clip, ...c } }),
@@ -253,7 +270,8 @@ export const useApp = create<AppState>((set, get) => ({
     if (get().modal === 'disclaimer' && modal === 'none') safeSet('bvm.disclaimer', '1');
     set({ modal });
   },
-  resetAll: () =>
+  resetAll: () => {
+    safeSet('bvm.layers', JSON.stringify(DEFAULT_LAYERS));
     set({
       occlusions: [],
       variants: [],
@@ -270,7 +288,8 @@ export const useApp = create<AppState>((set, get) => ({
       hemis: { r: true, l: true },
       cortexOpacity: 1,
       clip: { axis: 'none', pos: 0 },
-    }),
+    });
+  },
 }));
 
 export const currentHours = (s: Pick<AppState, 'tIndex'>) => TIME_STOPS[s.tIndex].h;
