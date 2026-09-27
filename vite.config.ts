@@ -36,5 +36,7 @@ export default defineConfig({
     environmentMatchGlobs: [['src/components/**', 'jsdom']],
     // local tooling (e.g. agent worktrees under .claude/) must not be picked up as tests
     exclude: [...configDefaults.exclude, '.claude/**'],
+    // the stylesheet test reads app.css as text; other CSS stays stubbed out in tests
+    css: { include: [/app\.css/] },
   },
 });

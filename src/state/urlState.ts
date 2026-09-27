@@ -8,6 +8,11 @@
  *   mca_m2_sup_l@0-0.0833                 (reopens by itself after 5 min)
  * No "@" means from 0 and never reopening, so older links read exactly as before. Treatment
  * (`r`) may also be given relative to a later occlusion start (start + one of the usual delays).
+ *
+ * Treatment details go with a treatment time and are written only when they differ from the
+ * default (complete, lasting reperfusion by thrombectomy):
+ *   tm=ivt|bridging   method      tg=2b67   eTICI grade      ro=6     reoccludes 6 h later
+ *   de=<vessel id>    distal embolus                          nr=0.15  no-reflow share
  */
 
 import { VESSEL_BY_ID } from '../anatomy';
@@ -16,8 +21,10 @@ import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { VARIANT_BY_ID } from '../anatomy/variants';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
-import { endOf, overlap, startOf, tidy } from '../engine/schedule';
+import { endOf, isTreatable, overlap, startOf, tidy } from '../engine/schedule';
+import { DEFAULT_TREATMENT, REPERFUSION_GRADES, downstreamBranches, type ReperfusionGrade, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
 import { isOccludable } from '../engine/simulate';
+import { NO_REFLOW_OPTIONS, REOCCLUSION_OPTIONS } from '../ui/treatment';
 import { useApp, type AppState } from './store';
 import { hasWebGL } from './webgl';
 
@@ -56,7 +63,15 @@ export function encodeState(s: AppState): string {
   if (s.collateral !== 'good') q.set('c', s.collateral);
   if (s.map !== 93) q.set('p', String(s.map));
   q.set('t', String(TIME_STOPS[s.tIndex].h));
-  if (s.reperfusionH !== null) q.set('r', fmtH(s.reperfusionH));
+  if (s.reperfusionH !== null) {
+    q.set('r', fmtH(s.reperfusionH));
+    const tx = s.treatment;
+    if (tx.method !== DEFAULT_TREATMENT.method) q.set('tm', tx.method);
+    if (tx.grade !== DEFAULT_TREATMENT.grade) q.set('tg', tx.grade);
+    if (tx.reocclusionAfterH !== null) q.set('ro', fmtH(tx.reocclusionAfterH));
+    if (tx.distalEmbolus) q.set('de', tx.distalEmbolus);
+    if (tx.noReflow > 0) q.set('nr', String(tx.noReflow));
+  }
   if (s.decompression) q.set('d', '1');
   if (s.view !== '3d') q.set('view', s.view);
   return q.toString();
@@ -69,10 +84,30 @@ const LINK_DEFAULTS = {
   collateral: 'good',
   map: 93,
   reperfusionH: null,
+  treatment: DEFAULT_TREATMENT,
   decompression: false,
   scenario: null,
   view: '3d',
 } satisfies Partial<AppState>;
+
+const METHODS: TreatmentMethod[] = ['evt', 'ivt', 'bridging'];
+
+/** the treatment details of a link; each malformed or unknown value falls back to its default */
+function parseTreatment(q: URLSearchParams, occlusions: readonly Occlusion[]): TreatmentOptions {
+  const out: TreatmentOptions = { ...DEFAULT_TREATMENT };
+  const tm = q.get('tm') as TreatmentMethod | null;
+  if (tm && METHODS.includes(tm)) out.method = tm;
+  const tg = q.get('tg') as ReperfusionGrade | null;
+  if (tg && REPERFUSION_GRADES.includes(tg)) out.grade = tg;
+  const ro = Number(q.get('ro'));
+  if (q.get('ro') !== null && REOCCLUSION_OPTIONS.includes(ro)) out.reocclusionAfterH = ro;
+  const nr = Number(q.get('nr'));
+  if (q.get('nr') !== null && nr > 0 && NO_REFLOW_OPTIONS.includes(nr)) out.noReflow = nr;
+  // a distal embolus only in a branch downstream of an occlusion that treatment can reopen
+  const de = q.get('de');
+  if (de && isOccludable(de) && occlusions.some((o) => isTreatable(o) && downstreamBranches(o.vessel).includes(de))) out.distalEmbolus = de;
+  return out;
+}
 
 function nearestStop(h: number): number {
   let best = 0;
@@ -106,6 +141,7 @@ export function applyHash(hash: string) {
       collateral: n.collateral,
       map: n.map,
       reperfusionH: n.reperfusionH,
+      treatment: n.treatment,
       decompression: n.decompression,
       scenario,
       view: '3d',
@@ -160,6 +196,7 @@ export function applyHash(hash: string) {
     const hit = treatmentTimes(patch.occlusions ?? []).find((x) => Math.abs(x - r) < 5e-4);
     if (hit !== undefined) patch.reperfusionH = hit;
   }
+  if (patch.reperfusionH !== null && patch.reperfusionH !== undefined) patch.treatment = parseTreatment(q, patch.occlusions ?? []);
   if (q.get('d') === '1') patch.decompression = true;
   const view = q.get('view');
   if (view === '3d' || view === 'willis' || view === 'brainstem') patch.view = view;

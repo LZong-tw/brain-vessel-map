@@ -86,6 +86,30 @@ Thresholds, time courses and syndrome definitions in `src/engine/` and `src/anat
 - Feeney DM, Baron JC. Diaschisis. Stroke 1986;17:817–830.
 - Kwakkel G, Kollen B, Twisk J. Impact of time on improvement of outcome after stroke. Stroke 2006;37:2348–2353.
 - Langhorne P, Bernhardt J, Kwakkel G. Stroke rehabilitation. Lancet 2011;377:1693–1702.
+- Goyal M et al. Endovascular thrombectomy after large-vessel ischaemic stroke: a meta-analysis of individual patient data from five randomised trials (HERMES). Lancet 2016;387:1723–1731.
+- Menon BK et al. J Neurointerv Surg 2019;11:1065–1069 (thrombectomy for M2 occlusions, HERMES).
+- Nogueira RG et al. Thrombectomy 6 to 24 hours after stroke with a mismatch between deficit and infarct (DAWN). N Engl J Med 2018;378:11–21.
+- Yang P et al. Endovascular thrombectomy with or without intravenous alteplase in acute stroke (DIRECT-MT). N Engl J Med 2020;382:1981–1993.
+- Fischer U et al. Lancet 2022;400:104–115 (SWIFT DIRECT: thrombectomy alone vs. with intravenous alteplase).
+- LeCouffe NE et al. A randomized trial of intravenous alteplase before endovascular treatment for stroke (MR CLEAN-NO IV). N Engl J Med 2021;385:1833–1844.
+- Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS pooled analysis of basilar artery occlusion trials).
+- Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT guideline on basilar artery occlusion).
+- Yi T et al. Front Neurol 2023;14:1308036 (ATTENTION reperfusion figures).
+- Bhatia R et al. Low rates of acute recanalization with intravenous recombinant tissue plasminogen activator in ischemic stroke: real-world experience and a call for action. Stroke 2010;41:2254–2258.
+- Menon BK et al. JAMA 2018;320:1017–1026 (INTERRSeCT: recanalisation after intravenous thrombolysis by occlusion site).
+- Seners P et al. Stroke 2016;47:2409–2412 (early recanalisation after intravenous thrombolysis by occlusion site).
+- Riedel CH et al. The importance of size: successful recanalization by intravenous thrombolysis in acute anterior stroke depends on thrombus length. Stroke 2011;42:1775–1777.
+- The NINDS rt-PA Stroke Study Group. Tissue plasminogen activator for acute ischemic stroke. N Engl J Med 1995;333:1581–1587.
+- Hacke W et al. Thrombolysis with alteplase 3 to 4.5 hours after acute ischemic stroke (ECASS III). N Engl J Med 2008;359:1317–1329.
+- Wahlgren N et al. Thrombolysis with alteplase for acute ischaemic stroke in the Safe Implementation of Thrombolysis in Stroke-Monitoring Study (SITS-MOST). Lancet 2007;369:275–282.
+- Alexandrov AV, Grotta JC. Arterial reocclusion in stroke patients treated with intravenous tissue plasminogen activator. Neurology 2002;59:862–867.
+- Mosimann PJ et al. Stroke 2018;49:2643–2651 (reocclusion after thrombectomy).
+- Marto JP et al. Stroke 2019;50:2960–2963 (early reocclusion after thrombectomy).
+- Beyeler M et al. J Neurointerv Surg 2022;14:326–332 (emboli to new territories during thrombectomy).
+- Singh N et al. Stroke 2023;54:1477–1483 (new-territory infarcts after thrombectomy, ESCAPE-NA1).
+- Wong GJ et al. Stroke 2021;52:2241–2249 (embolic evidence on MRI before and after thrombectomy).
+- Ng FC et al. Neurology 2022;98:e790–e801 (no-reflow after successful reperfusion).
+- ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).
 
 ## 參考的開源專案（未複製程式碼）· Open-source projects consulted (no code copied)
 

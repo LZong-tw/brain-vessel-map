@@ -23,11 +23,34 @@
  *     that episode;
  *   • treatment given before the index onset does not count as treating it.
  * With a single onset at 0 these reduce to the former behaviour exactly.
+ *
+ * Treatment details (engine/treatment.ts). `reperfusionH` is when flow returns; `treatment` says
+ * how and how well. With the default (complete, lasting reperfusion) everything above holds
+ * unchanged, number for number. Otherwise:
+ *   • two courses are built: the treated one (the reopened occlusions open at reperfusionH, plus
+ *     the phases the treatment itself causes: the reopened artery closing again at
+ *     reperfusionH + reocclusionAfterH until it would have cleared by itself, and a clot fragment
+ *     blocking `distalEmbolus` for good from reperfusionH) and the untreated one;
+ *   • a share x = reperfusedFraction (eTICI grade, less no-reflow) of every perfusion unit follows
+ *     the treated course and the rest the untreated one (the clot stays for it): tissue fractions,
+ *     the final and early infarcts, the flow shown and the flow the cascade and the oedema model
+ *     see are all x·treated + (1 − x)·untreated. Units the treatment does not touch have the
+ *     same history in both, so they are unchanged. "Salvaged" is untreated − mixed per unit;
+ *   • eTICI 0 is an attempt that reopens nothing: the tissue follows the untreated course exactly,
+ *     the occlusions stay in effect, and the cascade says the attempt failed;
+ *   • the phases the treatment causes do not start new episodes: the index onset and the final
+ *     horizon come from the input schedule only;
+ *   • after a lasting reocclusion the flow ends where it would have been untreated, and the
+ *     tissue model's eventual loss depends only on that flow: the final infarct is the untreated
+ *     one, reached later (the reopening postponed the loss; the course over time shows it).
+ * Approximations: the x-share is the same for every unit behind every reopened occlusion (an
+ * embolus into a territory NOT behind the reopened artery is weighted by x too), and the oedema
+ * model still sees one reopening (a reocclusion does not take its extra water supply away).
  */
 
 import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import type { Side } from '../anatomy';
-import { computeCascade, type BedEffectKind, type CascadeOutput } from './cascade';
+import { computeCascade, type BedEffectKind, type CascadeOutput, type CascadeTreatment } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
 import { getUnits, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion, type Unit } from './hemodynamics';
 import { computeEdema, type EdemaBedInput } from './edema';
@@ -37,15 +60,27 @@ import type { RecoveryState } from './recoveryTypes';
 import {
   activeAt,
   breakpoints,
+  causeOf,
   endOf,
+  inWindow,
   isTreatable,
+  reopenedByTreatment,
   scheduleEvents,
   startOf,
   statusAt,
   type OcclusionStatus,
   type ScheduleEvent,
+  type TreatmentPhase,
 } from './schedule';
-import { tissueParamsForBed } from './tissueParams';
+import { tissueParamsForBed, type TissueParams } from './tissueParams';
+import {
+  DEFAULT_TREATMENT,
+  GRADE_REPERFUSED,
+  REPERFUSION_GRADES,
+  isDefaultTreatment,
+  reperfusedFraction,
+  type TreatmentOptions,
+} from './treatment';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
@@ -53,6 +88,8 @@ export interface SimInput extends HemoInput {
   tH: number;
   reperfusionH: number | null;
   decompression: boolean;
+  /** how and how well the artery is reopened at reperfusionH (see treatment.ts); default: completely */
+  treatment?: TreatmentOptions;
 }
 
 export interface BedTimeState {
@@ -97,6 +134,35 @@ export interface SimResult {
   recovery: RecoveryState;
   /** the occlusion schedule: its events, the index onset and where each occlusion stands now */
   schedule: ScheduleInfo;
+  /** what the treatment at reperfusionH did (null without treatment) */
+  treatment: TreatmentInfo | null;
+}
+
+/**
+ * The treatment as the simulation applied it. `activeOcclusions` also lists the phases it caused
+ * (a reocclusion, a distal embolus) while they are in effect.
+ */
+export interface TreatmentInfo {
+  /** the options in effect: `input.treatment`, or DEFAULT_TREATMENT; values outside the contract are replaced by the default's */
+  options: TreatmentOptions;
+  /** share of the territory of each reopened occlusion that follows the treated course (reperfusedFraction(options)) */
+  reperfusedFraction: number;
+  /**
+   * vessel ids of the occlusions this treatment reopens (complete, not lacunar, in effect at
+   * reperfusionH), in input order. The options act on them: the grade is the reperfusion of their
+   * territory, a reocclusion closes them again, and a distal embolus comes from their clot (offer
+   * downstreamBranches(id)). With eTICI 0 they stay closed (`failed`).
+   */
+  reopened: string[];
+  /** eTICI 0: the attempt reopened nothing; the tissue follows the untreated course */
+  failed: boolean;
+  /** when the reopened artery closes again (h, simulation clock), or null (it stays open, or nothing was reopened) */
+  reocclusionH: number | null;
+  /**
+   * the branch blocked from reperfusionH on, or null: none requested, or the id was ignored (not
+   * an occludable vessel, one of the reopened vessels, or nothing was reopened)
+   */
+  distalEmbolus: string | null;
 }
 
 export interface ScheduleInfo {
@@ -148,9 +214,15 @@ function pieceIndex(pieces: Piece[], tH: number): number {
   return k;
 }
 
-function buildCourse(input: SimInput, reperfusionH: number | null): Course {
-  const pieces = breakpoints(input.occlusions, reperfusionH).map((fromH) => {
-    const active = activeAt(input.occlusions, fromH, reperfusionH);
+/**
+ * Flow over time when treatment at `reperfusionH` (null: none) reopens what is occluded then.
+ * `occlusions` is the schedule to follow: the input's, plus, for the treated course, the phases
+ * the treatment causes (appended, so that such a complete occlusion overrides an input stenosis
+ * of the same vessel in the flow model).
+ */
+function buildCourse(input: SimInput, reperfusionH: number | null, occlusions: Occlusion[] = input.occlusions): Course {
+  const pieces = breakpoints(occlusions, reperfusionH).map((fromH) => {
+    const active = activeAt(occlusions, fromH, reperfusionH);
     return { fromH, active, hemo: simulateHemodynamics({ ...input, occlusions: active }) };
   });
   const units = getUnits(input.variants, input.collateral);
@@ -166,13 +238,79 @@ function buildCourse(input: SimInput, reperfusionH: number | null): Course {
   return { pieces, units, histories, lacunes: lacuneRegions(input.occlusions) };
 }
 
-function bedInfarctAt(course: Course, tH: number) {
+/** a unit's relative flow at time t (1 before its history starts) */
+function currentRel(history: FlowPhase[], tH: number): number {
+  let rel = 1;
+  for (const ph of history) if (ph.fromH <= tH) rel = ph.rel;
+  return rel;
+}
+
+/**
+ * x·a + (1 − x)·b: a share x follows the treated course, the rest the untreated one. Exact when
+ * x is 1 or 0, or when both courses agree (units the treatment does not touch stay as they are).
+ */
+const blend = (a: number, b: number, x: number): number => (x === 1 || a === b ? a : x === 0 ? b : x * a + (1 - x) * b);
+
+/** per bed: infarcted fraction at time t; with `other`, blended with that course (share 1 − x) unit by unit */
+function bedInfarctAt(course: Course, tH: number, other: Course | null = null, x = 1) {
   const out: Record<string, number> = {};
   course.units.forEach((u, i) => {
-    const f = infarctFractionOf(course.histories[i], tH, tissueParamsForBed(u.bed));
+    const p = tissueParamsForBed(u.bed);
+    let f = infarctFractionOf(course.histories[i], tH, p);
+    if (other && x !== 1) f = blend(f, infarctFractionOf(other.histories[i], tH, p), x);
     out[u.bed] = (out[u.bed] ?? 0) + f * u.frac;
   });
   return out;
+}
+
+/**
+ * The flow of partial reperfusion: every flow, pressure and relative perfusion blended as
+ * x·treated + (1 − x)·untreated, so that what is shown matches the blended tissue.
+ */
+function blendHemo(a: HemoResult, b: HemoResult, x: number): HemoResult {
+  if (a === b || x === 1) return a;
+  if (x === 0) return b;
+  const rec = (ra: Record<string, number>, rb: Record<string, number>) => {
+    const out: Record<string, number> = {};
+    for (const k of Object.keys(ra)) out[k] = blend(ra[k], rb[k] ?? ra[k], x);
+    return out;
+  };
+  const vesselFlow = rec(a.vesselFlow, b.vesselFlow);
+  // a vessel counts as reversed by the rule of simulateHemodynamics, applied to the blended flow;
+  // only one that is reversed in either course can be
+  const reversed = [...new Set([...a.reversed, ...b.reversed])].filter((v) => {
+    const b0 = a.baselineFlow[v] ?? 0;
+    const f = vesselFlow[v] ?? 0;
+    return Math.abs(f) > Math.max(0.5, 0.05 * Math.abs(b0)) && Math.abs(b0) > 0.5 && Math.sign(f) !== Math.sign(b0);
+  });
+  return {
+    ...a,
+    vesselFlow,
+    unitRel: rec(a.unitRel, b.unitRel),
+    bedRel: rec(a.bedRel, b.bedRel),
+    vesselPressure: rec(a.vesselPressure, b.vesselPressure),
+    reversed,
+    totalCbf: blend(a.totalCbf, b.totalCbf, x),
+  };
+}
+
+/**
+ * Add one share of a unit's tissue state at time t to its bed; `frac` is the share's fraction of
+ * the bed (the unit's fraction times the share). Of the tissue that survives reperfusion, only
+ * `saved` (per unit of this share) is "salvaged".
+ */
+function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], saved: number, tH: number, p: TissueParams): void {
+  const { f, rest } = tissueCourse(history, tH, p);
+  bs.frac.core += f * frac;
+  if (rest === 'salvaged') {
+    // "salvaged" is only what treatment saved (would have died untreated); the rest of the
+    // reperfused tissue would have survived on its collaterals anyway and is simply perfused
+    // again — calling all of it salvaged made a late recanalisation look like a rescue
+    const s = Math.min(1 - f, saved);
+    bs.frac.salvaged += s * frac;
+    bs.frac[currentRel(history, tH) < p.oligemiaRel ? 'oligemia' : 'normal'] += (1 - f - s) * frac;
+  } else bs.frac[rest] += (1 - f) * frac;
+  bs.infarct += f * frac;
 }
 
 /** target regions of lacunar (single-branch) occlusions */
@@ -223,9 +361,11 @@ function addLacunes(bedInfarct: Record<string, number>, course: Course, tH: numb
  * The index onset: the start of the occlusion phase that produces most of the final infarct.
  * Each unit's loss in each phase of its flow history is credited to the latest occlusion start
  * at or before that phase began (so treatment or a reopening does not start a new event). If
- * nothing (much) dies, it is the first start that makes brain tissue ischaemic.
+ * nothing (much) dies, it is the first start that makes brain tissue ischaemic. Only the input's
+ * starts count: a phase the treatment caused (reocclusion, distal embolus) belongs to the event
+ * it treated. With partial reperfusion the loss of each course counts by its share.
  */
-function indexOnset(input: SimInput, course: Course, finalH: number): number {
+function indexOnset(input: SimInput, course: Course, finalH: number, other: Course | null = null, x = 1): number {
   const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
   if (starts.length <= 1) return starts[0] ?? 0;
   const credit = new Map<number, number>(starts.map((s) => [s, 0]));
@@ -234,16 +374,19 @@ function indexOnset(input: SimInput, course: Course, finalH: number): number {
     for (const x of starts) if (x <= h) s = x;
     credit.set(s, credit.get(s)! + ml);
   };
-  course.units.forEach((u, i) => {
-    const bed = BED_BY_ID[u.bed];
-    if (!BRAIN.has(REGION_BY_ID[bed.region].category)) return;
-    const h = course.histories[i];
-    let prev = 0;
-    lossSteps(h, finalH, tissueParamsForBed(u.bed)).forEach((f, k) => {
-      if (f > prev) add(h[k].fromH, (f - prev) * u.frac * bed.volume);
-      prev = f;
+  const shares: [Course, number][] = !other || x === 1 ? [[course, 1]] : x === 0 ? [[other, 1]] : [[course, x], [other, 1 - x]];
+  for (const [c, w] of shares) {
+    c.units.forEach((u, i) => {
+      const bed = BED_BY_ID[u.bed];
+      if (!BRAIN.has(REGION_BY_ID[bed.region].category)) return;
+      const h = c.histories[i];
+      let prev = 0;
+      lossSteps(h, finalH, tissueParamsForBed(u.bed)).forEach((f, k) => {
+        if (f > prev) add(h[k].fromH, (f - prev) * u.frac * bed.volume * w);
+        prev = f;
+      });
     });
-  });
+  }
   for (const [rid, list] of course.lacunes)
     for (const o of list) add(startOf(o), lacuneFraction(rid) * REGION_BY_ID[rid].volume * infarctFractionOf(branchHistory(o), finalH));
   let best = starts[0];
@@ -273,27 +416,132 @@ function shiftTimes<T>(x: T, dh: number): T {
   return x;
 }
 
+/**
+ * The treatment options in effect: DEFAULT_TREATMENT when none are given (or they equal it); a
+ * value outside the contract falls back to the default's (no-reflow is kept within 0–0.5).
+ */
+function treatmentOptions(t: TreatmentOptions | undefined): TreatmentOptions {
+  if (!t) return DEFAULT_TREATMENT;
+  const out: TreatmentOptions = {
+    method: t.method === 'ivt' || t.method === 'bridging' ? t.method : 'evt',
+    grade: REPERFUSION_GRADES.includes(t.grade) ? t.grade : DEFAULT_TREATMENT.grade,
+    reocclusionAfterH:
+      typeof t.reocclusionAfterH === 'number' && Number.isFinite(t.reocclusionAfterH) && t.reocclusionAfterH >= 0 ? t.reocclusionAfterH : null,
+    distalEmbolus: typeof t.distalEmbolus === 'string' && t.distalEmbolus ? t.distalEmbolus : null,
+    noReflow: typeof t.noReflow === 'number' && Number.isFinite(t.noReflow) ? Math.min(0.5, Math.max(0, t.noReflow)) : 0,
+  };
+  return isDefaultTreatment(out) ? DEFAULT_TREATMENT : out;
+}
+
+/** How the treatment at reperfusionH is applied (see the header). */
+interface TreatmentPlan {
+  options: TreatmentOptions;
+  /** share of each unit that follows the treated course (0 when the attempt fails) */
+  x: number;
+  /** eTICI 0: nothing is reopened */
+  failed: boolean;
+  /** when the treatment reopens occlusions: reperfusionH, or null if it fails */
+  opensH: number | null;
+  /** the input occlusions it reopens (complete, not lacunar, in effect at reperfusionH) */
+  reopened: Occlusion[];
+  /** the phases it causes: reocclusion(s), then the distal embolus */
+  phases: TreatmentPhase[];
+  reocclusionH: number | null;
+  distalEmbolus: string | null;
+}
+
+function planTreatment(input: SimInput): TreatmentPlan | null {
+  const reperf = input.reperfusionH;
+  if (reperf === null) return null;
+  const options = treatmentOptions(input.treatment);
+  const reopened = input.occlusions.filter((o) => reopenedByTreatment(o, reperf));
+  const failed = GRADE_REPERFUSED[options.grade] === 0;
+  const phases: TreatmentPhase[] = [];
+  let reocclusionH: number | null = null;
+  let distalEmbolus: string | null = null;
+  if (!failed && reopened.length) {
+    if (options.reocclusionAfterH !== null) {
+      const fromH = reperf + options.reocclusionAfterH;
+      for (const o of reopened) {
+        // the reopened artery closes again completely, until the original clot would have
+        // cleared by itself (so a reocclusion can never do worse than no treatment)
+        const e = endOf(o);
+        if (e !== null && e <= fromH) continue;
+        phases.push({ vessel: o.vessel, severity: 1, fromH, ...(e === null ? {} : { toH: e }), causedByTreatment: 'reocclusion' });
+        reocclusionH = fromH;
+      }
+    }
+    // a fragment of the clot lodges in a branch and stays: the same treatment does not reopen it
+    const id = options.distalEmbolus;
+    if (id !== null && isOccludable(id) && !reopened.some((o) => o.vessel === id)) {
+      phases.push({ vessel: id, severity: 1, fromH: reperf, causedByTreatment: 'distal_embolus' });
+      distalEmbolus = id;
+    }
+  }
+  return {
+    options,
+    x: failed ? 0 : reperfusedFraction(options),
+    failed,
+    opensH: failed ? null : reperf,
+    reopened,
+    phases,
+    reocclusionH,
+    distalEmbolus,
+  };
+}
+
+/** regions supplied by a vessel and everything downstream of it (in this anatomy) */
+function territoryRegions(vesselId: string, units: Unit[]): string[] {
+  const tree = new Set<string>();
+  const stack = [vesselId];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (tree.has(id)) continue;
+    tree.add(id);
+    stack.push(...(VESSEL_BY_ID[id]?.children ?? []));
+  }
+  return [...new Set(units.filter((u) => tree.has(u.vessel)).map((u) => BED_BY_ID[u.bed].region))];
+}
+
 /** Everything about one input that does not depend on the displayed time (cached). */
 interface Model {
+  /** the treated course (without treatment the only one; if the attempt fails, the untreated one) */
   course: Course;
+  /** the untreated course when there is treatment, else null */
+  untreated: Course | null;
+  /** share of each unit that follows `course`; the rest follows `untreated` (1 without treatment) */
+  x: number;
+  plan: TreatmentPlan | null;
+  /** the treated course's schedule: the input's occlusions, then the phases the treatment caused */
+  occlusions: Occlusion[];
   onsetH: number;
   finalH: number;
-  /** piece of the index onset, and the piece after that episode first reopens */
-  onsetIdx: number;
-  afterIdx: number;
+  /** flow at the index onset, and after that episode first reopens */
+  hemoAcute: HemoResult;
+  hemoAfter: HemoResult;
   /** first reopening of the index episode on the clinical clock (for the oedema model), or null */
   edemaReperfusionH: number | null;
   /** the cascade on the clinical clock … */
   cascade: CascadeOutput;
   /** … and on the simulation clock, for display */
   shownCascade: CascadeOutput;
+  /**
+   * per unit (same order as course.units): the fraction of the treated share that treatment
+   * saves, i.e. that would be lost by the end of the untreated course but survives the treated
+   * one (0 without treatment)
+   */
+  unitSaved: number[];
+  /** the (blended) flow at time t */
+  hemoAt: (tH: number) => HemoResult;
 }
 
 const modelCache = new Map<string, Model>();
 
 function modelKey(input: SimInput): string {
   const occ = input.occlusions.map((o) => `${o.vessel}:${o.severity}:${o.branch ? 'b' : ''}:${startOf(o)}:${endOf(o)}`).join(',');
-  return `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}|${input.reperfusionH}|${input.decompression}`;
+  const key = `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}|${input.reperfusionH}|${input.decompression}`;
+  const t = input.reperfusionH === null ? DEFAULT_TREATMENT : treatmentOptions(input.treatment);
+  return t === DEFAULT_TREATMENT ? key : `${key}|${t.method}:${t.grade}:${t.reocclusionAfterH}:${t.distalEmbolus}:${t.noReflow}`;
 }
 
 function modelFor(input: SimInput): Model {
@@ -301,54 +549,96 @@ function modelFor(input: SimInput): Model {
   const hit = modelCache.get(key);
   if (hit) return hit;
   const reperf = input.reperfusionH;
-  const course = buildCourse(input, reperf);
-  const { pieces, units } = course;
+  const plan = planTreatment(input);
+  const occlusions = plan && plan.phases.length ? [...input.occlusions, ...plan.phases] : input.occlusions;
+  const untreated = reperf !== null ? buildCourse(input, null) : null;
+  // a failed attempt changes nothing: the treated course is the untreated one
+  const course = plan?.failed ? untreated! : buildCourse(input, reperf, occlusions);
+  const x = plan ? plan.x : 1;
+  const opensH = plan ? plan.opensH : null;
+  const { units } = course;
   let lastChange = 0;
   for (const o of input.occlusions) lastChange = Math.max(lastChange, startOf(o), endOf(o) ?? 0);
   const finalH = lastChange + FINAL_H;
-  const onsetH = indexOnset(input, course, finalH);
-  const onsetIdx = pieceIndex(pieces, onsetH);
-  // the index episode ends at treatment or when one of its occlusions reopens by itself
+  const onsetH = indexOnset(input, course, finalH, untreated, x);
+  const hemoCache = new Map<string, HemoResult>();
+  const hemoAtT = (tH: number): HemoResult => {
+    const i = pieceIndex(course.pieces, tH);
+    const a = course.pieces[i].hemo;
+    if (!untreated || x === 1) return a;
+    const j = pieceIndex(untreated.pieces, tH);
+    const k = `${i}|${j}`;
+    let h = hemoCache.get(k);
+    if (!h) hemoCache.set(k, (h = blendHemo(a, untreated.pieces[j].hemo, x)));
+    return h;
+  };
+  const onsetPiece = course.pieces[pieceIndex(course.pieces, onsetH)];
+  // the index episode ends at treatment (unless it fails) or when one of its occlusions reopens by itself
   const ends: number[] = [];
-  if (reperf !== null && reperf >= onsetH) ends.push(reperf);
-  for (const o of pieces[onsetIdx].active) {
+  if (opensH !== null && opensH >= onsetH) ends.push(opensH);
+  for (const o of onsetPiece.active) {
     const e = endOf(o);
     if (e !== null && e > onsetH) ends.push(e);
   }
   const episodeEndH = ends.length ? Math.min(...ends) : null;
-  const afterIdx = episodeEndH === null ? onsetIdx : pieceIndex(pieces, episodeEndH);
-  const hemoAcute = pieces[onsetIdx].hemo;
+  const hemoAcute = hemoAtT(onsetH);
+  const hemoAfter = episodeEndH === null ? hemoAcute : hemoAtT(episodeEndH);
 
-  const bedFinal = addLacunes(bedInfarctAt(course, finalH), course, finalH);
+  const bedFinal = addLacunes(bedInfarctAt(course, finalH, untreated, x), course, finalH);
   let bedFinalUntreated = bedFinal;
-  if (reperf !== null) {
-    const untreated = buildCourse(input, null);
+  let unitSaved: number[] = units.map(() => 0);
+  if (untreated) {
     bedFinalUntreated = addLacunes(bedInfarctAt(untreated, finalH), untreated, finalH);
+    unitSaved = units.map((u, i) => {
+      const p = tissueParamsForBed(u.bed);
+      return Math.max(0, infarctFractionOf(untreated.histories[i], finalH, p) - infarctFractionOf(course.histories[i], finalH, p));
+    });
   }
   const acute: Record<string, number> = {};
   for (const u of units) {
     // dysfunctional (core or penumbra) in the first hour
     if ((hemoAcute.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
   }
+  const cascadeTreatment: CascadeTreatment | undefined =
+    plan && reperf !== null && reperf >= onsetH && !isDefaultTreatment(plan.options)
+      ? {
+          method: plan.options.method,
+          grade: plan.options.grade,
+          noReflow: plan.options.noReflow,
+          reperfusedFraction: plan.x,
+          failed: plan.failed,
+          reocclusionH: plan.reocclusionH === null ? null : plan.reocclusionH - onsetH,
+          distalEmbolus: plan.distalEmbolus,
+          embolusRegions: plan.distalEmbolus === null ? [] : territoryRegions(plan.distalEmbolus, units),
+        }
+      : undefined;
   const cascade = computeCascade({
     reperfusionH: reperf !== null && reperf >= onsetH ? reperf - onsetH : null,
     decompression: input.decompression,
-    occlusions: pieces[onsetIdx].active,
+    occlusions: onsetPiece.active,
     hemo: hemoAcute,
     bedFinal,
     bedFinalUntreated,
-    bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14), course, onsetH + 14),
+    bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14, untreated, x), course, onsetH + 14),
     regionAcute: regionAgg(acute),
+    // left out for the default treatment, which keeps the former event texts exactly
+    ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
   });
   const model: Model = {
     course,
+    untreated,
+    x,
+    plan,
+    occlusions,
     onsetH,
     finalH,
-    onsetIdx,
-    afterIdx,
+    hemoAcute,
+    hemoAfter,
     edemaReperfusionH: episodeEndH === null ? null : episodeEndH - onsetH,
     cascade,
+    unitSaved,
     shownCascade: onsetH === 0 ? cascade : shiftTimes(cascade, onsetH),
+    hemoAt: hemoAtT,
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -383,21 +673,27 @@ const EFFECT_PRIORITY: BedEffectKind[] = ['secondary', 'compressed', 'degenerati
 export function simulate(input: SimInput): SimResult {
   // ── schedule, flow per piece of the timeline, index onset and cascade (independent of t; cached) ──
   const model = modelFor(input);
-  const { course } = model;
+  const { course, plan } = model;
   const units = course.units;
   const tAbs = input.tH;
   const reperf = input.reperfusionH;
+  // when the treatment reopens occlusions (never, if it fails)
+  const opensH = plan ? plan.opensH : null;
   // flow at the index onset, and after that episode first reopens (treatment or by itself)
-  const hemoAcute = course.pieces[model.onsetIdx].hemo;
-  const hemoAfter = course.pieces[model.afterIdx].hemo;
-  const hemo = course.pieces[pieceIndex(course.pieces, tAbs)].hemo;
+  const { hemoAcute, hemoAfter } = model;
+  const hemo = model.hemoAt(tAbs);
   // the episode in progress: its occlusions and flow name the vascular syndrome
   const episode = course.pieces[episodeIndex(input, course.pieces, tAbs)];
-  const activeOcclusions = activeAt(input.occlusions, tAbs, reperf);
+  const episodeHemo = model.hemoAt(episode.fromH);
+  let activeOcclusions = activeAt(model.occlusions, tAbs, opensH);
+  // a phase the treatment caused replaces an input phase of the same vessel in effect at the same time
+  if (plan && plan.phases.length)
+    activeOcclusions = activeOcclusions.filter((o) => causeOf(o) !== null || !activeOcclusions.some((p) => causeOf(p) !== null && p.vessel === o.vessel));
   // reopened (by treatment, or a complete occlusion by itself) and no complete occlusion left
+  // (a branch blocked by a clot fragment does not undo the reopening of its parent)
   const recanalized =
-    ((reperf !== null && tAbs >= reperf) || input.occlusions.some((o) => isTreatable(o) && statusAt(o, tAbs, reperf) === 'reopened')) &&
-    !activeOcclusions.some(isTreatable);
+    ((opensH !== null && tAbs >= opensH) || input.occlusions.some((o) => isTreatable(o) && statusAt(o, tAbs, opensH) === 'reopened')) &&
+    !activeOcclusions.some((o) => isTreatable(o) && causeOf(o) !== 'distal_embolus');
   // lacunes: one branch of a perforator bundle → a small infarct in its target structure
   const lacunes = [...course.lacunes.keys()];
   const lacuneLoss: Record<string, number> = {};
@@ -417,12 +713,14 @@ export function simulate(input: SimInput): SimResult {
       effect: null,
     };
   }
+  // the reperfused share x of each unit follows the treated course; the rest keeps its clot and
+  // follows the untreated course, where nothing is salvaged by treatment
+  const { x, untreated } = model;
   units.forEach((u, i) => {
     const bs = beds[u.bed];
-    const { f, rest } = tissueCourse(course.histories[i], tAbs, tissueParamsForBed(u.bed));
-    bs.frac.core += f * u.frac;
-    bs.frac[rest] += (1 - f) * u.frac;
-    bs.infarct += f * u.frac;
+    const p = tissueParamsForBed(u.bed);
+    if (x > 0) addUnitShare(bs, u.frac * x, course.histories[i], model.unitSaved[i], tAbs, p);
+    if (x < 1 && untreated) addUnitShare(bs, u.frac * (1 - x), untreated.histories[i], 0, tAbs, p);
   });
   // regions whose damage comes from the lacune alone (before it is added)
   const lacuneOnly = lacunes.filter((rid) => {
@@ -546,7 +844,7 @@ export function simulate(input: SimInput): SimResult {
   const nihss = estimateNihss(symptoms, affected);
 
   const occl = new Set(episode.active.filter((o) => o.severity >= 1).map((o) => o.vessel));
-  const rev = new Set(episode.hemo.reversed);
+  const rev = new Set(episodeHemo.reversed);
   const idOf = (base: string, side?: Side | 'm') => (side && side !== 'm' ? `${base}_${side}` : base);
   const syndromes = detectSyndromes({
     f: (base, side) => rPrim[`${base}_${side}`] ?? 0,
@@ -607,11 +905,29 @@ export function simulate(input: SimInput): SimResult {
     schedule: {
       onsetH: model.onsetH,
       finalH: model.finalH,
-      events: scheduleEvents(input.occlusions, reperf),
-      status: input.occlusions.map((o) => statusAt(o, tAbs, reperf)),
+      events: scheduleEvents(input.occlusions, reperf, plan?.failed ?? false),
+      status: input.occlusions.map((o) => {
+        const s = statusAt(o, tAbs, opensH);
+        // reopened by treatment, then closed again: in effect once more
+        return s === 'treated' && reoccluded(plan, o, tAbs) ? 'active' : s;
+      }),
     },
+    treatment: plan
+      ? {
+          options: plan.options,
+          reperfusedFraction: plan.x,
+          reopened: [...new Set(plan.reopened.map((o) => o.vessel))],
+          failed: plan.failed,
+          reocclusionH: plan.reocclusionH,
+          distalEmbolus: plan.distalEmbolus,
+        }
+      : null,
   };
 }
+
+/** the treatment reopened this occlusion and it has closed again by time t */
+const reoccluded = (plan: TreatmentPlan | null, o: Occlusion, tH: number): boolean =>
+  !!plan && plan.phases.some((p) => causeOf(p) === 'reocclusion' && p.vessel === o.vessel && inWindow(p, tH));
 
 /** Quick "what happens if this vessel is blocked?" preview (24 h, untreated). */
 export function previewOcclusion(vessel: string, base: Omit<SimInput, 'tH' | 'reperfusionH' | 'decompression'>): SimResult {

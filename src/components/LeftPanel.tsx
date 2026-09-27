@@ -11,10 +11,24 @@ import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
 import { EDEMA_UI } from '../i18n/uiEdema';
 import { SCHEDULE_UI } from '../i18n/uiSchedule';
+import { TREATMENT_UI } from '../i18n/uiTreatment';
+import { RECANALISATION_EVIDENCE, siteGroupOf as defaultSiteGroupOf, type RecanalisationEvidence, type SiteGroup } from '../anatomy/recanalisation';
+import type { ReperfusionGrade, TreatmentMethod } from '../engine/treatment';
 import type { Lang } from '../anatomy/types';
 import { useApp, type ColorMode, type EdemaScale, type Layers, type LeftTab } from '../state/store';
 import { formatClock } from '../ui/scheduleFormat';
 import { vesselVisual } from '../ui/vesselState';
+import {
+  NO_REFLOW_OPTIONS,
+  REOCCLUSION_OPTIONS,
+  distalOptions,
+  evidenceRows,
+  fmtShare,
+  reopenedVesselIds,
+  sitesOf,
+  treatmentDelayH,
+  treatmentWarnings,
+} from '../ui/treatment';
 
 export function LeftPanel({ sim }: { sim: SimResult }) {
   const t = useT();
@@ -253,10 +267,11 @@ function SettingsTab() {
           <span>{t.reperfusion}</span>
           <select value={st.reperfusionH ?? ''} onChange={(e) => st.setReperfusion(e.target.value === '' ? null : Number(e.target.value))}>
             <option value="">{t.reperfusionNone}</option>
-            <TreatmentOptions occlusions={st.occlusions} lang={lang} reperfusionAt={t.reperfusionAt} />
+            <ReperfusionTimeOptions occlusions={st.occlusions} lang={lang} reperfusionAt={t.reperfusionAt} />
           </select>
         </label>
         <p className="muted small">{t.reperfusionHint}</p>
+        {st.reperfusionH !== null && <TreatmentDetails />}
         <label className="check">
           <input type="checkbox" checked={st.decompression} onChange={(e) => st.setDecompression(e.target.checked)} />
           {t.decompression}
@@ -291,7 +306,7 @@ function SettingsTab() {
  * Treatment times: the usual delays after onset and, when complete occlusions begin later, the
  * same delays after each of those starts (treatment reopens whatever is occluded at that time).
  */
-function TreatmentOptions({ occlusions, lang, reperfusionAt }: { occlusions: Occlusion[]; lang: Lang; reperfusionAt: string }) {
+function ReperfusionTimeOptions({ occlusions, lang, reperfusionAt }: { occlusions: Occlusion[]; lang: Lang; reperfusionAt: string }) {
   const s = SCHEDULE_UI[lang];
   const later = [...new Set(occlusions.filter(isTreatable).map(startOf))].filter((h) => h > 0).sort((a, b) => a - b);
   const first = REPERFUSION_STOPS.map((h) => (
@@ -321,6 +336,150 @@ function TreatmentOptions({ occlusions, lang, reperfusionAt }: { occlusions: Occ
     </>
   );
 }
+
+/**
+ * How and how well the treatment reopens the artery (shown once a treatment time is chosen),
+ * with the published figures for the reopened site and the chosen method, and warnings when the
+ * method is used outside its usual time window. `evidence` and `siteGroupOf` default to the
+ * app's evidence module (tests pass their own).
+ */
+export function TreatmentDetails({
+  evidence = RECANALISATION_EVIDENCE,
+  siteGroupOf = defaultSiteGroupOf,
+}: {
+  evidence?: RecanalisationEvidence;
+  siteGroupOf?: (baseId: string) => SiteGroup;
+}) {
+  const lang = useApp((s) => s.lang);
+  const occlusions = useApp((s) => s.occlusions);
+  const reperfusionH = useApp((s) => s.reperfusionH);
+  const tx = useApp((s) => s.treatment);
+  const setTreatment = useApp((s) => s.setTreatment);
+  const s = TREATMENT_UI[lang];
+  const reopened = useMemo(() => reopenedVesselIds(occlusions, reperfusionH), [occlusions, reperfusionH]);
+  const distal = useMemo(() => distalOptions(reopened), [reopened]);
+  if (reperfusionH === null) return null;
+  const sites = sitesOf(reopened, siteGroupOf);
+  const warnings = treatmentWarnings(tx, treatmentDelayH(occlusions, reperfusionH, reopened), sites, evidence, lang);
+  const distalList = tx.distalEmbolus && !distal.includes(tx.distalEmbolus) ? [tx.distalEmbolus, ...distal] : distal;
+  const name = (id: string) => (VESSEL_BY_ID[id] ? vesselName(VESSEL_BY_ID[id], lang) : id);
+  const gradeOption = (g: ReperfusionGrade) => (
+    <option key={g} value={g}>
+      {s.grades[g]}
+    </option>
+  );
+  return (
+    <div className="tx-details" role="group" aria-label={s.title}>
+      <div className="tx-title">{s.title}</div>
+      {!reopened.length && <p className="muted small">{s.nothingReopened}</p>}
+      <div className="tx-label" id="tx-method">
+        {s.method}
+      </div>
+      <div className="seg small" role="radiogroup" aria-labelledby="tx-method">
+        {TREATMENT_METHODS.map((m) => (
+          <button key={m} role="radio" aria-checked={tx.method === m} className={tx.method === m ? 'active' : ''} onClick={() => setTreatment({ method: m })}>
+            {s.methods[m]}
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        <span>{s.grade}</span>
+        <select value={tx.grade} onChange={(e) => setTreatment({ grade: e.target.value as ReperfusionGrade })}>
+          {gradeOption('3')}
+          {gradeOption('2c')}
+          <optgroup label={s.grades['2b']}>
+            {gradeOption('2b67')}
+            {gradeOption('2b50')}
+          </optgroup>
+          {gradeOption('2a')}
+          {gradeOption('1')}
+          {gradeOption('0')}
+        </select>
+      </label>
+      <div className="tx-label" id="tx-reocclusion">
+        {s.reocclusion}
+      </div>
+      <div className="seg small" role="radiogroup" aria-labelledby="tx-reocclusion">
+        {REOCCLUSION_OPTIONS.map((h) => (
+          <button
+            key={String(h)}
+            role="radio"
+            aria-checked={tx.reocclusionAfterH === h}
+            className={tx.reocclusionAfterH === h ? 'active' : ''}
+            onClick={() => setTreatment({ reocclusionAfterH: h })}
+          >
+            {h === null ? s.reocclusionNever : s.reocclusionAfter(formatHours(h, lang))}
+          </button>
+        ))}
+      </div>
+      <label className="field">
+        <span>{s.distal}</span>
+        <select value={tx.distalEmbolus ?? ''} onChange={(e) => setTreatment({ distalEmbolus: e.target.value || null })}>
+          <option value="">{s.distalNone}</option>
+          {distalList.map((id) => (
+            <option key={id} value={id}>
+              {name(id)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="tx-label" id="tx-noreflow">
+        {s.noReflow} <span className="badge tx-limited">{s.limitedEvidence}</span>
+      </div>
+      <div className="seg small" role="radiogroup" aria-labelledby="tx-noreflow">
+        {NO_REFLOW_OPTIONS.map((x) => (
+          <button key={x} role="radio" aria-checked={tx.noReflow === x} className={tx.noReflow === x ? 'active' : ''} onClick={() => setTreatment({ noReflow: x })}>
+            {x === 0 ? '0' : fmtShare(x)}
+          </button>
+        ))}
+      </div>
+      <p className="muted small">{s.noReflowHint}</p>
+      {warnings.map((w) => (
+        <p key={w.key} className="callout warn" role="status">
+          {w.text}
+        </p>
+      ))}
+      <EvidenceBox sites={sites} method={tx.method} evidence={evidence} />
+    </div>
+  );
+}
+
+/** published figures for the reopened site(s) and the chosen method, in small print */
+export function EvidenceBox({ sites, method, evidence }: { sites: SiteGroup[]; method: TreatmentMethod; evidence: RecanalisationEvidence }) {
+  const lang = useApp((s) => s.lang);
+  const s = TREATMENT_UI[lang];
+  const rows = evidenceRows(evidence, sites, method, lang);
+  const colon = lang === 'en' ? ': ' : '：';
+  return (
+    <section className="tx-evidence" aria-label={s.evidenceTitle}>
+      <div className="tx-label">{s.evidenceTitle}</div>
+      <p className="tx-choice">{s.evidenceChoice}</p>
+      {rows.length ? (
+        <ul>
+          {rows.map((r) => (
+            <li key={r.key}>
+              <span className="tx-ev-head">
+                {r.label}
+                {colon}
+                <strong className="num">{r.value}</strong>
+              </span>
+              {r.note && <span className="tx-ev-note">{r.note}</span>}
+              <cite className="tx-ev-source">
+                {s.source}
+                {colon}
+                {r.source}
+              </cite>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted">{s.evidenceNone}</p>
+      )}
+    </section>
+  );
+}
+
+const TREATMENT_METHODS: TreatmentMethod[] = ['evt', 'ivt', 'bridging'];
 
 const COLOR_MODES: ColorMode[] = ['state', 'territory', 'anatomy', 'edema'];
 const EDEMA_SCALES: EdemaScale[] = [1, 3, 5];

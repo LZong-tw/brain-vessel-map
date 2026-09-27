@@ -10,6 +10,10 @@
  * stenosis over 0–72 h followed by a complete occlusion from 72 h. Nothing is in effect before
  * its start, so between events the set of active occlusions is constant: the timeline breaks at
  * every start, reopening and treatment time, and each piece is one steady-state flow problem.
+ *
+ * The treatment can itself cause occlusion phases (see treatment.ts): the reopened artery closing
+ * again, or a clot fragment blocking a downstream branch. simulate() adds them to the treated
+ * course as ordinary phases marked with their cause; the same treatment never reopens them.
  */
 
 import type { Occlusion } from './hemodynamics';
@@ -28,9 +32,26 @@ export function inWindow(o: Occlusion, tH: number): boolean {
   return tH >= startOf(o) && (e === null || tH < e);
 }
 
-/** treatment at `reperfusionH` reopens this occlusion (it is complete and in effect at that moment) */
+/**
+ * Why a phase exists when the treatment itself caused it: the reopened artery closing again
+ * ('reocclusion') or a fragment of the clot blocking a downstream branch ('distal_embolus').
+ */
+export type TreatmentCause = 'reocclusion' | 'distal_embolus';
+
+/** an occlusion phase that the treatment caused; never part of the user's schedule */
+export interface TreatmentPhase extends Occlusion {
+  causedByTreatment: TreatmentCause;
+}
+
+/** what caused this phase if the treatment did, otherwise null */
+export const causeOf = (o: Occlusion): TreatmentCause | null => (o as Partial<TreatmentPhase>).causedByTreatment ?? null;
+
+/**
+ * treatment at `reperfusionH` reopens this occlusion (it is complete and in effect at that moment,
+ * and the treatment did not cause it: a fragment it sends downstream stays where it lodges)
+ */
 export const reopenedByTreatment = (o: Occlusion, reperfusionH: number | null): boolean =>
-  reperfusionH !== null && isTreatable(o) && inWindow(o, reperfusionH);
+  reperfusionH !== null && isTreatable(o) && inWindow(o, reperfusionH) && causeOf(o) === null;
 
 /** the occlusion is in effect at time t */
 export const isActiveAt = (o: Occlusion, tH: number, reperfusionH: number | null): boolean =>
@@ -154,8 +175,11 @@ export interface ScheduleEvent {
  * Everything that happens to the vessels, in time order: an occlusion begins ('onset'), a
  * vessel narrows further or occludes as its previous phase ends ('progression'), an occlusion
  * clears by itself, fully or to a milder narrowing ('reopen'), or treatment reopens occlusions.
+ * A treatment that fails (eTICI 0) is still listed, reopening nothing: the occlusions then run
+ * their course as if untreated.
  */
-export function scheduleEvents(occlusions: readonly Occlusion[], reperfusionH: number | null): ScheduleEvent[] {
+export function scheduleEvents(occlusions: readonly Occlusion[], reperfusionH: number | null, treatmentFails = false): ScheduleEvent[] {
+  const opensH = treatmentFails ? null : reperfusionH;
   const out: ScheduleEvent[] = [];
   occlusions.forEach((o, i) => {
     const prev = occlusions.find((p) => p !== o && successorOf(occlusions, p) === o);
@@ -163,11 +187,11 @@ export function scheduleEvents(occlusions: readonly Occlusion[], reperfusionH: n
     else if (progressed(occlusions, prev)) out.push({ h: startOf(o), kind: 'progression', index: i, vessel: o.vessel });
     const e = endOf(o);
     // an occlusion that treatment reopens earlier never reaches its own reopening
-    if (e !== null && !progressed(occlusions, o) && !reopenedByTreatment(o, reperfusionH))
+    if (e !== null && !progressed(occlusions, o) && !reopenedByTreatment(o, opensH))
       out.push({ h: e, kind: 'reopen', index: i, vessel: o.vessel });
   });
   if (reperfusionH !== null) {
-    const reopens = occlusions.map((o, i) => [o, i] as const).filter(([o]) => reopenedByTreatment(o, reperfusionH)).map(([, i]) => i);
+    const reopens = occlusions.map((o, i) => [o, i] as const).filter(([o]) => reopenedByTreatment(o, opensH)).map(([, i]) => i);
     out.push({ h: reperfusionH, kind: 'treatment', index: -1, vessel: null, reopens });
   }
   const rank: Record<ScheduleEventKind, number> = { reopen: 0, treatment: 1, progression: 2, onset: 3 };
