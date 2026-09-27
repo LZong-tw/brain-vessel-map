@@ -5,8 +5,9 @@ import { BED_BY_ID } from '../anatomy';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
-import { hex, mix, regionColor, stateColor, territoryColor, type RGB } from '../ui/colors';
+import { edemaColor, hex, mix, regionColor, stateColor, territoryColor, type RGB } from '../ui/colors';
 import type { BrainData, MeshData } from './brainData';
+import { applyEdemaDeformation } from './deform';
 
 interface Props {
   data: BrainData;
@@ -21,6 +22,7 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
   const hemis = useApp((s) => s.hemis);
   const opacity = useApp((s) => s.cortexOpacity);
   const colorMode = useApp((s) => s.colorMode);
+  const edemaScale = useApp((s) => s.edemaScale);
   // only region highlights matter here; hovering a vessel must not recolour the brain
   const hoveredRegion = useApp((s) => (s.hovered?.kind === 'region' ? s.hovered.id : null));
   const selectedRegion = useApp((s) => (s.selected?.kind === 'region' ? s.selected.id : null));
@@ -45,6 +47,7 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
       let c: RGB;
       if (colorMode === 'territory') c = territoryColor(bed);
       else if (colorMode === 'anatomy') c = regionColor(bed.region);
+      else if (colorMode === 'edema') c = edemaColor(bed, sim.edema.cytotoxic[id], sim.edema.vasogenic[id], sim.edema.swelling[id]);
       else c = stateColor(bed, sim.beds[id], tH);
       const hl = hoveredRegion === bed.region || selectedRegion === bed.region;
       cols.push(hl ? mix(c, HIGHLIGHT, 0.45) : c);
@@ -82,6 +85,12 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
     invalidate();
   }, [data, bedColors, invalidate]);
 
+  // swelling, midline shift and ventricle size reshape the meshes; applyEdemaDeformation only
+  // touches meshes whose inputs actually changed, so a new sim with the same oedema is free
+  useEffect(() => {
+    if (applyEdemaDeformation(data, { edema: sim.edema, exaggeration: edemaScale })) invalidate();
+  }, [data, sim.edema, edemaScale, invalidate]);
+
   const regionAt = (m: MeshData, e: ThreeEvent<PointerEvent> | ThreeEvent<MouseEvent>): string | null => {
     if (!m.bed || !e.face) return null;
     const b = m.bed[e.face.a];
@@ -100,7 +109,8 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
       case 'deep':
         return layers.deep;
       case 'ventricle':
-        return layers.ventricles || sim.hydrocephalus;
+        // enlarged or compressed ventricles are part of what the oedema view is about
+        return layers.ventricles || sim.hydrocephalus || (colorMode === 'edema' && sim.edema.phase !== 'none');
       default:
         return true;
     }
@@ -114,7 +124,6 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
         const isVentricle = m.kind === 'ventricle';
         const transparent = (isCortex && opacity < 0.99) || isVentricle;
         const op = isVentricle ? 0.45 : isCortex ? opacity : 1;
-        const scale = isVentricle && sim.hydrocephalus ? 1.18 : 1;
         const side = clipPlanes.length ? DoubleSide : FrontSide;
         // a see-through cortex should not block clicks on what is visible inside it
         const passThrough = isCortex && opacity < 0.6;
@@ -128,7 +137,7 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
                 opaque deep nuclei hide them completely. A faint x-ray pass keeps their outline
                 visible through whatever is in front. */}
             {isVentricle && (
-              <mesh geometry={m.geometry} scale={scale} renderOrder={5} raycast={() => null}>
+              <mesh geometry={m.geometry} renderOrder={5} raycast={() => null}>
                 <meshBasicMaterial
                   color="#5aa7ff"
                   transparent
@@ -147,7 +156,6 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
             )}
             <mesh
               geometry={m.geometry}
-              scale={scale}
               renderOrder={isCortex && transparent ? 4 : transparent ? 2 : 0}
               onPointerMove={(e) => {
                 if (passThrough) return;

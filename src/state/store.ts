@@ -14,7 +14,9 @@ import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 /** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
 export type Selection = { kind: 'vessel' | 'region' | 'structure'; id: string } | null;
 export type ViewMode = '3d' | 'willis' | 'brainstem';
-export type ColorMode = 'state' | 'territory' | 'anatomy';
+export type ColorMode = 'state' | 'territory' | 'anatomy' | 'edema';
+/** display multiplier for swelling / midline shift in 3D: 1 = true scale, 3 and 5 exaggerate for teaching */
+export type EdemaScale = 1 | 3 | 5;
 export type LeftTab = 'scenarios' | 'vessels' | 'settings' | 'view';
 export type RightTab = 'details' | 'results';
 
@@ -56,6 +58,7 @@ export interface AppState {
 
   view: ViewMode;
   colorMode: ColorMode;
+  edemaScale: EdemaScale;
   layers: Layers;
   hemis: { r: boolean; l: boolean };
   cortexOpacity: number;
@@ -83,6 +86,7 @@ export interface AppState {
   hover: (s: Selection) => void;
   setView: (v: ViewMode) => void;
   setColorMode: (m: ColorMode) => void;
+  setEdemaScale: (k: EdemaScale) => void;
   toggleLayer: (k: keyof Layers) => void;
   toggleHemi: (s: 'r' | 'l') => void;
   setCortexOpacity: (v: number) => void;
@@ -169,6 +173,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   view: '3d',
   colorMode: 'state',
+  edemaScale: 1,
   layers: typeof window !== 'undefined' ? initialLayers() : DEFAULT_LAYERS,
   hemis: { r: true, l: true },
   cortexOpacity: 1,
@@ -238,6 +243,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (view !== '3d') get().finishEmbolus();
   },
   setColorMode: (colorMode) => set({ colorMode }),
+  setEdemaScale: (edemaScale) => set({ edemaScale }),
   toggleLayer: (k) => {
     const layers = { ...get().layers, [k]: !get().layers[k] };
     // remembered per browser: which layers someone likes to see is a viewing preference
@@ -284,6 +290,7 @@ export const useApp = create<AppState>((set, get) => ({
       selected: null,
       embolus: null,
       colorMode: 'state',
+      edemaScale: 1,
       layers: DEFAULT_LAYERS,
       hemis: { r: true, l: true },
       cortexOpacity: 1,

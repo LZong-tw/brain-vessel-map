@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { tr } from '../anatomy';
 import { TERRITORY_INFO } from '../anatomy/territories';
+import { EDEMA_UI } from '../i18n/uiEdema';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
-import { STATE_COLORS, VESSEL_COLORS } from '../ui/colors';
+import { EDEMA_COLORS, STATE_COLORS, VESSEL_COLORS } from '../ui/colors';
 
 export function Legend() {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const mode = useApp((s) => s.colorMode);
+  const edemaScale = useApp((s) => s.edemaScale);
+  const et = EDEMA_UI[lang];
   // start folded on short or narrow screens so it doesn't cover the model
   const [open, setOpen] = useState(() => typeof window === 'undefined' || (window.innerHeight >= 980 && window.innerWidth > 900));
   const tissue: [string, string][] =
@@ -28,7 +31,15 @@ export function Legend() {
             TERRITORY_INFO[k].color,
             tr(TERRITORY_INFO[k].name, lang),
           ])
-        : [];
+        : mode === 'edema'
+          ? [
+              [EDEMA_COLORS.normal, et.legend.normal],
+              [EDEMA_COLORS.cytotoxic, et.legend.cytotoxic],
+              [EDEMA_COLORS.both, et.legend.both],
+              [EDEMA_COLORS.vasogenic, et.legend.vasogenic],
+              [EDEMA_COLORS.chronic, et.legend.chronic],
+            ]
+          : [];
   const vessels: [string, string][] = [
     [VESSEL_COLORS.artery, lang === 'en' ? 'Normal flow' : '正常血流'],
     [VESSEL_COLORS.occluded, t.states.occluded],
@@ -52,6 +63,12 @@ export function Legend() {
                 </li>
               ))}
             </ul>
+          )}
+          {mode === 'edema' && <p className="muted small">{et.legendNote}</p>}
+          {edemaScale > 1 && (
+            <p className="callout warn">
+              {et.exaggerated(edemaScale)}
+            </p>
           )}
           <ul>
             {vessels.map(([c, l]) => (
