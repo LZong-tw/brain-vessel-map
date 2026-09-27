@@ -1892,3 +1892,71 @@ select.sched-sev {
 .chip.occ .x {
   margin-left: auto;
 }
+
+/* ── function heat-map: clicked-cell detail ─────────────────────────── */
+.sg-cell[role='button']:focus-visible {
+  outline: 2px solid var(--accent, #5aa9ff);
+  outline-offset: 1px;
+}
+.sg-cell.sel {
+  box-shadow: 0 0 0 2px var(--accent, #5aa9ff);
+}
+.cell-detail {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.cell-detail .cd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.cell-detail .btn-icon {
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.cd-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.cd-list li {
+  padding: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.cd-list li:first-child {
+  border-top: 0;
+}
+.cd-list .sw {
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.cd-src {
+  margin: 2px 0 0 18px;
+}
+.linklike {
+  border: 0;
+  background: none;
+  padding: 0 4px 0 0;
+  color: var(--accent, #5aa9ff);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.badge.cd-new,
+.badge.cd-worse {
+  color: #ffb4a8;
+}
+.badge.cd-better {
+  color: #a8e6b4;
+}

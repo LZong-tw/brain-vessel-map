@@ -1,7 +1,10 @@
-import { useMemo } from 'react';
-import { tr } from '../anatomy';
+import { useMemo, useState } from 'react';
+import { REGION_BY_ID, regionName, tr } from '../anatomy';
 import type { SymptomSystem } from '../anatomy';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
+import { TIME_STOPS } from '../anatomy/timeline';
 import type { SimResult } from '../engine/simulate';
+import { CELL_DETAIL_UI } from '../i18n/uiCellDetail';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
@@ -17,6 +20,7 @@ import {
   swellingVolumeOf,
   systemOf,
 } from '../ui/format';
+import { systemCellDetail } from '../ui/cellDetail';
 import { COMPENSATION_SHOWN, compensatedShare, nihssFill, withHatch } from '../ui/recoveryFormat';
 import { StopGrid, type StopRow } from './StopGrid';
 
@@ -36,6 +40,7 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const rt = RECOVERY_UI[lang];
+  const [picked, setPicked] = useState<string | null>(null);
   const { rows, hatched } = useMemo(() => {
     const perStop = series.map((s) => severityBySystem(s.symptoms));
     const compStop = series.map(compensatedSystems);
@@ -93,7 +98,8 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
         <p className="muted small">{t.noSymptoms}</p>
       ) : (
         <>
-          <StopGrid rows={rows} label={t.funcTimeline} />
+          <StopGrid rows={rows} label={t.funcTimeline} onPickCell={(key) => setPicked(key)} selectedRow={picked} />
+          {picked && rows.some((r) => r.key === picked) && <CellDetailBox rowKey={picked} series={series} onClose={() => setPicked(null)} />}
           <div className="sg-legend small muted">
             {[1, 2, 3].map((lv) => (
               <span key={lv}>
@@ -114,10 +120,111 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
               </span>
             )}
           </div>
-          <p className="muted small">{t.funcTimelineHint}</p>
+          <p className="muted small">{picked ? t.funcTimelineHint : CELL_DETAIL_UI[lang].hint}</p>
           {hatched && <p className="rec-caveat small">{rt.caveat}</p>}
         </>
       )}
     </section>
+  );
+}
+
+/** What lies behind the selected heat-map cell (row = a function system, column = the current time). */
+function CellDetailBox({ rowKey, series, onClose }: { rowKey: string; series: SimResult[]; onClose: () => void }) {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const index = useApp((s) => s.tIndex);
+  const select = useApp((s) => s.select);
+  const setRightTab = useApp((s) => s.setRightTab);
+  const ct = CELL_DETAIL_UI[lang];
+  const sim = series[index];
+  const time = tr(TIME_STOPS[index].label, lang);
+  const sideWord = (side: 'r' | 'l' | 'both' | null) => (side ? t.bodySide[side] : '');
+  const openRegion = (id: string) => {
+    select({ kind: 'region', id });
+    setRightTab('details');
+  };
+  let heading: string;
+  let body: JSX.Element;
+  if (rowKey === 'swelling') {
+    heading = `${t.swelling} / ${t.midlineShift}`;
+    body = <p className="small">{ct.swelling(midlineShiftOf(sim).toFixed(1), fmtMl(swellingVolumeOf(sim.edema)))}</p>;
+  } else if (rowKey === 'nihss') {
+    heading = RECOVERY_UI[lang].rowNihss;
+    body = <p className="small">{ct.nihss(sim.nihss.total)}</p>;
+  } else {
+    const system = rowKey as SymptomSystem;
+    const d = systemCellDetail(series, index, system);
+    heading = tr(SYSTEM_LABEL[system], lang);
+    body = (
+      <>
+        {d.items.length === 0 ? (
+          <p className="small muted">{ct.none}</p>
+        ) : (
+          <ul className="cd-list">
+            {d.items.map((s) => {
+              const sym = SYMPTOM_BY_ID[s.id];
+              return (
+                <li key={`${s.id}|${s.side ?? ''}`}>
+                  <span className="sw" style={{ background: SEV_FILL[s.sev] ?? undefined }} />
+                  <span className="cd-name">
+                    {sym ? tr(sym.name, lang) : s.id}
+                    {s.side && `（${sideWord(s.side)}）`}
+                  </span>{' '}
+                  <span className="muted small">{t.sevWords[s.sev]}</span>{' '}
+                  {index > 0 && <span className={`badge cd-${s.change}`}>{ct.change[s.change]}</span>}
+                  {s.compensated >= COMPENSATION_SHOWN && <span className="badge">{ct.compensated(Math.round(s.compensated * 100))}</span>}
+                  {(s.regions.length > 0 || s.events.length > 0) && (
+                    <div className="small muted cd-src">
+                      {s.regions.length > 0 && (
+                        <>
+                          {ct.from}{' '}
+                          {s.regions.map((rid) =>
+                            REGION_BY_ID[rid] ? (
+                              <button key={rid} type="button" className="linklike" onClick={() => openRegion(rid)}>
+                                {regionName(REGION_BY_ID[rid], lang)}
+                              </button>
+                            ) : null,
+                          )}
+                        </>
+                      )}
+                      {s.events.length > 0 && (
+                        <>
+                          {' '}
+                          {ct.fromEvent}：
+                          {s.events
+                            .map((id) => sim.cascade.events.find((e) => e.id === id))
+                            .filter((e) => !!e)
+                            .map((e) => tr(e!.title, lang))
+                            .join('、')}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {d.resolved.length > 0 && (
+          <p className="small muted">
+            {ct.resolved}：
+            {d.resolved.map((s) => `${SYMPTOM_BY_ID[s.id] ? tr(SYMPTOM_BY_ID[s.id].name, lang) : s.id}${s.side ? `（${sideWord(s.side)}）` : ''}`).join('、')}
+          </p>
+        )}
+      </>
+    );
+  }
+  return (
+    <div className="cell-detail" role="region" aria-live="polite" aria-label={`${heading} · ${time}`}>
+      <div className="cd-head">
+        <strong>
+          {heading} · {time}
+        </strong>
+        <button type="button" className="btn-icon" aria-label={ct.close} title={ct.close} onClick={onClose}>
+          ×
+        </button>
+      </div>
+      {body}
+    </div>
   );
 }
