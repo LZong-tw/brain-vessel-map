@@ -193,3 +193,27 @@ describe('a brief complete occlusion is a TIA (goal 7)', () => {
     expect(sim({ occlusions: occl('mca_m1_l'), reperfusionH: 1 }).volumes.finalInfarct).toBeGreaterThan(10);
   });
 });
+
+describe('blood pressure and the brainstem collaterals', () => {
+  // reported: at #o=basilar_mid&p=135 the function heat-map was empty — good collaterals fully
+  // replaced the basilar supply from a mean pressure of ~110 mmHg
+  const perforatorRel = (map: number, collateral: CollateralGrade) =>
+    simulate({ occlusions: [{ vessel: 'basilar_mid', severity: 1 }], variants: [], map, collateral, tH: 3, reperfusionH: null, decompression: false }).hemo
+      .unitRel['pons_caudal_basis_r#pontine_paramedian_caudal_r'];
+
+  it('an acute mid-basilar occlusion stays ischaemic and symptomatic over the whole pressure range', () => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const map of [60, 93, 110, 135, 160]) {
+        const r = simulate({ occlusions: [{ vessel: 'basilar_mid', severity: 1 }], variants: [], map, collateral, tH: 3, reperfusionH: null, decompression: false });
+        expect(perforatorRel(map, collateral), `${collateral} MAP ${map}`).toBeLessThan(DEFAULT_TISSUE.penumbraRel);
+        expect(r.syndromes.map((m) => m.def.id), `${collateral} MAP ${map}`).toContain('locked_in');
+      }
+  });
+
+  it('higher pressure helps the collaterals a little, lower pressure hurts them', () => {
+    for (const collateral of ['good', 'moderate'] as CollateralGrade[]) {
+      expect(perforatorRel(70, collateral)).toBeLessThan(perforatorRel(93, collateral));
+      expect(perforatorRel(120, collateral)).toBeGreaterThanOrEqual(perforatorRel(93, collateral));
+    }
+  });
+});

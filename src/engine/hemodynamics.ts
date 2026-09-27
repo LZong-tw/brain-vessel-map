@@ -162,6 +162,18 @@ const BRAINSTEM_PIAL: { perforator: string; from: string; share: number }[] = [
 const PIAL_ANAST = 0.02;
 /** TODO(medical-review): fixed series limit of the surface-to-perforator entry (same units) */
 const PIAL_ENTRY = 0.015;
+/**
+ * Above normal pressure the pial collaterals, like other small arteries, constrict (myogenic
+ * tone), so hypertension adds only a little collateral flow instead of pushing it up in step
+ * with the pressure. Without this, a complete mid-basilar occlusion with good collaterals caused
+ * no ischaemia at all from a mean pressure of ~110 mmHg, which is not how acute basilar
+ * occlusion behaves. At or below normal pressure the conductance is unchanged (hypotension
+ * still starves the collateral territory).
+ * TODO(medical-review): the exponent is tuned so that good collaterals stay in the penumbra range
+ * over the whole blood-pressure slider; it is not a measured value.
+ */
+const PIAL_PRESSURE_EXP = 1.4;
+export const pialPressureFactor = (map: number) => (map <= MAP_REF ? 1 : Math.pow(MAP_REF / map, PIAL_PRESSURE_EXP));
 
 const BRAIN_CATEGORIES = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
 
@@ -540,6 +552,8 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
     }
   }
   const edges = vesselEdges(cfg, gOverride, dead);
+  const pialFactor = pialPressureFactor(input.map);
+  if (pialFactor !== 1) for (const e of edges) if (e.vessel.startsWith('pial:')) e.g *= pialFactor;
   const live = cfg.units.filter((u) => !dead.has(u.node));
   const asm = assemble(edges, live);
   const base = Float64Array.from(asm.sys.a);
