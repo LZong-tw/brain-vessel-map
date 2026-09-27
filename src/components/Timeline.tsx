@@ -1,9 +1,40 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { tr } from '../anatomy';
+import type { Lang } from '../anatomy/types';
 import { PHASE_LABEL, TIME_STOPS, formatHours, phaseOf } from '../anatomy/timeline';
 import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
+
+/** the range thumb's half-width: stop i sits at 8px + i/n of the remaining width */
+const INSET = 8;
+/** labels are placed in this order while they fit, so landmarks win over in-between stops */
+const LABEL_PRIORITY_H = [0, 4320, 1, 6, 24, 168, 720, 3, 72, 336, 12, 2160, 0.5, 2, 4.5, 48, 120, 0.25];
+/** index of the first stop of the acute phase (end of the hyperacute section) */
+const HYPER_END = Math.max(1, TIME_STOPS.findIndex((s) => phaseOf(s.h) !== 'hyperacute'));
+
+/** rough width (px) of a label at the 10.5px label size */
+const labelWidth = (s: string) => [...s].reduce((w, ch) => w + (ch.charCodeAt(0) > 0x2e80 ? 10.6 : ch === ' ' ? 3 : 6.2), 0);
+
+/** Choose which stop labels to show at this track width so that none overlap. */
+function pickLabels(trackWidth: number, lang: Lang): Set<number> {
+  const n = TIME_STOPS.length - 1;
+  const usable = Math.max(0, trackWidth - 2 * INSET);
+  const chosen: [number, number][] = [];
+  const out = new Set<number>();
+  const gap = 8;
+  for (const h of LABEL_PRIORITY_H) {
+    const i = TIME_STOPS.findIndex((s) => s.h === h);
+    if (i < 0 || out.has(i)) continue;
+    const w = labelWidth(tr(TIME_STOPS[i].label, lang));
+    const x = (i / n) * usable;
+    const span: [number, number] = i === 0 ? [0, w] : i === n ? [usable - w, usable] : [x - w / 2, x + w / 2];
+    if (chosen.some(([a, b]) => span[0] < b + gap && span[1] + gap > a)) continue;
+    chosen.push(span);
+    out.add(i);
+  }
+  return out;
+}
 
 export function Timeline({ sim }: { sim: SimResult }) {
   const t = useT();
@@ -14,6 +45,8 @@ export function Timeline({ sim }: { sim: SimResult }) {
   const setPlaying = useApp((s) => s.setPlaying);
   const reperfusionH = useApp((s) => s.reperfusionH);
   const active = useApp((s) => s.occlusions.length > 0 || s.map < 70);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [trackW, setTrackW] = useState(0);
 
   useEffect(() => {
     if (!playing) return;
@@ -27,6 +60,19 @@ export function Timeline({ sim }: { sim: SimResult }) {
     }, 1300);
     return () => window.clearInterval(id);
   }, [playing]);
+
+  // measure the track so the stop labels can be thinned out to what fits
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    setTrackW(el.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver((entries) => setTrackW(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [active]);
+
+  const shown = useMemo(() => pickLabels(trackW, lang), [trackW, lang]);
 
   if (!active) return null;
   const h = TIME_STOPS[tIndex].h;
@@ -58,7 +104,14 @@ export function Timeline({ sim }: { sim: SimResult }) {
           <strong>{formatHours(h, lang)}</strong>
           <span className="muted">{tr(PHASE_LABEL[phaseOf(h)], lang)}</span>
         </div>
-        <div className="tl-track">
+        <div className="tl-track" ref={trackRef}>
+          <div className="tl-bands" aria-hidden="true">
+            <span
+              className={`tl-band hyper${phaseOf(h) === 'hyperacute' ? ' cur' : ''}`}
+              style={{ width: `calc(${(HYPER_END / n) * 100}% + 6px)` }}
+              title={tr(PHASE_LABEL.hyperacute, lang)}
+            />
+          </div>
           <input
             type="range"
             min={0}
@@ -80,10 +133,10 @@ export function Timeline({ sim }: { sim: SimResult }) {
           </div>
           <div className="tl-labels" aria-hidden="true">
             {TIME_STOPS.map((s, i) =>
-              (i % 2 === 0 && i < n - 1) || i === n ? (
+              shown.has(i) ? (
                 <span
                   key={s.h}
-                  className={i === 0 ? 'first' : i === n ? 'last' : i % 4 !== 0 ? 'minor' : undefined}
+                  className={`${i === 0 ? 'first' : i === n ? 'last' : ''}${i === tIndex ? ' cur' : ''}`}
                   style={{ left: `${(i / n) * 100}%` }}
                 >
                   {tr(s.label, lang)}
