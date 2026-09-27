@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { DEFAULT_TREATMENT, downstreamBranches } from '../engine/treatment';
 import { useApp } from './store';
 import { applyHash, encodeState } from './urlState';
 import { __setWebGLForTests } from './webgl';
@@ -90,6 +91,68 @@ describe('shareable URL state', () => {
     applyHash('#o=aca_a1_r');
     applyHash(`#${enc}`);
     expect(encodeState(useApp.getState())).toBe(enc);
+  });
+});
+
+describe('treatment details in the link', () => {
+  beforeEach(() => __setWebGLForTests(true));
+
+  it('old links (and links without treatment) read as the default treatment', () => {
+    applyHash('#o=mca_m1_l&c=poor&t=24&r=2');
+    expect(useApp.getState().treatment).toEqual(DEFAULT_TREATMENT);
+    applyHash('#o=mca_m1_l&t=24');
+    expect(useApp.getState().treatment).toEqual(DEFAULT_TREATMENT);
+    expect(encodeState(useApp.getState())).not.toMatch(/(^|&)(tm|tg|ro|de|nr)=/);
+  });
+
+  it('writes nothing for the default treatment', () => {
+    applyHash('#o=mca_m1_l&t=24&r=4.5');
+    useApp.getState().setTreatment({ ...DEFAULT_TREATMENT });
+    expect(encodeState(useApp.getState())).toBe('o=mca_m1_l&t=24&r=4.5');
+  });
+
+  it('round-trips every detail', () => {
+    const branch = downstreamBranches('mca_m1_l')[0];
+    applyHash(`#o=mca_m1_l&t=24&r=6&tm=bridging&tg=2b67&ro=6&de=${branch}&nr=0.15`);
+    expect(useApp.getState().treatment).toEqual({ method: 'bridging', grade: '2b67', reocclusionAfterH: 6, distalEmbolus: branch, noReflow: 0.15 });
+    const enc = encodeState(useApp.getState());
+    expect(enc).toBe(`o=mca_m1_l&t=24&r=6&tm=bridging&tg=2b67&ro=6&de=${branch}&nr=0.15`);
+    applyHash('#o=aca_a1_r');
+    expect(useApp.getState().treatment).toEqual(DEFAULT_TREATMENT);
+    applyHash(`#${enc}`);
+    expect(encodeState(useApp.getState())).toBe(enc);
+  });
+
+  it('round-trips single details set from the store', () => {
+    for (const patch of [{ method: 'ivt' as const }, { grade: '0' as const }, { grade: '2b50' as const }, { reocclusionAfterH: 24 }, { noReflow: 0.3 }]) {
+      applyHash('#o=basilar_mid&t=24&r=3');
+      useApp.getState().setTreatment(patch);
+      const enc = encodeState(useApp.getState());
+      applyHash('#o=aca_a1_r');
+      applyHash(`#${enc}`);
+      expect(useApp.getState().treatment).toEqual({ ...DEFAULT_TREATMENT, ...patch });
+      expect(encodeState(useApp.getState())).toBe(enc);
+    }
+  });
+
+  it('ignores invalid values one by one', () => {
+    applyHash('#o=mca_m1_l&t=24&r=6&tm=laser&tg=2b&ro=5&de=basilar_mid&nr=0.9');
+    expect(useApp.getState().treatment).toEqual(DEFAULT_TREATMENT);
+    applyHash('#o=mca_m1_l&t=24&r=6&tm=ivt&tg=__proto__&ro=abc&de=constructor&nr=-1');
+    expect(useApp.getState().treatment).toEqual({ ...DEFAULT_TREATMENT, method: 'ivt' });
+  });
+
+  it('ignores treatment details without a treatment time', () => {
+    applyHash('#o=mca_m1_l&t=24&tm=ivt&tg=2a');
+    expect(useApp.getState().treatment).toEqual(DEFAULT_TREATMENT);
+    expect(encodeState(useApp.getState())).toBe('o=mca_m1_l&t=24');
+  });
+
+  it('a new link without details resets them', () => {
+    applyHash('#o=mca_m1_l&t=24&r=6&tg=2a');
+    expect(useApp.getState().treatment.grade).toBe('2a');
+    applyHash('#o=mca_m1_l&t=24&r=6');
+    expect(useApp.getState().treatment).toEqual(DEFAULT_TREATMENT);
   });
 });
 

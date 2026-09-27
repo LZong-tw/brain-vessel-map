@@ -35,6 +35,8 @@ import { FunctionTimeline } from './FunctionTimeline';
 import { NowSummary } from './NowSummary';
 import { RegionNow } from './RegionNow';
 import { useSimSeries } from './useSimSeries';
+import { TREATMENT_UI } from '../i18n/uiTreatment';
+import { treatmentSummary } from '../ui/treatment';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
   const t = useT();
@@ -584,10 +586,13 @@ function Results({ sim }: { sim: SimResult }) {
   const select = useApp((s) => s.select);
   const removeOcclusionAt = useApp((s) => s.removeOcclusionAt);
   const map = useApp((s) => s.map);
+  const reperfusionH = useApp((s) => s.reperfusionH);
+  const treatment = useApp((s) => s.treatment);
   const [showAllEvents, setShowAllEvents] = useState(false);
   const sched = SCHEDULE_UI[lang];
   const series = useSimSeries();
   const tH = TIME_STOPS[tIndex].h;
+  const txSummary = reperfusionH !== null ? treatmentSummary(treatment, lang) : null;
   if (!occlusions.length && map >= 70) return <p className="muted">{t.noOcclusion}</p>;
   // the oedema model's shift when it reports one, else the cascade's estimate
   const shift = midlineShiftOf(sim);
@@ -640,6 +645,13 @@ function Results({ sim }: { sim: SimResult }) {
           );
         })}
       </div>
+      {txSummary && (
+        <p className="tx-summary small">
+          {TREATMENT_UI[lang].summaryLabel}
+          {lang === 'en' ? ': ' : '：'}
+          {txSummary}
+        </p>
+      )}
       {sim.schedule.onsetH > 0 && <p className="muted small">{sched.indexOnset(formatClock(sim.schedule.onsetH, lang))}</p>}
       <NowSummary sim={sim} series={series} />
       <div className="stat-row">

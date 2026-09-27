@@ -18,6 +18,7 @@ export function useSimulation(): SimResult {
       collateral: st.collateral,
       tIndex: st.tIndex,
       reperfusionH: st.reperfusionH,
+      treatment: st.treatment,
       decompression: st.decompression,
     })),
   );
@@ -30,8 +31,9 @@ export function useSimulation(): SimResult {
         collateral: s.collateral,
         tH: TIME_STOPS[s.tIndex].h,
         reperfusionH: s.reperfusionH,
+        treatment: s.treatment,
         decompression: s.decompression,
       }),
-    [s.occlusions, s.variants, s.map, s.collateral, s.tIndex, s.reperfusionH, s.decompression],
+    [s.occlusions, s.variants, s.map, s.collateral, s.tIndex, s.reperfusionH, s.treatment, s.decompression],
   );
 }

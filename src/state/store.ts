@@ -11,6 +11,7 @@ import { VARIANT_BY_ID } from '../anatomy/variants';
 import type { EmbolusResult, EmbolusSource } from '../engine/embolus';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, fitSchedule, startOf, tidy } from '../engine/schedule';
+import { DEFAULT_TREATMENT, type TreatmentOptions } from '../engine/treatment';
 import { defaultView, hasWebGL } from './webgl';
 
 /** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
@@ -52,6 +53,8 @@ export interface AppState {
   collateral: CollateralGrade;
   tIndex: number;
   reperfusionH: number | null;
+  /** how and how well the treatment at reperfusionH reopens the artery (default: completely, for good) */
+  treatment: TreatmentOptions;
   decompression: boolean;
   scenario: string | null;
 
@@ -87,7 +90,10 @@ export interface AppState {
   setMap: (v: number) => void;
   setCollateral: (c: CollateralGrade) => void;
   setTIndex: (i: number) => void;
+  /** clearing the reperfusion time also resets the treatment details */
   setReperfusion: (h: number | null) => void;
+  /** change some treatment details, keeping the others */
+  setTreatment: (patch: Partial<TreatmentOptions>) => void;
   setDecompression: (v: boolean) => void;
   loadScenario: (id: string) => void;
   select: (s: Selection) => void;
@@ -173,6 +179,7 @@ export const useApp = create<AppState>((set, get) => ({
   collateral: 'good',
   tIndex: tIndexFor(3),
   reperfusionH: null,
+  treatment: DEFAULT_TREATMENT,
   decompression: false,
   scenario: null,
 
@@ -249,7 +256,7 @@ export const useApp = create<AppState>((set, get) => ({
     const fitted = fitSchedule(occlusions, vessel);
     if (fitted) set({ occlusions: fitted, scenario: null });
   },
-  clearOcclusions: () => set({ occlusions: [], scenario: null, reperfusionH: null, decompression: false, embolus: null }),
+  clearOcclusions: () => set({ occlusions: [], scenario: null, reperfusionH: null, treatment: DEFAULT_TREATMENT, decompression: false, embolus: null }),
   toggleVariant: (id) => {
     const v = VARIANT_BY_ID[id];
     let variants = get().variants.includes(id) ? get().variants.filter((x) => x !== id) : [...get().variants, id];
@@ -259,7 +266,8 @@ export const useApp = create<AppState>((set, get) => ({
   setMap: (map) => set({ map, scenario: null }),
   setCollateral: (collateral) => set({ collateral, scenario: null }),
   setTIndex: (tIndex) => set({ tIndex: Math.max(0, Math.min(TIME_STOPS.length - 1, tIndex)) }),
-  setReperfusion: (reperfusionH) => set({ reperfusionH }),
+  setReperfusion: (reperfusionH) => set(reperfusionH === null ? { reperfusionH, treatment: DEFAULT_TREATMENT } : { reperfusionH }),
+  setTreatment: (patch) => set({ treatment: { ...get().treatment, ...patch } }),
   setDecompression: (decompression) => set({ decompression }),
   loadScenario: (id) => {
     const s = SCENARIO_BY_ID[id];
@@ -272,6 +280,7 @@ export const useApp = create<AppState>((set, get) => ({
       map: s.map ?? 93,
       tIndex: tIndexFor(s.tH ?? 24),
       reperfusionH: s.reperfusionH ?? null,
+      treatment: DEFAULT_TREATMENT,
       decompression: s.decompression ?? false,
       embolus: null,
       rightTab: 'results',
@@ -340,6 +349,7 @@ export const useApp = create<AppState>((set, get) => ({
       collateral: 'good',
       tIndex: tIndexFor(3),
       reperfusionH: null,
+      treatment: DEFAULT_TREATMENT,
       decompression: false,
       scenario: null,
       selected: null,
