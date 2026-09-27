@@ -45,6 +45,17 @@ function legacyUnitState(rel: number, tH: number, reperfusionH: number | null, r
   return { f, rest };
 }
 
+/**
+ * The old model's state with the one intended change since: tissue whose current flow is below
+ * the core threshold keeps its not-yet-dead remainder as dying penumbra instead of "stabilised"
+ * oligaemia (the infarct fraction itself is unchanged).
+ */
+function expectedUnitState(rel: number, tH: number, reperfusionH: number | null, relAfter: number, p: TissueParams) {
+  const s = legacyUnitState(rel, tH, reperfusionH, relAfter, p);
+  const cur = reperfusionH !== null && tH >= reperfusionH ? relAfter : rel;
+  return cur < p.coreRel ? { ...s, rest: 'penumbra' as TissueState } : s;
+}
+
 const RELS = [0, 0.05, 0.12, 0.2, 0.29, 0.3, 0.31, 0.35, 0.4, 0.45, 0.5, 0.549, 0.55, 0.6, 0.8, 0.85, 1, 1.3];
 const TIMES = [...new Set([...TIME_STOPS.map((s) => s.h), 0.05, 0.1, 0.36, 0.9, 7, 30, 96, 200, 1000])];
 const REPERF = [null, 0, 0.25, 0.5, 1, 2, 3, 4.5, 6, 12, 24];
@@ -63,7 +74,7 @@ describe('tissue: the piecewise model reduces exactly to the two-phase model', (
         for (const r of REPERF)
           for (const t of TIMES) {
             expect(infarctFraction(rel, t, r, relAfter, p)).toBe(legacyInfarctFraction(rel, t, r, relAfter, p));
-            expect(unitState(rel, t, r, relAfter, p)).toEqual(legacyUnitState(rel, t, r, relAfter, p));
+            expect(unitState(rel, t, r, relAfter, p)).toEqual(expectedUnitState(rel, t, r, relAfter, p));
             n++;
           }
     expect(n).toBeGreaterThan(30000);
@@ -78,7 +89,7 @@ describe('tissue: the piecewise model reduces exactly to the two-phase model', (
         for (const r of REPERF)
           for (const t of TIMES) {
             expect(infarctFraction(rel, t, r, relAfter, p)).toBe(legacyInfarctFraction(rel, t, r, relAfter, p));
-            expect(unitState(rel, t, r, relAfter, p)).toEqual(legacyUnitState(rel, t, r, relAfter, p));
+            expect(unitState(rel, t, r, relAfter, p)).toEqual(expectedUnitState(rel, t, r, relAfter, p));
           }
   });
 
@@ -95,7 +106,7 @@ describe('tissue: the piecewise model reduces exactly to the two-phase model', (
       const expected: Record<string, Record<TissueState, number>> = {};
       for (const b of BEDS) expected[b.id] = { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 };
       for (const u of units) {
-        const { f, rest } = legacyUnitState(acute.unitRel[u.id] ?? 1, tH, 2, after.unitRel[u.id] ?? 1, tissueParamsForBed(u.bed));
+        const { f, rest } = expectedUnitState(acute.unitRel[u.id] ?? 1, tH, 2, after.unitRel[u.id] ?? 1, tissueParamsForBed(u.bed));
         expected[u.bed].core += f * u.frac;
         expected[u.bed][rest] += (1 - f) * u.frac;
       }

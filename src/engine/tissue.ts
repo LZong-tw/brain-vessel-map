@@ -126,7 +126,12 @@ export function tissueCourse(history: readonly FlowPhase[], tH: number, p: Tissu
   const cur = c >= 0 ? history[c].rel : 1;
   const since = c >= 0 ? tH - history[c].fromH : tH;
   let rest: TissueState;
-  if (cur < p.penumbraRel) {
+  if (cur < p.coreRel) {
+    // below the core threshold nothing functions: the last of the unit that has not died yet is
+    // still dying, not "stabilised" (letting it count as functioning made a region's deficit dip
+    // by a few per cent after half an hour and symptoms at the threshold flicker off and on)
+    rest = 'penumbra';
+  } else if (cur < p.penumbraRel) {
     // penumbra that outlived its time window has stabilised (collaterals held or the vessel
     // partly reopened): hypoperfused but functioning
     rest = since < penumbraResolveH(cur, p) ? 'penumbra' : 'oligemia';
