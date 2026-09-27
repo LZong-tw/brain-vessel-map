@@ -329,7 +329,8 @@ export function simulate(input: SimInput): SimResult {
     core += beds[b.id].infarct * b.volume;
     pen += beds[b.id].frac.penumbra * b.volume;
   }
-  const finalInfarct = cascade.volumes.total;
+  // everything that will eventually be dead, including secondary (herniation) infarcts
+  const finalInfarct = cascade.volumes.withSecondary;
   return {
     input,
     hemo,
