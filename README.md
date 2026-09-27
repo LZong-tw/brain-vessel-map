@@ -6,7 +6,8 @@
 [![Data: CC BY-SA 4.0](https://img.shields.io/badge/data-CC%20BY--SA%204.0-lightgrey.svg)](public/data/LICENSE.txt)
 
 在真實的 MNI 標準腦上看大腦、小腦與腦幹的動脈，點任一條血管或放出一顆栓子，看它塞住後
-**幾分鐘到幾個月內**會怎麼影響「其他」腦區：缺血半影區變成梗塞、腦水腫擠壓、腦疝脫、水腦、遠端退化……
+**幾分鐘到幾個月內**會怎麼影響「其他」腦區：缺血半影區變成梗塞、腦水腫與腫脹擠壓、腦疝脫、水腦、遠端退化……
+以及每個時間點**哪些腦區、哪些功能**正在受損、還救得回來、或已經恢復。
 
 Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain. Block any vessel
 (or release an embolus) and follow what happens to **other** brain regions from minutes to months.
@@ -29,7 +30,8 @@ Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain.
 | **真實解剖幾何** | 大腦半球、小腦、腦幹、視丘、基底核、內囊、胼胝體、齒狀核、腦室——由 MNI ICBM152 2009c 模板產生的 3D 表面，不是手捏的形狀。 |
 | **178 段動脈** | 主動脈弓 → 頸動脈／椎動脈 → Willis 環 → 皮質分支、豆紋動脈、脈絡叢動脈、腦幹穿通支、PICA／AICA／SCA，另有 38 段軟腦膜／顱外側枝；主幹位置校正到多中心 MRA 統計圖譜。125 個功能腦區、268 個「腦區 × 供應區」單位。 |
 | **血流模擬** | 以 Poiseuille 阻力網路解每條血管的流量與方向：Willis 環逆流代償、鎖骨下動脈竊血、自動調節、低血壓時的分水嶺缺血、胚胎型 PCA、缺 AComm/PComm 等變異。 |
-| **時間軸** | 發生時 → 15 分 → 1、3、4.5、6、12 小時 → 1、2、3、5 天 → 1、2 週 → 1、3、6 個月；可設定取栓／溶栓時間、減壓手術。 |
+| **時間軸** | 發生時 → 15、30 分 → 1、2、3、4.5、6、12 小時 → 1、2、3、5 天 → 1、2 週 → 1、3、6 個月；可設定取栓／溶栓時間、減壓手術。右側的腦區、血管與結果面板都跟著時間軸變：此刻的組織狀態、還剩多久會失去半影區、哪些功能受損／瀕危／已恢復，以及整段病程的「功能受影響時間軸」熱圖。 |
+| **水腫與腫脹** | 細胞毒性水腫（DWI，幾分鐘內）→ 離子性水腫（CT 低密度，數小時）→ 血管性水腫（第 3–5 天最腫）→ 消退 → 萎縮（數月後）；3D 腦會依各區腫脹量變形（可放大 1×／3×／5× 以便看清楚），另有「水腫／影像」著色模式；中線偏移、腦室受壓或擴大隨時間計算。 |
 | **連鎖反應（對其他部位的影響）** | 惡性 MCA 水腫 → 大腦鐮下疝脫（壓 ACA）與鉤迴疝脫（壓中腦、PCA）；小腦水腫 → 阻塞性水腦；出血轉化風險；交叉性小腦失聯（CCD）；錐體徑 Wallerian 退化；下橄欖核肥大退化與軟顎顫抖；視丘萎縮；吸入性肺炎、心律不整、癲癇、憂鬱…… |
 | **臨床輸出** | 預期症狀（依系統分組、左右側）、具名症候群（Wallenberg、Weber／Benedikt、Foville、閉鎖症候群、Percheron、Gerstmann、腔隙性……共 39 條規則）、NIHSS 估計（並提醒後循環常被低估）。 |
 | **三種視圖** | 3D（可切面、調透明度、只看單側）、Willis 環示意圖（即時流量與方向，可直接點擊阻塞）、腦幹四個層面的血管分區切面。 |
@@ -42,16 +44,18 @@ Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain.
 1. **幾何**：`tools/build_assets.py` 從 TemplateFlow 下載 MNI152NLin2009cAsym 的分割與機率圖，用 marching cubes 產生網格；每個表面點被標上「功能腦區 × 動脈供應區」（床，bed），供應區來自 Liu 等人的動脈分區圖譜，重疊處即分水嶺。
 2. **血流**：每條血管是一個 Poiseuille 阻力；每個床由一條或多條供應動脈分攤；側枝依等級（好／中／差）有不同導通度；小動脈在灌流壓下降時擴張（自動調節，上限 1.8 倍）。解線性方程得到各點壓力與流量。
 3. **組織命運**：相對血流 < 30% 為核心梗塞（幾分鐘內），30–55% 為缺血半影區（越低越快死、未治療時一部分會存活），55–85% 為輕度低灌流。再灌流會「凍結」當下的梗塞範圍。
-4. **連鎖反應**：用文獻中的簡化門檻（例如 14 小時內梗塞 > 145 mL → 惡性水腫；小腦梗塞 > 25 mL → 水腦風險），把後果投射到**沒有被阻塞**的腦區。
-5. **症狀與症候群**：每個腦區列出受損時的症狀（同側／對側），聚合後再用規則比對具名症候群。
+4. **水腫**：依各床的核心、半影區與再灌流狀態，分別累積細胞毒性、離子性、血管性水腫與後期萎縮；腫脹體積換算成中線偏移（減壓手術後大部分往顱外擴張）。
+5. **連鎖反應**：用文獻中的簡化門檻（例如 14 小時內梗塞 > 145 mL → 惡性水腫；小腦梗塞 > 25 mL → 水腦風險），把後果投射到**沒有被阻塞**的腦區。
+6. **症狀與症候群**：每個腦區列出受損時的症狀（同側／對側），聚合後再用規則比對具名症候群。
 
-程式碼：`src/engine/`（hemodynamics → tissue → cascade → clinical），解剖資料：`src/anatomy/`。
+程式碼：`src/engine/`（hemodynamics → tissue → edema／cascade → clinical），解剖資料：`src/anatomy/`。
 
 ## 老實說：限制 / Honest limitations
 
 - **不是病人專屬的模型。** 用的是平均的標準腦與平均的血管位置；真實的人血管變異很大（Willis 環完整的人不到一半）。
 - **血流是 0 維的集總模型**，沒有脈動、沒有血液黏滯度變化、沒有真實的 3D 流體力學。數字（mL/分）只在「數量級」與「方向」上有意義。
 - **閾值與時間常數是從文獻簡化、再手動校正**，目的是呈現正確的「趨勢」（側枝越差梗塞越大、越早再通救越多、後循環 NIHSS 偏低……），不是預測某個病人會有幾 mL 梗塞。
+- **水腫的幅度與時程是教學用的近似**：每個床用同一組曲線，實際上個體差異極大；3D 變形只沿表面法線推出，不是真正的組織力學，放大倍率只為了看得見。
 - 小血管（皮質穿通支、腦幹小分支）的位置是**示意**，只有主幹有統計圖譜校正。
 - 症狀、症候群、NIHSS 都是「由受損腦區推估」，實際臨床表現差異很大；出血性中風、靜脈竇血栓、血管炎等**都沒有**模擬。
 - 醫學內容由開發者依教科書與文獻整理，**尚未經過臨床醫師正式審閱**。發現錯誤請開 issue。
@@ -61,7 +65,7 @@ Arteries of the cerebrum, cerebellum and brainstem on a real MNI template brain.
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 99 個測試：血流、組織、症候群、連鎖反應、栓子、每條規則都能被觸發
+npm test           # 單元測試：血流、組織、水腫、症候群、連鎖反應、栓子、每條規則都能被觸發
 npm run lint && npm run typecheck
 npm run build      # 輸出到 dist/，相對路徑，可放在任何子目錄
 ```
@@ -121,7 +125,8 @@ The brain surfaces come from the MNI ICBM152 2009c template; every surface point
 region and its arterial territory (Liu et al. atlas). 178 arterial segments — from the aortic arch to brainstem
 perforators, plus leptomeningeal collaterals — form a Poiseuille resistance network with autoregulation and
 collateral grades. Tissue fate uses relative-CBF thresholds (core < 30 %, penumbra < 55 %) with flow-dependent
-time constants and reperfusion. A rule-based cascade projects consequences onto *other* regions over time
+time constants and reperfusion; an oedema model (cytotoxic → ionic → vasogenic → resolution → atrophy) swells or
+shrinks each bed over time, deforms the 3D brain and drives the midline shift. A rule-based cascade projects consequences onto *other* regions over time
 (malignant oedema → subfalcine/uncal herniation, cerebellar swelling → hydrocephalus, haemorrhagic
 transformation risk, crossed cerebellar diaschisis, Wallerian and olivary degeneration, systemic complications),
 and a clinical layer derives symptoms, 39 named-syndrome rules and an NIHSS estimate.
