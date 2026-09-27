@@ -137,7 +137,7 @@ All anatomy, rules and code in this repository were written for this project.
 | react-reconciler, scheduler, its-fine, suspend-react, react-use-measure, use-sync-external-store (dependencies of the above) | MIT |
 
 The MIT licence requires the copyright notice to accompany copies: the full texts are in each package's
-`LICENSE` file (`node_modules/<package>/LICENSE`), and the bundles keep the packages' own `@license` comments. Build/test tooling (Vite, Vitest, TypeScript, ESLint) is not shipped to users.
+`LICENSE` file (`node_modules/<package>/LICENSE`), and the bundles keep the packages' own `@license` comments. Build/test tooling (Vite, Vitest, TypeScript, ESLint, jsdom, Testing Library) is not shipped to users.
 
 Python tooling used only to regenerate the assets (not shipped): NumPy, SciPy, nibabel, scikit-image, trimesh,
 fast-simplification, SimpleITK — each under its own open-source licence (BSD/MIT/Apache-2.0).

@@ -63,6 +63,29 @@ Thresholds, time courses and syndrome definitions in `src/engine/` and `src/anat
 - Parvizi J, Damasio AR. Neuroanatomical correlates of brainstem coma. Brain 2003;126:1524–1536.
 - Goyal M et al. Endovascular treatment of stroke due to medium-vessel occlusion (ESCAPE-MeVO). N Engl J Med 2025;392:1385–1395.
 - Psychogios M et al. Endovascular treatment for stroke due to occlusion of medium or distal vessels (DISTAL). N Engl J Med 2025;392:1374–1384.
+- Tao C et al. Trial of endovascular treatment of acute basilar-artery occlusion (ATTENTION). N Engl J Med 2022;387:1361–1372.
+- Jovin TG et al. Trial of thrombectomy 6 to 24 hours after stroke due to basilar-artery occlusion (BAOCHE). N Engl J Med 2022;387:1373–1384.
+- Lindsberg PJ et al. Time window for recanalization in basilar artery occlusion: speculative synthesis. Neurology 2015;85:1806–1815.
+- Lindsberg PJ, Mattle HP. Therapy of basilar artery occlusion: a systematic analysis comparing intra-arterial and intravenous thrombolysis. Stroke 2006;37:922–928.
+- van der Hoeven EJRJ et al. Collateral flow predicts outcome after basilar artery occlusion: the posterior circulation collateral score. Int J Stroke 2016;11:768–775.
+- Alemseged F et al. The basilar artery on computed tomography angiography prognostic score (BATMAN). Stroke 2017;48:631–637.
+- Ferbert A, Brückmann H, Drummen R. Clinical features of proven basilar artery occlusion. Stroke 1990;21:1135–1142.
+- von Campe G, Regli F, Bogousslavsky J. Heralding manifestations of basilar artery occlusion with lethal or severe stroke. J Neurol Neurosurg Psychiatry 2003;74:1621–1626.
+- Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol 1979;220:191–198.
+- Patterson JR, Grabois M. Locked-in syndrome: a review of 139 cases. Stroke 1986;17:758–764.
+- Casanova E et al. Locked-in syndrome: improvement in the prognosis after an early intensive multidisciplinary rehabilitation. Arch Phys Med Rehabil 2003;84:862–867.
+- Plum F, Posner JB. The Diagnosis of Stupor and Coma (breathing patterns in brainstem lesions).
+- Easton JD et al. Definition and evaluation of transient ischemic attack. Stroke 2009;40:2276–2293.
+- Jones TH et al. Thresholds of focal cerebral ischemia in awake monkeys. J Neurosurg 1981;54:773–782.
+- Wang Y et al. Clopidogrel with aspirin in acute minor stroke or transient ischemic attack (CHANCE). N Engl J Med 2013;369:11–19.
+- Johnston SC et al. Clopidogrel and aspirin in acute ischemic stroke and high-risk TIA (POINT). N Engl J Med 2018;379:215–225.
+- Hayreh SS et al. Central retinal artery occlusion: retinal survival time. Exp Eye Res 2004;78:723–736.
+- Mac Grory B et al. Management of central retinal artery occlusion: a scientific statement from the American Heart Association. Stroke 2021;52:e282–e294.
+- Lawrence DG, Kuypers HGJM. The functional organization of the motor system in the monkey: the effects of bilateral pyramidal lesions. Brain 1968;91:1–14.
+- Baker SN. The primate reticulospinal tract, hand function and functional recovery. J Physiol 2011;589:5603–5612.
+- Feeney DM, Baron JC. Diaschisis. Stroke 1986;17:817–830.
+- Kwakkel G, Kollen B, Twisk J. Impact of time on improvement of outcome after stroke. Stroke 2006;37:2348–2353.
+- Langhorne P, Bernhardt J, Kwakkel G. Stroke rehabilitation. Lancet 2011;377:1693–1702.
 
 ## 參考的開源專案（未複製程式碼）· Open-source projects consulted (no code copied)
 
