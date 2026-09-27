@@ -365,3 +365,27 @@ describe('SimResult.treatment', () => {
     expect(r.treatment?.reperfusedFraction).toBe(0.5);
   });
 });
+
+describe('downstreamBranches (distal-embolus choices)', () => {
+  it('follows the artery past its own segment ends: a mid-basilar clot can embolise to the SCA and PCA', () => {
+    const d = downstreamBranches('basilar_mid', 40);
+    expect(d).toEqual(expect.arrayContaining(['sca_l', 'sca_r', 'pca_p1_l', 'pca_p1_r']));
+  });
+
+  it('lists branches, not perforators, communicating arteries or collaterals', () => {
+    const m1 = downstreamBranches('mca_m1_l', 40);
+    expect(m1).toEqual(expect.arrayContaining(['mca_m2_sup_l', 'mca_m2_inf_l']));
+    expect(m1).not.toContain('lenticulostriate_l');
+    for (const id of m1) expect(['branch', 'trunk']).toContain(VESSEL_BY_ID[id].kind);
+  });
+
+  it('does not cross into another circulation through a communicating artery', () => {
+    // the PCA connects back to the carotid through the PComm, the ACA to the other side through the AComm
+    expect(downstreamBranches('basilar_mid', 60).some((id) => /^(ica|mca|aca)_/.test(id))).toBe(false);
+    expect(downstreamBranches('mca_m1_l', 60).some((id) => id.endsWith('_r'))).toBe(false);
+  });
+
+  it('an ICA-terminus clot can embolise to a new territory (ACA)', () => {
+    expect(downstreamBranches('ica_terminal_l', 40)).toEqual(expect.arrayContaining(['aca_a1_l', 'mca_m1_l']));
+  });
+});

@@ -6,7 +6,8 @@
  * options existed: complete reperfusion (eTICI 3) that stays open, with no complications.
  */
 
-import { VESSEL_BY_ID } from '../anatomy';
+import { VESSELS, VESSEL_BY_ID } from '../anatomy';
+import type { Vessel } from '../anatomy';
 
 export type TreatmentMethod = 'evt' | 'ivt' | 'bridging';
 
@@ -63,20 +64,30 @@ export const isDefaultTreatment = (t: TreatmentOptions | undefined): boolean =>
 /**
  * Branches downstream of an occluded artery that a clot fragment could block during treatment
  * (cortical/cerebellar branches and trunks; not perforators, collaterals or communicating
- * arteries), nearest first.
+ * arteries), nearest first. Downstream means both the branches that arise from the artery and
+ * the segments that continue it (the basilar artery is modelled as consecutive segments, so a
+ * mid-basilar clot can embolise to the SCA and PCA); the walk stops at communicating arteries
+ * and collaterals so that it never crosses into another circulation.
  */
 export function downstreamBranches(vesselId: string, limit = 16): string[] {
+  const start = VESSEL_BY_ID[vesselId];
+  if (!start) return [];
+  const next = (v: Vessel) => [...v.children, ...(CONTINUATIONS.get(v.to) ?? [])];
   const out: string[] = [];
-  const queue = [...(VESSEL_BY_ID[vesselId]?.children ?? [])];
-  const seen = new Set<string>();
+  const queue = next(start);
+  const seen = new Set<string>([vesselId]);
   while (queue.length && out.length < limit) {
     const id = queue.shift()!;
     if (seen.has(id)) continue;
     seen.add(id);
     const v = VESSEL_BY_ID[id];
-    if (!v) continue;
+    if (!v || v.kind === 'communicating' || v.kind === 'collateral') continue;
     if ((v.kind === 'branch' || v.kind === 'trunk') && !v.visualOnly && !v.notOccludable) out.push(id);
-    queue.push(...v.children);
+    queue.push(...next(v));
   }
   return out;
 }
+
+/** vessels by the node they start from (a segment's end node → the segments that continue it) */
+const CONTINUATIONS = new Map<string, string[]>();
+for (const v of VESSELS) CONTINUATIONS.set(v.from, [...(CONTINUATIONS.get(v.from) ?? []), v.id]);
