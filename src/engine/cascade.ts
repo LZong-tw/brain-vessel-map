@@ -80,6 +80,103 @@ export interface CascadeOutput {
 }
 
 /**
+ * Only the retina is ischaemic (an ophthalmic or central retinal artery embolus): the brain-stroke
+ * story (brain DWI, thrombolysis windows for brain tissue) does not apply as such.
+ * Retinal survival time: Hayreh SS et al. Exp Eye Res 2004;78:723–736 (about 240 min in primates).
+ * Management as a stroke equivalent: Mac Grory B et al. Stroke 2021;52:e282–e294 (AHA scientific
+ * statement on central retinal artery occlusion).
+ */
+function pushEyeEvents(events: CascadeEvent[]): void {
+  events.push({
+    id: 'retinal_ischaemia',
+    kind: 'mechanism',
+    severity: 'danger',
+    onsetH: 0,
+    endH: 6,
+    title: { zh: '視網膜缺血（數秒內失明）', en: 'Retinal ischaemia (vision lost within seconds)' },
+    desc: {
+      zh: '視網膜是中樞神經的一部分，由眼動脈分出的視網膜中央動脈單獨供應，沒有側枝。血流一中斷，數秒內那隻眼睛就看不見。若栓子在幾分鐘內被沖走，視力恢復，稱為「一過性黑矇」；若持續阻塞，視網膜內層約在數小時內（動物研究約 4 小時，人類可能更短）開始不可逆壞死。本模型沿用腦組織的時間常數，視網膜實際能撐得稍久。這裡沒有腦組織缺血。',
+      en: 'The retina is part of the central nervous system and is fed by the central retinal artery, a branch of the ophthalmic artery with no collaterals. When flow stops, that eye goes blind within seconds. If the embolus clears within minutes, vision returns (amaurosis fugax); if it stays, the inner retina begins to die irreversibly within hours (about 4 h in primate studies, possibly less in people). The model uses brain-tissue time constants; the retina actually tolerates somewhat longer. No brain tissue is ischaemic here.',
+    },
+    regions: [],
+  });
+  events.push({
+    id: 'eye_stroke_workup',
+    kind: 'treatment',
+    severity: 'warn',
+    onsetH: 0,
+    endH: 24,
+    title: { zh: '眼中風是腦中風的警訊', en: 'An eye stroke is a brain-stroke warning' },
+    desc: {
+      zh: '一過性黑矇與視網膜中央動脈阻塞都應視同中風急症：立即送有中風團隊的急診，而不是只看眼科門診。要找栓子來源（頸動脈狹窄、心房顫動等），並做腦部 MRI——部分病人會發現同時發生、沒有症狀的腦梗塞；接下來數週腦中風的風險最高。靜脈血栓溶解對視網膜中央動脈阻塞的效益仍在臨床試驗中。',
+      en: 'Amaurosis fugax and central retinal artery occlusion should be treated as stroke emergencies: go straight to an emergency department with a stroke team, not only to an eye clinic. The source of the embolus must be found (carotid stenosis, atrial fibrillation …) and a brain MRI done — some patients have silent brain infarcts at the same time, and the risk of a brain stroke is highest in the following weeks. Whether IV thrombolysis helps central retinal artery occlusion is still being tested in trials.',
+    },
+    regions: [],
+  });
+  events.push({
+    id: 'imaging_retina',
+    kind: 'imaging',
+    severity: 'info',
+    onsetH: 0.1,
+    endH: 336,
+    title: { zh: '檢查：看眼底，不是腦部 DWI', en: 'Examination: the fundus, not brain DWI' },
+    desc: {
+      zh: '腦部 DWI 看不到視網膜的缺血（它只用來找同時發生的腦梗塞）。持續阻塞時，眼底鏡在數小時內可見視網膜變白與黃斑「櫻桃紅斑」，光學同調斷層掃描（OCT）可見內層視網膜水腫增厚；栓子本身有時也看得到。',
+      en: 'Brain DWI does not show retinal ischaemia (it is used to look for concurrent brain infarcts). With a persistent occlusion the fundus shows a whitened retina and a macular "cherry-red spot" within hours, and optical coherence tomography (OCT) shows a swollen, thickened inner retina; sometimes the embolus itself is visible.',
+    },
+    regions: [],
+  });
+}
+
+/**
+ * Brain ischaemia that leaves no infarct: the flow came back in time (a TIA) or collaterals held.
+ * Tissue-based definition of TIA: Easton JD et al. Stroke 2009;40:2276–2293. Short-term dual
+ * antiplatelet therapy after a high-risk TIA or minor stroke: CHANCE (Wang Y et al. N Engl J Med
+ * 2013;369:11–19) and POINT (Johnston SC et al. N Engl J Med 2018;379:215–225).
+ */
+function pushNoInfarctEvents(events: CascadeEvent[]): void {
+  events.push({
+    id: 'ischemia_no_infarct',
+    kind: 'mechanism',
+    severity: 'warn',
+    onsetH: 0,
+    endH: 6,
+    title: { zh: '缺血但沒有梗塞', en: 'Ischaemia without infarction' },
+    desc: {
+      zh: '血流中斷約 10 秒內神經元停止放電而出現症狀。這次在組織壞死之前，血流就恢復了（或側枝循環撐住），所以症狀可以完全消失、沒有留下梗塞——這就是暫時性腦缺血（TIA）。',
+      en: 'Within ~10 s of lost flow neurons stop firing and symptoms begin. This time flow came back (or collaterals held) before tissue died, so the symptoms can clear completely without an infarct — a transient ischaemic attack (TIA).',
+    },
+    regions: [],
+  });
+  events.push({
+    id: 'imaging_no_infarct',
+    kind: 'imaging',
+    severity: 'info',
+    onsetH: 0.1,
+    endH: 336,
+    title: { zh: '影像：預期 DWI 沒有梗塞', en: 'Imaging: DWI expected to show no infarct' },
+    desc: {
+      zh: '模型裡沒有組織壞死，所以擴散加權 MRI 預期是陰性。真實世界裡，持續較久的 TIA 常在 DWI 上看得到小病灶——那時依定義就算輕微中風，而不是 TIA。',
+      en: 'No tissue died in the model, so diffusion MRI is expected to be negative. In real patients longer attacks often leave a small DWI lesion — by definition that is then a minor stroke, not a TIA.',
+    },
+    regions: [],
+  });
+  events.push({
+    id: 'tia_urgent',
+    kind: 'treatment',
+    severity: 'warn',
+    onsetH: 0,
+    endH: 168,
+    title: { zh: '症狀消失不代表沒事', en: 'Symptoms gone does not mean safe' },
+    desc: {
+      zh: 'TIA 後最初幾天發生真正中風的風險最高，應當天就醫、盡快完成腦與血管檢查。醫師通常會立即開始抗血小板藥物（高風險者短期併用兩種：CHANCE、POINT 試驗），並找出頸動脈狹窄、心房顫動等原因。反覆、越來越頻繁的發作（尤其後循環）可能是大血管即將完全阻塞的前兆。',
+      en: 'The risk of a real stroke is highest in the first days after a TIA: seek care the same day and complete brain and vessel imaging promptly. Antiplatelet treatment is usually started at once (two drugs for a short time in high-risk cases: the CHANCE and POINT trials), and causes such as carotid stenosis or atrial fibrillation are sought. Repeated, increasingly frequent attacks (especially in the posterior circulation) can herald a complete large-vessel occlusion.',
+    },
+    regions: [],
+  });
+}
+
+/**
  * A bed counts as living tissue that a secondary process (herniation, compression) can kill when
  * less than half of it would be infarcted without treatment. Deciding this on the untreated
  * course keeps the targets fixed when treatment saves a sliver of a bed — otherwise saving 1 % of
@@ -176,8 +273,15 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const isLvo = LVO.some((b) => occludedBases.has(b));
   const isMevo = !isLvo && MEVO.some((b) => occludedBases.has(b));
 
-  // ── 1. hyperacute mechanisms ───────────────────────────────────
-  if (anyIschemia) {
+  // ── 1–2. hyperacute mechanisms, imaging and treatment windows ──────
+  // which story fits: only the retina is ischaemic (eye stroke), brain ischaemia that leaves no
+  // infarct (a TIA, or tissue held by collaterals), or a brain infarct
+  const ischaemicRegions = Object.keys(regionAcute).filter((rid) => regionAcute[rid] >= 0.05);
+  const eyeOnly = anyIschemia && ischaemicRegions.every((rid) => REGION_BY_ID[rid]?.category === 'eye');
+  const noInfarct = anyIschemia && !eyeOnly && vol.total < 0.05;
+  if (eyeOnly) pushEyeEvents(events);
+  else if (noInfarct) pushNoInfarctEvents(events);
+  else if (anyIschemia) {
     events.push({
       id: 'ischemic_cascade',
       kind: 'mechanism',
@@ -204,10 +308,6 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       },
       regions: [],
     });
-  }
-
-  // ── 2. treatment windows & reperfusion ────────────────────────
-  if (anyIschemia) {
     events.push({
       id: 'treatment_window',
       kind: 'treatment',
@@ -234,7 +334,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       regions: [],
     });
   }
-  if (reperfusionH !== null && anyIschemia && input.occlusions.some((o) => o.severity >= 1)) {
+
+  if (reperfusionH !== null && anyIschemia && !eyeOnly && input.occlusions.some((o) => o.severity >= 1)) {
     const late = reperfusionH > 6;
     events.push({
       id: 'reperfusion',
