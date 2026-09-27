@@ -279,6 +279,17 @@ describe('clocks: cascade and oedema run from the index onset', () => {
     expect(late(720).symptoms.some((s) => s.delayed)).toBe(plain(696).symptoms.some((s) => s.delayed));
   });
 
+  it('hydrocephalus and its symptoms follow the onset of a late cerebellar infarct', () => {
+    const plain = (tH: number) => sim({ occlusions: [{ vessel: 'pica_r', severity: 1 }], collateral: 'poor', tH });
+    const late = (tH: number) => sim({ occlusions: [{ vessel: 'pica_r', severity: 1, fromH: 48 }], collateral: 'poor', tH });
+    expect(plain(48).hydrocephalus).toBe(true);
+    expect(late(48).hydrocephalus).toBe(false);
+    expect(late(96).hydrocephalus).toBe(true);
+    expect(late(96).symptoms.map((s) => s.id)).toEqual(plain(48).symptoms.map((s) => s.id));
+    expect(late(96).cascade.hydrocephalusOnsetH).toBe((plain(48).cascade.hydrocephalusOnsetH ?? NaN) + 48);
+    expect(late(96).edema.ventricleChange).toBeCloseTo(plain(48).edema.ventricleChange, 6);
+  });
+
   it('treatment given before a later occlusion does not treat it', () => {
     const occ: Occlusion[] = [{ vessel: 'mca_m1_r', severity: 1, fromH: 24 }];
     const untreated = sim({ occlusions: occ, tH: 72 });
