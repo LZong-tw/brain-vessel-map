@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { CaseSummary } from './components/CaseSummary';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Legend } from './components/Legend';
 import { LeftPanel } from './components/LeftPanel';
@@ -98,6 +99,7 @@ export default function App() {
             <HoverTip />
             <Legend />
           </div>
+          <CaseSummary />
           <Timeline sim={sim} />
         </main>
         <RightPanel sim={sim} />
