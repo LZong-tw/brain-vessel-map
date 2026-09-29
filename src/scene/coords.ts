@@ -17,10 +17,11 @@ export const toThreeArr = (p: Vec3 | number[]): [number, number, number] => [-p[
 export const BRAIN_CENTER = toThree([0, -18, 8]);
 
 const curveCache = new Map<string, CatmullRomCurve3>();
+/** the course a vessel is drawn along: lifted onto the brain surface where it differs from the modelled one */
 export function vesselCurve(v: Vessel): CatmullRomCurve3 {
   let c = curveCache.get(v.id);
   if (!c) {
-    c = new CatmullRomCurve3(v.path.map(toThree), false, 'centripetal', 0.5);
+    c = new CatmullRomCurve3((v.renderPath ?? v.path).map(toThree), false, 'centripetal', 0.5);
     curveCache.set(v.id, c);
   }
   return c;

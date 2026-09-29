@@ -72,7 +72,8 @@ Code: `src/engine/` (solver → hemodynamics → schedule / treatment → tissue
 - **The blood flow is a 0-D lumped model**: no pulsatility, no viscosity changes, no real 3D fluid dynamics. The numbers (mL/min) are meaningful only in order of magnitude and direction.
 - **Thresholds and time constants are simplified from the literature and hand-calibrated** to show the right *trends* (worse collaterals → larger infarcts, earlier reopening → more saved, low NIHSS in posterior strokes…), not to predict anyone's infarct volume.
 - **Oedema magnitude and timing are teaching approximations**: every bed uses the same curves while real people differ widely; the 3D deformation only pushes along surface normals (no tissue mechanics), and the exaggeration exists only to make it visible.
-- Small vessels (cortical perforators, small brainstem branches) are **schematic**; only the main trunks are fitted to the statistical atlas.
+- Small vessels (cortical perforators, small brainstem branches) are **schematic**; only the main trunks are fitted to the statistical atlas. Surface arteries and collaterals are drawn above the surface with its sulci closed, so they don't keep sinking under the cortex; this changes only the picture — the flow model still uses the original vessel lengths.
+- **The brain meshes have a few small gaps and overlaps**: gaps of a few millimetres along the midline between the hemispheres and between the brainstem and cerebellum let short stretches of the third and fourth ventricles show from some angles (at most about 4 mm); the lower surface of the occipital and temporal lobes overlaps the top of the cerebellum by 2–3 mm (the meshes leave no room for the tentorium), so the hemispheric branches of the superior cerebellar artery (SCA) lie buried in the occipital lobe and cannot be seen from outside.
 - Symptoms, syndromes and the NIHSS are **inferred from the damaged regions**; real presentations vary widely. Haemorrhagic stroke, venous sinus thrombosis, vasculitis and the like are **not** simulated.
 - **The posterior-circulation time window is a calibration**: the brainstem leptomeningeal collaterals and the slower brainstem penumbra were set to match the trends of the basilar thrombectomy trials (ATTENTION, BAOCHE); their pathways and parameters are model assumptions, not measurements.
 - **Recovery and compensation are illustrative**: population-average curves by function and by one- or two-sided damage, with no rehabilitation intensity, age or comorbidity; they cannot estimate anyone's recovery.
@@ -117,7 +118,7 @@ and the state lives after the `#`, so no server routing is needed.
 ```
 src/
   anatomy/     vessels, regions, symptoms, syndromes, variants, templates, timeline, recanalisation evidence, sources (sources.ts)
-    generated/ produced by tools/build_assets.py (bed volumes, fitted vessel paths)
+    generated/ produced by tools/build_assets.py (bed volumes, fitted vessel paths, drawn vessel paths)
   engine/      solver → hemodynamics → schedule / treatment → tissue → edema / cascade → recovery → clinical → simulate; embolus
   scene/       react-three-fiber 3D scene
   components/  panels (case, templates, vessels, now, outcome, details), timeline, circle-of-Willis and brainstem diagrams

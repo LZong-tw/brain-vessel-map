@@ -5,6 +5,7 @@
 
 import bedsJson from './generated/beds.json';
 import vesselPaths from './generated/vesselPaths.json';
+import vesselRenderPaths from './generated/vesselRenderPaths.json';
 import { expandSupply, expandVessels, regionSides, vid } from './expand';
 import { REGION_DEFS } from './regions';
 import { bedSupply } from './territories';
@@ -29,10 +30,12 @@ interface RawBed {
 export const TARGET_BRAIN_VOLUME = 1250;
 
 const paths = vesselPaths as unknown as Record<string, Vec3[]>;
+const renderPaths = vesselRenderPaths as unknown as Record<string, Vec3[]>;
 
 export const VESSELS: Vessel[] = expandVessels(VESSEL_DEFS).map((v) => ({
   ...v,
   path: paths[v.id] && paths[v.id].length >= 2 ? paths[v.id] : v.path,
+  ...(renderPaths[v.id] && renderPaths[v.id].length >= 2 ? { renderPath: renderPaths[v.id] } : {}),
 }));
 
 export const VESSEL_BY_ID: Record<string, Vessel> = indexById(VESSELS, (v) => v.id);

@@ -119,6 +119,12 @@ export interface Vessel extends Omit<VesselDef, 'id' | 'bilateral' | 'from' | 't
   to: string;
   parent?: string;
   path: Vec3[];
+  /**
+   * where the 3D view draws the vessel, if not along `path`: surface vessels lifted onto their
+   * sulci-closed surface so they don't dip under the cortex (generated/vesselRenderPaths.json).
+   * Drawing only — the flow model uses the length of `path`.
+   */
+  renderPath?: Vec3[];
   children: string[];
 }
 
