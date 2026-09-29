@@ -183,14 +183,14 @@ describe('late course', () => {
     expect(onsets).toEqual([...onsets].sort((a, b) => a - b));
   });
 
-  it('leaves out open-ended hyperacute risks: the locked-in risk after early reopening of the basilar artery', () => {
+  it('leaves out hyperacute risks: the locked-in risk after early reopening of the basilar artery', () => {
     const early = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }], 1));
-    // the cascade keeps its acute "risk of locked-in syndrome" open-ended …
+    // the acute "risk of locked-in syndrome" ends when the artery reopens at 1 h …
     const risk = early.course.m6.cascade.events.find((e) => e.id === 'locked_in');
     expect(risk).toBeDefined();
     expect(risk!.onsetH).toBe(0);
-    expect(risk!.endH).toBeUndefined();
-    // … although nothing is left at 6 months, so it is not part of the late course
+    expect(risk!.endH).toBe(1);
+    // … nothing is left at 6 months, and it is not part of the late course
     expect(early.course.m6.symptoms).toEqual([]);
     expect(ids(early.late)).not.toContain('locked_in');
     // untreated, the locked-in state itself is what remains at 6 months

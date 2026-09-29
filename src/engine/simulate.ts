@@ -621,6 +621,8 @@ function modelFor(input: SimInput): Model {
     bedFinalUntreated,
     bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14, untreated, x), course, onsetH + 14),
     regionAcute: regionAgg(acute),
+    // a reocclusion closes the artery again, so the flow does not stay back
+    flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
   });

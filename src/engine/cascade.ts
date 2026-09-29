@@ -15,6 +15,7 @@
 
 import { BEDS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { L, Side } from '../anatomy';
+import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
 
@@ -65,6 +66,11 @@ export interface CascadeInput {
   bedEarly: Record<string, number>;
   /** fraction of each region that is dysfunctional in the first hours (core + penumbra) */
   regionAcute: Record<string, number>;
+  /**
+   * when blood returns to the index territory (hours after onset): treatment that reopened the
+   * artery, or an occlusion reopening by itself; null or left out when it never does
+   */
+  flowReturnsH?: number | null;
   /**
    * how the treatment at reperfusionH went (engine/treatment.ts); left out for the default
    * treatment (complete, lasting reperfusion), which keeps the general event texts
@@ -698,35 +704,60 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   // ── 5. brainstem-specific ──────────────────────────────────────
   const acute = (rid: string, thr = 0.3) => (regionAcute[rid] ?? 0) >= thr;
-  const lockedIn =
-    (acute('pons_rostral_basis_r') && acute('pons_rostral_basis_l')) || (acute('pons_caudal_basis_r') && acute('pons_caudal_basis_l'));
+  const bilateral = (test: (rid: string) => boolean, pairs: [string, string][]) => pairs.some(([r, l]) => test(r) && test(l));
+  const PONS_BASIS: [string, string][] = [
+    ['pons_rostral_basis_r', 'pons_rostral_basis_l'],
+    ['pons_caudal_basis_r', 'pons_caudal_basis_l'],
+  ];
+  const MEDULLA: [string, string][] = [
+    ['medulla_lateral_r', 'medulla_lateral_l'],
+    ['medulla_medial_r', 'medulla_medial_l'],
+  ];
+  // Both states come from the acute dysfunction. When blood returns before the tissue on both
+  // sides dies, the state lasts only until then (the symptoms clear with reperfusion); without
+  // that, it stays for as long as the dysfunction does.
+  const transientUntil = (pairs: [string, string][]) =>
+    input.flowReturnsH != null && !bilateral(infarcted, pairs) ? input.flowReturnsH : undefined;
+  const clears = (h: number | undefined) =>
+    h === undefined
+      ? { zh: '', en: '' }
+      : {
+          zh: `血流在發作後 ${formatHours(h, 'zh-TW')}恢復，兩側沒有形成梗塞：這個狀態隨之解除。`,
+          en: ` Blood returned ${formatHours(h, 'en')} after onset before both sides infarcted, so the state resolves then.`,
+        };
+  const lockedIn = bilateral(acute, PONS_BASIS);
   if (lockedIn) {
+    const until = transientUntil(PONS_BASIS);
+    const note = clears(until);
     events.push({
       id: 'locked_in',
       kind: 'secondary',
       severity: 'danger',
       onsetH: 0,
+      ...(until !== undefined ? { endH: until } : {}),
       title: { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' },
       desc: {
-        zh: '四肢與臉部完全癱瘓、無法說話吞嚥，但意識清楚，只能用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。',
-        en: 'Total paralysis of limbs and face with no speech or swallowing, yet fully conscious — communication is only by vertical eye movements and blinking (the midbrain gaze centres are spared).',
+        zh: `四肢與臉部完全癱瘓、無法說話吞嚥，但意識清楚，只能用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。${note.zh}`,
+        en: `Total paralysis of limbs and face with no speech or swallowing, yet fully conscious — communication is only by vertical eye movements and blinking (the midbrain gaze centres are spared).${note.en}`,
       },
-      regions: ['pons_rostral_basis_r', 'pons_rostral_basis_l', 'pons_caudal_basis_r', 'pons_caudal_basis_l'].filter((r) => acute(r)),
+      regions: PONS_BASIS.flat().filter((r) => acute(r)),
     });
   }
-  if ((acute('medulla_lateral_r') && acute('medulla_lateral_l')) || (acute('medulla_medial_r') && acute('medulla_medial_l'))) {
+  if (bilateral(acute, MEDULLA)) {
+    const until = transientUntil(MEDULLA);
+    const note = clears(until);
     events.push({
       id: 'respiratory_failure',
       kind: 'complication',
       severity: 'danger',
       onsetH: 0,
-      endH: 168,
+      endH: Math.min(168, until ?? Infinity),
       title: { zh: '雙側延髓受損：呼吸衰竭風險', en: 'Bilateral medulla: risk of respiratory failure' },
       desc: {
-        zh: '延髓的呼吸節律中樞與吞嚥反射受損，可能需要插管與呼吸器。',
-        en: 'Medullary respiratory rhythm and airway reflexes fail; intubation and ventilation may be needed.',
+        zh: `延髓的呼吸節律中樞與吞嚥反射受損，可能需要插管與呼吸器。${note.zh}`,
+        en: `Medullary respiratory rhythm and airway reflexes fail; intubation and ventilation may be needed.${note.en}`,
       },
-      regions: ['medulla_lateral_r', 'medulla_lateral_l', 'medulla_medial_r', 'medulla_medial_l'].filter((r) => acute(r)),
+      regions: MEDULLA.flat().filter((r) => acute(r)),
     });
   }
 

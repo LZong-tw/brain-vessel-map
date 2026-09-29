@@ -9,6 +9,7 @@ import { REGION_BY_ID, regionName } from '../anatomy';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
+import { treatmentLine } from '../ui/caseSummary';
 import { fmtMl } from '../ui/format';
 import { RightPanel } from './RightPanel';
 
@@ -122,6 +123,13 @@ describe('最終 tab', () => {
     // the treated course saved tissue, shown next to the final infarct
     screen.getByText('治療救回');
     expect(screen.queryByRole('button', { name: '設定治療 →' })).toBeNull();
+    // the treatment is named as on the case summary line (24 h reads "24 小時", not "1 天")
+    useApp.setState({ reperfusionH: 24, treatment: { ...useApp.getState().treatment, method: 'evt', grade: '2b67' } });
+    cleanup();
+    render(<RightPanel sim={simOf()} />);
+    const caption = screen.getByText(/^治療：/);
+    expect(caption.textContent).toContain(treatmentLine(useApp.getState(), 'zh-TW', true));
+    expect(caption.textContent).toContain('24 小時再通');
     cleanup();
 
     useApp.getState().loadScenario('l_m1');

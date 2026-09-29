@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CollateralGrade } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
+import { DEFAULT_TREATMENT } from './treatment';
 
 /**
  * The mid-basilar scenario teaches the classic locked-in syndrome: its symptom list must agree
@@ -45,5 +46,33 @@ describe('mid-basilar occlusion: classic locked-in syndrome', () => {
   it('a one-sided pontine lesion keeps its separate abducens sign (Foville)', () => {
     const r = sim({ occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1 }] });
     expect(ids(r)).toEqual(expect.arrayContaining(['cn6_palsy(l)', 'gaze_palsy_horizontal(l)']));
+  });
+});
+
+describe('the locked-in risk ends when blood returns before the pons dies', () => {
+  const event = (r: ReturnType<typeof simulate>, id: string) => r.cascade.events.find((e) => e.id === id);
+
+  // reported: after reopening at 1 h there was no infarct and no deficit, yet the acute
+  // "risk of locked-in syndrome" never ended and showed as a lasting state
+  it.each([1, 3, 6])('treatment at %s h: the event ends at the treatment, like the symptoms', (reperfusionH) => {
+    const r = sim({ occlusions: BASILAR_MID, reperfusionH, tH: 4320 });
+    const e = event(r, 'locked_in');
+    expect(e?.endH).toBe(reperfusionH);
+    expect(e?.desc['zh']).toContain('這個狀態隨之解除');
+    // the symptom model agrees: locked-in before the treatment, gone after it
+    expect(sim({ occlusions: BASILAR_MID, reperfusionH, tH: reperfusionH / 2 }).syndromes.map((m) => m.def.id)).toContain('locked_in');
+    expect(sim({ occlusions: BASILAR_MID, reperfusionH, tH: 24 }).syndromes.map((m) => m.def.id)).not.toContain('locked_in');
+  });
+
+  it('a spontaneous reopening ends it too', () => {
+    const r = sim({ occlusions: [{ vessel: 'basilar_mid', severity: 1, toH: 2 }], tH: 4320 });
+    expect(event(r, 'locked_in')?.endH).toBe(2);
+  });
+
+  it('stays open-ended when nothing reopens the artery, when the pons dies anyway, or when it closes again', () => {
+    expect(event(sim({ occlusions: BASILAR_MID, tH: 4320 }), 'locked_in')?.endH).toBeUndefined();
+    expect(event(sim({ occlusions: BASILAR_MID, collateral: 'poor', reperfusionH: 24, tH: 4320 }), 'locked_in')?.endH).toBeUndefined();
+    const reoccluded = sim({ occlusions: BASILAR_MID, reperfusionH: 1, tH: 4320, treatment: { ...DEFAULT_TREATMENT, reocclusionAfterH: 6 } });
+    expect(event(reoccluded, 'locked_in')?.endH).toBeUndefined();
   });
 });

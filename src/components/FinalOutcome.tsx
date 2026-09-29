@@ -13,7 +13,7 @@ import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutco
 import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
 import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, symptomBackup } from '../ui/recoveryFormat';
 import { formatClock } from '../ui/scheduleFormat';
-import { treatmentSummary } from '../ui/treatment';
+import { treatmentLine } from '../ui/caseSummary';
 import { EventItem } from './EventItem';
 import { useSimSeries } from './useSimSeries';
 
@@ -52,7 +52,6 @@ export function FinalOutcome() {
 
   const { course, untreated } = out;
   const m6 = course.m6;
-  const txSummary = st.reperfusionH !== null ? treatmentSummary(st.treatment, lang) : null;
   const jumpTo = (i: number) => {
     setTIndex(i);
     setRightTab('now');
@@ -141,8 +140,7 @@ export function FinalOutcome() {
           <p className="muted small">
             {o.treatmentLabel}
             {lang === 'en' ? ': ' : '：'}
-            {formatClock(st.reperfusionH!, lang)}
-            {txSummary && ` · ${txSummary}`}
+            {treatmentLine(st, lang, true)}
             {lang === 'en' ? '. ' : '。'}
             {o.compareNote} {o.savedNote}
           </p>
