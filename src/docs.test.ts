@@ -86,6 +86,15 @@ describe('documentation', () => {
     expect(featureRows(readmeZh, '功能').length).toBeGreaterThan(10);
   });
 
+  it('each README shows the interface in its own language', () => {
+    // the screenshots (the badges are images too, but not of the interface)
+    const images = (md: string) => [...md.matchAll(/!\[[^\]]*\]\((docs\/[^)]+)\)/g)].map((m) => m[1]);
+    expect(images(readmeZh).length).toBeGreaterThan(0);
+    expect(images(readmeEn).length).toBe(images(readmeZh).length);
+    for (const src of images(readmeEn)) expect(src).toMatch(/-en\.jpg$/);
+    for (const src of images(readmeZh)) expect(src).not.toMatch(/-en\.jpg$/);
+  });
+
   it('each README links to the other', () => {
     expect(readmeZh).toContain('](README.en.md)');
     expect(readmeEn).toContain('](README.md)');

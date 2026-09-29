@@ -52,9 +52,7 @@ into infarct, oedema and mass effect, herniation, hydrocephalus, remote degenera
 
 | Circle of Willis and *Outcome* | Brainstem sections and *Now* |
 |---|---|
-| ![Circle of Willis: mid-basilar + right PICA, treated vs untreated on the right](docs/screenshot-willis.jpg) | ![Brainstem sections: mid-basilar occlusion at 24 h](docs/screenshot-brainstem.jpg) |
-
-(These two screenshots show the Chinese interface; the English one looks the same.)
+| ![Circle of Willis: mid-basilar + right PICA, treated vs untreated on the right](docs/screenshot-willis-en.jpg) | ![Brainstem sections: mid-basilar occlusion at 24 h](docs/screenshot-brainstem-en.jpg) |
 
 ## How the simulation works
 
