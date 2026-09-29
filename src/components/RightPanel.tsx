@@ -25,12 +25,15 @@ import {
   pct,
   regionSupply,
   signedPct,
+  stopIndexAtOrAfter,
   stopTime,
   symptomLabel,
   vesselTerritory,
 } from '../ui/format';
 import { regionAffectedPct } from '../ui/regionLabel';
 import { vesselVisual, type VesselVisual } from '../ui/vesselState';
+import { EventItem } from './EventItem';
+import { FinalOutcome } from './FinalOutcome';
 import { FunctionTimeline } from './FunctionTimeline';
 import { NowSummary } from './NowSummary';
 import { RegionNow } from './RegionNow';
@@ -39,16 +42,20 @@ import { ScheduleEditor } from './ScheduleEditor';
 import { OccludeToggle } from './OccludeToggle';
 import { STACK_UI } from '../i18n/uiStack';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
+import { OUTCOME_UI } from '../i18n/uiOutcome';
 import { treatmentSummary } from '../ui/treatment';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
-  const t = useT();
+  const lang = useApp((s) => s.lang);
   const tab = useApp((s) => s.rightTab);
   const setTab = useApp((s) => s.setRightTab);
   const hasOcc = useApp((s) => s.occlusions.length > 0 || s.map < 70);
+  const o = OUTCOME_UI[lang];
+  // what is happening now · how it ends · what the selected structure is
   const tabs: [RightTab, string][] = [
-    ['details', t.tabDetails],
-    ['now', t.tabResults],
+    ['now', o.tabNow],
+    ['final', o.tabFinal],
+    ['details', o.tabDetails],
   ];
   return (
     <aside className="panel right-panel">
@@ -60,7 +67,7 @@ export function RightPanel({ sim }: { sim: SimResult }) {
           </button>
         ))}
       </nav>
-      <div className="panel-body">{tab === 'details' ? <Details sim={sim} /> : <Results sim={sim} />}</div>
+      <div className="panel-body">{tab === 'details' ? <Details sim={sim} /> : tab === 'final' ? <FinalOutcome /> : <Results sim={sim} />}</div>
     </aside>
   );
 }
@@ -464,13 +471,15 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
   );
 }
 
-// ─────────────────────────── results ───────────────────────────
+// ─────────────────────────── now ───────────────────────────
+/** Everything tied to the displayed time; the end of the course is on the Outcome tab (FinalOutcome). */
 function Results({ sim }: { sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const occlusions = useApp((s) => s.occlusions);
   const tIndex = useApp((s) => s.tIndex);
   const setTIndex = useApp((s) => s.setTIndex);
+  const setRightTab = useApp((s) => s.setRightTab);
   const select = useApp((s) => s.select);
   const removeOcclusionAt = useApp((s) => s.removeOcclusionAt);
   const map = useApp((s) => s.map);
@@ -557,20 +566,6 @@ function Results({ sim }: { sim: SimResult }) {
             {fmtMl(sim.volumes.penumbra)} <small>{t.ml}</small>
           </div>
         </div>
-        <div className="stat">
-          <div className="stat-label">{t.finalInfarct}</div>
-          <div className="stat-value">
-            {fmtMl(sim.volumes.finalInfarct)} <small>{t.ml}</small>
-          </div>
-        </div>
-        {sim.volumes.saved > 0.5 && (
-          <div className="stat">
-            <div className="stat-label">{t.saved}</div>
-            <div className="stat-value" style={{ color: STATE_COLORS.salvaged }}>
-              {fmtMl(sim.volumes.saved)} <small>{t.ml}</small>
-            </div>
-          </div>
-        )}
       </div>
       <div className="stat-row">
         <div className="stat">
@@ -592,6 +587,10 @@ function Results({ sim }: { sim: SimResult }) {
           </div>
         )}
       </div>
+      {/* the end of the course lives on its own tab; one line leads there */}
+      <button className="outcome-link" onClick={() => setRightTab('final')}>
+        {OUTCOME_UI[lang].finalLink(fmtMl(sim.volumes.finalInfarct))}
+      </button>
 
       <FunctionTimeline series={series} />
 
@@ -658,7 +657,7 @@ function Results({ sim }: { sim: SimResult }) {
         <h3>{t.timeline}</h3>
         <ol className="events">
           {visibleEvents.map((e) => (
-            <EventItem key={e.id} e={e} tH={tH} onJump={() => setTIndex(nearestStop(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
+            <EventItem key={e.id} e={e} tH={tH} onJump={() => setTIndex(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
           ))}
         </ol>
         {events.length > visibleEvents.length || showAllEvents ? (
@@ -720,44 +719,3 @@ function vesselStateLabel(vis: VesselVisual, occ: Occlusion | undefined, t: Stri
 }
 
 const NIHSS_ORDER = ['1a', '1b', '1c', '2', '3', '4', '5l', '5r', '6l', '6r', '7', '8', '9', '10', '11'];
-
-function nearestStop(h: number) {
-  let best = 0;
-  TIME_STOPS.forEach((s, i) => {
-    if (s.h <= h + 1e-6) best = i;
-  });
-  if (TIME_STOPS[best].h < h && best < TIME_STOPS.length - 1) best++;
-  return best;
-}
-
-function EventItem({ e, tH, onJump, onRegion }: { e: CascadeEvent; tH: number; onJump: () => void; onRegion: (id: string) => void }) {
-  const t = useT();
-  const lang = useApp((s) => s.lang);
-  const active = e.onsetH <= tH && tH < (e.endH ?? Infinity);
-  const past = (e.endH ?? Infinity) <= tH;
-  return (
-    <li className={`event ev-${e.severity}${active ? ' active' : past ? ' past' : ' future'}`}>
-      <button className="ev-time" onClick={onJump} title={lang === 'en' ? 'Jump to this time' : '跳到這個時間'}>
-        {formatHours(e.onsetH, lang)}
-      </button>
-      <div className="ev-body">
-        <div className="ev-kind">
-          {t.eventKinds[e.kind]}
-          {e.peakH !== undefined && ` · ${t.peakAt} ${formatHours(e.peakH, lang)}`}
-        </div>
-        <div className="ev-title">{tr(e.title, lang)}</div>
-        <p>{tr(e.desc, lang)}</p>
-        {e.regions.length > 0 && (
-          <div className="chips small">
-            {e.regions.slice(0, 8).map((r) => (
-              <button key={r} className="chip" onClick={() => onRegion(r)}>
-                {regionName(REGION_BY_ID[r], lang)}
-              </button>
-            ))}
-            {e.regions.length > 8 && <span className="muted small">+{e.regions.length - 8}</span>}
-          </div>
-        )}
-      </div>
-    </li>
-  );
-}

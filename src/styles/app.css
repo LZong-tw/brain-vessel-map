@@ -2365,4 +2365,137 @@ select.sched-sev {
    comment. Keep them in this section.
    ───────────────────────────────────────────────────────────────────────────────────────── */
 
+/* 此刻: the one line that leads to the final outcome */
+.outcome-link {
+  display: block;
+  width: 100%;
+  margin: 2px 0 10px;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
+.outcome-link:hover {
+  border-color: var(--accent);
+  background: rgba(110, 168, 255, 0.08);
+}
+
+/* 最終 */
+.outcome-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.outcome-head p {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+}
+.outcome-head .btn {
+  flex: none;
+  white-space: nowrap;
+}
+.outcome .callout {
+  margin: 8px 0;
+}
+.outcome-compare table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.outcome-compare th,
+.outcome-compare td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.outcome-compare thead th {
+  color: var(--text-2);
+  font-weight: 600;
+  text-align: right;
+  border-bottom-color: var(--line-2);
+}
+.outcome-compare thead th:first-child,
+.outcome-compare tbody th {
+  width: 44%;
+  text-align: left;
+}
+.outcome-compare tbody th {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.outcome-compare td {
+  text-align: right;
+  font-weight: 650;
+}
+.outcome-compare td:nth-child(2) {
+  color: #a8e6bf;
+}
+.outcome-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius);
+}
+.outcome-hint p {
+  flex: 1 1 200px;
+  margin: 0;
+}
+.outcome-nihss-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.outcome-nihss-at {
+  min-width: 4.5em;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.outcome-deficits-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.outcome-deficits-head .seg {
+  flex: 0 1 150px;
+}
+.outcome-group {
+  margin: 8px 0;
+  padding-left: 8px;
+  border-left: 3px solid var(--line-2);
+}
+.outcome-group > p {
+  margin: 0 0 2px;
+}
+.outcome-group.og-marked {
+  border-left-color: var(--danger);
+}
+.outcome-group.og-partial {
+  border-left-color: var(--warn);
+}
+.outcome-group.og-largely {
+  border-left-color: var(--ok);
+}
+.outcome .region-list .muted {
+  white-space: nowrap;
+}
+.callout.outcome-caveat {
+  margin-top: 16px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+
 /* (end of outcome panel section) */

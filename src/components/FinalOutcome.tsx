@@ -1,0 +1,291 @@
+import { useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { REGION_BY_ID, regionName, tr } from '../anatomy';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
+import { formatHours } from '../anatomy/timeline';
+import type { NihssResult, SymptomItem } from '../engine/clinical';
+import { OUTCOME_UI } from '../i18n/uiOutcome';
+import { RECOVERY_UI } from '../i18n/uiRecovery';
+import { useT } from '../state/hooks';
+import { useApp } from '../state/store';
+import { STATE_COLORS } from '../ui/colors';
+import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutcome';
+import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
+import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, symptomBackup } from '../ui/recoveryFormat';
+import { formatClock } from '../ui/scheduleFormat';
+import { treatmentSummary } from '../ui/treatment';
+import { EventItem } from './EventItem';
+import { useSimSeries } from './useSimSeries';
+
+/** regions listed before "+ n more" */
+const REGIONS_SHOWN = 12;
+
+/**
+ * The end of the course (the Outcome tab), independent of the displayed time: final infarct,
+ * treated vs untreated, NIHSS and lasting deficits at 3 and 6 months, the late course and the
+ * regions left infarcted. Everything comes from ui/finalOutcome.ts.
+ */
+export function FinalOutcome() {
+  const t = useT();
+  const lang = useApp((s) => s.lang);
+  const o = OUTCOME_UI[lang];
+  const st = useApp(
+    useShallow((s) => ({
+      occlusions: s.occlusions,
+      variants: s.variants,
+      map: s.map,
+      collateral: s.collateral,
+      reperfusionH: s.reperfusionH,
+      decompression: s.decompression,
+      treatment: s.treatment,
+    })),
+  );
+  const select = useApp((s) => s.select);
+  const setTIndex = useApp((s) => s.setTIndex);
+  const setRightTab = useApp((s) => s.setRightTab);
+  const [at, setAt] = useState<'m3' | 'm6'>('m6');
+  // the case's own 3- and 6-month simulations are already in the (shared, memoised) series
+  const series = useSimSeries();
+  // `st` keeps its identity while these fields do (useShallow), like the series
+  const out = useMemo(() => finalOutcome(st, { m3: series[I_3M], m6: series[I_6M] }), [st, series]);
+  if (!st.occlusions.length && st.map >= 70) return <p className="muted">{t.noOcclusion}</p>;
+
+  const { course, untreated } = out;
+  const m6 = course.m6;
+  const txSummary = st.reperfusionH !== null ? treatmentSummary(st.treatment, lang) : null;
+  const jumpTo = (i: number) => {
+    setTIndex(i);
+    setRightTab('now');
+  };
+  const openTreatment = () => {
+    const s = useApp.getState();
+    s.setLeftTab('case');
+    // on a phone the right panel is an overlay: show the left one instead
+    if (s.mobilePanel === 'right') s.setMobilePanel('left');
+  };
+  const deficits = out.deficits[at];
+  const shown = at === 'm3' ? course.m3 : m6;
+
+  return (
+    <div className="results outcome">
+      <div className="outcome-head">
+        <p className="muted small">
+          {o.when}
+          {out.onsetH > 0 && ` ${o.whenOnset(formatClock(out.onsetH, lang), formatHours(H_6M - out.onsetH, lang))}`}
+        </p>
+        <button className="btn small" onClick={() => jumpTo(I_6M)}>
+          {o.jump6m}
+        </button>
+      </div>
+      {out.unsettled && <p className="callout warn">{o.unsettled(formatClock(out.finalH - H_6M, lang), formatHours(out.finalH, lang))}</p>}
+
+      <div className="stat-row">
+        <div className="stat">
+          <div className="stat-label">{o.finalInfarct}</div>
+          <div className="stat-value" style={{ color: STATE_COLORS.core }}>
+            {fmtMl(course.finalInfarct)} <small>{t.ml}</small>
+          </div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">{o.neuronsLost}</div>
+          <div className="stat-value small">{fmtNeurons(m6.neuronsLost, lang)}</div>
+        </div>
+        {st.reperfusionH !== null && (
+          <div className="stat" title={o.savedNote}>
+            <div className="stat-label">{o.saved}</div>
+            <div className="stat-value" style={{ color: STATE_COLORS.salvaged }}>
+              {fmtMl(m6.volumes.saved)} <small>{t.ml}</small>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {untreated ? (
+        <section className="outcome-compare">
+          <h3>{o.compareTitle}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col" />
+                <th scope="col">{o.colTreated}</th>
+                <th scope="col">{o.colUntreated}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">{o.rowFinal}</th>
+                <td>
+                  {fmtMl(course.finalInfarct)} {t.ml}
+                </td>
+                <td>
+                  {fmtMl(untreated.finalInfarct)} {t.ml}
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">{o.rowNihss3}</th>
+                <td>{course.m3.nihss.total}</td>
+                <td>{untreated.m3.nihss.total}</td>
+              </tr>
+              <tr>
+                <th scope="row">{o.rowNihss6}</th>
+                <td>{m6.nihss.total}</td>
+                <td>{untreated.m6.nihss.total}</td>
+              </tr>
+              <tr>
+                <th scope="row">{o.rowLasting}</th>
+                <td>{o.items(course.lasting)}</td>
+                <td>{o.items(untreated.lasting)}</td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="muted small">
+            {o.treatmentLabel}
+            {lang === 'en' ? ': ' : '：'}
+            {formatClock(st.reperfusionH!, lang)}
+            {txSummary && ` · ${txSummary}`}
+            {lang === 'en' ? '. ' : '。'}
+            {o.compareNote} {o.savedNote}
+          </p>
+        </section>
+      ) : (
+        <div className="outcome-hint">
+          <p className="muted small">{o.noTreatmentHint}</p>
+          <button className="btn small" onClick={openTreatment}>
+            {o.setTreatment} →
+          </button>
+        </div>
+      )}
+
+      <section className="nihss outcome-nihss">
+        <h3>{o.nihssTitle}</h3>
+        <NihssLine label={o.at3m} n={course.m3.nihss} />
+        <NihssLine label={o.at6m} n={m6.nihss} />
+        <p className="muted small">{t.nihssNote}</p>
+        {(course.m3.nihss.uncaptured || m6.nihss.uncaptured) && <p className="callout warn">{t.nihssUncaptured}</p>}
+        {(course.m3.nihss.posteriorCaveat || m6.nihss.posteriorCaveat) && <p className="callout warn">{t.posteriorCaveat}</p>}
+      </section>
+
+      <section className="outcome-deficits">
+        <div className="outcome-deficits-head">
+          <h3>{o.deficitsTitle}</h3>
+          <div className="seg small" role="group" aria-label={o.deficitsAt}>
+            {(['m3', 'm6'] as const).map((k) => (
+              <button key={k} aria-pressed={at === k} className={at === k ? 'active' : ''} onClick={() => setAt(k)}>
+                {k === 'm3' ? o.at3m : o.at6m}
+              </button>
+            ))}
+          </div>
+        </div>
+        {shown.symptoms.length === 0 && <p className="muted">{o.noDeficits}</p>}
+        {shown.syndromes.length > 0 && (
+          <p className="outcome-syndromes small">
+            {t.syndromes}
+            {lang === 'en' ? ': ' : '：'}
+            {shown.syndromes.map((s) => tr(s.def.name, lang)).join(lang === 'en' ? '; ' : '、')}
+          </p>
+        )}
+        {DEFICIT_GROUPS.filter((g) => deficits[g].length > 0).map((g) => (
+          <div key={g} className={`sym-group outcome-group og-${g}`}>
+            <h4>
+              {o.groups[g]} <span className="num">{deficits[g].length}</span>
+            </h4>
+            <p className="muted small">{o.groupNotes[g]}</p>
+            <ul className="bullets">
+              {bySystem(deficits[g]).map((s) => (
+                <DeficitItem key={s.id + s.side} s={s} />
+              ))}
+            </ul>
+          </div>
+        ))}
+        <p className="muted small">{RECOVERY_UI[lang].caveat}</p>
+      </section>
+
+      <section>
+        <h3>{o.lateTitle}</h3>
+        <p className="muted small">{o.lateNote}</p>
+        {m6.hydrocephalus && <p className="callout warn">{o.hydrocephalus}</p>}
+        {out.late.length === 0 ? (
+          <p className="muted">{o.lateNone}</p>
+        ) : (
+          <ol className="events">
+            {out.late.map((e) => (
+              <EventItem key={e.id} e={e} tH={H_6M} onJump={() => jumpTo(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
+            ))}
+          </ol>
+        )}
+      </section>
+
+      <section>
+        <h3>{o.regionsTitle}</h3>
+        {out.regions.length === 0 ? (
+          <p className="muted">{o.regionsNone}</p>
+        ) : (
+          <ul className="region-list">
+            {out.regions.slice(0, REGIONS_SHOWN).map((r) => (
+              <li key={r.id}>
+                <button onClick={() => select({ kind: 'region', id: r.id })}>
+                  <span className="grow">{regionName(REGION_BY_ID[r.id], lang)}</span>
+                  {r.ml >= 0.05 && (
+                    <span className="muted small">
+                      {fmtMl(r.ml)} {t.ml}
+                    </span>
+                  )}
+                  <span className="num">{pct(r.infarct)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {out.regions.length > REGIONS_SHOWN && <p className="muted small">{o.more(out.regions.length - REGIONS_SHOWN)}</p>}
+      </section>
+
+      <p className="callout outcome-caveat">{o.caveat}</p>
+    </div>
+  );
+}
+
+/** symptoms in the order of the systems (motor before cognition …), worst first within one */
+function bySystem(list: SymptomItem[]): SymptomItem[] {
+  const rank = (s: SymptomItem) => SYSTEM_ORDER.indexOf(systemOf(s.id));
+  return [...list].sort((a, b) => rank(a) - rank(b) || b.sev - a.sev);
+}
+
+function NihssLine({ label, n }: { label: string; n: NihssResult }) {
+  const t = useT();
+  return (
+    <div className="outcome-nihss-line">
+      <span className="outcome-nihss-at">{label}</span>
+      <span className="num big">{n.total}</span>
+      {/* 0 with deficits the scale does not score is "not captured", never "no deficit" */}
+      <span className={`badge sev-${n.category}`}>{n.uncaptured ? t.nihssNotCaptured : t.nihssCategory[n.category]}</span>
+    </div>
+  );
+}
+
+function DeficitItem({ s }: { s: SymptomItem }) {
+  const t = useT();
+  const lang = useApp((st) => st.lang);
+  const o = OUTCOME_UI[lang];
+  const rt = RECOVERY_UI[lang];
+  const sys = SYSTEM_LABEL[systemOf(s.id)];
+  const kind = symptomBackup(s);
+  const note = s.recovery?.bottleneck ? rt.bottleneckNote : s.recovery?.bilateral ? rt.bilateralNote : '';
+  return (
+    <li title={[tr(SYMPTOM_BY_ID[s.id]?.desc ?? { zh: '', en: '' }, lang), rt.kindExplain[kind], note].filter(Boolean).join('\n')}>
+      <span className={`sev sev${s.sev}`} aria-hidden="true" />
+      {symptomLabel(s, lang, t)}
+      <span className="muted small"> · {tr(sys, lang)}</span>
+      {s.delayed && <span className="tag">{t.delayedTag}</span>}
+      {hasNoBackup(s) ? (
+        <span className="rec-tag nobackup">{rt.tagNoBackup}</span>
+      ) : (
+        compensatedShare(s) >= COMPENSATION_SHOWN && <span className="rec-tag comp">{rt.tagCompensated(pct(compensatedShare(s)))}</span>
+      )}
+      {s.recovery?.bottleneck ? (
+        <span className="rec-tag">{o.tagBottleneck}</span>
+      ) : (
+        s.recovery?.bilateral && kind !== 'exempt' && <span className="rec-tag">{o.tagBilateral}</span>
+      )}
+    </li>
+  );
+}
