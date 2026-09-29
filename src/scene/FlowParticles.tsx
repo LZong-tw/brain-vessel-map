@@ -5,10 +5,13 @@ import { VESSELS } from '../anatomy';
 import type { SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { SCALE, vesselCurve } from './coords';
+import { liftOnBeforeCompile, particleLift } from './liftPoints';
 
 interface Track {
   pts: Float32Array; // sampled polyline (xyz …)
   n: number;
+  /** vessel radius (mm) */
+  r: number;
   lenMm: number;
   speed: number; // fraction of track per second (signed)
 }
@@ -45,7 +48,7 @@ export function FlowParticles({ sim }: { sim: SimResult }) {
       const area = Math.PI * v.r * v.r * (v.n ?? 1);
       const vel = ((Math.abs(q) * 1000) / 60 / area) * 0.025;
       const mmps = Math.max(3, Math.min(35, vel));
-      const t: Track = { pts, n: SAMPLES, lenMm, speed: (Math.sign(q) * mmps) / lenMm };
+      const t: Track = { pts, n: SAMPLES, r: v.r, lenMm, speed: (Math.sign(q) * mmps) / lenMm };
       const ti = tracks.push(t) - 1;
       const count = Math.max(1, Math.min(18, Math.round(lenMm / 7)));
       for (let k = 0; k < count; k++) {
@@ -55,6 +58,7 @@ export function FlowParticles({ sim }: { sim: SimResult }) {
     }
     const geom = new BufferGeometry();
     geom.setAttribute('position', new BufferAttribute(new Float32Array(owner.length * 3), 3));
+    geom.setAttribute('lift', new BufferAttribute(Float32Array.from(owner, (ti) => particleLift(tracks[ti].r, SCALE)), 1));
     return { tracks, owner, phase, geom };
   }, [sim.hemo, layers.neck]);
 
@@ -84,7 +88,17 @@ export function FlowParticles({ sim }: { sim: SimResult }) {
   if (!layers.flow || !layers.vessels) return null;
   return (
     <points ref={ref} geometry={geom} renderOrder={3}>
-      <pointsMaterial size={0.11} color="#fff3c4" transparent opacity={0.9} depthTest={false} blending={AdditiveBlending} sizeAttenuation />
+      {/* depth-tested: lifted out of their own tube, hidden behind the brain (liftPoints.ts) */}
+      <pointsMaterial
+        size={0.11}
+        color="#fff3c4"
+        transparent
+        opacity={0.9}
+        depthWrite={false}
+        blending={AdditiveBlending}
+        sizeAttenuation
+        onBeforeCompile={liftOnBeforeCompile}
+      />
     </points>
   );
 }
