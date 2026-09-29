@@ -13,7 +13,9 @@ Inputs (downloaded & cached in tools/.cache, see SOURCES for licences):
 Outputs:
   * public/data/brain.bin + public/data/brain.json   meshes (quantised) + per-vertex perfusion bed ids
   * src/anatomy/generated/beds.json                  perfusion beds with voxel-measured volumes
-  * src/anatomy/generated/vesselPaths.json           refined vessel centrelines (MNI mm)
+  * src/anatomy/generated/vesselPaths.json           refined vessel centrelines (MNI mm), whose lengths the flow model uses
+  * src/anatomy/generated/vesselRenderPaths.json     the drawn course where it differs: surface vessels lifted
+                                                     onto their sulci-closed surface
   * tools/.cache/report.txt                          validation report
 
 Usage:  pip install -r tools/requirements.txt && python3 tools/build_assets.py
@@ -506,19 +508,37 @@ def make_beds(region, terr, border, cereb):
 
 
 # ───────────────────────────── meshes ─────────────────────────────
+# The hemispheres end this far (mm) from the cerebellum's voxels. The tissue probability map
+# includes the cerebellum and the hemisphere labels are dilated, so without this the occipital and
+# temporal lobes reached 2–3 mm into the top of the cerebellum and buried the arteries on it (the
+# superior cerebellar artery's branches). The cerebellar surface lies about 1 mm outside its
+# voxels, so this leaves a gap of about 3 mm — room for the tentorium and for the SCA branches.
+TENTORIUM_GAP_MM = 4.0
+
+
+def hemisphere_mesh(V, side, cerebellum_gap=TENTORIUM_GAP_MM):
+    aseg, X = V['aseg'], V['X']
+    tissue = V['gm'] + V['wm']
+    labels, sign = (RIGHT_HEMI, 1) if side == 'r' else (LEFT_HEMI, -1)
+    hemi = np.isin(aseg, labels) | (np.isin(aseg, CC + [77, 85]) & (sign * X > 0))
+    hemi = ndi.binary_dilation(hemi, iterations=2)
+    w = ndi.gaussian_filter(hemi.astype(np.float32), 0.8)
+    ramp = np.clip((sign * X - 0.2) / 1.6, 0, 1)
+    deep = ndi.gaussian_filter(np.isin(aseg, labels).astype(np.float32), 1.0)
+    field = np.maximum(tissue, deep) * w * ramp
+    if cerebellum_gap > 0:
+        from_cb = ndi.distance_transform_edt(~np.isin(aseg, [L_CBWM, R_CBWM, L_CBCTX, R_CBCTX]))
+        field = field * np.clip(from_cb - (cerebellum_gap - 0.5), 0, 1)
+    return mesh_from_field(field, 0.5, 90000, sigma=0.5, name=f'hemi_{side}' + ('' if cerebellum_gap > 0 else ' (no gap)'))
+
+
 def build_meshes(V, bed_ids):
-    aseg, gm, wm, X = V['aseg'], V['gm'], V['wm'], V['X']
+    aseg, gm, wm = V['aseg'], V['gm'], V['wm']
     tissue = gm + wm
     meshes = {}
     log('building meshes …')
-    for side, labels, sign in (('r', RIGHT_HEMI, 1), ('l', LEFT_HEMI, -1)):
-        hemi = np.isin(aseg, labels) | (np.isin(aseg, CC + [77, 85]) & (sign * X > 0))
-        hemi = ndi.binary_dilation(hemi, iterations=2)
-        w = ndi.gaussian_filter(hemi.astype(np.float32), 0.8)
-        ramp = np.clip((sign * X - 0.2) / 1.6, 0, 1)
-        deep = ndi.gaussian_filter(np.isin(aseg, labels).astype(np.float32), 1.0)
-        field = np.maximum(tissue, deep) * w * ramp
-        meshes[f'hemi_{side}'] = ('cortex', mesh_from_field(field, 0.5, 90000, sigma=0.5, name=f'hemi_{side}'))
+    for side in ('r', 'l'):
+        meshes[f'hemi_{side}'] = ('cortex', hemisphere_mesh(V, side))
     cb = np.isin(aseg, [L_CBWM, R_CBWM, L_CBCTX, R_CBCTX])
     field = tissue * ndi.gaussian_filter(ndi.binary_dilation(cb, iterations=1).astype(np.float32), 0.8)
     meshes['cerebellum'] = ('cerebellum', mesh_from_field(field, 0.5, 60000, sigma=0.5, name='cerebellum'))
@@ -739,13 +759,86 @@ def drape(pts, surf, r, start_frac, pin_start, pin_end):
     return p
 
 
+class Envelope:
+    """
+    Signed distance (mm, positive outside) to a surface mesh with its sulci closed: what a vessel
+    lying on the surface has to clear to be seen. Narrow sulci are closed because a thin artery
+    that sinks into one disappears from view as surely as one that cuts through the cortex.
+    """
+
+    def __init__(self, mesh, pitch=1.0, close_mm=2):
+        vox = mesh.voxelized(pitch).fill()
+        pad = close_mm + 4
+        occ = np.pad(vox.matrix, pad)
+        r = int(close_mm)
+        zz, yy, xx = np.mgrid[-r:r + 1, -r:r + 1, -r:r + 1]
+        ball = xx ** 2 + yy ** 2 + zz ** 2 <= r * r
+        occ = ndi.binary_closing(occ, structure=ball)
+        sdf = ndi.distance_transform_edt(~occ) - ndi.distance_transform_edt(occ)
+        self.sdf = ndi.gaussian_filter(sdf.astype(np.float32), 0.7) * pitch
+        self.grad = np.stack(np.gradient(self.sdf), 0)
+        self.inv = np.linalg.inv(vox.transform)
+        self.pad = pad
+        # voxelising puts the surface about a voxel outside the mesh; shift it back so that 0 is the
+        # mesh itself wherever no sulcus was closed
+        self.sdf -= np.median(self.sample(mesh.vertices)[0])
+        self.grad = np.stack(np.gradient(self.sdf), 0)
+
+    def sample(self, p):
+        v = (np.c_[p, np.ones(len(p))] @ self.inv.T)[:, :3].T + self.pad
+        d = ndi.map_coordinates(self.sdf, v, order=1, mode='nearest')
+        g = np.stack([ndi.map_coordinates(self.grad[k], v, order=1, mode='nearest') for k in range(3)], 1)
+        return d, g
+
+
+def lift_onto_envelope(pts, env, r, s0, pin_start, pin_end, clearance=0.8, from_start=False):
+    """
+    Keep the draped part of a surface vessel on top of its (sulci-closed) surface: draping onto
+    the nearest vertex and smoothing let thin branches and collaterals sink under the cortex again
+    and again, so they showed as dashes. A run at the start of the draped part that is still
+    below the surface (a branch leaving the Sylvian fissure) is left as it is; from where the
+    vessel first reaches the surface on, every point is lifted to r + clearance above it.
+    `from_start` lifts the whole draped part (leptomeningeal collaterals, which run over the
+    surface from end to end and leave no fissure).
+    """
+    p = pts.copy()
+    n = len(p)
+    target = r + clearance
+    d, _ = env.sample(p)
+    s0 = min(max(s0, 0), n - 1)
+    up = np.array([0]) if from_start else np.nonzero(d[s0:] >= r)[0]
+    if not len(up):
+        return p
+    active = np.zeros(n, bool)
+    active[s0 + up[0]:] = True
+    if pin_start:
+        active[0] = False
+    if pin_end:
+        active[-1] = False
+    for it in range(8):
+        d, g = env.sample(p)
+        nrm = g / (np.linalg.norm(g, axis=1, keepdims=True) + 1e-6)
+        lift = np.where(active & (d < target), target - d, 0.0)
+        q = p + nrm * lift[:, None]
+        if it < 6:
+            q = smooth_path(q, pin_start, pin_end, win=3)
+        q[~active] = p[~active]
+        p = q
+    return p
+
+
 PRIORITY = ['ica_cervical', 'ica_petrous_cavernous', 'ica_ophthalmic_seg', 'ica_terminal', 'mca_m1', 'aca_a1', 'acomm',
             'aca_a2', 'va_extracranial', 'va_v4_prox', 'va_v4_dist', 'basilar_lower', 'basilar_mid', 'basilar_upper',
             'basilar_tip', 'pca_p1', 'pca_p2', 'pcomm', 'mca_m2_sup', 'mca_m2_inf']
 CEREBELLAR = ('pica', 'aica', 'sca', 'lepto_pica', 'lepto_aica', 'lepto_sca')
 
 
-def refine_vessels(export, surfaces, td, mo):
+def refine_vessels(export, surfaces, td, mo, envelopes=None):
+    """
+    Refined centrelines of every vessel. With `envelopes`, surface vessels are also lifted onto
+    their sulci-closed surface (lift_onto_envelope) — the paths the 3D view draws; without, they
+    are the paths whose lengths the flow model uses, which the drawing must not change.
+    """
     vessels = export['vessels']
     byid = {v['id']: v for v in vessels}
 
@@ -762,6 +855,7 @@ def refine_vessels(export, surfaces, td, mo):
     junction: dict[str, np.ndarray] = {}
     done: dict[str, np.ndarray] = {}
     report = []
+    surface_report = []
 
     def node_pos(node):
         if node.endswith('@mid'):
@@ -804,6 +898,13 @@ def refine_vessels(export, surfaces, td, mo):
                 if v['side'] == 'm' and not base(v['id']).startswith(CEREBELLAR):
                     key = 'hemi_r'
                 pts = drape(pts, surfaces[key], v['r'], v['surfaceFrom'], pin_s, pin_e)
+                if envelopes is not None:
+                    d0, _ = envelopes[key].sample(pts)
+                    s0 = int(v['surfaceFrom'] * (len(pts) - 1)) + 6
+                    pts = lift_onto_envelope(pts, envelopes[key], v['r'], s0, pin_s, pin_e, from_start=v['kind'] == 'collateral')
+                    d1, _ = envelopes[key].sample(pts)
+                    hidden = lambda d: (d[s0:] < 0).mean() * 100 if s0 < len(d) else 0
+                    surface_report.append(f"{v['id']:32s} centreline under the surface {hidden(d0):4.0f} % → {hidden(d1):4.0f} %")
             done[v['id']] = pts
             junction.setdefault(fr, pts[0]) if not fr.endswith('@mid') else None
             junction.setdefault(v['to'], pts[-1])
@@ -833,6 +934,10 @@ def refine_vessels(export, surfaces, td, mo):
     log('vessel refinement (cisternal vessels):')
     for line in report:
         log('  ' + line)
+    if envelopes is not None:
+        log('vessel refinement (surface vessels, draped part below the sulci-closed surface):')
+        for line in surface_report:
+            log('  ' + line)
     return out
 
 
@@ -918,16 +1023,24 @@ def main():
 
     # vessel centrelines
     log('refining vessel centrelines …')
-    surfaces = {}
-    for key in ('hemi_r', 'hemi_l', 'cerebellum'):
-        m = meshes[key][1]
-        surfaces[key] = (m.vertices, m.vertex_normals, cKDTree(m.vertices))
+    surf = lambda m: (m.vertices, m.vertex_normals, cKDTree(m.vertices))
+    drawn_meshes = {key: meshes[key][1] for key in ('hemi_r', 'hemi_l', 'cerebellum')}
+    # the modelled paths keep the hemispheres without the tentorial gap: their lengths enter the
+    # flow model, which a change to the drawn surfaces must not alter
+    model_meshes = {**drawn_meshes, 'hemi_r': hemisphere_mesh(V, 'r', 0), 'hemi_l': hemisphere_mesh(V, 'l', 0)}
+    envelopes = {key: Envelope(m) for key, m in drawn_meshes.items()}
     td = TissueDepth(V['aseg'])
     mo = Mouches()
-    paths = refine_vessels(export, surfaces, td, mo)
+    paths = refine_vessels(export, {k: surf(m) for k, m in model_meshes.items()}, td, mo)
+    drawn = refine_vessels(export, {k: surf(m) for k, m in drawn_meshes.items()}, td, mo, envelopes)
+    # only the vessels whose drawn course differs from the modelled one
+    render = {k: p for k, p in drawn.items()
+              if len(p) != len(paths[k]) or np.abs(np.array(p) - np.array(paths[k])).max() > 0.2}
+    log(f'{len(render)} vessels are drawn along a lifted course')
 
     GENERATED.mkdir(parents=True, exist_ok=True)
     (GENERATED / 'vesselPaths.json').write_text(json.dumps(paths, separators=(',', ':')))
+    (GENERATED / 'vesselRenderPaths.json').write_text(json.dumps(render, separators=(',', ':')))
     (GENERATED / 'beds.json').write_text(json.dumps(beds, separators=(',', ':')))
     write_binary(meshes, labels)
 

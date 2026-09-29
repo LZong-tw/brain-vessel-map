@@ -8,6 +8,7 @@ import { useApp } from '../state/store';
 import { edemaColor, hex, mix, regionColor, stateColor, territoryColor, type RGB } from '../ui/colors';
 import type { BrainData, MeshData } from './brainData';
 import { applyEdemaDeformation } from './deform';
+import { RENDER_ORDER, VENTRICLE_XRAY_MATERIAL } from './renderOrder';
 
 interface Props {
   data: BrainData;
@@ -135,28 +136,28 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
                 first (invisible pass) so only the outermost layer is blended over what lies inside. */}
             {/* The ventricles sit inside the thalami and basal ganglia, so from most angles the
                 opaque deep nuclei hide them completely. A faint x-ray pass keeps their outline
-                visible through whatever is in front. */}
+                visible through the deep nuclei — and only through them (see renderOrder.ts). */}
             {isVentricle && (
-              <mesh geometry={m.geometry} renderOrder={5} raycast={() => null}>
+              <mesh geometry={m.geometry} renderOrder={RENDER_ORDER.ventricleXray} raycast={() => null}>
                 <meshBasicMaterial
                   color="#5aa7ff"
-                  transparent
+                  {...VENTRICLE_XRAY_MATERIAL}
                   opacity={ventHighlight ? 0.35 : 0.18}
-                  depthTest={false}
-                  depthWrite={false}
                   side={side}
                   clippingPlanes={clipPlanes}
                 />
               </mesh>
             )}
             {isCortex && transparent && (
-              <mesh geometry={m.geometry} renderOrder={3} raycast={() => null}>
+              <mesh geometry={m.geometry} renderOrder={RENDER_ORDER.cortexDepth} raycast={() => null}>
                 <meshBasicMaterial colorWrite={false} transparent opacity={0} depthWrite side={side} clippingPlanes={clipPlanes} />
               </mesh>
             )}
             <mesh
               geometry={m.geometry}
-              renderOrder={isCortex && transparent ? 4 : transparent ? 2 : 0}
+              renderOrder={
+                isCortex && transparent ? RENDER_ORDER.cortex : isVentricle ? RENDER_ORDER.ventricles : m.kind === 'deep' ? RENDER_ORDER.deep : RENDER_ORDER.surface
+              }
               onPointerMove={(e) => {
                 if (passThrough) return;
                 e.stopPropagation();

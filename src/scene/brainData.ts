@@ -31,7 +31,7 @@ interface ManifestMesh {
   bed?: number;
 }
 
-interface Manifest {
+export interface Manifest {
   positionScale: number;
   meshes: ManifestMesh[];
   beds: string[];
@@ -51,12 +51,13 @@ export function loadBrain(): Promise<BrainData> {
       if (!r.ok) throw new Error(`brain.bin ${r.status}`);
       return r.arrayBuffer();
     }),
-  ]).then(([m, buf]) => parse(m, buf));
+  ]).then(([m, buf]) => parseBrain(m, buf));
   cache.catch(() => (cache = null));
   return cache;
 }
 
-function parse(m: Manifest, buf: ArrayBuffer): BrainData {
+/** decode the manifest and binary written by tools/build_assets.py (exported for tests) */
+export function parseBrain(m: Manifest, buf: ArrayBuffer): BrainData {
   const meshes: MeshData[] = m.meshes.map((mm) => {
     const q = new Int16Array(buf, mm.position, mm.vertexCount * 3);
     const pos = new Float32Array(mm.vertexCount * 3);

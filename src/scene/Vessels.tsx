@@ -8,6 +8,7 @@ import { useApp } from '../state/store';
 import { VESSEL_COLORS } from '../ui/colors';
 import { vesselVisual } from '../ui/vesselState';
 import { SCALE, vesselCurve } from './coords';
+import { RENDER_ORDER } from './renderOrder';
 
 interface Built {
   v: Vessel;
@@ -71,7 +72,7 @@ export function Vessels({ sim, clipPlanes }: { sim: SimResult; clipPlanes: Plane
         const showLabel = (layers.labels && LABELLED.has(v.baseId) && v.side !== 'l') || isSel;
         return (
           <group key={v.id}>
-            <mesh geometry={b.geom} renderOrder={1}>
+            <mesh geometry={b.geom} renderOrder={RENDER_ORDER.vessels}>
               <meshStandardMaterial
                 color={color}
                 emissive={isHover || isSel ? '#ffcf70' : vis.state === 'collateral_active' ? '#806000' : '#000000'}
