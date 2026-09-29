@@ -55,7 +55,7 @@ describe('combining occlusions', () => {
     useApp.getState().setCollateral('poor');
     useApp.setState({ leftTab: 'scenarios' });
     render(<LeftPanel sim={simOf()} />);
-    fireEvent.click(screen.getByRole('button', { name: /^疊加情境：右 PICA/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^疊加範本：右 PICA/ }));
     expect(vessels()).toEqual(['basilar_mid', 'pica_r']);
     expect(useApp.getState().collateral).toBe('poor');
   });
@@ -63,7 +63,7 @@ describe('combining occlusions', () => {
   it('offers no "add" button while nothing is blocked (a scenario then simply loads)', () => {
     useApp.setState({ leftTab: 'scenarios' });
     render(<LeftPanel sim={simOf()} />);
-    expect(screen.queryAllByRole('button', { name: /^疊加情境/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /^疊加範本/ })).toHaveLength(0);
   });
 
   it('blocks an artery that supplies a region straight from the region details', () => {

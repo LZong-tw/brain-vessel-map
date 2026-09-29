@@ -109,9 +109,9 @@ const zh = {
   welcomeTitle: '怎麼使用',
   welcomeSteps: [
     '拖曳旋轉、滾輪縮放；點血管或腦區看說明。',
-    '在血管資料中按「模擬阻塞」，或從左側載入教學情境、釋放栓子。',
+    '從左側「範本」載入教學病例，或在血管資料中按「模擬阻塞」；可疊加多條血管。',
     '用底部時間軸看幾分鐘到幾個月後，影響如何擴散到其他腦區。',
-    '到「設定」改變側枝循環、血壓與 Willis 環變異，比較差異。',
+    '在「病例」改變發病前條件（側枝循環、血壓、Willis 環變異）與治療；右側「最終」看病程結束時的結果。',
   ],
   vessel: '血管',
   region: '腦區',
@@ -438,9 +438,9 @@ const en: Strings = {
   welcomeTitle: 'How to use',
   welcomeSteps: [
     'Drag to rotate, scroll to zoom; click a vessel or region for details.',
-    'Press "Simulate occlusion" on a vessel, load a teaching scenario, or release an embolus.',
+    'Load a teaching case from Templates, or press "Simulate occlusion" on a vessel; several arteries can be combined.',
     'Use the timeline to see how damage spreads to other regions over minutes to months.',
-    'Change collaterals, blood pressure and circle-of-Willis variants in Settings to compare.',
+    'In Case, change the conditions before onset (collaterals, blood pressure, circle-of-Willis variants) and the treatment; Outcome shows how the course ends.',
   ],
   vessel: 'Vessel',
   region: 'Region',
