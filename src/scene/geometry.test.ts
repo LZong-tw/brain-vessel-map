@@ -156,3 +156,34 @@ describe('surface vessels lie on the surface', () => {
     expect(after).toBeLessThan(before / 2);
   });
 });
+
+/** vertex positions of a mesh in scene units */
+const vertices = (m: MeshData) => {
+  const a = m.geometry.getAttribute('position').array as Float32Array;
+  return Array.from({ length: a.length / 3 }, (_, i) => new Vector3(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]));
+};
+
+describe('the cerebrum and the cerebellum', () => {
+  // reported: the hemispheric branches of the superior cerebellar artery were buried, because the
+  // occipital and temporal lobes reached 2–3 mm into the top of the cerebellum
+  it('are kept apart by a tentorial gap', () => {
+    const cb = vertices(MESH.cerebellum);
+    for (const side of ['hemi_l', 'hemi_r'] as const) {
+      const heights = cb.map((p) => SURFACE[side](p)).filter((h) => h < 10);
+      expect(heights.length, side).toBeGreaterThan(200);
+      // no cerebellar vertex inside the hemisphere, and at least 2.5 mm of room almost everywhere
+      expect(Math.min(...heights), side).toBeGreaterThan(1.5);
+      expect(heights.filter((h) => h < 2.5).length / heights.length, side).toBeLessThan(0.02);
+    }
+  });
+
+  it('the superior cerebellar artery runs over the cerebellum, outside the occipital lobe', () => {
+    const sca = VESSELS.filter((v) => v.baseId === 'sca_lateral' || v.baseId === 'sca_medial');
+    expect(sca).toHaveLength(4);
+    for (const v of sca)
+      for (const q of drawn(v)) {
+        const p = toThree(q);
+        for (const side of ['hemi_l', 'hemi_r'] as const) expect(SURFACE[side](p), `${v.id} in ${side}`).toBeGreaterThan(v.r);
+      }
+  });
+});

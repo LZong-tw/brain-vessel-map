@@ -508,19 +508,37 @@ def make_beds(region, terr, border, cereb):
 
 
 # ───────────────────────────── meshes ─────────────────────────────
+# The hemispheres end this far (mm) from the cerebellum's voxels. The tissue probability map
+# includes the cerebellum and the hemisphere labels are dilated, so without this the occipital and
+# temporal lobes reached 2–3 mm into the top of the cerebellum and buried the arteries on it (the
+# superior cerebellar artery's branches). The cerebellar surface lies about 1 mm outside its
+# voxels, so this leaves a gap of about 3 mm — room for the tentorium and for the SCA branches.
+TENTORIUM_GAP_MM = 4.0
+
+
+def hemisphere_mesh(V, side, cerebellum_gap=TENTORIUM_GAP_MM):
+    aseg, X = V['aseg'], V['X']
+    tissue = V['gm'] + V['wm']
+    labels, sign = (RIGHT_HEMI, 1) if side == 'r' else (LEFT_HEMI, -1)
+    hemi = np.isin(aseg, labels) | (np.isin(aseg, CC + [77, 85]) & (sign * X > 0))
+    hemi = ndi.binary_dilation(hemi, iterations=2)
+    w = ndi.gaussian_filter(hemi.astype(np.float32), 0.8)
+    ramp = np.clip((sign * X - 0.2) / 1.6, 0, 1)
+    deep = ndi.gaussian_filter(np.isin(aseg, labels).astype(np.float32), 1.0)
+    field = np.maximum(tissue, deep) * w * ramp
+    if cerebellum_gap > 0:
+        from_cb = ndi.distance_transform_edt(~np.isin(aseg, [L_CBWM, R_CBWM, L_CBCTX, R_CBCTX]))
+        field = field * np.clip(from_cb - (cerebellum_gap - 0.5), 0, 1)
+    return mesh_from_field(field, 0.5, 90000, sigma=0.5, name=f'hemi_{side}' + ('' if cerebellum_gap > 0 else ' (no gap)'))
+
+
 def build_meshes(V, bed_ids):
-    aseg, gm, wm, X = V['aseg'], V['gm'], V['wm'], V['X']
+    aseg, gm, wm = V['aseg'], V['gm'], V['wm']
     tissue = gm + wm
     meshes = {}
     log('building meshes …')
-    for side, labels, sign in (('r', RIGHT_HEMI, 1), ('l', LEFT_HEMI, -1)):
-        hemi = np.isin(aseg, labels) | (np.isin(aseg, CC + [77, 85]) & (sign * X > 0))
-        hemi = ndi.binary_dilation(hemi, iterations=2)
-        w = ndi.gaussian_filter(hemi.astype(np.float32), 0.8)
-        ramp = np.clip((sign * X - 0.2) / 1.6, 0, 1)
-        deep = ndi.gaussian_filter(np.isin(aseg, labels).astype(np.float32), 1.0)
-        field = np.maximum(tissue, deep) * w * ramp
-        meshes[f'hemi_{side}'] = ('cortex', mesh_from_field(field, 0.5, 90000, sigma=0.5, name=f'hemi_{side}'))
+    for side in ('r', 'l'):
+        meshes[f'hemi_{side}'] = ('cortex', hemisphere_mesh(V, side))
     cb = np.isin(aseg, [L_CBWM, R_CBWM, L_CBCTX, R_CBCTX])
     field = tissue * ndi.gaussian_filter(ndi.binary_dilation(cb, iterations=1).astype(np.float32), 0.8)
     meshes['cerebellum'] = ('cerebellum', mesh_from_field(field, 0.5, 60000, sigma=0.5, name='cerebellum'))
@@ -1005,15 +1023,16 @@ def main():
 
     # vessel centrelines
     log('refining vessel centrelines …')
-    surfaces = {}
-    for key in ('hemi_r', 'hemi_l', 'cerebellum'):
-        m = meshes[key][1]
-        surfaces[key] = (m.vertices, m.vertex_normals, cKDTree(m.vertices))
-    envelopes = {key: Envelope(meshes[key][1]) for key in surfaces}
+    surf = lambda m: (m.vertices, m.vertex_normals, cKDTree(m.vertices))
+    drawn_meshes = {key: meshes[key][1] for key in ('hemi_r', 'hemi_l', 'cerebellum')}
+    # the modelled paths keep the hemispheres without the tentorial gap: their lengths enter the
+    # flow model, which a change to the drawn surfaces must not alter
+    model_meshes = {**drawn_meshes, 'hemi_r': hemisphere_mesh(V, 'r', 0), 'hemi_l': hemisphere_mesh(V, 'l', 0)}
+    envelopes = {key: Envelope(m) for key, m in drawn_meshes.items()}
     td = TissueDepth(V['aseg'])
     mo = Mouches()
-    paths = refine_vessels(export, surfaces, td, mo)
-    drawn = refine_vessels(export, surfaces, td, mo, envelopes)
+    paths = refine_vessels(export, {k: surf(m) for k, m in model_meshes.items()}, td, mo)
+    drawn = refine_vessels(export, {k: surf(m) for k, m in drawn_meshes.items()}, td, mo, envelopes)
     # only the vessels whose drawn course differs from the modelled one
     render = {k: p for k, p in drawn.items()
               if len(p) != len(paths[k]) or np.abs(np.array(p) - np.array(paths[k])).max() > 0.2}
