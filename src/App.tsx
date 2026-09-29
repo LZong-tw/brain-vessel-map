@@ -3,6 +3,7 @@ import { CaseSummary } from './components/CaseSummary';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Legend } from './components/Legend';
 import { LeftPanel } from './components/LeftPanel';
+import { MobileNav } from './components/MobileNav';
 import { Modals } from './components/Modals';
 import { RightPanel } from './components/RightPanel';
 import { Timeline } from './components/Timeline';
@@ -42,7 +43,6 @@ export default function App() {
   const view = useApp((s) => s.view);
   const setView = useApp((s) => s.setView);
   const mobilePanel = useApp((s) => s.mobilePanel);
-  const setMobilePanel = useApp((s) => s.setMobilePanel);
   const lang = useApp((s) => s.lang);
   // keep the WebGL canvas alive once opened: switching views must not rebuild the scene
   const [scene3dMounted, setScene3dMounted] = useState(view === '3d');
@@ -104,17 +104,7 @@ export default function App() {
         </main>
         <RightPanel sim={sim} />
       </div>
-      <nav className="mobile-nav" aria-label="panels">
-        <button className={mobilePanel === 'left' ? 'active' : ''} onClick={() => setMobilePanel(mobilePanel === 'left' ? 'none' : 'left')}>
-          {t.controls}
-        </button>
-        <button className={mobilePanel === 'none' ? 'active' : ''} onClick={() => setMobilePanel('none')}>
-          {t.view3d}
-        </button>
-        <button className={mobilePanel === 'right' ? 'active' : ''} onClick={() => setMobilePanel(mobilePanel === 'right' ? 'none' : 'right')}>
-          {t.results}
-        </button>
-      </nav>
+      <MobileNav />
       <Modals />
     </div>
   );
