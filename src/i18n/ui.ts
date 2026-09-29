@@ -332,6 +332,7 @@ const zh = {
   showLess: '收起',
   results: '結果',
   controls: '控制',
+  panelsNav: '切換面板',
 };
 
 export type Strings = typeof zh;
@@ -644,6 +645,7 @@ const en: Strings = {
   showLess: 'Show less',
   results: 'Results',
   controls: 'Controls',
+  panelsNav: 'Switch panel',
 };
 
 export const UI: Record<Lang, Strings> = { 'zh-TW': zh, en };
