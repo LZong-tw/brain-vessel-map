@@ -37,9 +37,9 @@ export function LeftPanel({ sim }: { sim: SimResult }) {
   const tab = useApp((s) => s.leftTab);
   const setTab = useApp((s) => s.setLeftTab);
   const tabs: [LeftTab, string][] = [
+    ['case', t.tabSettings],
     ['scenarios', t.tabScenarios],
     ['vessels', t.tabVessels],
-    ['settings', t.tabSettings],
     ['view', t.tabView],
   ];
   return (
@@ -54,7 +54,7 @@ export function LeftPanel({ sim }: { sim: SimResult }) {
       <div className="panel-body">
         {tab === 'scenarios' && <ScenariosTab />}
         {tab === 'vessels' && <VesselsTab sim={sim} />}
-        {tab === 'settings' && <SettingsTab />}
+        {tab === 'case' && <SettingsTab />}
         {tab === 'view' && <ViewTab />}
       </div>
     </aside>

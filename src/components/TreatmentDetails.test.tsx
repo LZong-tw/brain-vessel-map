@@ -46,7 +46,7 @@ const FAKE: RecanalisationEvidence = {
 
 beforeEach(() => {
   useApp.getState().resetAll();
-  useApp.setState({ lang: 'zh-TW', leftTab: 'settings', rightTab: 'results', occlusions });
+  useApp.setState({ lang: 'zh-TW', leftTab: 'case', rightTab: 'now', occlusions });
 });
 
 afterEach(() => {

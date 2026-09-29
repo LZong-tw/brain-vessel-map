@@ -2142,3 +2142,22 @@ select.sched-sev {
   background: rgba(229, 72, 77, 0.18);
   color: #ffb4b4;
 }
+
+/* ───────────────────────────── case panel (left: 病例 · 範本) ─────────────────────────────
+   Styles for the case tab, its cards and the case summary line above the timeline go
+   directly below this comment. Keep them in this section.
+   ───────────────────────────────────────────────────────────────────────────────────────── */
+
+/* (end of case panel section) */
+
+/* The two sections are kept apart so that work on either can be merged without conflicts. */
+/* Nothing else belongs between them. */
+/* ——— */
+/* ——— */
+
+/* ─────────────────────── outcome panel (right: 此刻 · 最終 · 詳細) ───────────────────────
+   Styles for the right panel's tabs and the final-outcome page go directly below this
+   comment. Keep them in this section.
+   ───────────────────────────────────────────────────────────────────────────────────────── */
+
+/* (end of outcome panel section) */

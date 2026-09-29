@@ -20,8 +20,10 @@ export type ViewMode = '3d' | 'willis' | 'brainstem';
 export type ColorMode = 'state' | 'territory' | 'anatomy' | 'edema';
 /** display multiplier for swelling / midline shift in 3D: 1 = true scale, 3 and 5 exaggerate for teaching */
 export type EdemaScale = 1 | 3 | 5;
-export type LeftTab = 'scenarios' | 'vessels' | 'settings' | 'view';
-export type RightTab = 'details' | 'results';
+/** 'case' = the case being simulated (conditions, events, treatment); 'scenarios' = templates */
+export type LeftTab = 'case' | 'scenarios' | 'vessels' | 'view';
+/** 'now' = at the displayed time; 'final' = the end of the course; 'details' = the selected region or vessel */
+export type RightTab = 'now' | 'final' | 'details';
 
 export interface Layers {
   cortex: boolean;
@@ -285,7 +287,7 @@ export const useApp = create<AppState>((set, get) => ({
       treatment: DEFAULT_TREATMENT,
       decompression: s.decompression ?? false,
       embolus: null,
-      rightTab: 'results',
+      rightTab: 'now',
       selected: null,
       mobilePanel: 'none',
     });
@@ -344,7 +346,7 @@ export const useApp = create<AppState>((set, get) => ({
     const occlusions = e.result.systemic
       ? get().occlusions
       : [...get().occlusions.filter((o) => o.vessel !== e.result.lodged), { vessel: e.result.lodged, severity: 1 }];
-    set({ embolus: { ...e, done: true }, occlusions, tIndex: tIndexFor(1), rightTab: 'results', scenario: null });
+    set({ embolus: { ...e, done: true }, occlusions, tIndex: tIndexFor(1), rightTab: 'now', scenario: null });
   },
   setPlaying: (playing) => set({ playing }),
   setModal: (modal) => {

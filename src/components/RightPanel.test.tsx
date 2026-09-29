@@ -27,7 +27,7 @@ describe('NIHSS total of 0 with symptoms the scale does not capture', () => {
     const occlusions = occl('ophthalmic_r');
     const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 1, reperfusionH: null, decompression: false });
     expect(sim.nihss.total).toBe(0);
-    useApp.setState({ occlusions, rightTab: 'results', tIndex: tIndexFor(1), lang: 'zh-TW' });
+    useApp.setState({ occlusions, rightTab: 'now', tIndex: tIndexFor(1), lang: 'zh-TW' });
     render(<RightPanel sim={sim} />);
     // throws if not found
     screen.getByText('NIHSS 未涵蓋這些症狀（例如單眼視力喪失）：分數 0 不代表沒有症狀。');
@@ -40,7 +40,7 @@ describe('NIHSS total of 0 with symptoms the scale does not capture', () => {
     const occlusions = occl('mca_m1_l');
     const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false });
     expect(sim.nihss.total).toBeGreaterThan(0);
-    useApp.setState({ occlusions, rightTab: 'results', tIndex: tIndexFor(24), lang: 'zh-TW' });
+    useApp.setState({ occlusions, rightTab: 'now', tIndex: tIndexFor(24), lang: 'zh-TW' });
     render(<RightPanel sim={sim} />);
     expect(screen.queryByText(/NIHSS 未涵蓋/)).toBeNull();
   });
@@ -55,7 +55,7 @@ describe('effect-only regions in the affected-regions list', () => {
     expect(sim.regions.pons_caudal_basis_l.dys).toBeLessThan(0.01);
     expect(sim.regions.cerebellum_superior_r.effect).toBe('diaschisis');
 
-    useApp.setState({ occlusions, rightTab: 'results', tIndex: tIndexFor(720), lang: 'zh-TW' });
+    useApp.setState({ occlusions, rightTab: 'now', tIndex: tIndexFor(720), lang: 'zh-TW' });
     const { container } = render(<RightPanel sim={sim} />);
     const regionList = container.querySelector('.region-list');
     expect(regionList).not.toBeNull();
