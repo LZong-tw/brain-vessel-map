@@ -202,7 +202,11 @@ export function applyHash(hash: string) {
   if (view === '3d' || view === 'willis' || view === 'brainstem') patch.view = view;
   // honour an explicit (or scenario-default) 3D view, but not onto a blank canvas
   if (patch.view === '3d' && !hasWebGL()) patch.view = 'willis';
-  if (patch.occlusions?.length) patch.rightTab = 'results';
+  // a shared case opens on the case and on what is happening at the linked time
+  if (patch.occlusions?.length) {
+    patch.leftTab = 'case';
+    patch.rightTab = 'now';
+  }
   useApp.setState(patch);
 }
 

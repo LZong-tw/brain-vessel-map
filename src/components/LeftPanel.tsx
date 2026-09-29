@@ -1,43 +1,28 @@
 import { useMemo, useState } from 'react';
-import { REGIONS, VESSELS, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
+import { REGIONS, VESSELS, regionName, tr, vesselName } from '../anatomy';
 import type { VesselGroup } from '../anatomy';
 import { SCENARIOS, type CameraView } from '../anatomy/scenarios';
-import { REPERFUSION_STOPS, TIME_STOPS, formatHours } from '../anatomy/timeline';
-import { VARIANTS } from '../anatomy/variants';
-import { EMBOLUS_SIZES, dropEmbolus, type EmbolusSource } from '../engine/embolus';
-import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
-import { activeAt, isTreatable, startOf } from '../engine/schedule';
 import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
 import { EDEMA_UI } from '../i18n/uiEdema';
-import { SCHEDULE_UI } from '../i18n/uiSchedule';
-import { TREATMENT_UI } from '../i18n/uiTreatment';
-import { RECANALISATION_EVIDENCE, siteGroupOf as defaultSiteGroupOf, type RecanalisationEvidence, type SiteGroup } from '../anatomy/recanalisation';
-import type { ReperfusionGrade, TreatmentMethod } from '../engine/treatment';
-import type { Lang } from '../anatomy/types';
+import { CASE_UI } from '../i18n/uiCase';
+import { STACK_UI } from '../i18n/uiStack';
+import { CurrentOcclusions, OccludeToggle } from './OccludeToggle';
+import { CaseTab } from './CaseTab';
 import { useApp, type ColorMode, type EdemaScale, type Layers, type LeftTab } from '../state/store';
-import { formatClock } from '../ui/scheduleFormat';
 import { vesselVisual } from '../ui/vesselState';
-import {
-  NO_REFLOW_OPTIONS,
-  REOCCLUSION_OPTIONS,
-  distalOptions,
-  evidenceRows,
-  fmtShare,
-  reopenedVesselIds,
-  sitesOf,
-  treatmentDelayH,
-  treatmentWarnings,
-} from '../ui/treatment';
+
+// the treatment details moved next to the case tab; tests and callers still import them from here
+export { EvidenceBox, TreatmentDetails } from './TreatmentDetails';
 
 export function LeftPanel({ sim }: { sim: SimResult }) {
   const t = useT();
   const tab = useApp((s) => s.leftTab);
   const setTab = useApp((s) => s.setLeftTab);
   const tabs: [LeftTab, string][] = [
+    ['case', t.tabSettings],
     ['scenarios', t.tabScenarios],
     ['vessels', t.tabVessels],
-    ['settings', t.tabSettings],
     ['view', t.tabView],
   ];
   return (
@@ -50,93 +35,53 @@ export function LeftPanel({ sim }: { sim: SimResult }) {
         ))}
       </nav>
       <div className="panel-body">
+        {tab === 'case' && <CaseTab sim={sim} />}
         {tab === 'scenarios' && <ScenariosTab />}
         {tab === 'vessels' && <VesselsTab sim={sim} />}
-        {tab === 'settings' && <SettingsTab />}
         {tab === 'view' && <ViewTab />}
       </div>
     </aside>
   );
 }
 
+/** Templates: loading one replaces the case, 「疊加」 adds its occlusions to the case. */
 function ScenariosTab() {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const current = useApp((s) => s.scenario);
   const load = useApp((s) => s.loadScenario);
+  const addScenario = useApp((s) => s.addScenario);
+  const hasOcclusions = useApp((s) => s.occlusions.length > 0);
+  const st = STACK_UI[lang];
   const groups = ['anterior', 'deep', 'posterior', 'haemodynamic'] as const;
   return (
     <div>
-      <EmbolusBox />
+      <p className="muted small case-hint">{CASE_UI[lang].templatesHint}</p>
       {groups.map((g) => (
         <section key={g} className="group">
           <h3>{t.scenarioGroups[g]}</h3>
           {SCENARIOS.filter((s) => s.group === g).map((s) => (
-            <button key={s.id} className={`scenario-card${current === s.id ? ' active' : ''}`} onClick={() => load(s.id)}>
-              <span className="sc-title">{tr(s.title, lang)}</span>
-              <span className="sc-summary">{tr(s.summary, lang)}</span>
-            </button>
+            <div key={s.id} className="scenario-row">
+              <button className={`scenario-card${current === s.id ? ' active' : ''}`} onClick={() => load(s.id)}>
+                <span className="sc-title">{tr(s.title, lang)}</span>
+                <span className="sc-summary">{tr(s.summary, lang)}</span>
+              </button>
+              {hasOcclusions && current !== s.id && (
+                <button
+                  type="button"
+                  className="sc-stack"
+                  title={st.stackTitle}
+                  aria-label={st.stackAria(tr(s.title, lang))}
+                  onClick={() => addScenario(s.id)}
+                >
+                  {st.stack}
+                </button>
+              )}
+            </div>
           ))}
         </section>
       ))}
     </div>
-  );
-}
-
-function EmbolusBox() {
-  const t = useT();
-  const lang = useApp((s) => s.lang);
-  const start = useApp((s) => s.startEmbolus);
-  const embolus = useApp((s) => s.embolus);
-  const variants = useApp((s) => s.variants);
-  const map = useApp((s) => s.map);
-  const collateral = useApp((s) => s.collateral);
-  const occlusions = useApp((s) => s.occlusions);
-  const tIndex = useApp((s) => s.tIndex);
-  const reperfusionH = useApp((s) => s.reperfusionH);
-  const [source, setSource] = useState<EmbolusSource>('heart');
-  const [size, setSize] = useState<(typeof EMBOLUS_SIZES)[number]['id']>('medium');
-  const release = () => {
-    // the embolus travels through the vessels as they are at the displayed time
-    const hemo = simulateHemodynamics({ occlusions: activeAt(occlusions, TIME_STOPS[tIndex].h, reperfusionH), variants, map, collateral });
-    const seed = Math.floor(Math.random() * 1e9);
-    const mm = EMBOLUS_SIZES.find((x) => x.id === size)!.mm;
-    start({ source, size, seed, result: dropEmbolus(source, mm, hemo, seed) });
-  };
-  const lodged = embolus?.done ? VESSELS.find((v) => v.id === embolus.result.lodged) : null;
-  return (
-    <section className="group embolus-box">
-      <h3>{t.embolusTitle}</h3>
-      <p className="muted small">{t.embolusHint}</p>
-      <label className="field">
-        <span>{t.embolusSource}</span>
-        <select value={source} onChange={(e) => setSource(e.target.value as EmbolusSource)}>
-          {(Object.keys(t.embolusSources) as EmbolusSource[]).map((k) => (
-            <option key={k} value={k}>
-              {t.embolusSources[k]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span>{t.embolusSize}</span>
-        <select value={size} onChange={(e) => setSize(e.target.value as typeof size)}>
-          {EMBOLUS_SIZES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {t.embolusSizes[s.id]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <button className="btn primary block" onClick={release} disabled={!!embolus && !embolus.done}>
-        {t.releaseEmbolus}
-      </button>
-      {lodged && (
-        <p className="embolus-result" role="status">
-          {embolus!.result.systemic ? t.embolusSystemic : `${t.embolusLodged}：${vesselName(lodged, lang)}`}
-        </p>
-      )}
-    </section>
   );
 }
 
@@ -164,6 +109,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
   const noMatches = query !== '' && regionHits.length === 0 && !anyVesselHit;
   return (
     <div>
+      <CurrentOcclusions />
       <input
         className="search"
         type="search"
@@ -215,7 +161,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
               {vs.map((v) => {
                 const vis = vesselVisual(v.id, sim);
                 return (
-                  <li key={v.id}>
+                  <li key={v.id} className="row-with-action">
                     <button
                       className={selected?.id === v.id ? 'active' : ''}
                       onClick={() => select({ kind: 'vessel', id: v.id })}
@@ -226,6 +172,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
                       <span className="grow">{vesselName(v, lang)}</span>
                       {v.abbr && <span className="abbr">{v.abbr}</span>}
                     </button>
+                    <OccludeToggle vessel={v.id} />
                   </li>
                 );
               })}
@@ -236,250 +183,6 @@ function VesselsTab({ sim }: { sim: SimResult }) {
     </div>
   );
 }
-
-function SettingsTab() {
-  const t = useT();
-  const lang = useApp((s) => s.lang);
-  const st = useApp();
-  return (
-    <div>
-      <section className="group">
-        <h3>{t.collateralGrade}</h3>
-        <div className="seg" role="radiogroup" aria-label={t.collateralGrade}>
-          {(['good', 'moderate', 'poor'] as const).map((c) => (
-            <button key={c} role="radio" aria-checked={st.collateral === c} className={st.collateral === c ? 'active' : ''} onClick={() => st.setCollateral(c)}>
-              {t.collateral[c]}
-            </button>
-          ))}
-        </div>
-        <p className="muted small">{t.collateralHint}</p>
-      </section>
-      <section className="group">
-        <h3>
-          {t.bloodPressure}: <span className="num">{st.map}</span> {t.mmHg}
-        </h3>
-        <input type="range" min={40} max={160} step={1} value={st.map} onChange={(e) => st.setMap(Number(e.target.value))} aria-label={t.bloodPressure} />
-        <p className="muted small">{t.mapHint}</p>
-      </section>
-      <section className="group">
-        <h3>{t.treatment}</h3>
-        <label className="field">
-          <span>{t.reperfusion}</span>
-          <select value={st.reperfusionH ?? ''} onChange={(e) => st.setReperfusion(e.target.value === '' ? null : Number(e.target.value))}>
-            <option value="">{t.reperfusionNone}</option>
-            <ReperfusionTimeOptions occlusions={st.occlusions} lang={lang} reperfusionAt={t.reperfusionAt} />
-          </select>
-        </label>
-        <p className="muted small">{t.reperfusionHint}</p>
-        {st.reperfusionH !== null && <TreatmentDetails />}
-        <label className="check">
-          <input type="checkbox" checked={st.decompression} onChange={(e) => st.setDecompression(e.target.checked)} />
-          {t.decompression}
-        </label>
-      </section>
-      <section className="group">
-        <h3>{t.variants}</h3>
-        <p className="muted small">{t.variantsHint}</p>
-        {VARIANTS.map((v) => (
-          <label key={v.id} className="check variant">
-            <input type="checkbox" checked={st.variants.includes(v.id)} onChange={() => st.toggleVariant(v.id)} />
-            <span>
-              <span className="v-name">{tr(v.name, lang)}</span> <span className="badge">{tr(v.prevalence, lang)}</span>
-              <span className="v-desc">{tr(v.desc, lang)}</span>
-            </span>
-          </label>
-        ))}
-      </section>
-      <div className="row gap">
-        <button className="btn" onClick={st.clearOcclusions}>
-          {t.clearOcclusions}
-        </button>
-        <button className="btn ghost" onClick={st.resetAll}>
-          {t.resetAll}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Treatment times: the usual delays after onset and, when complete occlusions begin later, the
- * same delays after each of those starts (treatment reopens whatever is occluded at that time).
- */
-function ReperfusionTimeOptions({ occlusions, lang, reperfusionAt }: { occlusions: Occlusion[]; lang: Lang; reperfusionAt: string }) {
-  const s = SCHEDULE_UI[lang];
-  const later = [...new Set(occlusions.filter(isTreatable).map(startOf))].filter((h) => h > 0).sort((a, b) => a - b);
-  const first = REPERFUSION_STOPS.map((h) => (
-    <option key={h} value={h}>
-      {reperfusionAt} {formatHours(h, lang)}
-    </option>
-  ));
-  if (!later.length) return <>{first}</>;
-  return (
-    <>
-      <optgroup label={s.treatAfterFirst}>{first}</optgroup>
-      {later.map((at) => {
-        const names = occlusions
-          .filter((o) => isTreatable(o) && startOf(o) === at)
-          .map((o) => vesselName(VESSEL_BY_ID[o.vessel], lang))
-          .join(lang === 'en' ? ', ' : '、');
-        return (
-          <optgroup key={at} label={s.treatAfter(names, formatClock(at, lang))}>
-            {REPERFUSION_STOPS.map((d) => (
-              <option key={d} value={at + d}>
-                {s.plus(formatClock(d, lang))}
-              </option>
-            ))}
-          </optgroup>
-        );
-      })}
-    </>
-  );
-}
-
-/**
- * How and how well the treatment reopens the artery (shown once a treatment time is chosen),
- * with the published figures for the reopened site and the chosen method, and warnings when the
- * method is used outside its usual time window. `evidence` and `siteGroupOf` default to the
- * app's evidence module (tests pass their own).
- */
-export function TreatmentDetails({
-  evidence = RECANALISATION_EVIDENCE,
-  siteGroupOf = defaultSiteGroupOf,
-}: {
-  evidence?: RecanalisationEvidence;
-  siteGroupOf?: (baseId: string) => SiteGroup;
-}) {
-  const lang = useApp((s) => s.lang);
-  const occlusions = useApp((s) => s.occlusions);
-  const reperfusionH = useApp((s) => s.reperfusionH);
-  const tx = useApp((s) => s.treatment);
-  const setTreatment = useApp((s) => s.setTreatment);
-  const s = TREATMENT_UI[lang];
-  const reopened = useMemo(() => reopenedVesselIds(occlusions, reperfusionH), [occlusions, reperfusionH]);
-  const distal = useMemo(() => distalOptions(reopened), [reopened]);
-  if (reperfusionH === null) return null;
-  const sites = sitesOf(reopened, siteGroupOf);
-  const warnings = treatmentWarnings(tx, treatmentDelayH(occlusions, reperfusionH, reopened), sites, evidence, lang);
-  const distalList = tx.distalEmbolus && !distal.includes(tx.distalEmbolus) ? [tx.distalEmbolus, ...distal] : distal;
-  const name = (id: string) => (VESSEL_BY_ID[id] ? vesselName(VESSEL_BY_ID[id], lang) : id);
-  const gradeOption = (g: ReperfusionGrade) => (
-    <option key={g} value={g}>
-      {s.grades[g]}
-    </option>
-  );
-  return (
-    <div className="tx-details" role="group" aria-label={s.title}>
-      <div className="tx-title">{s.title}</div>
-      {!reopened.length && <p className="muted small">{s.nothingReopened}</p>}
-      <div className="tx-label" id="tx-method">
-        {s.method}
-      </div>
-      <div className="seg small" role="radiogroup" aria-labelledby="tx-method">
-        {TREATMENT_METHODS.map((m) => (
-          <button key={m} role="radio" aria-checked={tx.method === m} className={tx.method === m ? 'active' : ''} onClick={() => setTreatment({ method: m })}>
-            {s.methods[m]}
-          </button>
-        ))}
-      </div>
-      <label className="field">
-        <span>{s.grade}</span>
-        <select value={tx.grade} onChange={(e) => setTreatment({ grade: e.target.value as ReperfusionGrade })}>
-          {gradeOption('3')}
-          {gradeOption('2c')}
-          <optgroup label={s.grades['2b']}>
-            {gradeOption('2b67')}
-            {gradeOption('2b50')}
-          </optgroup>
-          {gradeOption('2a')}
-          {gradeOption('1')}
-          {gradeOption('0')}
-        </select>
-      </label>
-      <div className="tx-label" id="tx-reocclusion">
-        {s.reocclusion}
-      </div>
-      <div className="seg small" role="radiogroup" aria-labelledby="tx-reocclusion">
-        {REOCCLUSION_OPTIONS.map((h) => (
-          <button
-            key={String(h)}
-            role="radio"
-            aria-checked={tx.reocclusionAfterH === h}
-            className={tx.reocclusionAfterH === h ? 'active' : ''}
-            onClick={() => setTreatment({ reocclusionAfterH: h })}
-          >
-            {h === null ? s.reocclusionNever : s.reocclusionAfter(formatHours(h, lang))}
-          </button>
-        ))}
-      </div>
-      <label className="field">
-        <span>{s.distal}</span>
-        <select value={tx.distalEmbolus ?? ''} onChange={(e) => setTreatment({ distalEmbolus: e.target.value || null })}>
-          <option value="">{s.distalNone}</option>
-          {distalList.map((id) => (
-            <option key={id} value={id}>
-              {name(id)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="tx-label" id="tx-noreflow">
-        {s.noReflow} <span className="badge tx-limited">{s.limitedEvidence}</span>
-      </div>
-      <div className="seg small" role="radiogroup" aria-labelledby="tx-noreflow">
-        {NO_REFLOW_OPTIONS.map((x) => (
-          <button key={x} role="radio" aria-checked={tx.noReflow === x} className={tx.noReflow === x ? 'active' : ''} onClick={() => setTreatment({ noReflow: x })}>
-            {x === 0 ? '0' : fmtShare(x)}
-          </button>
-        ))}
-      </div>
-      <p className="muted small">{s.noReflowHint}</p>
-      {warnings.map((w) => (
-        <p key={w.key} className="callout warn" role="status">
-          {w.text}
-        </p>
-      ))}
-      <EvidenceBox sites={sites} method={tx.method} evidence={evidence} />
-    </div>
-  );
-}
-
-/** published figures for the reopened site(s) and the chosen method, in small print */
-export function EvidenceBox({ sites, method, evidence }: { sites: SiteGroup[]; method: TreatmentMethod; evidence: RecanalisationEvidence }) {
-  const lang = useApp((s) => s.lang);
-  const s = TREATMENT_UI[lang];
-  const rows = evidenceRows(evidence, sites, method, lang);
-  const colon = lang === 'en' ? ': ' : '：';
-  return (
-    <section className="tx-evidence" aria-label={s.evidenceTitle}>
-      <div className="tx-label">{s.evidenceTitle}</div>
-      <p className="tx-choice">{s.evidenceChoice}</p>
-      {rows.length ? (
-        <ul>
-          {rows.map((r) => (
-            <li key={r.key}>
-              <span className="tx-ev-head">
-                {r.label}
-                {colon}
-                <strong className="num">{r.value}</strong>
-              </span>
-              {r.note && <span className="tx-ev-note">{r.note}</span>}
-              <cite className="tx-ev-source">
-                {s.source}
-                {colon}
-                {r.source}
-              </cite>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="muted">{s.evidenceNone}</p>
-      )}
-    </section>
-  );
-}
-
-const TREATMENT_METHODS: TreatmentMethod[] = ['evt', 'ivt', 'bridging'];
 
 const COLOR_MODES: ColorMode[] = ['state', 'territory', 'anatomy', 'edema'];
 const EDEMA_SCALES: EdemaScale[] = [1, 3, 5];

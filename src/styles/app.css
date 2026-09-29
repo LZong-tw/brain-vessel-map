@@ -2031,3 +2031,471 @@ select.sched-sev {
   margin: 2px 0 6px;
   color: #7ee2a8;
 }
+
+/* ───────────── combining occlusions ───────────── */
+.row-with-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.row-with-action > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.occ-toggle {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.occ-toggle:hover {
+  border-color: var(--accent, #5aa9ff);
+  color: var(--text);
+}
+.occ-toggle.on {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.18);
+  color: #ffb4b4;
+}
+.current-occ .chips {
+  margin-bottom: 6px;
+}
+.occ-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.occ-chip .occ-name {
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.occ-chip .x {
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0 2px 0 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+.scenario-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.scenario-row .scenario-card {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.sc-stack {
+  flex: none;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.sc-stack:hover {
+  border-color: var(--accent, #5aa9ff);
+  color: var(--text);
+}
+.supply-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+.supply-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+/* the list's own button rule (full width, flex) must not apply to the row's block toggle */
+.list .row-with-action > button:first-child {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.list .row-with-action > .occ-toggle {
+  width: auto;
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+}
+.list .row-with-action > .occ-toggle.on {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.18);
+  color: #ffb4b4;
+}
+
+/* ───────────────────────────── case panel (left: 病例 · 範本) ─────────────────────────────
+   Styles for the case tab, its cards and the case summary line above the timeline go
+   directly below this comment. Keep them in this section.
+   ───────────────────────────────────────────────────────────────────────────────────────── */
+
+.case-hint {
+  margin: 0 0 12px;
+}
+.case-card {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(27, 34, 48, 0.55);
+}
+.case-card.open {
+  border-color: var(--line-2);
+}
+.case-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+}
+.case-toggle:hover .case-toggle-title {
+  color: var(--accent);
+}
+.case-toggle-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.case-toggle-title {
+  font-weight: 650;
+}
+.case-toggle-summary {
+  color: var(--text-2);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.case-chevron {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 3px 3px;
+  border-right: 2px solid var(--text-3);
+  border-bottom: 2px solid var(--text-3);
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+.open > .case-toggle > .case-chevron {
+  transform: rotate(45deg);
+}
+.case-card > .case-body {
+  padding: 2px 11px 11px;
+  border-top: 1px solid var(--line);
+}
+.case-card > .case-body > :first-child {
+  margin-top: 8px;
+}
+.case-label {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+}
+.case-sub {
+  margin: 10px 0 4px;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
+.case-sub > .case-toggle {
+  padding: 6px 9px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.case-sub > .case-toggle .case-toggle-title {
+  font-weight: 600;
+  color: var(--text-2);
+}
+.case-sub > .case-body {
+  padding: 0 9px 9px;
+}
+.case-sub .embolus-box {
+  margin-top: 2px;
+}
+.case-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.case-event {
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.case-event:first-child {
+  padding-top: 0;
+}
+.case-event .sched {
+  margin-top: 6px;
+}
+.case-event-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.case-event-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 650;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.case-event-name:hover,
+.case-event-name.active {
+  color: var(--accent);
+}
+.case-event-head .badge {
+  flex: none;
+}
+.case-event-head .x {
+  flex: none;
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+}
+.case-event-head .x:hover {
+  color: var(--danger);
+}
+.case-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+.case-clear {
+  margin-top: 8px;
+}
+
+/* the case in one line above the timeline */
+.case-line {
+  flex: none;
+  min-width: 0;
+  padding: 4px 16px 0;
+  border-top: 1px solid var(--line);
+  background: var(--bg-2);
+}
+.case-line + .timeline {
+  border-top: 0;
+}
+.case-line-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  text-align: left;
+}
+.case-line-label {
+  flex: none;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-3);
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.case-line-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.case-line-btn:hover .case-line-text {
+  color: var(--text);
+}
+.case-line-btn:hover .case-line-label {
+  border-color: var(--accent);
+}
+@media (max-width: 900px) {
+  .case-line {
+    padding: 4px 12px 0;
+  }
+}
+
+/* (end of case panel section) */
+
+/* The two sections are kept apart so that work on either can be merged without conflicts. */
+/* Nothing else belongs between them. */
+/* ——— */
+/* ——— */
+
+/* ─────────────────────── outcome panel (right: 此刻 · 最終 · 詳細) ───────────────────────
+   Styles for the right panel's tabs and the final-outcome page go directly below this
+   comment. Keep them in this section.
+   ───────────────────────────────────────────────────────────────────────────────────────── */
+
+/* 此刻: the one line that leads to the final outcome */
+.outcome-link {
+  display: block;
+  width: 100%;
+  margin: 2px 0 10px;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: 1px dashed var(--line-2);
+  border-radius: 8px;
+}
+.outcome-link:hover {
+  border-color: var(--accent);
+  background: rgba(110, 168, 255, 0.08);
+}
+
+/* 最終 */
+.outcome-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.outcome-head p {
+  flex: 1;
+  margin: 0;
+  min-width: 0;
+}
+.outcome-head .btn {
+  flex: none;
+  white-space: nowrap;
+}
+.outcome .callout {
+  margin: 8px 0;
+}
+.outcome-compare table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.outcome-compare th,
+.outcome-compare td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.outcome-compare thead th {
+  color: var(--text-2);
+  font-weight: 600;
+  text-align: right;
+  border-bottom-color: var(--line-2);
+}
+.outcome-compare thead th:first-child,
+.outcome-compare tbody th {
+  width: 44%;
+  text-align: left;
+}
+.outcome-compare tbody th {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.outcome-compare td {
+  text-align: right;
+  font-weight: 650;
+}
+.outcome-compare td:nth-child(2) {
+  color: #a8e6bf;
+}
+.outcome-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius);
+}
+.outcome-hint p {
+  flex: 1 1 200px;
+  margin: 0;
+}
+.outcome-nihss-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+}
+.outcome-nihss-at {
+  min-width: 4.5em;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.outcome-deficits-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.outcome-deficits-head .seg {
+  flex: 0 1 150px;
+}
+.outcome-group {
+  margin: 8px 0;
+  padding-left: 8px;
+  border-left: 3px solid var(--line-2);
+}
+.outcome-group > p {
+  margin: 0 0 2px;
+}
+.outcome-group.og-marked {
+  border-left-color: var(--danger);
+}
+.outcome-group.og-partial {
+  border-left-color: var(--warn);
+}
+.outcome-group.og-largely {
+  border-left-color: var(--ok);
+}
+.outcome .region-list .muted {
+  white-space: nowrap;
+}
+.callout.outcome-caveat {
+  margin-top: 16px;
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+
+/* (end of outcome panel section) */

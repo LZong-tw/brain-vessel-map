@@ -20,8 +20,10 @@ export type ViewMode = '3d' | 'willis' | 'brainstem';
 export type ColorMode = 'state' | 'territory' | 'anatomy' | 'edema';
 /** display multiplier for swelling / midline shift in 3D: 1 = true scale, 3 and 5 exaggerate for teaching */
 export type EdemaScale = 1 | 3 | 5;
-export type LeftTab = 'scenarios' | 'vessels' | 'settings' | 'view';
-export type RightTab = 'details' | 'results';
+/** 'case' = the case being simulated (conditions, events, treatment); 'scenarios' = templates */
+export type LeftTab = 'case' | 'scenarios' | 'vessels' | 'view';
+/** 'now' = at the displayed time; 'final' = the end of the course; 'details' = the selected region or vessel */
+export type RightTab = 'now' | 'final' | 'details';
 
 export interface Layers {
   cortex: boolean;
@@ -96,6 +98,8 @@ export interface AppState {
   setTreatment: (patch: Partial<TreatmentOptions>) => void;
   setDecompression: (v: boolean) => void;
   loadScenario: (id: string) => void;
+  /** add a scenario's occlusions to the current ones (vessels already occluded are kept as they are); settings stay */
+  addScenario: (id: string) => void;
   select: (s: Selection) => void;
   hover: (s: Selection) => void;
   setView: (v: ViewMode) => void;
@@ -283,11 +287,20 @@ export const useApp = create<AppState>((set, get) => ({
       treatment: DEFAULT_TREATMENT,
       decompression: s.decompression ?? false,
       embolus: null,
-      rightTab: 'results',
+      rightTab: 'now',
       selected: null,
       mobilePanel: 'none',
     });
     get().requestCamera(s.view ?? get().camera.view);
+  },
+  addScenario: (id) => {
+    const s = SCENARIO_BY_ID[id];
+    if (!s) return;
+    const cur = get().occlusions;
+    const taken = new Set(cur.map((o) => o.vessel));
+    const added = s.occlusions.filter((o) => !taken.has(o.vessel)).map((o) => tidy({ ...o }));
+    if (!added.length) return;
+    set({ occlusions: [...cur, ...added], scenario: null, embolus: null });
   },
   select: (selected) => set({ selected, rightTab: selected ? 'details' : get().rightTab }),
   hover: (hovered) => {
@@ -333,7 +346,7 @@ export const useApp = create<AppState>((set, get) => ({
     const occlusions = e.result.systemic
       ? get().occlusions
       : [...get().occlusions.filter((o) => o.vessel !== e.result.lodged), { vessel: e.result.lodged, severity: 1 }];
-    set({ embolus: { ...e, done: true }, occlusions, tIndex: tIndexFor(1), rightTab: 'results', scenario: null });
+    set({ embolus: { ...e, done: true }, occlusions, tIndex: tIndexFor(1), rightTab: 'now', scenario: null });
   },
   setPlaying: (playing) => set({ playing }),
   setModal: (modal) => {

@@ -38,6 +38,18 @@ describe('shareable URL state', () => {
     expect(s.view).toBe('3d');
   });
 
+  it('a shared case opens on the case (left) and on the linked time (right)', () => {
+    useApp.setState({ leftTab: 'view', rightTab: 'details' });
+    applyHash('#o=basilar_mid,pica_r&t=24');
+    expect(useApp.getState().leftTab).toBe('case');
+    expect(useApp.getState().rightTab).toBe('now');
+    // a link without occlusions leaves the panels alone
+    useApp.setState({ leftTab: 'view', rightTab: 'details' });
+    applyHash('#view=willis');
+    expect(useApp.getState().leftTab).toBe('view');
+    expect(useApp.getState().rightTab).toBe('details');
+  });
+
   it('reads occlusion schedules: start, spontaneous reopening, later phases', () => {
     applyHash('#o=basilar_mid:0.9@0-72,basilar_mid@72,mca_m2_sup_l@0-0.0833,lenticulostriate_r:b@24&t=120');
     expect(useApp.getState().occlusions).toEqual([

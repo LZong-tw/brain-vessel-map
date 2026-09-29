@@ -21,7 +21,7 @@ const i24 = TIME_STOPS.findIndex((s) => s.h === 24);
 
 describe('function heat-map cell detail', () => {
   it('shows the symptoms, their side and source regions for the clicked cell, and opens a region', () => {
-    useApp.setState({ lang: 'zh-TW', tIndex: 0, selected: null, rightTab: 'results' });
+    useApp.setState({ lang: 'zh-TW', tIndex: 0, selected: null, rightTab: 'now' });
     const { container } = render(<FunctionTimeline series={series} />);
     // the motor row's cell at 24 h
     const cell = screen.getByRole('button', { name: new RegExp(`^運動 · ${TIME_STOPS[i24].label.zh}`) });
