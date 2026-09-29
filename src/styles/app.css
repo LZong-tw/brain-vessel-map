@@ -2031,3 +2031,114 @@ select.sched-sev {
   margin: 2px 0 6px;
   color: #7ee2a8;
 }
+
+/* ───────────── combining occlusions ───────────── */
+.row-with-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.row-with-action > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.occ-toggle {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.occ-toggle:hover {
+  border-color: var(--accent, #5aa9ff);
+  color: var(--text);
+}
+.occ-toggle.on {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.18);
+  color: #ffb4b4;
+}
+.current-occ .chips {
+  margin-bottom: 6px;
+}
+.occ-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.occ-chip .occ-name {
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.occ-chip .x {
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+  padding: 0 2px 0 4px;
+  font-size: 14px;
+  line-height: 1;
+}
+.scenario-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+.scenario-row .scenario-card {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.sc-stack {
+  flex: none;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--line-2);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.sc-stack:hover {
+  border-color: var(--accent, #5aa9ff);
+  color: var(--text);
+}
+.supply-list {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+.supply-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+/* the list's own button rule (full width, flex) must not apply to the row's block toggle */
+.list .row-with-action > button:first-child {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.list .row-with-action > .occ-toggle {
+  width: auto;
+  flex: 0 0 auto;
+  display: inline-block;
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+}
+.list .row-with-action > .occ-toggle.on {
+  border-color: #e5484d;
+  background: rgba(229, 72, 77, 0.18);
+  color: #ffb4b4;
+}

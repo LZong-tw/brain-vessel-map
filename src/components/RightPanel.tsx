@@ -35,6 +35,8 @@ import { FunctionTimeline } from './FunctionTimeline';
 import { NowSummary } from './NowSummary';
 import { RegionNow } from './RegionNow';
 import { useSimSeries } from './useSimSeries';
+import { OccludeToggle } from './OccludeToggle';
+import { STACK_UI } from '../i18n/uiStack';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { treatmentSummary } from '../ui/treatment';
 
@@ -472,6 +474,16 @@ function ScheduleEditor({ vessel, sim }: { vessel: string; sim: SimResult }) {
   );
 }
 
+/** the parent arteries of a region's suppliers (e.g. the PICA trunk for its lateral branch), not already in the list */
+function upstreamOf(suppliers: string[]): string[] {
+  const out: string[] = [];
+  for (const id of suppliers) {
+    const parent = VESSEL_BY_ID[id]?.parent;
+    if (parent && !suppliers.includes(parent) && !out.includes(parent) && isOccludable(parent)) out.push(parent);
+  }
+  return out;
+}
+
 function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
@@ -531,15 +543,21 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
       <RegionNow id={id} sim={sim} />
       <section>
         <h3>{t.suppliedBy}</h3>
-        <div className="chips">
+        <ul className="supply-list">
           {supply.map((s) => (
-            <Chip
-              key={s.vessel}
-              label={`${vesselName(VESSEL_BY_ID[s.vessel], lang)} ${pct(s.share)}`}
-              onClick={() => select({ kind: 'vessel', id: s.vessel })}
-            />
+            <li key={s.vessel}>
+              <Chip label={`${vesselName(VESSEL_BY_ID[s.vessel], lang)} ${pct(s.share)}`} onClick={() => select({ kind: 'vessel', id: s.vessel })} />
+              <OccludeToggle vessel={s.vessel} />
+            </li>
           ))}
-        </div>
+          {upstreamOf(supply.map((s) => s.vessel)).map((vid) => (
+            <li key={vid} className="upstream">
+              <Chip label={`${STACK_UI[lang].upstream} ${vesselName(VESSEL_BY_ID[vid], lang)}`} onClick={() => select({ kind: 'vessel', id: vid })} />
+              <OccludeToggle vessel={vid} />
+            </li>
+          ))}
+        </ul>
+        <p className="muted small">{STACK_UI[lang].supplyHint}</p>
       </section>
       {deficits.length > 0 && (
         <section>

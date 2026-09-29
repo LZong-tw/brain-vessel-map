@@ -12,6 +12,8 @@ import { useT } from '../state/hooks';
 import { EDEMA_UI } from '../i18n/uiEdema';
 import { SCHEDULE_UI } from '../i18n/uiSchedule';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
+import { STACK_UI } from '../i18n/uiStack';
+import { CurrentOcclusions, OccludeToggle } from './OccludeToggle';
 import { RECANALISATION_EVIDENCE, siteGroupOf as defaultSiteGroupOf, type RecanalisationEvidence, type SiteGroup } from '../anatomy/recanalisation';
 import type { ReperfusionGrade, TreatmentMethod } from '../engine/treatment';
 import type { Lang } from '../anatomy/types';
@@ -64,6 +66,9 @@ function ScenariosTab() {
   const lang = useApp((s) => s.lang);
   const current = useApp((s) => s.scenario);
   const load = useApp((s) => s.loadScenario);
+  const addScenario = useApp((s) => s.addScenario);
+  const hasOcclusions = useApp((s) => s.occlusions.length > 0);
+  const st = STACK_UI[lang];
   const groups = ['anterior', 'deep', 'posterior', 'haemodynamic'] as const;
   return (
     <div>
@@ -72,10 +77,23 @@ function ScenariosTab() {
         <section key={g} className="group">
           <h3>{t.scenarioGroups[g]}</h3>
           {SCENARIOS.filter((s) => s.group === g).map((s) => (
-            <button key={s.id} className={`scenario-card${current === s.id ? ' active' : ''}`} onClick={() => load(s.id)}>
-              <span className="sc-title">{tr(s.title, lang)}</span>
-              <span className="sc-summary">{tr(s.summary, lang)}</span>
-            </button>
+            <div key={s.id} className="scenario-row">
+              <button className={`scenario-card${current === s.id ? ' active' : ''}`} onClick={() => load(s.id)}>
+                <span className="sc-title">{tr(s.title, lang)}</span>
+                <span className="sc-summary">{tr(s.summary, lang)}</span>
+              </button>
+              {hasOcclusions && current !== s.id && (
+                <button
+                  type="button"
+                  className="sc-stack"
+                  title={st.stackTitle}
+                  aria-label={st.stackAria(tr(s.title, lang))}
+                  onClick={() => addScenario(s.id)}
+                >
+                  {st.stack}
+                </button>
+              )}
+            </div>
           ))}
         </section>
       ))}
@@ -164,6 +182,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
   const noMatches = query !== '' && regionHits.length === 0 && !anyVesselHit;
   return (
     <div>
+      <CurrentOcclusions />
       <input
         className="search"
         type="search"
@@ -215,7 +234,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
               {vs.map((v) => {
                 const vis = vesselVisual(v.id, sim);
                 return (
-                  <li key={v.id}>
+                  <li key={v.id} className="row-with-action">
                     <button
                       className={selected?.id === v.id ? 'active' : ''}
                       onClick={() => select({ kind: 'vessel', id: v.id })}
@@ -226,6 +245,7 @@ function VesselsTab({ sim }: { sim: SimResult }) {
                       <span className="grow">{vesselName(v, lang)}</span>
                       {v.abbr && <span className="abbr">{v.abbr}</span>}
                     </button>
+                    <OccludeToggle vessel={v.id} />
                   </li>
                 );
               })}

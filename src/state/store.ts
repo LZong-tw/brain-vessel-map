@@ -96,6 +96,8 @@ export interface AppState {
   setTreatment: (patch: Partial<TreatmentOptions>) => void;
   setDecompression: (v: boolean) => void;
   loadScenario: (id: string) => void;
+  /** add a scenario's occlusions to the current ones (vessels already occluded are kept as they are); settings stay */
+  addScenario: (id: string) => void;
   select: (s: Selection) => void;
   hover: (s: Selection) => void;
   setView: (v: ViewMode) => void;
@@ -288,6 +290,15 @@ export const useApp = create<AppState>((set, get) => ({
       mobilePanel: 'none',
     });
     get().requestCamera(s.view ?? get().camera.view);
+  },
+  addScenario: (id) => {
+    const s = SCENARIO_BY_ID[id];
+    if (!s) return;
+    const cur = get().occlusions;
+    const taken = new Set(cur.map((o) => o.vessel));
+    const added = s.occlusions.filter((o) => !taken.has(o.vessel)).map((o) => tidy({ ...o }));
+    if (!added.length) return;
+    set({ occlusions: [...cur, ...added], scenario: null, embolus: null });
   },
   select: (selected) => set({ selected, rightTab: selected ? 'details' : get().rightTab }),
   hover: (hovered) => {
