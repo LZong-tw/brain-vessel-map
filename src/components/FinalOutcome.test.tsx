@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { REGION_BY_ID, regionName } from '../anatomy';
+import { POST_STROKE_RISKS } from '../anatomy/postStrokeRisks';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
@@ -243,5 +244,81 @@ describe('最終 tab', () => {
     // and the deficit itself is listed as lasting
     const marked = container.querySelector('.og-marked') as HTMLElement;
     within(marked).getByText(/單眼/);
+  });
+});
+
+describe('最終 tab: common problems after stroke (population figures)', () => {
+  const TITLE = '中風後常見的其他問題';
+  const section = (c: HTMLElement) => c.querySelector('.outcome-risks') as HTMLElement | null;
+  const riskNames = POST_STROKE_RISKS.map((r) => r.name.zh);
+
+  it('lists every risk for an infarct, with the explanation line, the figure and its sources', () => {
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const box = section(container)!;
+    expect(box).not.toBeNull();
+    within(box).getByRole('heading', { name: TITLE });
+    within(box).getByText(/模型無法預測這個病例會不會發生/);
+    expect(box.querySelectorAll('.risk-item')).toHaveLength(POST_STROKE_RISKS.length);
+    const dep = box.querySelector('[data-risk="depression"]') as HTMLElement;
+    within(dep).getByText('中風後憂鬱');
+    within(dep).getByText('約 31%（95% CI 28–35%）');
+    const cite = dep.querySelector('cite')!;
+    expect(cite.textContent).toMatch(/^來源：/);
+    for (const s of POST_STROKE_RISKS.find((r) => r.id === 'depression')!.sources) expect(cite.textContent).toContain(s);
+    // the factors are behind a disclosure
+    expect(within(dep).getByText('相關因素與病灶位置').tagName).toBe('SUMMARY');
+    expect(dep.querySelector('details')!.textContent).toMatch(/Carson 2000/);
+    // grouped under headings, in the order of the systems
+    expect([...box.querySelectorAll('.risk-group h4')].map((h) => h.textContent)).toEqual(['認知', '情緒與動機', '睡眠、精神與體力']);
+  });
+
+  it('in English too', () => {
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final', lang: 'en' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const box = section(container)!;
+    within(box).getByRole('heading', { name: 'Other common problems after stroke' });
+    within(box).getByText('about 31 % (95% CI 28–35 %)');
+    within(box).getByText(/cannot predict whether this case will develop them/);
+  });
+
+  it('does not appear for a TIA that leaves nothing', () => {
+    useApp.getState().loadScenario('tia_l_mca');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    screen.getByText('沒有留下症狀。');
+    expect(section(container)).toBeNull();
+    expect(screen.queryByText(TITLE)).toBeNull();
+    for (const n of riskNames) expect(screen.queryByText(n)).toBeNull();
+  });
+
+  it('never enters the deficit counts, the NIHSS or the 此刻 symptoms', () => {
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const six = at6m();
+    const deficits = container.querySelector('.outcome-deficits') as HTMLElement;
+    expect(deficits.querySelectorAll('.outcome-group li')).toHaveLength(six.symptoms.length);
+    const counted = [...deficits.querySelectorAll('.outcome-group h4 .num')].reduce((a, n) => a + Number(n.textContent), 0);
+    expect(counted).toBe(six.symptoms.length);
+    expect(section(deficits)).toBeNull();
+    const nihss = container.querySelector('.outcome-nihss')!.textContent!;
+    for (const n of riskNames) {
+      expect(deficits.textContent).not.toContain(n);
+      expect(nihss).not.toContain(n);
+    }
+    cleanup();
+
+    // 此刻 at the 6-month stop: the case's symptoms only
+    useApp.setState({ rightTab: 'now', tIndex: TIME_STOPS.length - 1 });
+    const now = render(<RightPanel sim={simOf()} />);
+    expect(section(now.container)).toBeNull();
+    expect(now.container.textContent).not.toContain(TITLE);
+    const items = [...now.container.querySelectorAll('.sym-group li')];
+    expect(items).toHaveLength(simOf().symptoms.length);
+    const listed = items.map((li) => li.textContent).join('\n');
+    for (const n of riskNames) expect(listed).not.toContain(n);
   });
 });
