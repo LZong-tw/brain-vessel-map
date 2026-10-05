@@ -114,6 +114,24 @@ const ANTERIOR_THALAMUS = (bi: number) => ({ any: partial(0.9, bi) });
  */
 const LEFT_NEGLECT = { l: partial(0.85, 0.2) };
 
+/**
+ * Lacunes whose deficit has a course of its own (DeficitRef.redundancy, used in lacunes.ts).
+ *
+ * The clumsy hand of a dysarthria–clumsy hand lacune: a small lacune spares part of the tract, and
+ * the outcome is good, "symptom free at discharge 45.7 %" (35 patients, Arboix A et al. J Neurol
+ * Neurosurg Psychiatry 2004;75:231–234, PMID 14742595) — not the poor recovery of fractionated
+ * finger movement after the corticospinal tract is lost. Spared and reorganised fibres take most
+ * of it over within weeks (R2-1). TODO(medical-review): 0.9
+ */
+export const LACUNAR_CLUMSY_HAND: Redundancy = partial(0.9, 0.3, { fast: true });
+/**
+ * The memory problem of a right capsular genu lacune: "A right-sided infarct caused transient
+ * impairment in visuospatial memory" (Tatemichi TK et al. Neurology 1992;42:1966–1979, PMID
+ * 1407580), against the lasting verbal memory loss of the left-sided ones (R2-3).
+ * TODO(medical-review): 0.9
+ */
+export const RIGHT_GENU_AMNESIA: Redundancy = partial(0.9, 0.1, { fast: true });
+
 // TODO(medical-review): all `uni` / `bi` values below
 export const REDUNDANCY: Record<string, Redundancy> = {
   // ── consciousness: the arousal system is a bilateral network; arousal often returns over
@@ -178,8 +196,10 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // hearing lost to vertebrobasilar ischaemia came back partly or completely in 81 % at ≥ 1 year
   // — 40 % with a profound loss, 89 % with a lesser one (Lee H, Baloh RW. J Neurol Sci
   // 2005;228:99–104, PMID 15607217) — and in 65 % of 62 (Kim HA et al. J Neurol Sci
-  // 2014;339:176–182, PMID 24581671). The inner-ear infarct is a profound loss. C7-F8
-  hearing_loss: partial(0.6, 0.3, { profound: { uni: 0.25, bi: 0.1 } }),
+  // 2014;339:176–182, PMID 24581671). The inner-ear infarct is a profound loss. C7-F8. The model
+  // shows one course: for a profound loss the commoner one, in which it does not improve, so its
+  // share stays below the rounding step (3 × 0.85 still rounds to 3; R2-8)
+  hearing_loss: partial(0.6, 0.3, { profound: { uni: 0.15, bi: 0.1 } }),
   palatal_tremor: EXEMPT,
   // TODO(medical-review): above the upper pons the taste pathway runs on both sides; 80 % of central taste disorders
   // improved by 24 weeks (Onoda et al., J Neurol 2012; 259:261–6)

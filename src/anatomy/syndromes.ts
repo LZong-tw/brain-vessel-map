@@ -38,10 +38,10 @@ export interface SyndromeCtx {
   lacune(base: string, side: Side): boolean;
   /**
    * the single-branch (lacunar) occlusions of perforator bundle `base` on `side` that have begun
-   * by the displayed time, in time order: when each began and when it reopened by itself (null:
-   * it lasts)
+   * by the displayed time, in time order: when each began, when it reopened by itself (null: it
+   * lasts), and whether it reopened before any of its tissue had died (a TIA)
    */
-  branchEpisodes(base: string, side: Side): { fromH: number; toH: number | null }[];
+  branchEpisodes(base: string, side: Side): BranchEpisode[];
   /** the displayed time (h, on the timeline clock) */
   tH: number;
   /**
@@ -51,14 +51,23 @@ export interface SyndromeCtx {
   sym(id: string, side?: Side): number;
 }
 
+/** one single-branch (lacunar) occlusion of a perforator bundle (SyndromeCtx.branchEpisodes) */
+export interface BranchEpisode {
+  fromH: number;
+  /** when it reopened by itself; null: it lasts */
+  toH: number | null;
+  /** it reopened before any of its tissue had died: a TIA, not an infarcting attack */
+  transient: boolean;
+}
+
 /** What the symptom list shown at the same time contains (for the signs a label needs). */
 export interface SymptomQuery {
   /** present at all */
   has(id: string): boolean;
   /** present on this body side (a symptom of both sides counts for each), at least `minSev` severe */
   on(id: string, bodySide: Side, minSev?: 1 | 2 | 3): boolean;
-  /** produced by a region on this side of the brain (for symptoms without a body side) */
-  from(id: string, lesionSide: Side): boolean;
+  /** produced by a region on this side of the brain (for symptoms without a body side), of base `base` when given */
+  from(id: string, lesionSide: Side, base?: string): boolean;
 }
 
 export type SyndromeGroup = 'anterior' | 'posterior' | 'brainstem' | 'cerebellar' | 'lacunar' | 'watershed' | 'other';
@@ -112,14 +121,18 @@ const WARNING_WITHIN_H = 24;
 /** the label stays this long after the latest attack or occlusion of that branch (7-day stroke risk, Paul 2012) */
 const WARNING_SHOWN_H = 168;
 /**
- * from the start of a second attack of the same branch within a day of one that had cleared, for
- * a week after its latest attack (or the lasting occlusion that followed): a crescendo of
- * stereotyped lacunar TIAs
+ * A crescendo of stereotyped lacunar TIAs: from the start of a second TIA of the same branch
+ * within a day of a first one, for a week after its latest attack (or the lasting occlusion that
+ * followed). Only attacks that cleared before any tissue died count as TIAs (R2-2): every stroke
+ * after a capsular warning syndrome followed a recurrent TIA within 24 h of the first (Paul NL et
+ * al. Neurology 2012;79:1356-1362, PMID 22972645), so one TIA followed by a stroke, or attacks
+ * that each leave an infarct, are not the syndrome.
  */
-function crescendo(episodes: { fromH: number; toH: number | null }[], tH: number): boolean {
-  for (let j = 1; j < episodes.length; j++) {
-    const a = episodes[j - 1];
-    const b = episodes[j];
+function crescendo(episodes: BranchEpisode[], tH: number): boolean {
+  const tias = episodes.filter((e) => e.transient);
+  for (let j = 1; j < tias.length; j++) {
+    const a = tias[j - 1];
+    const b = tias[j];
     if (a.toH !== null && a.toH <= b.fromH && b.fromH - a.fromH <= WARNING_WITHIN_H) {
       const last = episodes[episodes.length - 1].fromH;
       return tH >= b.fromH && tH < last + WARNING_SHOWN_H;
@@ -653,10 +666,12 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'pontine_lacunar',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '橋腦腔隙性中風（純運動／運動失調性偏癱／構音障礙—笨拙手）', en: 'Pontine lacune (pure motor / ataxic hemiparesis / dysarthria–clumsy hand)' },
+    // named as a clinical syndrome: the same picture is a lacunar TIA when it clears within
+    // minutes and leaves no infarct (R2-5)
+    name: { zh: '橋腦腔隙症候群（純運動／運動失調性偏癱／構音障礙—笨拙手）', en: 'Pontine lacunar syndrome (pure motor / ataxic hemiparesis / dysarthria–clumsy hand)' },
     desc: {
-      zh: '單一穿通動脈阻塞造成的小梗塞，依切斷哪些纖維而有不同表現：對側輕到中度無力（純運動性，最常見）；無力加上同一側肢體不協調（運動失調性偏癱）；或只有口齒不清與手笨拙（構音障礙—笨拙手）。與高血壓小血管病變有關。',
-      en: 'A small infarct from one perforator, whose picture depends on which fibres it cuts: mild-to-moderate weakness of the opposite side (pure motor, the commonest); weakness with incoordination of the same limbs (ataxic hemiparesis); or just slurred speech and a clumsy hand (dysarthria–clumsy hand). Linked to hypertensive small-vessel disease.',
+      zh: '通常是單一穿通動脈阻塞造成的小梗塞（腔隙），依切斷哪些纖維而有不同表現：對側輕到中度無力（純運動性，最常見）；無力加上同一側肢體不協調（運動失調性偏癱）；或只有口齒不清與手笨拙（構音障礙—笨拙手）。與高血壓小血管病變有關。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct (lacune) from one perforator, whose picture depends on which fibres it cuts: mild-to-moderate weakness of the opposite side (pure motor, the commonest); weakness with incoordination of the same limbs (ataxic hemiparesis); or just slurred speech and a clumsy hand (dysarthria–clumsy hand). Linked to hypertensive small-vessel disease. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     test: (c, s) =>
       c.has('pons_rostral_basis', s, 0.3) &&
@@ -707,10 +722,12 @@ export const SYNDROMES: SyndromeDef[] = [
     // 5.3 % of the others (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384), from the
     // crossed pyramidal tract in the lower medulla (Uemura M et al. J Neurol Sci 2016;365:40–45,
     // PMID 27206871); vertebral disease in 67 %, PICA disease in 10 % (Kim JS. Brain
-    // 2003;126:1864–1872, PMID 12805095). C7-F3, C7-F4, C7-F11
+    // 2003;126:1864–1872, PMID 12805095); the classic crossed sensory pattern in 13 of 50, a
+    // bilateral trigeminal one with large, ventrally extending lesions in 12 (Kim JS et al. Neurology
+    // 1997;49:1557–1563, PMID 9409346). C7-F3, C7-F4, C7-F11, R2-6
     desc: {
-      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群與肢體運動失調、走路不穩且身體被拉向病灶側（同側側傾），以及「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺）；常有輕度臉部無力與構音障礙。霍納氏症候群、同側運動失調與對側痛覺減退三者並存即可辨認。病灶側眼睛可能較低（眼球垂直偏斜，HINTS 的「S」）：33 位病人中有 11 位有複視或視力模糊，這不一定代表梗塞超出延髓外側（Sacco 1993）。手腳通常不會無力：對側手腳無力表示梗塞延伸到延髓內側（半側延髓，Babinski–Nageotte 症候群）；延髓外側梗塞報告中的偏癱在病灶同側（Opalski 變異型，延髓最下段已交叉的錐體徑受損）；一個系列中存活者約 5% 有，死於呼吸衰竭者則有一半，代表呼吸衰竭的風險較高——本模型沒有重現這一型。最常見原因是椎動脈（約 67%，而非單純 PICA，約 10%）阻塞或剝離。',
-      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, gait ataxia with the body pulled towards the lesion (ipsiversive lateropulsion), and "crossed" sensory loss (pain/temperature on the same-side face and opposite body); a mild facial weakness and dysarthria are common. The triad of Horner, ipsilateral ataxia and contralateral loss of pain sensation identifies it. The eye on the lesion side may sit lower (skew deviation, the "S" of HINTS): 11 of 33 patients had double or blurred vision, which does not necessarily mean the infarct extends beyond the lateral medulla (Sacco 1993). Usually no weakness of the limbs: weakness of the opposite limbs means the infarct reaches the medial medulla (hemimedullary, Babinski–Nageotte syndrome); the hemiparesis reported with lateral medullary infarcts is on the same side (Opalski variant, from the crossed pyramidal tract in the lowest medulla); in one series 5 % of the survivors had it against half of those who died of respiratory failure, so it marks a higher risk — that variant is not reproduced by this model. Most often due to vertebral (about 67 %; not isolated PICA, about 10 %) occlusion or dissection.',
+      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群與肢體運動失調、走路不穩且身體被拉向病灶側（同側側傾），以及「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺）；常有輕度臉部無力與構音障礙。不過典型的交叉型只占約四分之一（50 人中 13 人）：梗塞大、往腹側延伸時，對側臉的痛溫覺也常減退（50 人中 12 人，兩側臉都受影響）。霍納氏症候群、同側運動失調與對側痛覺減退三者並存即可辨認。病灶側眼睛可能較低（眼球垂直偏斜，HINTS 的「S」）：33 位病人中有 11 位有複視或視力模糊，這不一定代表梗塞超出延髓外側（Sacco 1993）。手腳通常不會無力：對側手腳無力表示梗塞延伸到延髓內側（半側延髓，Babinski–Nageotte 症候群）；延髓外側梗塞報告中的偏癱在病灶同側（Opalski 變異型，延髓最下段已交叉的錐體徑受損）；一個系列中存活者約 5% 有，死於呼吸衰竭者則有一半，代表呼吸衰竭的風險較高——本模型沒有重現這一型。最常見原因是椎動脈（約 67%，而非單純 PICA，約 10%）阻塞或剝離。',
+      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, gait ataxia with the body pulled towards the lesion (ipsiversive lateropulsion), and "crossed" sensory loss (pain/temperature on the same-side face and opposite body); a mild facial weakness and dysarthria are common. The classic crossed pattern is seen in only about a quarter, though (13 of 50): a large infarct that reaches ventrally often dulls the opposite side of the face as well (12 of 50, both sides of the face). The triad of Horner, ipsilateral ataxia and contralateral loss of pain sensation identifies it. The eye on the lesion side may sit lower (skew deviation, the "S" of HINTS): 11 of 33 patients had double or blurred vision, which does not necessarily mean the infarct extends beyond the lateral medulla (Sacco 1993). Usually no weakness of the limbs: weakness of the opposite limbs means the infarct reaches the medial medulla (hemimedullary, Babinski–Nageotte syndrome); the hemiparesis reported with lateral medullary infarcts is on the same side (Opalski variant, from the crossed pyramidal tract in the lowest medulla); in one series 5 % of the survivors had it against half of those who died of respiratory failure, so it marks a higher risk — that variant is not reproduced by this model. Most often due to vertebral (about 67 %; not isolated PICA, about 10 %) occlusion or dissection.',
     },
     // the region threshold is the one the symptoms use (0.25), so that a lateral medulla whose
     // signs are listed (e.g. behind a PICA occlusion) is also named; the label needs the crossed
@@ -740,12 +757,13 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: false,
     name: { zh: '雙側延髓內側梗塞', en: 'Bilateral medial medullary infarction' },
     desc: {
-      zh: '兩側延髓內側都受損：四肢無力（臉部常不受影響）、兩側舌頭無力與構音障礙，常合併本體覺喪失。一篇 38 例的系統性回顧：肢體無力 78.4%、構音障礙 48.6%、舌下神經麻痺 40.5%；病灶多在延髓上段；預後差，住院死亡率 23.8%、需要他人照顧 61.9%。可能在幾天內逐漸惡化、看起來像格林–巴利症候群，第一次 MRI 可能正常；部分個案出現延髓麻痺與呼吸衰竭（呼吸的風險另列為併發症）。',
-      en: 'Both medial medullae: weakness of all four limbs (the face often spared), weak tongue on both sides and dysarthria, often with loss of position sense. In a systematic review of 38 cases: limb weakness 78.4 %, dysarthria 48.6 %, hypoglossal palsy 40.5 %; mostly rostral lesions; a poor outcome, with inpatient mortality 23.8 % and dependency 61.9 %. It can worsen over days and mimic Guillain–Barré syndrome, with a first MRI that is normal; bulbar palsy and respiratory failure occur in some cases (the breathing risk is listed as a complication).',
+      zh: '兩側延髓內側都受損：四肢無力（臉部常不受影響）、兩側舌頭無力與構音障礙，常合併本體覺喪失。一篇 38 例的系統性回顧：肢體無力 78.4%、構音障礙 48.6%、舌下神經麻痺 40.5%；病灶多在延髓上段；預後差，住院死亡率 23.8%、需要他人照顧 61.9%。可能在幾天內逐漸惡化、看起來像格林–巴利症候群，第一次 MRI 可能正常；部分個案出現延髓麻痺與呼吸衰竭（呼吸的風險另列為併發症）。延髓外側也梗塞時（例如兩側椎動脈都阻塞），再加上延髓外側的徵象（霍納氏症候群、痛溫覺喪失、吞嚥困難與聲音沙啞、運動失調）：仍是一個兩側延髓的病灶，不是兩個單側的華倫堡或半側延髓症候群。',
+      en: 'Both medial medullae: weakness of all four limbs (the face often spared), weak tongue on both sides and dysarthria, often with loss of position sense. In a systematic review of 38 cases: limb weakness 78.4 %, dysarthria 48.6 %, hypoglossal palsy 40.5 %; mostly rostral lesions; a poor outcome, with inpatient mortality 23.8 % and dependency 61.9 %. It can worsen over days and mimic Guillain–Barré syndrome, with a first MRI that is normal; bulbar palsy and respiratory failure occur in some cases (the breathing risk is listed as a complication). When the lateral medulla is infarcted too (both vertebral arteries blocked, for example), the lateral medullary signs add (Horner, loss of pain and temperature, dysphagia and hoarseness, ataxia): still one lesion of both sides of the medulla, not two one-sided Wallenberg or hemimedullary syndromes.',
     },
-    // both sides from the threshold at which the bilateral sign (dysarthria) appears
+    // both sides from the threshold at which the bilateral sign (dysarthria) appears; with the
+    // lateral medulla too it is still one bilateral picture (R2-7)
     test: (c) => c.both('medulla_medial', 0.25),
-    supersedes: ['dejerine'],
+    supersedes: ['dejerine', 'hemimedullary', 'wallenberg'],
   },
   {
     id: 'hemimedullary',
@@ -819,13 +837,14 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'lacunar_pure_motor',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '純運動性腔隙中風', en: 'Pure motor lacunar stroke' },
+    name: { zh: '純運動性腔隙症候群', en: 'Pure motor lacunar syndrome' },
     // the commonest lacunar syndrome (57 %); severity follows the infarct volume, except in the
     // lowest part of the internal capsule (Chamorro A et al. Stroke 1991;22:175-181, PMID 2003281);
-    // lacunar strokes have a median NIHSS of 3-4 (Barow 2020; Vynckier 2021). C6-F1.
+    // lacunar strokes have a median NIHSS of 3-4 (Barow 2020; Vynckier 2021). C6-F1. Named as a
+    // clinical syndrome, as are the other lacunar ones: shown during a capsular TIA too (R2-5).
     desc: {
-      zh: '內囊後肢小梗塞：對側臉、手、腳無力程度相近，多為輕到中度，沒有感覺、視野或語言障礙。位在內囊最下方的小梗塞也可能造成嚴重偏癱。',
-      en: 'Small infarct in the posterior limb of the internal capsule: weakness of the opposite face, arm and leg to a similar degree, usually mild to moderate, with no sensory, visual or language deficit. A small infarct in the lowest part of the internal capsule can still cause a dense hemiplegia.',
+      zh: '通常是內囊後肢的小梗塞（腔隙）：對側臉、手、腳無力程度相近，多為輕到中度，沒有感覺、視野或語言障礙。位在內囊最下方的小梗塞也可能造成嚴重偏癱。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct (lacune) in the posterior limb of the internal capsule: weakness of the opposite face, arm and leg to a similar degree, usually mild to moderate, with no sensory, visual or language deficit. A small infarct in the lowest part of the internal capsule can still cause a dense hemiplegia. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     test: (c, s) =>
       c.hasAny(['ic_posterior_limb', 'ic_genu'], s, 0.3) &&
@@ -839,10 +858,10 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'lacunar_pure_sensory',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '純感覺性腔隙中風', en: 'Pure sensory lacunar stroke' },
+    name: { zh: '純感覺性腔隙症候群', en: 'Pure sensory lacunar syndrome' },
     desc: {
-      zh: '視丘腹後核小梗塞：對側半身麻木，沒有無力。',
-      en: 'Small infarct in the ventral posterior thalamus: numbness of the opposite half of the body without weakness.',
+      zh: '通常是視丘腹後核的小梗塞（腔隙）：對側半身麻木，沒有無力。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct (lacune) in the ventral posterior thalamus: numbness of the opposite half of the body without weakness. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     // a lacune: the whole inferolateral territory is the thalamic sensory syndrome (C6-F7)
     test: (c, s) =>
@@ -855,10 +874,10 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'lacunar_sensorimotor',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '感覺運動性腔隙中風', en: 'Sensorimotor lacunar stroke' },
+    name: { zh: '感覺運動性腔隙症候群', en: 'Sensorimotor lacunar syndrome' },
     desc: {
-      zh: '視丘與鄰近內囊同時受損：對側無力加上麻木。',
-      en: 'Thalamus and adjacent internal capsule: contralateral weakness plus numbness.',
+      zh: '視丘與鄰近內囊同時受損：對側無力加上麻木。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Thalamus and adjacent internal capsule: contralateral weakness plus numbness. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
     supersedes: ['lacunar_pure_motor', 'lacunar_pure_sensory'],
@@ -876,8 +895,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '運動失調性偏癱（腔隙性）', en: 'Ataxic hemiparesis (lacunar)' },
     desc: {
-      zh: '一側輕度無力，同一側手腳又笨拙、不協調（比無力本身更明顯），沒有感覺障礙。同樣的表現可以來自內囊（39%）、橋腦（19%）、視丘與放射冠（各 13%）或豆狀核（8%），各處幾乎無法從症狀區分。',
-      en: 'Mild weakness of one side with clumsy, uncoordinated movements of the same limbs, out of proportion to the weakness, and no sensory loss. The same picture comes from the internal capsule (39 %), pons (19 %), thalamus and corona radiata (13 % each) or lentiform nucleus (8 %), and the sites can hardly be told apart by the signs.',
+      zh: '一側輕度無力，同一側手腳又笨拙、不協調（比無力本身更明顯），沒有感覺障礙。同樣的表現可以來自內囊（39%）、橋腦（19%）、視丘與放射冠（各 13%）或豆狀核（8%），各處幾乎無法從症狀區分。若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Mild weakness of one side with clumsy, uncoordinated movements of the same limbs, out of proportion to the weakness, and no sensory loss. The same picture comes from the internal capsule (39 %), pons (19 %), thalamus and corona radiata (13 % each) or lentiform nucleus (8 %), and the sites can hardly be told apart by the signs. Clearing within minutes and leaving no infarct, it is a lacunar TIA.',
     },
     test: (c, s) =>
       c.hasAny(['ic_posterior_limb', 'corona_radiata'], s, 0.3) &&
@@ -896,8 +915,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '構音障礙—笨拙手症候群（腔隙性）', en: 'Dysarthria–clumsy hand syndrome (lacunar)' },
     desc: {
-      zh: '口齒不清加上一隻手笨拙、略無力（寫字、扣釦子困難），常有輕微的臉部無力，沒有感覺障礙。約占腔隙症候群的 6%；病灶多在內囊（40%）、橋腦（17%）或放射冠（9%）。預後通常很好，近半數出院時已無症狀。',
-      en: 'Slurred speech with a clumsy, slightly weak hand (writing, buttoning), often a mild facial weakness, and no sensory loss. About 6 % of lacunar syndromes; mostly in the internal capsule (40 %), pons (17 %) or corona radiata (9 %). The outlook is usually good: nearly half are symptom-free at discharge.',
+      zh: '口齒不清加上一隻手笨拙、略無力（寫字、扣釦子困難），常有輕微的臉部無力，沒有感覺障礙。約占腔隙症候群的 6%；病灶多在內囊（40%）、橋腦（17%）或放射冠（9%）。預後通常很好，近半數出院時已無症狀；模型中手的笨拙在幾週內消失。若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Slurred speech with a clumsy, slightly weak hand (writing, buttoning), often a mild facial weakness, and no sensory loss. About 6 % of lacunar syndromes; mostly in the internal capsule (40 %), pons (17 %) or corona radiata (9 %). The outlook is usually good: nearly half are symptom-free at discharge; in the model the hand recovers within weeks. Clearing within minutes and leaving no infarct, it is a lacunar TIA.',
     },
     test: (c, s) =>
       c.hasAny(['ic_genu', 'ic_posterior_limb', 'corona_radiata'], s, 0.3) &&
@@ -915,13 +934,16 @@ export const SYNDROMES: SyndromeDef[] = [
     id: 'capsular_genu',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '內囊膝部梗塞（策略性梗塞）', en: 'Capsular genu infarct (strategic infarct)' },
+    name: { zh: '內囊膝部症候群（視丘—皮質連結中斷）', en: 'Capsular genu syndrome (thalamocortical disconnection)' },
     desc: {
-      zh: '內囊膝部下方的小梗塞切斷視丘通往額葉的纖維，使同側額葉功能下降：突然的意識混亂、清醒程度起伏、注意力差、冷漠與意志缺失、反應變慢與失憶；左側梗塞造成嚴重的語言記憶障礙，有時達到失智（「策略性梗塞失智」），右側則只有短暫的空間記憶障礙。無力與口齒不清通常輕微。根據小型病例系列。',
-      en: 'A small infarct in the lower genu of the internal capsule cuts the thalamic fibres to the frontal lobe and depresses that frontal lobe: sudden confusion with fluctuating alertness, inattention, apathy and abulia, slowness and memory loss — severe verbal memory loss after a left-sided infarct, sometimes amounting to dementia ("strategic-infarct dementia"), only a transient visuospatial memory problem after a right-sided one. Weakness and dysarthria are usually mild. From a small case series.',
+      zh: '通常是內囊膝部下方的小梗塞，切斷視丘通往額葉的纖維，使同側額葉功能下降：突然的意識混亂、清醒程度起伏、注意力差、冷漠與意志缺失、反應變慢與失憶；左側梗塞造成嚴重的語言記憶障礙，有時達到失智（「策略性梗塞失智」），右側則只有短暫的空間記憶障礙（模型中幾週內消失）。無力與口齒不清通常輕微。根據小型病例系列。若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct in the lower genu of the internal capsule, which cuts the thalamic fibres to the frontal lobe and depresses that frontal lobe: sudden confusion with fluctuating alertness, inattention, apathy and abulia, slowness and memory loss — severe verbal memory loss after a left-sided infarct, sometimes amounting to dementia ("strategic-infarct dementia"), only a transient visuospatial memory problem after a right-sided one (gone within weeks in the model). Weakness and dysarthria are usually mild. From a small case series. Clearing within minutes and leaving no infarct, it is a lacunar TIA.',
     },
     test: (c, s) => c.has('ic_genu', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && !c.has('putamen', s, 0.4) && c.cortexCount(s) === 0,
-    requires: (q, s) => q.from('amnesia', s),
+    // the memory loss or the apathy of the lower-genu lacune itself (the genu's own list has
+    // neither): after a right-sided lacune the memory problem passes within weeks (R2-3), the
+    // apathy stays, and the label with it rather than a "pure" motor label
+    requires: (q, s) => q.from('amnesia', s, 'ic_genu') || q.from('abulia', s, 'ic_genu'),
     supersedes: ['lacunar_pure_motor', 'lacunar_dysarthria_clumsy_hand'],
   },
   {

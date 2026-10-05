@@ -896,8 +896,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'hearing_loss',
     name: { zh: '突發性聽力喪失', en: 'Sudden hearing loss' },
     desc: {
-      zh: '內耳或耳蝸神經核缺血。突發單耳聽力喪失合併眩暈，可能是小腦前下動脈中風的前兆。追蹤一年以上，約三分之二到五分之四的人聽力已部分或完全恢復；完全聽不見（極重度）時恢復的機會較低（約 40% 改善，較輕者約 89%）。',
-      en: 'Ischaemia of the inner ear or cochlear nuclei. Sudden unilateral deafness with vertigo can herald AICA stroke. Followed for a year or more, about two-thirds to four-fifths of people had got some or all of their hearing back; a profound loss improves less often (about 40 %, against about 89 % for a lesser loss).',
+      zh: '內耳或耳蝸神經核缺血。突發單耳聽力喪失合併眩暈，可能是小腦前下動脈中風的前兆。追蹤一年以上，約三分之二到五分之四的人聽力已部分或完全恢復；完全聽不見（極重度）時恢復的機會較低（約 40% 改善，較輕者約 89%）。模型只顯示一種病程，也就是較常見的病程：極重度的聽力喪失不再改善，較輕的會改善。',
+      en: 'Ischaemia of the inner ear or cochlear nuclei. Sudden unilateral deafness with vertigo can herald AICA stroke. Followed for a year or more, about two-thirds to four-fifths of people had got some or all of their hearing back; a profound loss improves less often (about 40 %, against about 89 % for a lesser loss). The model shows one course, the commoner course: a profound loss that does not improve, a lesser one that does.',
     },
     // Lee H, Baloh RW. J Neurol Sci 2005;228:99–104 (PMID 15607217): 17 of 21 followed ≥ 1 year
     // recovered partly or completely; improvement in 40 % with profound loss, 89 % with less.

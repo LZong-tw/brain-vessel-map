@@ -6,6 +6,8 @@
  * Bilateral structures are authored once for the RIGHT side and mirrored.
  */
 
+import type { Redundancy } from './redundancy';
+
 export type Vec3 = [number, number, number];
 
 /** Localised string. zh = Traditional Chinese (zh-TW), en = English. */
@@ -187,6 +189,12 @@ export interface DeficitRef {
   deepTract?: boolean;
   /** the compensation of this source settles within ~1–2 weeks (overrides the symptom's own pace) */
   fast?: boolean;
+  /**
+   * how the deficit from this source is taken over, in place of the symptom's own redundancy
+   * (anatomy/redundancy.ts): for a source whose deficit has a course of its own, such as the clumsy
+   * hand of a dysarthria–clumsy hand lacune (R2-1)
+   */
+  redundancy?: Redundancy;
 }
 
 export interface StructureInfo {

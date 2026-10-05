@@ -216,12 +216,25 @@ describe('C1-F5: where neglect comes from', () => {
     expect(labels(r)).not.toContain('neglect_r');
   });
 
-  it('right superior temporal, parahippocampal, inferior frontal, putamen and caudate lesions can give left neglect', () => {
-    for (const reg of ['superior_temporal_posterior_r', 'parahippocampal_r', 'broca_r', 'putamen_r', 'caudate_head_r']) {
+  it('right superior temporal, parahippocampal and inferior frontal lesions can give left neglect', () => {
+    for (const reg of ['superior_temporal_posterior_r', 'parahippocampal_r', 'broca_r']) {
       const got = aggregateSymptoms({ [reg]: 0.9 }, { [reg]: 0.9 }, 24);
       expect(sym(got), reg).toContain('neglect(l)');
     }
     expect(labels(sim(occl('mca_temporal_posterior_r'), 24))).toContain('neglect_r');
+  });
+
+  // R2-4: the neglect of a right deep infarct comes with cortical hypoperfusion (Hillis 2002), so
+  // the putamen and caudate do not carry it themselves: a right striatocapsular infarct shows it
+  // with its cortical signs, for three months
+  it('right putamen and caudate: neglect with a striatocapsular infarct, not from the deep nuclei alone', () => {
+    for (const reg of ['putamen_r', 'caudate_head_r']) {
+      const got = aggregateSymptoms({ [reg]: 0.9 }, { [reg]: 0.9 }, 24);
+      expect(sym(got), reg).not.toContain('neglect(l)');
+    }
+    const r = sim(occl('lenticulostriate_r'), 24);
+    expect(sym(r.symptoms)).toContain('neglect(l)');
+    expect(r.cascade.events.map((e) => e.id)).toContain('striatocapsular_cortical_r');
   });
 
   it('a left inferior parietal lesion gives a milder right neglect, scored on NIHSS item 11', () => {

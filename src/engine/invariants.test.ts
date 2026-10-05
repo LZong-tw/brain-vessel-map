@@ -160,6 +160,15 @@ describe('syndromes and events agree with the symptoms', () => {
       'poor',
     ],
     ['pca_p2_l poor', [{ vessel: 'pca_p2_l', severity: 1 }], 'poor'],
+    // R2-7: both distal vertebral arteries (the whole medulla on both sides)
+    [
+      'both V4',
+      [
+        { vessel: 'va_v4_dist_r', severity: 1 },
+        { vessel: 'va_v4_dist_l', severity: 1 },
+      ],
+      'good',
+    ],
     // R1-5: both calcarine arteries (cortical blindness)
     [
       'both calcarine arteries',
@@ -191,7 +200,8 @@ describe('syndromes and events agree with the symptoms', () => {
   const query = (r: SimResult): SymptomQuery => ({
     has: (id) => r.symptoms.some((s) => s.id === id),
     on: (id, side, minSev = 1) => r.symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both') && s.sev >= minSev),
-    from: (id, side) => r.symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side)),
+    from: (id, side, base) =>
+      r.symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side && (!base || REGION_BY_ID[src].baseId === base))),
   });
   /** a symptom produced by a region on this side (lateral labels) or by any region (bilateral ones) */
   const anyFrom = (r: SimResult, side: 'r' | 'l' | null) =>
@@ -267,7 +277,8 @@ describe('syndromes and events agree with the symptoms', () => {
     series(name).forEach((r, i) => {
       // C7-F6: both medial medullae are one bilateral medial medullary infarction, not two Dejerine;
       // MERGE: nor two anteromedial pontine syndromes (C3-F4)
-      for (const id of ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'dejerine']) {
+      // R2-7: nor two hemimedullary or two Wallenberg syndromes
+      for (const id of ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'dejerine', 'hemimedullary', 'wallenberg']) {
         const sides = r.syndromes.filter((m) => m.def.id === id).map((m) => m.side);
         expect(sides.length, `${name} ${STOPS[i]} h: ${id} ${sides.join('+')}`).toBeLessThan(2);
       }

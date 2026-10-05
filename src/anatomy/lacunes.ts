@@ -38,6 +38,7 @@
  * territory (Hupperts RM et al. Brain 1994;117:825-834, PMID 7922468).
  */
 
+import { LACUNAR_CLUMSY_HAND, RIGHT_GENU_AMNESIA } from './redundancy';
 import type { DeficitRef, L } from './types';
 
 /** typical lacune volume, mL */
@@ -89,10 +90,13 @@ const SUPRATENTORIAL_ATAXIC_HEMIPARESIS: DeficitRef[] = [
   { s: 'cold_limb', lat: 'contra', sev: 1 },
 ];
 
-/** the corticobulbar fibres at the genu: slurred speech, a clumsy hand, a mild facial weakness */
+/**
+ * the corticobulbar fibres at the genu: slurred speech, a clumsy hand, a mild facial weakness. The
+ * hand recovers well, within weeks (Arboix 2004: 45.7 % symptom-free at discharge; R2-1)
+ */
 const CAPSULAR_DYSARTHRIA_CLUMSY_HAND: DeficitRef[] = [
   { s: 'dysarthria', lat: 'none', sev: 2 },
-  { s: 'hand_clumsy', lat: 'contra', sev: 2 },
+  { s: 'hand_clumsy', lat: 'contra', sev: 2, redundancy: LACUNAR_CLUMSY_HAND },
   { s: 'face_weak', lat: 'contra', sev: 1 },
   { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
   { s: 'emotionalism', lat: 'none', sev: 1 },
@@ -115,7 +119,8 @@ const CAPSULAR_GENU: DeficitRef[] = [
   { s: 'abulia', lat: 'none', sev: 1 },
   { s: 'executive', lat: 'none', sev: 1 },
   { s: 'amnesia', lat: 'none', only: 'l', sev: 2 },
-  { s: 'amnesia', lat: 'none', only: 'r', sev: 1, fast: true },
+  // transient after a right-sided lacune (R2-3)
+  { s: 'amnesia', lat: 'none', only: 'r', sev: 1, redundancy: RIGHT_GENU_AMNESIA },
   { s: 'emotionalism', lat: 'none', sev: 1 },
 ];
 
@@ -151,10 +156,10 @@ const PONTINE_ATAXIC_HEMIPARESIS: DeficitRef[] = [
   ...PONTINE_BASE_SHARED,
 ];
 
-/** basis pontis, dysarthria–clumsy hand (rostral paramedian lesions, Kim 1995) */
+/** basis pontis, dysarthria–clumsy hand (rostral paramedian lesions, Kim 1995); the hand recovers as above */
 const PONTINE_DYSARTHRIA_CLUMSY_HAND: DeficitRef[] = [
   { s: 'dysarthria', lat: 'none', sev: 2 },
-  { s: 'hand_clumsy', lat: 'contra', sev: 2 },
+  { s: 'hand_clumsy', lat: 'contra', sev: 2, redundancy: LACUNAR_CLUMSY_HAND },
   { s: 'face_weak', lat: 'contra', sev: 1 },
   ...PONTINE_BASE_SHARED,
 ];

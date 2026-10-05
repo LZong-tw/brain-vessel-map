@@ -53,6 +53,9 @@ function runs(): Run[] {
     ['pca_p2_r', 'pca_p2_l'],
     ['thalamoperforator_r', 'thalamoperforator_l'],
     ['va_v4_dist_r', 'va_v4_dist_l'],
+    // a vertebral occlusion that takes its own ASA root: the lateral and medial medulla of one side
+    // (hemimedullary); with a unilateral ASA both medial medullae go, a bilateral picture (R2-7)
+    ['va_v4_dist_r', 'asa_root_r'],
     // left medial frontal + angular gyrus: transcortical motor + sensory = mixed transcortical aphasia
     ['aca_a2_l', 'mca_angular_l'],
   ])

@@ -23,6 +23,19 @@ describe('reference list mirrors REFERENCES.md', () => {
   it('every scientific reference is a bullet in REFERENCES.md', () => {
     for (const r of SCIENTIFIC_REFERENCES) expect(REFERENCES_MD, r).toContain(`- ${r}`);
   });
+
+  it('REFERENCES.md lists each reference once', () => {
+    const bullets = REFERENCES_MD.split('\n').filter((l) => l.startsWith('- '));
+    expect(bullets.filter((b, i) => bullets.indexOf(b) !== i)).toEqual([]);
+  });
+
+  // R2-4, R2-6: checked against their PubMed records (PMID 11960898, 9409346)
+  it('lists the sources behind the deep-neglect and lateral medullary sensory changes', () => {
+    expect(ref('Hillis AE')).toHaveLength(1);
+    expect(ref('Hillis AE')[0]).toContain('Subcortical aphasia and neglect in acute stroke: the role of cortical hypoperfusion. Brain 2002;125:1094–1104');
+    expect(ref('Patterns of sensory dysfunction in lateral medullary infarction')).toHaveLength(1);
+    expect(ref('Patterns of sensory dysfunction in lateral medullary infarction')[0]).toContain('Neurology 1997;49:1557–1563');
+  });
 });
 
 describe('C11-F1: brainstem-syndrome review', () => {

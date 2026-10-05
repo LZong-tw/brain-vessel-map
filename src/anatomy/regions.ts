@@ -579,13 +579,17 @@ export const REGION_DEFS: RegionDef[] = [
     // caused movement disorders (chorea 6 %, dystonia 9 %) but often abulia (28 %), sometimes
     // alternating with disinhibition (11 %); aphasia was extremely rare with lesions confined to
     // the basal ganglia, so none is listed here (C6-F9). Movement disorders: postStrokeRisks.ts.
+    // No neglect of its own (R2-4): the right caudate is part of the network whose damage goes with
+    // neglect (Karnath HO, Himmelbach M, Rorden C, Brain 2002;125:350-360, PMID 11844735), but only 3
+    // of Caplan's 8 right caudate infarcts had it, and among 44 acute strokes with only subcortical
+    // lesions every patient with aphasia or neglect had concurrent cortical hypoperfusion (Hillis AE
+    // et al. Brain 2002;125:1094-1104, PMID 11960898). It is shown with the cortical signs of a
+    // striatocapsular infarct (cascade.ts) instead.
     deficits: [
       { s: 'abulia', lat: 'none', sev: 2 },
       { s: 'executive', lat: 'none', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'disinhibition', lat: 'none', sev: 1 },
-      // right basal ganglia (Karnath HO, Himmelbach M, Rorden C, Brain 2002;125:350-360, PMID 11844735)
-      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -622,10 +626,12 @@ export const REGION_DEFS: RegionDef[] = [
     // mostly hemichorea–hemiballism and hemidystonia, usually regressing (Ghika-Schmid F et al.
     // J Neurol Sci 1997;146:109-116, PMID 9077506); listed with the problems after stroke
     // (postStrokeRisks.ts, C6-F3)
+    // the right putamen is a critical subcortical site of neglect (Karnath et al. 2002), but the
+    // neglect of an acute subcortical infarct comes with cortical hypoperfusion (Hillis et al. 2002):
+    // it is shown with the cortical signs of a striatocapsular infarct (cascade.ts), not as a
+    // deficit of the putamen itself (R2-4)
     deficits: [
       { s: 'dysarthria', lat: 'none', sev: 1 },
-      // the right putamen is a critical subcortical site (Karnath et al. 2002)
-      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
       // lenticulocapsular strokes (Kim & Choi-Kwon, Neurology 2000; Kim, J Neurol 2002).
       // TODO(medical-review): sev
       { s: 'emotionalism', lat: 'none', sev: 1 },
@@ -1397,7 +1403,9 @@ export const REGION_DEFS: RegionDef[] = [
       // a large infarct also reaches the crossed trigeminothalamic tract, medial to the lateral
       // medulla: pain and temperature dulled on the other side of the face too (a bilateral
       // trigeminal pattern, frequent with the "large" type: Kim JS. Brain 2003;126:1864-1872, PMID
-      // 12805095). Sensory loss, not pain; not from a single perforator lacune. C10-F3
+      // 12805095; in 12 of 50, with large, ventrally extending lesions, against the classic crossed
+      // pattern in 13: Kim JS et al. Neurology 1997;49:1557-1563, PMID 9409346). Sensory loss, not
+      // pain; not from a single perforator lacune. C10-F3, R2-6
       { s: 'pain_temp_face', lat: 'contra', sev: 1, minLevel: 0.6, spareInLacune: true },
       // one side can be enough to lose automatic breathing (Bogousslavsky J et al. Ann Neurol
       // 1990;28:668–673, PMID 2260854): shown as a complication warning for the first 10 days

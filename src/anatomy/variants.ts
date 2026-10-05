@@ -113,8 +113,8 @@ export const VARIANTS: VariantDef[] = [
     id: `asa_unilateral_${s}`,
     name: { zh: `前脊髓動脈只由${sideZh(s)}側椎動脈發出`, en: `Anterior spinal artery from the ${sideEn(s).toLowerCase()} vertebral only` },
     desc: {
-      zh: `${o(s) === 'r' ? '右' : '左'}側的前脊髓動脈根部缺如，整條前脊髓動脈只靠${sideZh(s)}側椎動脈。${sideZh(s)}側椎動脈顱內段阻塞時，延髓外側與內側會一起梗塞（半側延髓／Babinski–Nageotte 症候群），甚至雙側延髓內側。`,
-      en: `The ${o(s) === 'r' ? 'right' : 'left'} ASA root is missing, so the whole anterior spinal artery hangs on the ${sideEn(s).toLowerCase()} vertebral. Occluding that vertebral then infarcts both the lateral and medial medulla (hemimedullary / Babinski–Nageotte syndrome), sometimes both medial medullae.`,
+      zh: `${o(s) === 'r' ? '右' : '左'}側的前脊髓動脈根部缺如，整條前脊髓動脈只靠${sideZh(s)}側椎動脈。${sideZh(s)}側椎動脈顱內段阻塞時，延髓內側也會跟著梗塞，不只外側；整條前脊髓動脈都靠它時，模型中兩側延髓內側都梗塞（雙側延髓內側梗塞，再加上延髓外側的徵象，四肢無力）。只有同一側的延髓外側與內側（半側延髓／Babinski–Nageotte 症候群，對側偏癱）需要另一側的延髓內側沒事：例如椎動脈連同它自己那一側的前脊髓動脈根部一起阻塞。`,
+      en: `The ${o(s) === 'r' ? 'right' : 'left'} ASA root is missing, so the whole anterior spinal artery hangs on the ${sideEn(s).toLowerCase()} vertebral. Occluding that vertebral then infarcts the medial medulla as well as the lateral one; with the whole ASA hanging on it, the model infarcts the medial medulla on both sides (a bilateral medial medullary infarction with the lateral medullary signs, all four limbs weak). The lateral and medial medulla of one side only (hemimedullary / Babinski–Nageotte syndrome, with a hemiparesis of the opposite side) needs the other medial medulla spared: for example a vertebral occlusion that also takes the ASA root of its own side.`,
     },
     prevalence: { zh: '常見，但各研究比例差異很大', en: 'Common; reported frequencies vary widely' },
     vesselScale: { [`asa_root_${o(s)}`]: 0 },

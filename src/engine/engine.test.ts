@@ -147,7 +147,10 @@ describe('classic syndromes', () => {
     ['right ophthalmic', { occlusions: occl('ophthalmic_r') }, 'amaurosis_r'],
     ['left pontine perforator', { occlusions: occl('pontine_paramedian_caudal_l') }, 'foville_l'],
     ['right pontine circumferential', { occlusions: occl('pontine_circumferential_r') }, 'one_and_half_r'],
-    ['right VA with a unilateral ASA', { occlusions: occl('va_v4_dist_r'), variants: ['asa_unilateral_r'] }, 'hemimedullary_r'],
+    // R2-7: a vertebral occlusion that takes its own ASA root too; with the whole ASA hanging on
+    // that vertebral, both medial medullae are lost: one bilateral label, not a hemimedullary one
+    ['right VA with its ASA root', { occlusions: occl('va_v4_dist_r', 'asa_root_r') }, 'hemimedullary_r'],
+    ['right VA with a unilateral ASA', { occlusions: occl('va_v4_dist_r'), variants: ['asa_unilateral_r'] }, 'bilateral_medial_medullary'],
     ['one lenticulostriate branch', { occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }] }, 'lacunar_pure_motor_l'],
     ['one rostral pontine branch', { occlusions: [{ vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true }] }, 'pontine_lacunar_r'],
     ['one caudal pontine branch', { occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1, branch: true }] }, 'pontine_ventral_l'],

@@ -260,7 +260,7 @@ export function aggregateSymptoms(
       if (id === 'hypersomnia' && d.s === 'coma') sevEff = Math.min(sevEff, 2);
       // weeks–months later, spared pathways take over part of what the dead tissue did; a coma
       // that became a disorder of consciousness keeps the arousal system's (coma's) redundancy
-      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, tH, d.fast, Math.round(raw) >= 3);
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, tH, d.fast, Math.round(raw) >= 3, d.redundancy);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
@@ -554,7 +554,8 @@ export function symptomQuery(symptoms: SymptomItem[]): SymptomQuery {
   return {
     has: (id) => symptoms.some((s) => s.id === id),
     on: (id, side, minSev = 1) => symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both') && s.sev >= minSev),
-    from: (id, side) => symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side)),
+    from: (id, side, base) =>
+      symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side && (!base || REGION_BY_ID[src].baseId === base))),
   };
 }
 

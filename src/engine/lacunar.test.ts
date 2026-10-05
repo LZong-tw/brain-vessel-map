@@ -366,3 +366,141 @@ describe('C6-F9: caudate infarcts', () => {
     expect(SYMPTOM_BY_ID.disinhibition.desc.zh).toMatch(/尾狀核/);
   });
 });
+
+describe('R2-1: the clumsy hand of a dysarthria–clumsy hand lacune recovers, as its label text says', () => {
+  it('capsular and pontine: moderate at first, milder within two weeks, gone by one month', () => {
+    for (const v of ['lenticulostriate_l', 'pontine_paramedian_rostral_r']) {
+      const hand = (tH: number) => sim([lacune(v, 'dch')], tH).symptoms.find((s) => s.id === 'hand_clumsy')?.sev ?? 0;
+      expect(hand(24), v).toBe(2);
+      expect(hand(336), v).toBe(1);
+      for (const tH of [720, 2160, 4320]) expect(hand(tH), `${v} ${tH} h`).toBe(0);
+    }
+  });
+
+  it('taken over by the spared fibres, not as a lost fractionated finger movement; a larger infarct keeps that', () => {
+    const r = sim([lacune('lenticulostriate_l', 'dch')], 168);
+    expect(get(r, 'hand_clumsy', 'r')?.recovery?.kind).toBe('partial');
+    const big = { pons_rostral_basis_r: 0.9 };
+    const hand = aggregateSymptoms(big, big, 4320).find((s) => s.id === 'hand_clumsy');
+    expect(hand?.recovery?.kind).toBe('fine');
+  });
+
+  it('the label is shown while the hand is clumsy and its text keeps the good outlook', () => {
+    expect(labels(sim([lacune('lenticulostriate_l', 'dch')], 24))).toContain('lacunar_dysarthria_clumsy_hand_l');
+    expect(labels(sim([lacune('lenticulostriate_l', 'dch')], 2160))).not.toContain('lacunar_dysarthria_clumsy_hand_l');
+    const d = SYNDROMES.find((x) => x.id === 'lacunar_dysarthria_clumsy_hand')!;
+    expect(d.desc.en).toMatch(/symptom-free at discharge/);
+    expect(d.desc.zh).toMatch(/出院時已無症狀/);
+  });
+});
+
+describe('R2-2: the warning syndrome needs at least two attacks that cleared without an infarct', () => {
+  const warned = (r: SimResult) => labels(r).some((l) => l.startsWith('capsular_warning'));
+
+  it('one TIA followed by a lasting occlusion is not a crescendo', () => {
+    const occ = [lacune('lenticulostriate_l', undefined, { toH: 1 / 12 }), lacune('lenticulostriate_l', undefined, { fromH: 2 })];
+    for (const tH of [2, 3, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
+  });
+
+  it('two attacks that each leave an infarct are not crescendo TIAs', () => {
+    const occ = [lacune('lenticulostriate_l', undefined, { toH: 0.5 }), lacune('lenticulostriate_l', undefined, { fromH: 3, toH: 3.5 })];
+    expect(sim(occ, 2).volumes.core).toBeGreaterThan(0.3);
+    for (const tH of [3, 4, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
+  });
+
+  it('a TIA and then an infarcting attack within the day: no crescendo of TIAs either', () => {
+    const occ = [lacune('lenticulostriate_l', undefined, { toH: 1 / 12 }), lacune('lenticulostriate_l', undefined, { fromH: 2, toH: 2.5 })];
+    for (const tH of [2, 3, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
+  });
+
+  it('two TIAs within a day: from the second one, and carried on by the lasting occlusion after them', () => {
+    expect(warned(scenario('capsular_warning', 0.5))).toBe(false);
+    for (const tH of [1, 6, 24, 168]) expect(warned(scenario('capsular_warning', tH)), `${tH} h`).toBe(true);
+    const two = [lacune('lenticulostriate_l', undefined, { toH: 1 / 12 }), lacune('lenticulostriate_l', undefined, { fromH: 2, toH: 2 + 1 / 12 })];
+    expect(warned(sim(two, 2))).toBe(true);
+    expect(warned(sim([...two, lacune('lenticulostriate_l', undefined, { fromH: 5 })], 24))).toBe(true);
+  });
+});
+
+describe('R2-3: a right capsular genu lacune leaves only a transient memory problem', () => {
+  it('right: amnesia at first, gone within weeks; left: the verbal memory loss stays', () => {
+    const r = (tH: number) => sim([lacune('lenticulostriate_r', 'genu')], tH);
+    expect(get(r(24), 'amnesia')?.sev).toBe(1);
+    expect(labels(r(24))).toContain('capsular_genu_r');
+    for (const tH of [720, 2160, 4320]) {
+      expect(has(r(tH), 'amnesia'), `${tH} h`).toBe(false);
+      // the apathy stays, and the genu label with it: not a "pure" motor syndrome
+      expect(has(r(tH), 'abulia'), `${tH} h`).toBe(true);
+      expect(labels(r(tH)), `${tH} h`).toContain('capsular_genu_r');
+      expect(labels(r(tH)), `${tH} h`).not.toContain('lacunar_pure_motor_r');
+    }
+    const l = sim([lacune('lenticulostriate_l', 'genu')], 2160);
+    expect(get(l, 'amnesia')?.sev).toBeGreaterThanOrEqual(1);
+    expect(labels(l)).toContain('capsular_genu_l');
+  });
+});
+
+describe('R2-4: right deep neglect comes from the cortical hypoperfusion of a striatocapsular infarct, for three months', () => {
+  it('the caudate head and putamen carry no neglect of their own', () => {
+    for (const id of ['caudate_head', 'putamen'])
+      expect(REGION_DEFS.find((d) => d.id === id)!.deficits.some((d) => d.s === 'neglect'), id).toBe(false);
+  });
+
+  it('a whole right lenticulostriate occlusion: neglect while the event shows it, none at 6 months', () => {
+    const at = (tH: number) => sim(occl('lenticulostriate_r'), tH);
+    const acute = at(24);
+    expect(get(acute, 'neglect', 'l')).toBeDefined();
+    expect(acute.cascade.events.find((e) => e.id === 'striatocapsular_cortical_r')?.endH).toBe(2160);
+    for (const tH of [2160, 4320]) {
+      expect(has(at(tH), 'neglect'), `${tH} h`).toBe(false);
+      expect(item(at(tH), '11'), `${tH} h`).toBe(0);
+    }
+  });
+
+  it('a right caudate (Heubner branch) lacune gives no neglect', () => {
+    for (const tH of [0.05, 24, 4320]) {
+      const r = sim([lacune('heubner_r')], tH);
+      expect(has(r, 'neglect'), `${tH} h`).toBe(false);
+      expect(item(r, '11'), `${tH} h`).toBe(0);
+    }
+  });
+});
+
+describe('R2-5: a lacunar label shown during a branch TIA does not call it an infarct', () => {
+  it('every lacunar label seen during a 5-minute attack is named as a syndrome and says it can be a TIA', () => {
+    const seen = new Set<string>();
+    for (const [vessel, site] of [
+      ['lenticulostriate_l', 'pure_motor'],
+      ['lenticulostriate_r', 'ataxic'],
+      ['lenticulostriate_l', 'dch'],
+      ['lenticulostriate_r', 'genu'],
+      ['acha_l', 'pure_motor'],
+      ['thalamogeniculate_r', 'pure_sensory'],
+      ['pontine_paramedian_rostral_r', 'pure_motor'],
+      ['pontine_paramedian_rostral_l', 'dch'],
+    ]) {
+      const r = sim([lacune(vessel, site, { toH: 1 / 12 })], 0.05);
+      expect(r.cascade.events.map((e) => e.id), `${vessel}:${site}`).toContain('ischemia_no_infarct');
+      for (const m of r.syndromes) if (m.def.group === 'lacunar') seen.add(m.def.id);
+    }
+    for (const m of scenario('capsular_warning', 1).syndromes) if (m.def.group === 'lacunar') seen.add(m.def.id);
+    expect([...seen]).toEqual(
+      expect.arrayContaining([
+        'lacunar_pure_motor',
+        'lacunar_ataxic_hemiparesis',
+        'lacunar_dysarthria_clumsy_hand',
+        'capsular_genu',
+        'lacunar_pure_sensory',
+        'pontine_lacunar',
+      ]),
+    );
+    for (const id of seen) {
+      const d = SYNDROMES.find((x) => x.id === id)!;
+      expect(d.name.en, id).not.toMatch(/stroke|infarct/i);
+      expect(d.name.zh, id).not.toMatch(/中風|梗塞/);
+      expect(d.desc.en, id).toMatch(/TIA/);
+      expect(d.desc.zh, id).toMatch(/TIA/);
+      expect(d.desc.en, id).not.toMatch(/^(A )?[Ss]mall infarct/);
+    }
+  });
+});

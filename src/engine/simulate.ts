@@ -394,6 +394,19 @@ function lacuneDeficitsOf(course: Course): Record<string, DeficitRef[]> {
 /** fraction of a region occupied by one lacune */
 const lacuneFraction = (rid: string) => Math.min(1, LACUNE_ML / Math.max(REGION_BY_ID[rid].volume, LACUNE_ML));
 
+/** dead tissue (mL) below which an attack left no infarct (as the cascade's "ischaemia without infarct") */
+const NO_INFARCT_ML = 0.05;
+/**
+ * a single-branch occlusion that reopens by itself before its lacune has died: a TIA, not an
+ * infarcting attack (R2-2). The tissue stops dying once the branch reopens.
+ */
+function transientBranch(o: Occlusion): boolean {
+  const rid = lacuneRegionOf(o);
+  const e = endOf(o);
+  if (!rid || e === null) return false;
+  return lacuneFraction(rid) * REGION_BY_ID[rid].volume * infarctFractionOf(branchHistory(o), e) < NO_INFARCT_ML;
+}
+
 function addLacunes(bedInfarct: Record<string, number>, course: Course, tH: number): Record<string, number> {
   if (!course.lacunes.size) return bedInfarct;
   const out = { ...bedInfarct };
@@ -1050,7 +1063,7 @@ export function simulate(input: SimInput): SimResult {
     branchEpisodes: (base, side) =>
       input.occlusions
         .filter((o) => o.branch && o.vessel === `${base}_${side}` && startOf(o) <= tAbs)
-        .map((o) => ({ fromH: startOf(o), toH: endOf(o) }))
+        .map((o) => ({ fromH: startOf(o), toH: endOf(o), transient: transientBranch(o) }))
         .sort((a, b) => a.fromH - b.fromH),
     tH: tAbs,
     sym: (id, side) =>

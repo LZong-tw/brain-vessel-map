@@ -420,8 +420,8 @@ function pushEarEvents(events: CascadeEvent[]): void {
     endH: 6,
     title: { zh: '內耳梗塞（數分鐘內失去聽覺與平衡）', en: 'Inner-ear infarction (hearing and balance lost within minutes)' },
     desc: {
-      zh: '迷路動脈是供應耳蝸與前庭的終末動脈，通常由小腦前下動脈（AICA）分出。阻塞時，這一側的聽覺與平衡器官一起失去功能——血管性的原因通常兩者都受影響，和病毒性的不同（82 例 AICA 梗塞中 60% 聽覺與前庭功能一起喪失）。內耳不是腦組織：壞死的是器官本身，所以耳聾可能留下來，但常在幾個月內改善（見「突發性聽力喪失」）。這裡沒有腦組織缺血。',
-      en: 'The labyrinthine artery is an end artery to the cochlea and the vestibule, usually a branch of the AICA. When it closes, hearing and the balance organ on that side fail together — a vascular cause usually takes both, unlike a viral one (combined loss in 60 % of 82 AICA infarcts). The inner ear is not brain tissue: what dies is the organ itself, so the deafness can last, although it often improves over months (see sudden hearing loss). No brain tissue is ischaemic here.',
+      zh: '迷路動脈是供應耳蝸與前庭的終末動脈，通常由小腦前下動脈（AICA）分出。阻塞時，這一側的聽覺與平衡器官一起失去功能——血管性的原因通常兩者都受影響，和病毒性的不同（82 例 AICA 梗塞中 60% 聽覺與前庭功能一起喪失）。內耳不是腦組織：壞死的是器官本身，所以耳聾可能留下來。完全聽不見（極重度）時約 40% 會在幾個月內改善，模型顯示較常見、不再改善的病程（見「突發性聽力喪失」）。這裡沒有腦組織缺血。',
+      en: 'The labyrinthine artery is an end artery to the cochlea and the vestibule, usually a branch of the AICA. When it closes, hearing and the balance organ on that side fail together — a vascular cause usually takes both, unlike a viral one (combined loss in 60 % of 82 AICA infarcts). The inner ear is not brain tissue: what dies is the organ itself, so the deafness can last. A profound loss improves over months in about 40 %, and the model shows the commoner course, in which it does not (see sudden hearing loss). No brain tissue is ischaemic here.',
     },
     regions: [],
   });
@@ -1498,7 +1498,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // with the whole striatocapsular pattern only, not with a putaminal or caudate lacune. On the
   // left a non-fluent aphasia with preserved repetition (listed as transcortical motor) and limb
   // apraxia, on the right neglect; shown for the first three months (illustrative: the paper gives
-  // no time course). C6-F6.
+  // no time course). C6-F6. The right putamen and caudate carry no neglect of their own: the
+  // neglect of an acute subcortical infarct came with cortical hypoperfusion (Hillis AE et al. Brain
+  // 2002;125:1094-1104, PMID 11960898), so this event is where it comes from (R2-4).
   for (const s of ['r', 'l'] as Side[]) {
     const deep =
       acute(`putamen_${s}`, 0.4) &&

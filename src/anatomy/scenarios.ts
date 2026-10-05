@@ -325,9 +325,10 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '右椎動脈阻塞：華倫堡氏症候群', en: 'Right vertebral occlusion: Wallenberg' },
     summary: {
-      zh: '眩暈、吞嚥困難、聲音沙啞、右側霍納、走路時身體被拉向右側、「右臉左身」痛溫覺喪失，而手腳不會無力——NIHSS 可能只有 4 分。前 10 天要注意睡眠中的呼吸。',
-      en: 'Vertigo, dysphagia, hoarseness, right Horner, a gait pulled to the right, pain/temperature loss on the right face and left body, but no weak limbs — NIHSS may be only 4. Watch breathing in sleep for the first 10 days.',
+      zh: '眩暈、吞嚥困難、聲音沙啞、右側霍納、走路時身體被拉向右側、「右臉左身」痛溫覺喪失；這個梗塞大、往腹側延伸，所以左臉的痛溫覺也較輕地減退（50 人中 12 人兩側臉都有，典型的交叉型只有 13 人）。手腳卻不會無力——NIHSS 可能只有 4 分。前 10 天要注意睡眠中的呼吸。',
+      en: 'Vertigo, dysphagia, hoarseness, right Horner, a gait pulled to the right, pain/temperature loss on the right face and left body; this infarct is large and reaches ventrally, so the left face is dulled too, more mildly (both sides of the face in 12 of 50 patients, the classic crossed pattern in only 13). But no weak limbs — NIHSS may be only 4. Watch breathing in sleep for the first 10 days.',
     },
+    // the sensory patterns: Kim JS et al. Neurology 1997;49:1557–1563 (PMID 9409346), R2-6
     occlusions: [{ vessel: 'va_v4_dist_r', severity: 1 }],
     tH: 24,
     view: 'brainstem',

@@ -29,7 +29,7 @@
 import { BED_BY_ID, REGIONS } from '../anatomy';
 import type { Region, Side } from '../anatomy';
 import { LACUNE_DYSFUNCTION } from '../anatomy/lacunes';
-import { BOTTLENECK_FACTOR, BOTTLENECK_REGIONS, NO_BACKUP_KINDS, redundancyFor } from '../anatomy/redundancy';
+import { BOTTLENECK_FACTOR, BOTTLENECK_REGIONS, NO_BACKUP_KINDS, redundancyFor, type Redundancy } from '../anatomy/redundancy';
 import type { CascadeOutput } from './cascade';
 import type { EdemaState } from './edemaTypes';
 import { NO_RECOVERY, type RecoveryState, type SymptomRecovery } from './recoveryTypes';
@@ -157,8 +157,10 @@ export function symptomCompensation(
   fast = false,
   /** the deficit from this source is severe (profound) before compensation (Redundancy.profound) */
   profound = false,
+  /** this source's own redundancy, in place of the symptom's (DeficitRef.redundancy) */
+  own?: Redundancy,
 ): SymptomRecovery {
-  const red = redundancyFor(symptomId, region.baseId, region.side);
+  const red = own ?? redundancyFor(symptomId, region.baseId, region.side);
   const share = profound && red.profound ? red.profound : red;
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
   const bottleneck = bilateral && (lesions.bottleneckBySymptom.get(symptomId)?.size ?? 0) >= 2;
@@ -230,7 +232,7 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
         if (d.only && r.side !== d.only) continue;
         if (d.bilateralOnly && (lesions.bySymptom.get(d.s)?.size ?? 0) < 2) continue;
         if (d.minLevel && inf < d.minLevel) continue;
-        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH, d.fast, isProfound(d.sev ?? 2, inf));
+        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy);
         if (c.kind === 'exempt') continue;
         const w = d.sev ?? 2;
         sum += c.compensated * w;

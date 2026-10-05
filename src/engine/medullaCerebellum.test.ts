@@ -14,6 +14,7 @@ import { SCENARIO_BY_ID, SCENARIOS } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { TIME_STOPS } from '../anatomy/timeline';
+import { VARIANTS } from '../anatomy/variants';
 import { aggregateSymptoms, type SymptomItem } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
@@ -271,15 +272,72 @@ describe('C7-F8: hearing lost to a vascular cause often comes back, a profound l
     expect(profound.recovery!.compensated).toBeLessThan(lesser.recovery!.compensated);
   });
 
-  it('labyrinthine and AICA infarcts: the deafness is less at 3 and 6 months than at 1 day', () => {
-    for (const r of [(tH: number) => sim(occl('labyrinthine_r'), tH), (tH: number) => scenario('l_aica', tH)]) {
+  // R2-8: only about 40 % of profound losses improve, so the one course shown is the commoner one
+  it('labyrinthine and AICA infarcts: the profound deafness stays profound at 3 and 6 months', () => {
+    for (const r of [(tH: number) => sim(occl('labyrinthine_r'), tH), (tH: number) => scenario('l_aica', tH), (tH: number) => sim(occl('aica_r'), tH)]) {
       const sev = (tH: number) => r(tH).symptoms.find((s) => s.id === 'hearing_loss')?.sev ?? 0;
-      expect(sev(24)).toBe(3);
-      expect(sev(2160)).toBeLessThan(3);
-      expect(sev(4320)).toBeGreaterThan(0);
-      expect(sev(4320)).toBeLessThan(3);
+      for (const tH of [24, 720, 2160, 4320]) expect(sev(tH), `${tH} h`).toBe(3);
     }
-    expect(SYMPTOM_BY_ID.hearing_loss.desc.en).toMatch(/40 %/);
+    // below the rounding step: a profound (3) loss is never shown as improved
+    const p = REDUNDANCY.hearing_loss.profound!;
+    expect(3 * (1 - Math.max(p.uni, p.bi))).toBeGreaterThanOrEqual(2.5);
+    // a lesser loss (the cochlear nucleus, partly affected) still improves, by 3 months
+    const lesser = (tH: number) => {
+      const m = { pons_caudal_lateral_r: 0.5 };
+      return aggregateSymptoms(m, m, tH).find((s) => s.id === 'hearing_loss')?.sev ?? 0;
+    };
+    expect(lesser(2160)).toBeLessThan(lesser(24));
+    const d = SYMPTOM_BY_ID.hearing_loss.desc;
+    expect(d.en).toMatch(/40 %/);
+    expect(d.zh).toMatch(/40%/);
+    expect(d.en).toMatch(/commoner course/);
+    expect(d.zh).toMatch(/較常見的病程/);
+    // the inner-ear infarction story says the same
+    const e = event(sim(occl('labyrinthine_r'), 24), 'labyrinthine_infarction')!;
+    expect(e.desc.en).toMatch(/about 40 %/);
+    expect(e.desc.en).not.toMatch(/often improves/);
+    expect(e.desc.zh).toMatch(/約 40%/);
+  });
+});
+
+describe('R2-6: the Wallenberg texts include the bilateral trigeminal pattern the model shows', () => {
+  it('the right vertebral scenario lists the opposite face, and its summary says so', () => {
+    const r = scenario('r_wallenberg', 24);
+    expect(get(r, 'pain_temp_face', 'r')).toBeDefined();
+    expect(get(r, 'pain_temp_face', 'l')).toBeDefined();
+    const s = SCENARIO_BY_ID.r_wallenberg.summary;
+    expect(s.en).toMatch(/left face/);
+    expect(s.zh).toMatch(/左臉/);
+  });
+
+  it('the label text gives the classic crossed pattern as the less common one (Kim 1997)', () => {
+    const d = desc('wallenberg');
+    expect(d.en).toMatch(/13 of 50/);
+    expect(d.en).toMatch(/12 of 50/);
+    expect(d.zh).toMatch(/50 人中 13 人/);
+    expect(d.zh).toMatch(/12 人/);
+  });
+});
+
+describe('R2-7: both vertebral arteries blocked: one bilateral medullary label', () => {
+  it('no one-sided hemimedullary or Wallenberg syndrome next to the bilateral label', () => {
+    for (const tH of [0.1, 24, 4320]) expect(labels(sim(occl('va_v4_dist_r', 'va_v4_dist_l'), tH)), `${tH} h`).toEqual(['bilateral_medial_medullary']);
+    const d = desc('bilateral_medial_medullary');
+    expect(d.en).toMatch(/lateral medulla/);
+    expect(d.zh).toMatch(/延髓外側/);
+    // one side alone is still named as it was
+    expect(labels(sim(occl('va_v4_dist_r'), 24))).toEqual(['wallenberg_r']);
+  });
+
+  it('a vertebral occlusion with a unilateral ASA: both medial medullae, one bilateral label, as the variant text says', () => {
+    const r = sim(occl('va_v4_dist_r'), 24, { variants: ['asa_unilateral_r'] });
+    expect(labels(r)).toEqual(['bilateral_medial_medullary']);
+    for (const fs of ['r', 'l'] as const) expect(get(r, 'arm_weak', fs)?.sev, fs).toBe(3);
+    const v = VARIANTS.find((x) => x.id === 'asa_unilateral_r')!.desc;
+    expect(v.en).toMatch(/medial medulla on both sides/);
+    expect(v.zh).toMatch(/兩側延髓內側都梗塞/);
+    // the hemimedullary syndrome: the vertebral together with the ASA root of its own side
+    expect(labels(sim(occl('va_v4_dist_r', 'asa_root_r'), 24))).toEqual(['hemimedullary_r']);
   });
 });
 
