@@ -165,3 +165,87 @@ describe('a TIA carries no complications of a lasting deficit (C1-F4 with the TI
     }
   });
 });
+
+// ── second round: the cortex, lacunar and event fixes (R1–R3) with the treatment, brainstem and
+// acute-course fixes (R4–R6) ──
+
+/** stuporous or comatose (NIHSS 1a ≥ 2), or in a disorder of consciousness */
+const unaware = (r: SimResult) => r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness');
+const sided = (s: SymptomItem[]) => s.map((x) => `${x.id}(${x.side ?? '-'})`);
+
+describe('colour, reading and writing need an awake patient (R1-5, R1-9 with R5-7)', () => {
+  it('no colour loss while the top-of-the-basilar patient is comatose or in a disorder of consciousness', () => {
+    for (const tH of [120, 168, 336, 720, 2160]) {
+      const r = scenario('basilar_tip', tH);
+      expect(unaware(r), `${tH} h`).toBe(true);
+      // the field defect is still there; the colour vision inside the part still seen cannot be tested
+      expect(sided(r.symptoms), `${tH} h`).toContain('quadrant_sup(r)');
+      expect(ids(r), `${tH} h`).not.toContain('hemiachromatopsia');
+      expect(ids(r), `${tH} h`).not.toContain('achromatopsia');
+    }
+  });
+
+  it('the same lesion in an awake patient keeps it, and loses it under coma', () => {
+    // Paulson's pattern: the lower bank and the colour area of one side
+    const lvl = { lingual_l: 0.9, inferior_temporal_fusiform_l: 0.9 };
+    expect(sided(aggregateSymptoms(lvl, lvl, 24))).toContain('hemiachromatopsia(r)');
+    const comatose = aggregateSymptoms(lvl, lvl, 24, [{ id: 'coma', side: null, sev: 3, sources: [], delayed: false }]);
+    expect(sided(comatose)).toContain('quadrant_sup(r)');
+    expect(sided(comatose)).not.toContain('hemiachromatopsia(r)');
+  });
+
+  it('no "alexia without agraphia" label, and no alexia, in a comatose patient', () => {
+    for (const tH of [0, 1, 6]) {
+      const r = scenario('basilar_tip', tH, { collateral: 'poor' });
+      expect(ids(r), `${tH} h`).toContain('coma');
+      expect(r.nihss.items['1a'], `${tH} h`).toBe(3);
+      expect(ids(r), `${tH} h`).not.toContain('alexia');
+      expect(labels(r), `${tH} h`).not.toContain('alexia_without_agraphia');
+    }
+    // awake, the left PCA infarct keeps both (R1-9)
+    const awake = occ([{ vessel: 'pca_p2_l', severity: 1 }], 24);
+    const poor = simulate({ ...awake.input, collateral: 'poor' });
+    expect(unaware(poor)).toBe(false);
+    expect(ids(poor)).toContain('alexia');
+    expect(labels(poor)).toContain('alexia_without_agraphia');
+  });
+
+  it('the reading, writing and calculation signs of a left M1 infarct pause during the herniation coma and return after it', () => {
+    const at = (tH: number) => scenario('l_m1', tH, { collateral: 'poor' });
+    const GERSTMANN = ['alexia', 'agraphia', 'acalculia', 'finger_agnosia'];
+    for (const tH of [72, 168]) {
+      const r = at(tH);
+      expect(r.nihss.items['1a'], `${tH} h`).toBe(3);
+      for (const id of GERSTMANN) expect(ids(r), `${tH} h`).not.toContain(id);
+    }
+    for (const tH of [24, 336, 2160]) for (const id of GERSTMANN) expect(ids(at(tH)), `${tH} h`).toContain(id);
+    // awake at 3 months with a mild Broca aphasia: the Gerstmann label (R1-2)
+    expect(labels(at(2160))).toContain('gerstmann');
+  });
+});
+
+describe('a disorder of consciousness is scored as a mute patient who follows no command (R1-1 with R5-7)', () => {
+  it('items 9, 1c and 10 in the top-of-the-basilar and upper-basilar disorders of consciousness', () => {
+    const cases: [string, SimResult][] = [
+      ['basilar_tip 720 h', scenario('basilar_tip', 720)],
+      ['basilar_tip 2160 h', scenario('basilar_tip', 2160)],
+      ['basilar_tip 4320 h', scenario('basilar_tip', 4320)],
+      ['basilar_upper moderate 2160 h', simulate({ ...one('basilar_upper', 2160).input, collateral: 'moderate' })],
+    ];
+    for (const [name, r] of cases) {
+      expect(ids(r), name).toContain('disorder_of_consciousness');
+      // not comatose (1a = 2), so the scale's coma rule does not set these items
+      expect(r.nihss.items['1a'], name).toBe(2);
+      // the thalamic word-finding difficulty is not listed in it (R5-7) ...
+      expect(ids(r), name).not.toContain('aphasia_thalamic');
+      // ... and the language, command and speech items do not read normal (R1-1)
+      expect([r.nihss.items['9'], r.nihss.items['1c'], r.nihss.items['10']], name).toEqual([3, 2, 2]);
+    }
+  });
+
+  it('an awake patient after a Percheron infarct is not scored so', () => {
+    const r = scenario('percheron', 2160);
+    expect(ids(r)).not.toContain('disorder_of_consciousness');
+    expect(r.nihss.items['9'] ?? 0).toBeLessThan(3);
+  });
+});

@@ -145,8 +145,29 @@ const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_sc
  * evidence does not support), and does not fade (redundancy EXEMPT).
  */
 const SPASTICITY_PARESIS = ['arm_weak', 'leg_weak', 'arm_weak_proximal'];
-/** non-lateralised symptoms that only an awake, cooperating patient can show or be examined for (R5-7) */
-const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism'];
+/**
+ * Symptoms that only an awake, cooperating patient can show or be examined for, not listed while
+ * the patient is stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of consciousness: behaviour,
+ * executive function, gait, word finding and emotional expression (R5-7), and also colour vision,
+ * reading, writing, calculation and finger naming. Colour loss is already left out where nothing
+ * is seen (R1-5); "alexia without agraphia" (R1-9) and the Gerstmann tetrad are named for what the
+ * patient reads and writes. Neither can be tested in a patient who does not respond. The NIHSS
+ * scores none of them.
+ */
+export const NEEDS_AWAKE = [
+  'disinhibition',
+  'executive',
+  'ataxia_gait',
+  'aphasia_thalamic',
+  'emotionalism',
+  'emotional_facial_paresis',
+  'achromatopsia',
+  'hemiachromatopsia',
+  'alexia',
+  'agraphia',
+  'acalculia',
+  'finger_agnosia',
+];
 const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
 
 export function aggregateSymptoms(
@@ -429,11 +450,11 @@ export function aggregateSymptoms(
     for (const fs of ['r', 'l'] as Side[]) del('holmes_tremor', fs);
   }
   // what only an awake, cooperating patient can show or be examined for (behaviour, executive
-  // function, gait, word finding, emotional expression) is not listed while the patient is
-  // stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of consciousness (R5-7)
+  // function, gait, word finding, emotional expression; colour, reading, writing, calculation) is
+  // not listed while the patient is stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of
+  // consciousness (R5-7, and R1-5 / R1-9 with it)
   if ((get('coma', null)?.sev ?? 0) >= 2 || map.has('disorder_of_consciousness|')) {
-    for (const id of NEEDS_AWAKE) del(id, null);
-    for (const fs of ['r', 'l'] as Side[]) del('emotional_facial_paresis', fs);
+    for (const id of NEEDS_AWAKE) for (const side of [null, 'r', 'l'] as SymptomItem['side'][]) del(id, side);
   }
   // an emotional facial paresis is a face that moves normally on command: not on a side whose face
   // is weak on command (R5-7)
@@ -546,6 +567,12 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   } else if (poorComprehension || has('aphasia_broca') || has('aphasia_tc_sensory')) {
     set('1b', 1, 2);
   }
+  // a disorder of consciousness after coma (unresponsive wakefulness, a minimally conscious state,
+  // akinetic mutism, or awareness hidden by a locked-in state; the model cannot tell them apart) is
+  // a patient who is mute and responds to no one-step command reliably: item 9 is 3, and 1c and 10
+  // follow from it (the next rule). Without this, the language and dysarthria items read normal once
+  // the thalamic aphasia is no longer listed in it (R5-7 with R1-1).
+  if (has('disorder_of_consciousness')) set('9', 3, 3);
   // "a score of 3 [on item 9] should be used only if the patient is mute and follows no one-step
   // commands": such a patient performs neither command (1c = 2) and, being mute, scores 2 on
   // dysarthria ("mute/anarthric"). The comatose patient (1a = 3) is scored below.

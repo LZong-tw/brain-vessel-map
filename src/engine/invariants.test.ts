@@ -4,7 +4,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { symptomsAddedAt } from './cascade';
-import { aggregateSymptoms } from './clinical';
+import { NEEDS_AWAKE, aggregateSymptoms } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { unitState } from './tissue';
@@ -80,7 +80,7 @@ describe('output invariants', () => {
   // the patient is stuporous, comatose or in a disorder of consciousness (R5-7), and the sparing of
   // central vision is lost while the oedema of days 1–2 weeks silences the occipital pole too
   const ALL_STOPS = TIME_STOPS.map((s) => s.h);
-  const AWAKE_ONLY = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism', 'emotional_facial_paresis', 'holmes_tremor'];
+  const AWAKE_ONLY = [...NEEDS_AWAKE, 'holmes_tremor'];
   const unaware = (r: SimResult) => r.symptoms.some((x) => (x.id === 'coma' && x.sev >= 2) || x.id === 'disorder_of_consciousness');
   const oedema = (r: SimResult, tH: number) => r.cascade.events.some((e) => e.id === 'vasogenic_edema' && e.onsetH <= tH && tH < (e.endH ?? Infinity));
   const CONSCIOUSNESS = ['coma', 'somnolence', 'disorder_of_consciousness', 'hypersomnia'];
@@ -310,9 +310,11 @@ describe('syndromes and events agree with the symptoms', () => {
     });
   });
 
-  // R1-1: item 9 = 3 is "mute and follows no one-step commands" (the scale's instructions)
+  // R1-1: item 9 = 3 is "mute and follows no one-step commands" (the scale's instructions); a
+  // disorder of consciousness is such a patient (R1-1 with R5-7)
   it.each(CASES)('%s: a mute global aphasia (item 9 = 3) follows no command and is scored mute', (name) => {
     series(name).forEach((r, i) => {
+      if (r.symptoms.some((s) => s.id === 'disorder_of_consciousness')) expect(r.nihss.items['9'], `${name} ${STOPS[i]} h: DoC`).toBe(3);
       if (r.nihss.items['9'] !== 3) return;
       expect([r.nihss.items['1c'], r.nihss.items['10']], `${name} ${STOPS[i]} h`).toEqual([2, 2]);
     });
@@ -366,8 +368,8 @@ describe('syndromes and events agree with the symptoms', () => {
   });
 
   // R5-7: what cannot be shown or examined in a stuporous or comatose patient, or in a disorder of
-  // consciousness, is not listed then; an emotional facial paresis needs a face that moves on command
-  const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism', 'emotional_facial_paresis', 'holmes_tremor'];
+  // consciousness, is not listed then (colour, reading and writing too: R1-5 and R1-9 with R5-7);
+  // an emotional facial paresis needs a face that moves on command
   it.each(CASES)('%s: no sign that needs an awake patient while stuporous, comatose or in a disorder of consciousness (R5-2, R5-7)', (name) => {
     series(name).forEach((r, i) => {
       const unaware = r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness');

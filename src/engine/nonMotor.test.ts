@@ -341,8 +341,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F3: an upper quadrantanopia stays (3: 0 → 1); C9-F4: the left anterior thalamus gives a
   // thalamic aphasia and dysarthria (10: 0 → 1); was 21 (R6-12: not 22). R5-7: in a disorder of
   // consciousness the thalamic aphasia is not listed (9: 1 → 0); R5-9: the soft speech of the
-  // anterior thalamic infarct has improved by 3 months (10: 1 → 0); was 24
-  'basilar_tip@2160': [22, { '1a': 2, '1b': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2 }, ['top_of_basilar']],
+  // anterior thalamic infarct has improved by 3 months (10: 1 → 0); was 24. MERGE (R1-1 with R5-7):
+  // a disorder of consciousness is mute and follows no command (9: 0 → 3, 1c: 0 → 2, 10: 0 → 2); was 22
+  'basilar_tip@2160': [29, { '1a': 2, '1b': 2, '1c': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 3, 10: 2 }, ['top_of_basilar']],
   // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
   'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
   // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome

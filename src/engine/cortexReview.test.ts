@@ -12,7 +12,7 @@ import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { VESSEL_BY_ID } from '../anatomy';
-import { estimateNihss, symptomQuery, type SymptomItem } from './clinical';
+import { aggregateSymptoms, estimateNihss, symptomQuery, type SymptomItem } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
@@ -188,8 +188,12 @@ describe('R1-5: no colour loss inside a field that is completely blind', () => {
   });
 
   it('the colour loss of Paulson’s pattern (below an upper quadrantanopia) is still listed', () => {
-    const r = scenario('basilar_tip', 2160);
-    expect(sym(r)).toEqual(expect.arrayContaining(['quadrant_sup(r)', 'hemiachromatopsia(r)']));
+    // the lower bank and the colour area of one side, in an awake patient (the top-of-the-basilar
+    // template has this pattern only while comatose or in a disorder of consciousness, where colour
+    // vision cannot be tested: crossChain.test.ts)
+    const lvl = { lingual_l: 0.9, inferior_temporal_fusiform_l: 0.9 };
+    const got = aggregateSymptoms(lvl, lvl, 2160).map((s) => `${s.id}(${s.side ?? '-'})`);
+    expect(got).toEqual(expect.arrayContaining(['quadrant_sup(r)', 'hemiachromatopsia(r)']));
   });
 });
 
