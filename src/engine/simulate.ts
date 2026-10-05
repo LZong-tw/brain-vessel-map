@@ -51,14 +51,19 @@
 import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import type { DeficitRef, Side } from '../anatomy';
 import {
+  COMA_SHIFT_MM,
+  UNCAL_ONSET_H,
   computeCascade,
   consciousnessFromShift,
-  eventAddsSymptoms,
   noInfarctEvents,
+  symptomsAddedAt,
+  type BedEffect,
   type BedEffectKind,
   type CascadeEvent,
+  type CascadeInput,
   type CascadeOutput,
   type CascadeTreatment,
+  type HerniationShift,
 } from './cascade';
 import {
   aggregateSymptoms,
@@ -720,7 +725,7 @@ function modelFor(input: SimInput): Model {
       : undefined;
   // the core when treatment is decided: at the treatment, or 6 h after onset without one (text only)
   const decisionH = onsetH + (reperf !== null && reperf >= onsetH ? reperf - onsetH : 6);
-  const cascade = computeCascade({
+  const cascadeInput: CascadeInput = {
     reperfusionH: reperf !== null && reperf >= onsetH ? reperf - onsetH : null,
     decompression: input.decompression,
     occlusions: onsetPiece.active,
@@ -741,7 +746,14 @@ function modelFor(input: SimInput): Model {
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
     bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
     map: input.map,
-  });
+  };
+  const edemaReperfusionH = episodeEndH === null ? null : episodeEndH - onsetH;
+  const cascade = herniationFollowsShift(
+    computeCascade(cascadeInput),
+    cascadeInput,
+    { course, untreated, x, unitSaved, hemoAcute, hemoAfter, onsetH, edemaReperfusionH },
+    input.decompression,
+  );
   const model: Model = {
     course,
     untreated,
@@ -752,7 +764,7 @@ function modelFor(input: SimInput): Model {
     finalH,
     hemoAcute,
     hemoAfter,
-    edemaReperfusionH: episodeEndH === null ? null : episodeEndH - onsetH,
+    edemaReperfusionH,
     cascade,
     unitSaved,
     shownCascade: shownCascadeOf(cascade, onsetH, onsetH > 0 ? prodromalEvents(input, course, finalH, onsetH, untreated, x) : []),
@@ -762,6 +774,97 @@ function modelFor(input: SimInput): Model {
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
   return model;
+}
+
+/** what the oedema model needs of a model to give the midline shift at any time */
+type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH' | 'edemaReperfusionH'>;
+
+/** the oedema model's midline shift (mm) and the side it comes from, `t` h after the index onset */
+function shiftAt(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, t: number): { mm: number; from: Side | null } {
+  const { beds } = tissueAt(model, t + model.onsetH, null);
+  const edemaBeds: Record<string, EdemaBedInput> = {};
+  for (const b of BEDS) edemaBeds[b.id] = edemaBedOf(model, b.id, beds[b.id], effectsAt(cascade, b.id, t));
+  const e = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression, beds: edemaBeds, cascade });
+  return { mm: e.midlineShiftMm, from: e.shiftFrom };
+}
+
+/** the shift is sampled this often (h, clinical clock) up to the horizon, and the crossings refined to about 0.1 h */
+const SHIFT_STEP_H = 6;
+const SHIFT_HORIZON_H = 720;
+const SHIFT_BISECT = 6;
+
+/**
+ * For each side whose malignant oedema the cascade lets herniate: the largest midline shift, when
+ * it first reaches the coma range and when, after the herniation began, it falls below it again
+ * (cascade.CascadeInput.shift; R6-5, R6-2).
+ */
+function herniationShifts(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, sides: Side[]): Partial<Record<Side, HerniationShift>> {
+  const memo = new Map<number, { mm: number; from: Side | null }>();
+  const at = (t: number) => {
+    let v = memo.get(t);
+    if (!v) memo.set(t, (v = shiftAt(model, cascade, decompression, t)));
+    return v;
+  };
+  const out: Partial<Record<Side, HerniationShift>> = {};
+  for (const s of sides) {
+    const inComa = (t: number) => at(t).from === s && at(t).mm >= COMA_SHIFT_MM;
+    // the first time in (a, b] with the value inComa(b) has, where inComa(a) differs from it
+    const edge = (a: number, b: number) => {
+      const before = inComa(a);
+      for (let k = 0; k < SHIFT_BISECT; k++) {
+        const m = (a + b) / 2;
+        if (inComa(m) === before) a = m;
+        else b = m;
+      }
+      return b;
+    };
+    let peakMm = 0;
+    let peakT = 0;
+    let comaFromH: number | null = null;
+    for (let t = SHIFT_STEP_H; t <= SHIFT_HORIZON_H; t += SHIFT_STEP_H) {
+      const v = at(t);
+      if (v.from === s && v.mm > peakMm) [peakMm, peakT] = [v.mm, t];
+      if (comaFromH === null && inComa(t)) comaFromH = edge(t - SHIFT_STEP_H, t);
+    }
+    // the peak between the samples, near enough for the text (a tenth of a millimetre)
+    if (peakT > 0)
+      for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) {
+        const v = at(peakT + d);
+        if (v.from === s && v.mm > peakMm) peakMm = v.mm;
+      }
+    let comaUntilH: number | null = null;
+    if (comaFromH !== null) {
+      const onset = Math.max(UNCAL_ONSET_H, comaFromH);
+      if (!inComa(onset)) comaUntilH = onset;
+      else
+        for (let t = Math.ceil(onset / SHIFT_STEP_H) * SHIFT_STEP_H; t <= SHIFT_HORIZON_H; t += SHIFT_STEP_H)
+          if (t > onset && !inComa(t)) {
+            comaUntilH = edge(Math.max(onset, t - SHIFT_STEP_H), t);
+            break;
+          }
+    }
+    out[s] = { peakMm, comaFromH, comaUntilH };
+  }
+  return out;
+}
+
+/**
+ * The cascade with its uncal herniations timed by the oedema model's midline shift: none without
+ * a shift into the coma range, later when the shift gets there later, ending when it leaves it
+ * (R6-5, R6-2). Whether it herniates is read from the swelling of the infarct itself (without the
+ * herniation's own secondary infarcts); the timing, once it does, from the swelling with them.
+ */
+function herniationFollowsShift(cascade: CascadeOutput, input: CascadeInput, model: ShiftModel, decompression: boolean): CascadeOutput {
+  const sides = (['r', 'l'] as Side[]).filter((s) => cascade.events.some((e) => e.id === `uncal_${s}`));
+  if (!sides.length) return cascade;
+  const herniation = /^(uncal|subfalcine)_/;
+  const bedEffects: Record<string, BedEffect[]> = {};
+  for (const [id, list] of Object.entries(cascade.bedEffects)) bedEffects[id] = list.filter((e) => !herniation.test(e.event));
+  const primary = herniationShifts(model, { ...cascade, bedEffects }, decompression, sides);
+  const next = computeCascade({ ...input, shift: primary });
+  const still = sides.filter((s) => next.events.some((e) => e.id === `uncal_${s}`));
+  if (!still.length) return next;
+  return computeCascade({ ...input, shift: { ...primary, ...herniationShifts(model, next, decompression, still) } });
 }
 
 /** the cascade on the simulation clock, with the TIA stories of earlier, reopened attacks */
@@ -796,17 +899,105 @@ function regionAgg(values: Record<string, number>): Record<string, number> {
 
 const EFFECT_PRIORITY: BedEffectKind[] = ['secondary', 'compressed', 'degeneration', 'diaschisis'];
 
+/** what the model's courses and lacunes need to give the tissue at any time */
+type TissueModel = Pick<Model, 'course' | 'untreated' | 'x' | 'unitSaved'>;
+
+interface TissueSnapshot {
+  /** per bed, before any cascade effect (secondary infarcts, compression) is overlaid */
+  beds: Record<string, BedTimeState>;
+  /** dead share of each lacune */
+  lacuneLoss: Record<string, number>;
+  /** ischaemic but not (yet) dead share of each lacune: its branch is closed now */
+  lacuneIsch: Record<string, number>;
+  /** regions whose damage comes from the lacune alone */
+  lacuneOnly: string[];
+}
+
+/**
+ * The tissue of every bed at `tAbs` (simulation clock): each unit's share on the treated and
+ * untreated courses, then the lacunes. `hemo` gives the flow shown (null: not needed).
+ */
+function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null): TissueSnapshot {
+  const { course, x, untreated } = model;
+  const beds: Record<string, BedTimeState> = {};
+  for (const b of BEDS) {
+    beds[b.id] = {
+      rel: hemo?.bedRel[b.id] ?? 1,
+      frac: { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 },
+      infarct: 0,
+      dys: 0,
+      effect: null,
+    };
+  }
+  // the reperfused share x of each unit follows the treated course; the rest keeps its clot and
+  // follows the untreated course, where nothing is salvaged by treatment
+  course.units.forEach((u, i) => {
+    const bs = beds[u.bed];
+    const p = tissueParamsForBed(u.bed);
+    if (x > 0) addUnitShare(bs, u.frac * x, course.histories[i], model.unitSaved[i], tAbs, p);
+    if (x < 1 && untreated) addUnitShare(bs, u.frac * (1 - x), untreated.histories[i], 0, tAbs, p);
+  });
+  const lacunes = [...course.lacunes.keys()];
+  const lacuneLoss: Record<string, number> = {};
+  const lacuneIsch: Record<string, number> = {};
+  for (const rid of lacunes) {
+    lacuneLoss[rid] = lacuneLossAt(course, rid, tAbs);
+    lacuneIsch[rid] = lacuneActiveAt(course, rid, tAbs) ? 1 - lacuneLoss[rid] : 0;
+  }
+  // regions whose damage comes from the lacune alone (before it is added)
+  const lacuneOnly = lacunes.filter((rid) => {
+    const r = REGION_BY_ID[rid];
+    let d = 0;
+    let w = 0;
+    for (const bid of r.beds) {
+      const bs = beds[bid];
+      const vol = BED_BY_ID[bid].volume || 1;
+      d += Math.max(bs.frac.core + bs.frac.penumbra, bs.infarct) * vol;
+      w += vol;
+    }
+    return d / (w || 1) < 0.25;
+  });
+  for (const rid of lacunes) {
+    const xl = lacuneFraction(rid) * lacuneLoss[rid];
+    // the part of the lacune that is ischaemic but still alive while its branch is closed
+    const p = lacuneFraction(rid) * lacuneIsch[rid];
+    for (const bid of REGION_BY_ID[rid].beds) {
+      const bs = beds[bid];
+      for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - xl - p;
+      bs.frac.core += xl;
+      bs.frac.penumbra += p;
+      bs.infarct += xl * (1 - bs.infarct);
+    }
+  }
+  for (const b of BEDS) {
+    const bs = beds[b.id];
+    if (Object.values(bs.frac).reduce((a, v) => a + v, 0) === 0) bs.frac.normal = 1;
+  }
+  return { beds, lacuneLoss, lacuneIsch, lacuneOnly };
+}
+
+/** the cascade's effects on one bed in force at `t` (clinical clock) */
+const effectsAt = (cascade: CascadeOutput, bedId: string, t: number) =>
+  (cascade.bedEffects[bedId] ?? []).filter((e) => e.onsetH <= t && t < (e.endH ?? Infinity));
+
+/** one bed's input to the oedema model, from its tissue before secondary infarcts overwrite it */
+const edemaBedOf = (model: Pick<Model, 'hemoAcute' | 'hemoAfter'>, bedId: string, bs: BedTimeState, effects: BedEffect[]): EdemaBedInput => ({
+  infarct: bs.infarct,
+  penumbra: bs.frac.penumbra,
+  salvaged: bs.frac.salvaged,
+  relAcute: model.hemoAcute.bedRel[bedId] ?? 1,
+  relAfter: model.hemoAfter.bedRel[bedId] ?? 1,
+  secondaryOnsetH: effects.find((e) => e.kind === 'secondary')?.onsetH ?? null,
+});
+
 export function simulate(input: SimInput): SimResult {
   // ── schedule, flow per piece of the timeline, index onset and cascade (independent of t; cached) ──
   const model = modelFor(input);
   const { course, plan } = model;
-  const units = course.units;
   const tAbs = input.tH;
   const reperf = input.reperfusionH;
   // when the treatment reopens occlusions (never, if it fails)
   const opensH = plan ? plan.opensH : null;
-  // flow at the index onset, and after that episode first reopens (treatment or by itself)
-  const { hemoAcute, hemoAfter } = model;
   const hemo = model.hemoAt(tAbs);
   // the episode in progress: its occlusions and flow name the vascular syndrome
   const episode = course.pieces[episodeIndex(input, course.pieces, tAbs)];
@@ -822,62 +1013,12 @@ export function simulate(input: SimInput): SimResult {
     !activeOcclusions.some((o) => isTreatable(o) && causeOf(o) !== 'distal_embolus');
   // lacunes: one branch of a perforator bundle → a small infarct in its target structure
   const lacunes = [...course.lacunes.keys()];
-  const lacuneLoss: Record<string, number> = {};
-  /** ischaemic but not (yet) dead share of the lacune: its branch is closed now */
-  const lacuneIsch: Record<string, number> = {};
-  for (const rid of lacunes) {
-    lacuneLoss[rid] = lacuneLossAt(course, rid, tAbs);
-    lacuneIsch[rid] = lacuneActiveAt(course, rid, tAbs) ? 1 - lacuneLoss[rid] : 0;
-  }
   // the clinical clock: hours since the index onset (see the header); the cascade runs on it
   const t = Math.max(0, tAbs - model.onsetH);
   const cascade = model.cascade;
 
   // ── per-bed state at time t ──
-  const beds: Record<string, BedTimeState> = {};
-  for (const b of BEDS) {
-    beds[b.id] = {
-      rel: hemo.bedRel[b.id] ?? 1,
-      frac: { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 },
-      infarct: 0,
-      dys: 0,
-      effect: null,
-    };
-  }
-  // the reperfused share x of each unit follows the treated course; the rest keeps its clot and
-  // follows the untreated course, where nothing is salvaged by treatment
-  const { x, untreated } = model;
-  units.forEach((u, i) => {
-    const bs = beds[u.bed];
-    const p = tissueParamsForBed(u.bed);
-    if (x > 0) addUnitShare(bs, u.frac * x, course.histories[i], model.unitSaved[i], tAbs, p);
-    if (x < 1 && untreated) addUnitShare(bs, u.frac * (1 - x), untreated.histories[i], 0, tAbs, p);
-  });
-  // regions whose damage comes from the lacune alone (before it is added)
-  const lacuneOnly = lacunes.filter((rid) => {
-    const r = REGION_BY_ID[rid];
-    let d = 0;
-    let w = 0;
-    for (const bid of r.beds) {
-      const bs = beds[bid];
-      const vol = BED_BY_ID[bid].volume || 1;
-      d += Math.max(bs.frac.core + bs.frac.penumbra, bs.infarct) * vol;
-      w += vol;
-    }
-    return d / (w || 1) < 0.25;
-  });
-  for (const rid of lacunes) {
-    const x = lacuneFraction(rid) * lacuneLoss[rid];
-    // the part of the lacune that is ischaemic but still alive while its branch is closed
-    const p = lacuneFraction(rid) * lacuneIsch[rid];
-    for (const bid of REGION_BY_ID[rid].beds) {
-      const bs = beds[bid];
-      for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - x - p;
-      bs.frac.core += x;
-      bs.frac.penumbra += p;
-      bs.infarct += x * (1 - bs.infarct);
-    }
-  }
+  const { beds, lacuneLoss, lacuneIsch, lacuneOnly } = tissueAt(model, tAbs, hemo);
   // dysfunction caused directly by the arterial occlusion(s), before secondary effects
   // (herniation etc.) are overlaid — syndromes describe the primary vascular pattern,
   // the secondary damage is reported as cascade events instead
@@ -886,19 +1027,10 @@ export function simulate(input: SimInput): SimResult {
   const edemaBeds: Record<string, EdemaBedInput> = {};
   for (const b of BEDS) {
     const bs = beds[b.id];
-    const sum = Object.values(bs.frac).reduce((a, x) => a + x, 0);
-    if (sum === 0) bs.frac.normal = 1;
     primaryDys[b.id] = bs.frac.core + bs.frac.penumbra;
-    const effects = (cascade.bedEffects[b.id] ?? []).filter((e) => e.onsetH <= t && t < (e.endH ?? Infinity));
+    const effects = effectsAt(cascade, b.id, t);
     const eff = EFFECT_PRIORITY.find((k) => effects.some((e) => e.kind === k)) ?? null;
-    edemaBeds[b.id] = {
-      infarct: bs.infarct,
-      penumbra: bs.frac.penumbra,
-      salvaged: bs.frac.salvaged,
-      relAcute: hemoAcute.bedRel[b.id] ?? 1,
-      relAfter: hemoAfter.bedRel[b.id] ?? 1,
-      secondaryOnsetH: effects.find((e) => e.kind === 'secondary')?.onsetH ?? null,
-    };
+    edemaBeds[b.id] = edemaBedOf(model, b.id, bs, effects);
     bs.effect = eff;
     if (eff === 'secondary') {
       bs.infarct = 1;
@@ -975,8 +1107,7 @@ export function simulate(input: SimInput): SimResult {
   for (const e of cascade.events) {
     // a herniation coma lasts, after the oedema peak, only while the midline is still shifted
     // into the coma range: a survivor wakes as the swelling subsides (C4-F1)
-    if (!eventAddsSymptoms(e, t, edema.midlineShiftMm)) continue;
-    for (const sy of e.symptoms!) {
+    for (const sy of symptomsAddedAt(e, t, edema.midlineShiftMm)) {
       const sides: (Side | null)[] = sy.side === 'both' ? ['r', 'l'] : [sy.side];
       for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
     }

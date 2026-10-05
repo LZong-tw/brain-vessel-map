@@ -355,7 +355,7 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '右 PICA＋SCA 大範圍小腦梗塞 → 腫脹、水腦', en: 'Right PICA + SCA cerebellar infarct → swelling, hydrocephalus' },
     summary: {
-      zh: '栓子可讓同側的後下與上小腦動脈區一起梗塞（解剖病理系列中常見，約 58 mL）。第 2–3 天腫脹的小腦壓住第四腦室（水腦）並直接壓迫腦幹：意識降到昏迷、兩側瞳孔縮小、角膜反射消失。打開「減壓手術」看枕下減壓顱骨切除的效果；只放腦室引流會有向上疝脫的風險。',
+      zh: '栓子可讓同側的後下與上小腦動脈區一起梗塞（解剖病理系列中常見；這裡約 58 mL）。第 2–3 天腫脹的小腦壓住第四腦室（水腦）並直接壓迫腦幹：意識降到昏迷、兩側瞳孔縮小、角膜反射消失。打開「減壓手術」看枕下減壓顱骨切除的效果；只放腦室引流會有向上疝脫的風險。',
       en: 'Emboli can infarct the PICA and SCA territories on the same side together (common in autopsy series; about 58 mL here). From day 2–3 the swollen cerebellum blocks the 4th ventricle (hydrocephalus) and presses on the brainstem: consciousness falls to coma, both pupils become small, corneal reflexes are lost. Turn on decompressive surgery to see a suboccipital craniectomy; a ventricular drain alone risks upward herniation.',
     },
     occlusions: [

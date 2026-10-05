@@ -232,7 +232,7 @@ const zh = {
   cbf: '全腦血流',
   nihss: 'NIHSS 估計',
   midlineShift: '中線偏移',
-  midlineShiftNote: '腫脹的半球把中線推向對側；超過約 5 mm 通常伴隨意識變差。',
+  midlineShiftNote: '腫脹的半球把中線推向對側；模型中約 4 mm 起嗜睡、6 mm 起木僵、8 mm 起昏迷（Ropper 1986：3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷）。',
   decompressed: '已減壓',
   nihssItems: {
     '1a': '1a 意識程度',
@@ -561,7 +561,7 @@ const en: Strings = {
   cbf: 'Total CBF',
   nihss: 'NIHSS estimate',
   midlineShift: 'Midline shift',
-  midlineShiftNote: 'The swollen hemisphere pushes the midline across; beyond ~5 mm consciousness usually falls.',
+  midlineShiftNote: 'The swollen hemisphere pushes the midline across; in the model drowsiness starts at about 4 mm, stupor at 6 mm and coma at 8 mm (Ropper 1986: 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma).',
   decompressed: 'decompressed',
   nihssItems: {
     '1a': '1a Level of consciousness',

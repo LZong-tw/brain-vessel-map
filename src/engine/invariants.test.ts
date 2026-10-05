@@ -3,7 +3,7 @@ import { REGION_BY_ID } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
-import { eventAddsSymptoms } from './cascade';
+import { symptomsAddedAt } from './cascade';
 import { aggregateSymptoms } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
@@ -291,9 +291,9 @@ describe('syndromes and events agree with the symptoms', () => {
     series(name).forEach((r, i) => {
       const tH = STOPS[i];
       for (const e of r.cascade.events) {
-        // (a herniation coma lifts with the midline shift after the oedema peak, C4-F1)
-        if (!eventAddsSymptoms(e, tH, r.edema.midlineShiftMm)) continue;
-        for (const s of e.symptoms!) {
+        // (a herniation coma lasts while the midline shift is in the coma range, C4-F1, R6-5; a
+        // level of consciousness that follows a swelling, for its own part of the event, R6-1)
+        for (const s of symptomsAddedAt(e, tH, r.edema.midlineShiftMm)) {
           // drowsiness is listed as coma when the patient is also comatose
           const ids = s.id === 'somnolence' ? ['somnolence', 'coma'] : [s.id];
           expect(
