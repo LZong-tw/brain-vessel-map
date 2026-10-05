@@ -22,10 +22,20 @@ export interface EdemaState {
   phase: EdemaPhase;
   /** per bed: fractional tissue volume change at time t (+0.12 = swollen by 12 %, −0.3 = shrunk) */
   swelling: Record<string, number>;
-  /** per bed: 0–1 diffusion restriction (what DWI shows; cytotoxic oedema) */
+  /** per bed: 0–1 diffusion restriction (low ADC; cytotoxic oedema) */
   cytotoxic: Record<string, number>;
-  /** per bed: 0–1 vasogenic oedema intensity (what T2/FLAIR shows after BBB breakdown) */
+  /** per bed: 0–1 vasogenic oedema intensity (the oedema itself; it resolves over weeks) */
   vasogenic: Record<string, number>;
+  /**
+   * per bed: 0–1 brightness of the DWI (trace) image: restricted diffusion in the first ~10 days,
+   * then T2 shine-through that fades over weeks (C4-F5)
+   */
+  dwi: Record<string, number>;
+  /**
+   * per bed: 0–1 brightness on T2/FLAIR: vasogenic oedema, then the gliotic scar that stays bright
+   * for good (C4-F5)
+   */
+  flair: Record<string, number>;
   /** net volume change (mL) by compartment: positive = mass effect, negative = tissue loss */
   extraVolume: { supra: Record<Side, number>; infra: number };
   /** supratentorial midline shift at t (mm) */
@@ -41,6 +51,8 @@ export const NO_EDEMA: EdemaState = {
   swelling: {},
   cytotoxic: {},
   vasogenic: {},
+  dwi: {},
+  flair: {},
   extraVolume: { supra: { r: 0, l: 0 }, infra: 0 },
   midlineShiftMm: 0,
   shiftFrom: null,

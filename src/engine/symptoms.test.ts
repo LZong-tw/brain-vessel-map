@@ -51,9 +51,10 @@ describe('bilateral ventral pons (locked-in syndrome)', () => {
 
 describe('hydrocephalus flag follows the acute event window', () => {
   it('a large cerebellar infarct without decompression: true at 72h, resolved by 2160h (90 days)', () => {
-    const acute = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 72 });
+    // PICA + SCA (≥ 38 mL): a malignant swelling (C4-F3)
+    const acute = sim({ occlusions: occl('pica_r', 'sca_r'), collateral: 'poor', tH: 72 });
     expect(acute.hydrocephalus).toBe(true);
-    const chronic = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 2160 });
+    const chronic = sim({ occlusions: occl('pica_r', 'sca_r'), collateral: 'poor', tH: 2160 });
     expect(chronic.hydrocephalus).toBe(false);
     // chronic ventricular enlargement is still tracked separately by the oedema model
     expect(chronic.edema.ventricleChange).toBeGreaterThan(0);

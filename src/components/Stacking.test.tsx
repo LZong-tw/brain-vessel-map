@@ -55,7 +55,8 @@ describe('combining occlusions', () => {
     useApp.getState().setCollateral('poor');
     useApp.setState({ leftTab: 'scenarios' });
     render(<LeftPanel sim={simOf()} />);
-    fireEvent.click(screen.getByRole('button', { name: /^疊加範本：右 PICA/ }));
+    // (the PICA + SCA template, C4-F3, starts with 右 PICA too)
+    fireEvent.click(screen.getByRole('button', { name: /^疊加範本：右 PICA 小腦梗塞/ }));
     expect(vessels()).toEqual(['basilar_mid', 'pica_r']);
     expect(useApp.getState().collateral).toBe('poor');
   });

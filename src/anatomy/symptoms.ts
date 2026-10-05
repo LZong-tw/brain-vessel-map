@@ -751,8 +751,33 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: true,
     sideWord: 'eye',
   },
+  {
+    // Brainstem compression by a swollen cerebellum: "a decrease in level of consciousness occurs
+    // as a result of brainstem compression and therefore may include early loss of corneal
+    // reflexes and the development of miosis" (Wijdicks EF et al. Stroke 2014;45:1222–1238).
+    // Only the cascade's brainstem-compression event produces it (C4-F3); not scored by the NIHSS.
+    id: 'miosis',
+    name: { zh: '兩側瞳孔縮小（腦幹受壓）', en: 'Small pupils on both sides (brainstem compression)' },
+    desc: {
+      zh: '腫脹的小腦壓迫腦幹時，兩側瞳孔變小，常和意識下降、角膜反射消失一起出現——是後顱窩占位惡化的警訊。',
+      en: 'When a swollen cerebellum compresses the brainstem both pupils become small, often together with falling consciousness and lost corneal reflexes — a warning sign of a worsening posterior-fossa mass.',
+    },
+    system: 'eye',
+    lateralised: false,
+  },
 
   // ── Cranial / vestibular ─────────────────────────────────────────
+  {
+    // see 'miosis' (Wijdicks 2014; C4-F3); the NIHSS does not test the corneal reflex
+    id: 'corneal_reflex_loss',
+    name: { zh: '角膜反射消失（腦幹受壓）', en: 'Corneal reflexes lost (brainstem compression)' },
+    desc: {
+      zh: '輕觸角膜卻不眨眼：反射弧經過橋腦（三叉神經進、顏面神經出）。小腦腫脹壓迫腦幹時，這常是早期的表現之一。',
+      en: 'Touching the cornea no longer makes the eye blink: the reflex runs through the pons (in by the trigeminal, out by the facial nerve). It is often among the early signs when a swollen cerebellum compresses the brainstem.',
+    },
+    system: 'cranial',
+    lateralised: false,
+  },
   {
     id: 'hearing_loss',
     name: { zh: '突發性聽力喪失', en: 'Sudden hearing loss' },

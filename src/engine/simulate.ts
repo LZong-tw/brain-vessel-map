@@ -50,7 +50,7 @@
 
 import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import type { Side } from '../anatomy';
-import { computeCascade, noInfarctEvents, type BedEffectKind, type CascadeEvent, type CascadeOutput, type CascadeTreatment } from './cascade';
+import { computeCascade, consciousnessFromShift, noInfarctEvents, type BedEffectKind, type CascadeEvent, type CascadeOutput, type CascadeTreatment } from './cascade';
 import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
 import { getUnits, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion, type Unit } from './hemodynamics';
 import { computeEdema, type EdemaBedInput } from './edema';
@@ -881,11 +881,18 @@ export function simulate(input: SimInput): SimResult {
   }
   for (const e of cascade.events) {
     if (!e.symptoms || e.onsetH > t || t >= (e.endH ?? Infinity)) continue;
+    // a herniation coma lasts, after the oedema peak, only while the midline is still shifted
+    // into the coma range: a survivor wakes as the swelling subsides (C4-F1)
+    if (e.symptomsWhileShiftMm !== undefined && t >= (e.peakH ?? e.onsetH) && edema.midlineShiftMm < e.symptomsWhileShiftMm) continue;
     for (const sy of e.symptoms) {
       const sides: (Side | null)[] = sy.side === 'both' ? ['r', 'l'] : [sy.side];
       for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
     }
   }
+  // the level of consciousness follows the horizontal midline shift of a swollen hemisphere
+  // (Ropper 1986; cascade.consciousnessFromShift), whatever event caused the swelling (C4-F2)
+  const byShift = consciousnessFromShift(edema.midlineShiftMm);
+  if (byShift) extra.push({ id: byShift.id, side: null, sev: byShift.sev, sources: [], delayed: false });
   const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly);
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);

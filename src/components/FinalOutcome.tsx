@@ -138,6 +138,13 @@ export function FinalOutcome() {
                 <td>{o.items(course.lasting)}</td>
                 <td>{o.items(untreated.lasting)}</td>
               </tr>
+              {(course.fatal.length > 0 || untreated.fatal.length > 0) && (
+                <tr>
+                  <th scope="row">{o.rowFatal}</th>
+                  <td>{course.fatal.length ? o.fatalYes : o.fatalNo}</td>
+                  <td>{untreated.fatal.length ? o.fatalYes : o.fatalNo}</td>
+                </tr>
+              )}
             </tbody>
           </table>
           <p className="muted small">
@@ -159,8 +166,14 @@ export function FinalOutcome() {
 
       <section className="nihss outcome-nihss">
         <h3>{o.nihssTitle}</h3>
-        <NihssLine label={o.at3m} n={course.m3.nihss} />
-        <NihssLine label={o.at6m} n={m6.nihss} />
+        {/* the course usually ends in death, which the model does not represent (C4-F1) */}
+        {out.fatal.map((k) => (
+          <p key={k} className="callout danger">
+            {o.fatal[k]}
+          </p>
+        ))}
+        <NihssLine label={out.fatal.length ? o.at3mIfSurvives : o.at3m} n={course.m3.nihss} />
+        <NihssLine label={out.fatal.length ? o.at6mIfSurvives : o.at6m} n={m6.nihss} />
         <p className="muted small">{t.nihssNote}</p>
         {(course.m3.nihss.uncaptured || m6.nihss.uncaptured) && <p className="callout warn">{t.nihssUncaptured}</p>}
         {(course.m3.nihss.posteriorCaveat || m6.nihss.posteriorCaveat) && <p className="callout warn">{t.posteriorCaveat}</p>}

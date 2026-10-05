@@ -58,6 +58,9 @@ describe('reachability', () => {
         for (const [id, st] of Object.entries(s.regions)) if (st.dys >= 0.25 || st.infarct >= 0.25) reg.add(id);
       }
     }
+    // a swollen cerebellum compressing the brainstem (C4-F3): PICA + SCA, day 3, untreated
+    const cb = simulate({ occlusions: [{ vessel: 'pica_r', severity: 1 }, { vessel: 'sca_r', severity: 1 }], variants: [], collateral: 'poor', map: 93, reperfusionH: null, decompression: false, tH: 72 });
+    cb.symptoms.forEach((x) => sym.add(x.id));
     expect(SYNDROMES.map((s) => s.id).filter((id) => !syn.has(id))).toEqual([]);
     expect(SYMPTOMS.map((s) => s.id).filter((id) => !sym.has(id))).toEqual([]);
     expect(REGIONS.map((r) => r.id).filter((id) => !reg.has(id))).toEqual([]);

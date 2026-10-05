@@ -8,7 +8,7 @@
 
 import { REGION_BY_ID } from '../anatomy';
 import { TIME_STOPS, phaseOf } from '../anatomy/timeline';
-import type { CascadeEvent } from '../engine/cascade';
+import type { CascadeEvent, FatalRisk } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
 import { simulate, type SimInput, type SimResult } from '../engine/simulate';
 
@@ -120,6 +120,11 @@ export interface CourseEnd {
   finalInfarct: number;
   /** deficits still present at 6 months */
   lasting: number;
+  /**
+   * the course usually ends in death, which the model does not represent; the 3- and 6-month
+   * results then assume survival (C4-F1)
+   */
+  fatal: FatalRisk[];
 }
 
 export interface FinalOutcome {
@@ -133,6 +138,8 @@ export interface FinalOutcome {
   finalH: number;
   /** the course has not settled by the timeline's 6-month stop (a late event) */
   unsettled: boolean;
+  /** the case as set usually ends in death (course.fatal): the 3- and 6-month results assume survival */
+  fatal: FatalRisk[];
   /** deficits at 3 and 6 months by group */
   deficits: { m3: Record<DeficitGroup, SymptomItem[]>; m6: Record<DeficitGroup, SymptomItem[]> };
   late: CascadeEvent[];
@@ -143,7 +150,7 @@ export interface FinalOutcome {
 export function courseEnd(input: OutcomeInput, known?: { m3?: SimResult; m6?: SimResult }): CourseEnd {
   const m3 = known?.m3 ?? simulate({ ...input, tH: H_3M });
   const m6 = known?.m6 ?? simulate({ ...input, tH: H_6M });
-  return { m3, m6, finalInfarct: m6.volumes.finalInfarct, lasting: m6.symptoms.length };
+  return { m3, m6, finalInfarct: m6.volumes.finalInfarct, lasting: m6.symptoms.length, fatal: m6.cascade.fatalRisk };
 }
 
 /** Everything the Outcome tab shows, from one simulation input (the displayed time is ignored). */
@@ -157,6 +164,7 @@ export function finalOutcome(input: OutcomeInput, known?: { m3?: SimResult; m6?:
     onsetH,
     finalH,
     unsettled: finalH > H_6M + UNSETTLED_SLACK_H,
+    fatal: course.fatal,
     deficits: { m3: groupDeficits(course.m3.symptoms), m6: groupDeficits(course.m6.symptoms) },
     late: lateEvents(course.m6),
     regions: finalRegions(course.m6),

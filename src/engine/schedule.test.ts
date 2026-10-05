@@ -288,7 +288,7 @@ describe('clocks: cascade and oedema run from the index onset', () => {
     expect(l.cascade.events.map((e) => [e.id, e.onsetH, e.peakH, e.endH])).toEqual(
       p.cascade.events.map((e) => [e.id, e.onsetH + 24, e.peakH === undefined ? undefined : e.peakH + 24, e.endH === undefined ? undefined : e.endH + 24]),
     );
-    expect(l.cascade.midlineShift?.onsetH).toBe((p.cascade.midlineShift?.onsetH ?? NaN) + 24);
+    expect(l.cascade.fatalRisk).toEqual(p.cascade.fatalRisk);
     expect(l.edema.phase).toBe(p.edema.phase);
     expect(l.edema.midlineShiftMm).toBeCloseTo(p.edema.midlineShiftMm, 6);
     expect(l.volumes.finalInfarct).toBeCloseTo(p.volumes.finalInfarct, 6);
@@ -304,8 +304,11 @@ describe('clocks: cascade and oedema run from the index onset', () => {
   });
 
   it('hydrocephalus and its symptoms follow the onset of a late cerebellar infarct', () => {
-    const plain = (tH: number) => sim({ occlusions: [{ vessel: 'pica_r', severity: 1 }], collateral: 'poor', tH });
-    const late = (tH: number) => sim({ occlusions: [{ vessel: 'pica_r', severity: 1, fromH: 48 }], collateral: 'poor', tH });
+    // PICA + SCA: large enough to swell (C4-F3)
+    const plain = (tH: number) =>
+      sim({ occlusions: [{ vessel: 'pica_r', severity: 1 }, { vessel: 'sca_r', severity: 1 }], collateral: 'poor', tH });
+    const late = (tH: number) =>
+      sim({ occlusions: [{ vessel: 'pica_r', severity: 1, fromH: 48 }, { vessel: 'sca_r', severity: 1, fromH: 48 }], collateral: 'poor', tH });
     expect(plain(48).hydrocephalus).toBe(true);
     expect(late(48).hydrocephalus).toBe(false);
     expect(late(96).hydrocephalus).toBe(true);

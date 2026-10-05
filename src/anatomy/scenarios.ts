@@ -302,14 +302,34 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'r_pica',
     group: 'posterior',
-    title: { zh: '右 PICA 小腦梗塞 → 水腦', en: 'Right PICA cerebellar infarct → hydrocephalus' },
+    title: { zh: '右 PICA 小腦梗塞：要注意腫脹', en: 'Right PICA cerebellar infarct: watch for swelling' },
     summary: {
-      zh: '一開始只有頭暈嘔吐，第 1–3 天小腦腫脹壓迫第四腦室與腦幹。',
-      en: 'Starts as dizziness and vomiting; over days 1–3 the swollen cerebellum compresses the 4th ventricle and brainstem.',
+      zh: '一開始只有頭暈嘔吐。約 34 mL 的梗塞已會占位：一個系列中這類梗塞約三分之一惡性腫脹（38 mL 以上的超過一半），最常在第 3 天、也可能更晚，所以要觀察數天。模型讓這個大小不腫脹；看下一個範本（PICA＋SCA）的腫脹與水腦。',
+      en: 'Starts as dizziness and vomiting. At about 34 mL the infarct is space-occupying: in one series about a third of these swelled dangerously (more than half of those of 38 mL or more), most often on day 3 and sometimes later, so it is watched for days. In the model this size does not swell; see the next template (PICA + SCA) for the swelling and hydrocephalus.',
     },
     occlusions: [{ vessel: 'pica_r', severity: 1 }],
     collateral: 'poor',
     tH: 48,
+    view: 'back',
+  },
+  {
+    // A large cerebellar infarct that swells (C4-F3): SCA infarcts often come with PICA infarcts,
+    // and delayed coma from swelling followed in 6 of 9 cerebellar SCA presentations (Amarenco P,
+    // Hauw JJ. Neurology 1990;40:1383–1390, autopsy series); ≥ 38 cm³ swelled malignantly in more
+    // than half (Baki E et al. Stroke Vasc Neurol 2025;10:323–329).
+    id: 'cerebellar_swelling',
+    group: 'posterior',
+    title: { zh: '右 PICA＋SCA 大範圍小腦梗塞 → 腫脹、水腦', en: 'Right PICA + SCA cerebellar infarct → swelling, hydrocephalus' },
+    summary: {
+      zh: '栓子可讓同側的後下與上小腦動脈區一起梗塞（解剖病理系列中常見，約 58 mL）。第 2–3 天腫脹的小腦壓住第四腦室（水腦）並直接壓迫腦幹：意識降到昏迷、兩側瞳孔縮小、角膜反射消失。打開「減壓手術」看枕下減壓顱骨切除的效果；只放腦室引流會有向上疝脫的風險。',
+      en: 'Emboli can infarct the PICA and SCA territories on the same side together (common in autopsy series; about 58 mL here). From day 2–3 the swollen cerebellum blocks the 4th ventricle (hydrocephalus) and presses on the brainstem: consciousness falls to coma, both pupils become small, corneal reflexes are lost. Turn on decompressive surgery to see a suboccipital craniectomy; a ventricular drain alone risks upward herniation.',
+    },
+    occlusions: [
+      { vessel: 'pica_r', severity: 1 },
+      { vessel: 'sca_r', severity: 1 },
+    ],
+    collateral: 'poor',
+    tH: 72,
     view: 'back',
   },
   {

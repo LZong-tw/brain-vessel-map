@@ -235,18 +235,22 @@ describe('every new symptom can occur', () => {
  * symptoms carry no NIHSS points and syndromes are detected from regions, so adding them must
  * leave every value as it was. [total, items > 0, syndromes (with lesion side)]
  * Deliberate changes since then are marked at their rows with the audit finding that explains them
- * (C3-F1: incomplete locked-in syndrome; C3-F2: the time course of coma; C9-F1 to C9-F4: the thalamus).
+ * (C3-F1: incomplete locked-in syndrome; C3-F2: the time course of coma; C9-F1 to C9-F4: the thalamus;
+ * C4-F2: consciousness from the midline shift; C4-F3: graded cerebellar swelling).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_m1@24': [19, { '1b': 2, '1c': 1, 2: 1, 3: 1, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1 }, ['gerstmann_l', 'mca_complete_l']],
   'l_m1@2160': [14, { '1b': 2, '1c': 1, 3: 1, 4: 1, '5r': 2, '6r': 2, 8: 1, 9: 3, 10: 1 }, ['mca_complete_l']],
   'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
   'l_m1_thrombectomy@2160': [12, { '1b': 2, '1c': 1, 4: 1, '5r': 2, '6r': 2, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
-  'r_m1_malignant@24': [17, { '1a': 1, 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C4-F2: consciousness follows the midline shift, 3.4 mm at 24 h (alert), not a fixed drowsiness
+  'r_m1_malignant@24': [16, { 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_m1_malignant@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
-  'r_m1_decompression@24': [17, { '1a': 1, 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C4-F2: as r_m1_malignant@24
+  'r_m1_decompression@24': [16, { 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_m1_decompression@2160': [10, { 3: 1, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
-  'r_ica_t@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C4-F2: 3.5 mm of midline shift at 24 h, alert
+  'r_ica_t@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_ica_t@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
   'l_m2_sup@24': [13, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1 }, ['mca_superior_l']],
   'l_m2_sup@2160': [6, { '1b': 1, 4: 1, '5r': 2, 8: 1, 9: 1 }, ['mca_superior_l']],
@@ -288,8 +292,12 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'basilar_stuttering@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
   'r_wallenberg@24': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
   'r_wallenberg@2160': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
-  'r_pica@24': [3, { 2: 1, 7: 1, 8: 1 }, ['pica_cerebellar_r']],
+  // C4-F3: a 34 mL cerebellar infarct is a warning to monitor; no brainstem compression (gaze palsy)
+  'r_pica@24': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r']],
   'r_pica@2160': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r']],
+  // C4-F3: new template, PICA + SCA (58 mL) swells on day 2–3
+  'cerebellar_swelling@24': [5, { 2: 1, 7: 2, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'sca_r']],
+  'cerebellar_swelling@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'sca_r']],
   'l_aica@24': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'l_aica@2160': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'r_sca@24': [5, { 2: 1, 7: 2, 8: 1, 10: 1 }, ['sca_r']],

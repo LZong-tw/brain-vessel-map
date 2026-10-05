@@ -48,7 +48,7 @@ export function BrainMeshes({ data, sim, clipPlanes }: Props) {
       let c: RGB;
       if (colorMode === 'territory') c = territoryColor(bed);
       else if (colorMode === 'anatomy') c = regionColor(bed.region);
-      else if (colorMode === 'edema') c = edemaColor(bed, sim.edema.cytotoxic[id], sim.edema.vasogenic[id], sim.edema.swelling[id]);
+      else if (colorMode === 'edema') c = edemaColor(bed, sim.edema.dwi[id], sim.edema.flair[id], sim.edema.swelling[id]);
       else c = stateColor(bed, sim.beds[id], tH);
       const hl = hoveredRegion === bed.region || selectedRegion === bed.region;
       cols.push(hl ? mix(c, HIGHLIGHT, 0.45) : c);

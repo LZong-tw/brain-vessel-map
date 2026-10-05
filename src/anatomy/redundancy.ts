@@ -253,6 +253,10 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // follows the eye-movement deficit that causes it
   diplopia: EXEMPT,
   horner: NONE,
+  // signs of brainstem compression by a swollen cerebellum: they last as long as the compression
+  // (the cascade event), so nothing compensates them (C4-F3)
+  miosis: EXEMPT,
+  corneal_reflex_loss: EXEMPT,
 
   // ── temperature regulation & sweating ── TODO(medical-review): uni / bi
   // the descending sympathetic pathway, as for Horner: hypohidrosis still in 76 % at 6 months

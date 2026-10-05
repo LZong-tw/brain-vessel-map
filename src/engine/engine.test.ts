@@ -5,7 +5,6 @@ import { dropEmbolus } from './embolus';
 import { simulateHemodynamics, type HemoInput } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
 import { finalInfarctProb, infarctFraction, tauHours } from './tissue';
-import { midlineShiftAt } from './cascade';
 
 const base: HemoInput = { occlusions: [], variants: [], map: 93, collateral: 'good' };
 const occl = (...ids: string[]) => ids.map((vessel) => ({ vessel, severity: 1 }));
@@ -235,7 +234,8 @@ describe('clinical details that are easy to get wrong', () => {
   });
 
   it('hydrocephalus causes drowsiness and upgaze palsy, not bilateral horizontal gaze palsy', () => {
-    const r = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 });
+    // a cerebellar infarct of ≥ 38 mL (PICA + SCA) swells; a PICA infarct alone is only watched (C4-F3)
+    const r = sim({ occlusions: occl('pica_r', 'sca_r'), collateral: 'poor', tH: 48 });
     const ids = symptomIds(r);
     expect(ids).toEqual(expect.arrayContaining(['coma', 'upgaze_palsy']));
     expect(ids).not.toContain('gaze_palsy_horizontal(l)');
@@ -253,11 +253,9 @@ describe('downstream cascade', () => {
   });
 
   it('midline shift peaks around day 3 and is largely relieved by decompression', () => {
-    const r = sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH: 72 });
-    const ms = r.cascade.midlineShift;
-    expect(ms).not.toBeNull();
-    const at = (h: number, d = false) => midlineShiftAt(ms, h, d);
-    expect(at(12)).toBe(0);
+    // the oedema model's shift is the only one (C4-F2: the cascade no longer keeps its own)
+    const at = (tH: number, decompression = false) => sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH, decompression }).edema.midlineShiftMm;
+    expect(at(12)).toBeLessThan(3);
     expect(at(72)).toBeGreaterThan(at(36));
     expect(at(72)).toBeGreaterThan(at(720));
     expect(at(72, true)).toBeLessThan(at(72) / 2);
@@ -279,8 +277,10 @@ describe('downstream cascade', () => {
   });
 
   it('large cerebellar infarcts cause hydrocephalus', () => {
-    const r = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 });
+    const r = sim({ occlusions: occl('pica_r', 'sca_r'), collateral: 'poor', tH: 48 });
     expect(r.hydrocephalus).toBe(true);
+    // a full PICA infarct (~34 mL) is space-occupying but under the 38 mL of a likely malignant swelling (C4-F3)
+    expect(sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 }).hydrocephalus).toBe(false);
   });
 
   it('predicts crossed cerebellar diaschisis and Wallerian degeneration after motor infarcts', () => {

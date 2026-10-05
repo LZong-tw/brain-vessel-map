@@ -22,8 +22,8 @@
   · Symptoms, 48 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative)
 - 病例介面：發病前條件／阻塞事件／治療三張卡片，範本可載入或疊加多條血管；右側「此刻／最終／詳細」，最終頁有治療與未治療對照
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
-- 32 個教學範本、單一穿通支阻塞（腔隙性中風）、栓子漂流模擬
-  · 32 teaching templates, single-perforator (lacunar) occlusions, embolus drift simulation
+- 33 個教學範本、單一穿通支阻塞（腔隙性中風）、栓子漂流模擬
+  · 33 teaching templates, single-perforator (lacunar) occlusions, embolus drift simulation
 - 3D、Willis 環、腦幹切面三種視圖；繁中／英文；可分享網址；手機版面
   · 3D, circle-of-Willis and brainstem-section views; Traditional Chinese / English; shareable URLs; phone layout
 - GitHub Pages 自動部署、CI（lint、型別、單元與元件測試、建置）、完整資料來源與授權聲明

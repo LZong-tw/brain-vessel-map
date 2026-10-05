@@ -1,5 +1,6 @@
 import type { SymptomSystem } from '../anatomy';
 import type { SymptomItem } from '../engine/clinical';
+import { consciousnessFromShift } from '../engine/cascade';
 import type { SimResult } from '../engine/simulate';
 import { symptomKey, systemOf } from './format';
 
@@ -38,7 +39,18 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const inSystem = (s: SymptomItem) => systemOf(s.id) === system;
   const prevByKey = new Map((prev?.symptoms ?? []).filter(inSystem).map((s) => [symptomKey(s), s] as const));
   const tH = now.input.tH;
-  const activeEvents = now.cascade.events.filter((e) => e.symptoms && e.onsetH <= tH && tH < (e.endH ?? Infinity));
+  const shift = now.edema.midlineShiftMm;
+  const byShift = consciousnessFromShift(shift);
+  const activeEvents = now.cascade.events.filter(
+    (e) =>
+      (e.symptoms || e.shiftSymptoms) &&
+      e.onsetH <= tH &&
+      tH < (e.endH ?? Infinity) &&
+      // a herniation coma that has lifted with the shift (simulate.ts) no longer explains anything
+      !(e.symptomsWhileShiftMm !== undefined && tH >= (e.peakH ?? e.onsetH) && shift < e.symptomsWhileShiftMm),
+  );
+  // the event's own symptoms, or the consciousness level its swelling sets through the midline shift
+  const explains = (e: (typeof activeEvents)[number], id: string) => !!e.symptoms?.some((x) => x.id === id) || (!!e.shiftSymptoms && byShift?.id === id);
   const items: CellSymptom[] = now.symptoms
     .filter(inSystem)
     .map((s) => {
@@ -51,7 +63,7 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
         prevSev,
         change,
         regions: s.sources.filter((r) => r !== ''),
-        events: activeEvents.filter((e) => e.symptoms!.some((x) => x.id === s.id)).map((e) => e.id),
+        events: activeEvents.filter((e) => explains(e, s.id)).map((e) => e.id),
         compensated: s.recovery?.compensated ?? 0,
       };
     })

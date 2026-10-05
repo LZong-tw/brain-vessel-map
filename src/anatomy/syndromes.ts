@@ -587,8 +587,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'PICA 小腦梗塞', en: 'PICA cerebellar infarction' },
     desc: {
-      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。大範圍梗塞 1–3 天後可能腫脹壓迫腦幹。',
-      en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. Large infarcts can swell and compress the brainstem after 1–3 days.',
+      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。大範圍梗塞可能腫脹壓迫第四腦室與腦幹，最常在第 3 天，但約 40% 在第 3 天之後，所以要觀察數天。',
+      en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. Large infarcts can swell and compress the 4th ventricle and brainstem, most often on day 3 but in about 40% after day 3, so monitoring has to continue for days.',
     },
     test: (c, s) => c.hasAny(['cerebellum_posterior_inferior', 'vermis_inferior'], s, 0.3),
   },

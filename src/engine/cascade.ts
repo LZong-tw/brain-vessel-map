@@ -5,12 +5,20 @@
  *
  * Rule thresholds are simplified from the literature:
  *   • malignant MCA infarction: DWI volume > 145 mL (Oppenheim et al., Stroke 2000);
- *     decompressive hemicraniectomy pooled analysis (Vahedi et al., Lancet Neurol 2007)
- *   • space-occupying cerebellar infarction (Wijdicks et al., AHA/ASA statement, Stroke 2014)
+ *     deterioration within 24–48 h in most, deaths peaking on day 3 (Qureshi et al., Crit Care Med
+ *     2003); herniation death in 78% of complete MCA infarcts (Hacke et al., Arch Neurol 1996);
+ *     decompressive hemicraniectomy pooled analysis (Vahedi et al., Lancet Neurol 2007);
+ *     consciousness and midline shift (Ropper, N Engl J Med 1986)
+ *   • space-occupying cerebellar infarction (Wijdicks et al., AHA/ASA statement, Stroke 2014;
+ *     Jauss et al., J Neurol 1999; Baki et al., Stroke Vasc Neurol 2025; Amarenco & Hauw, Neurology
+ *     1990; Ayling et al., World Neurosurg 2018)
+ *   • early and late seizures (Kilpatrick et al. 1990; Labovitz et al. 2001; Szaflarski et al.
+ *     2008; Beghi et al. 2011; Bladin et al. 2000; Galovic et al., Lancet Neurol 2018)
  *   • ischaemic cascade: energy failure, excitotoxicity, peri-infarct depolarisations,
  *     inflammation (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
  *   • crossed cerebellar diaschisis (Pantano, Baron et al., Brain 1986)
- *   • Wallerian degeneration on MRI (Kuhn et al., Radiology 1989; Thomalla et al., NeuroImage 2004)
+ *   • Wallerian degeneration on MRI (Kuhn et al., Radiology 1989; Thomalla et al., NeuroImage 2004);
+ *     the infarct on MRI after the oedema (Lansberg et al., AJNR 2001; Schlaug et al., Neurology 1997)
  *   • hypertrophic olivary degeneration (Goto & Kaneko 1981; Kitajima et al., Radiology 1994;
  *     Goyal et al., AJNR 2000)
  *   • locked-in syndrome and basilar coma (Bauer et al., J Neurol 1979; Laureys et al., Prog Brain
@@ -21,7 +29,7 @@
  */
 
 import { BEDS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
-import type { L, Side } from '../anatomy';
+import type { Bed, Family, L, Side } from '../anatomy';
 import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
@@ -42,7 +50,19 @@ export interface CascadeEvent {
   regions: string[];
   /** symptoms produced by this event while active (e.g. coma from brainstem compression) */
   symptoms?: { id: string; side: Side | 'both' | null; sev: 1 | 2 | 3 }[];
+  /**
+   * after peakH, the symptoms last only while the midline shift (engine/edema.ts) is at least this
+   * many mm: the coma of a transtentorial herniation lifts as the swelling subsides (C4-F1)
+   */
+  symptomsWhileShiftMm?: number;
+  /**
+   * while active, the swelling it describes sets the level of consciousness through the midline
+   * shift (consciousnessFromShift; C4-F2): the event that explains a shift-derived drowsiness or coma
+   */
+  shiftSymptoms?: boolean;
 }
+
+export type FatalRisk = 'herniation' | 'posterior_fossa';
 
 export type BedEffectKind = 'secondary' | 'compressed' | 'diaschisis' | 'degeneration';
 
@@ -99,6 +119,32 @@ export interface CascadeInput {
 
 /** mean arterial pressure from which the high-blood-pressure note is shown (≈ 170/95 mmHg) */
 export const HIGH_MAP = 120;
+
+/**
+ * Level of consciousness from the horizontal midline shift (mm) of an acute hemispheric mass:
+ * pineal shift 0–3 mm alert, 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma (Ropper AH. N Engl J
+ * Med 1986;314:953–958; 24 patients, mostly haematomas, so the bands are approximate). The model
+ * starts drowsiness at the upper end of Ropper's band (4 mm) and counts 4–6 mm as drowsy.
+ */
+export const DROWSY_SHIFT_MM = 4;
+export const STUPOR_SHIFT_MM = 6;
+export const COMA_SHIFT_MM = 8;
+
+/** what the shift does to consciousness: drowsy (NIHSS 1a = 1), stupor (2) or coma (3), or nothing (C4-F2) */
+export function consciousnessFromShift(mm: number): { id: 'somnolence' | 'coma'; sev: 1 | 2 | 3 } | null {
+  if (mm >= COMA_SHIFT_MM) return { id: 'coma', sev: 3 };
+  if (mm >= STUPOR_SHIFT_MM) return { id: 'coma', sev: 2 };
+  if (mm >= DROWSY_SHIFT_MM) return { id: 'somnolence', sev: 1 };
+  return null;
+}
+
+/** cerebellar infarct volume (mL) from which it counts as space-occupying */
+const CEREBELLAR_SPACE_ML = 25;
+/** … and from which malignant swelling is more likely than not (Baki 2025: 38 cm³, > 50%) */
+const CEREBELLAR_MALIGNANT_ML = 38;
+/** when a malignant cerebellar swelling brings hydrocephalus and brainstem compression (h): the
+ * start of day 3, the day deterioration is most frequent (Jauss 1999: days 2–4, most on day 3) */
+const CEREBELLAR_DETERIORATION_H = 48;
 
 /**
  * when a palatal tremor may be listed after a clear trigger (h): weeks to months after the lesion
@@ -267,7 +313,12 @@ export interface CascadeOutput {
   hydrocephalusOnsetH: number | null;
   /** when the acute obstructive episode is over (the 'hydrocephalus' event's endH) */
   hydrocephalusEndH: number | null;
-  midlineShift: { side: Side; peakMm: number; onsetH: number } | null;
+  /**
+   * courses that usually end in death, which the model does not represent: a transtentorial
+   * herniation without decompression, or brainstem compression with coma from a swollen
+   * cerebellum without suboccipital decompression (C4-F1). The late course then assumes survival.
+   */
+  fatalRisk: FatalRisk[];
   /**
    * from when a palatal tremor may be listed (h), or null: only after a clear infarct of the
    * dentate nucleus, the red nucleus region or the pontine tegmentum (C3-F11)
@@ -397,21 +448,6 @@ export function noInfarctEvents(fromH: number, untilH: number): CascadeEvent[] {
  * infarcted (one of two supplying arteries lost) from being decided by floating-point rounding.
  */
 const stillAlive = (finalFraction: number | undefined) => (finalFraction ?? 0) < 0.5 - 1e-6;
-
-/**
- * Midline shift (mm) at time t: builds from the onset of oedema to a peak around day 3–5 and
- * resolves over the following weeks; a decompressive craniectomy lets the swelling expand
- * outwards and largely removes the shift.
- */
-export function midlineShiftAt(ms: CascadeOutput['midlineShift'], tH: number, decompression: boolean): number {
-  if (!ms || tH < ms.onsetH) return 0;
-  const peakH = 72;
-  const plateauEndH = 120;
-  const goneH = 500;
-  const f =
-    tH <= peakH ? (tH - ms.onsetH) / (peakH - ms.onsetH) : tH <= plateauEndH ? 1 : Math.max(0, 1 - (tH - plateauEndH) / (goneH - plateauEndH));
-  return ms.peakMm * f * (decompression && tH >= 36 ? 0.3 : 1);
-}
 
 /**
  * The occlusion sites each treatment-window story is for. The thrombectomy trials enrolled
@@ -548,6 +584,24 @@ const opp = (s: Side): Side => (s === 'r' ? 'l' : 'r');
 
 const MOTOR_SUPRA = ['precentral_face_arm', 'paracentral', 'ic_posterior_limb', 'ic_genu'];
 const FRONTO_MOTOR = [...MOTOR_SUPRA, 'medial_frontal', 'prefrontal_dorsolateral', 'thalamus_ventrolateral', 'ic_anterior_limb'];
+/** vessel families of the carotid territory (Pantano 1986 studied carotid-territory strokes) */
+const CAROTID_FAMILIES: Family[] = ['ICA', 'MCA', 'ACA', 'AChA', 'LSA'];
+/** the middle cerebral artery and its deep branches (SeLECT: MCA territory) */
+const MCA_FAMILIES: Family[] = ['MCA', 'LSA'];
+/** an extensive cortical infarct for crossed cerebellar diaschisis (mL, illustrative) */
+const CCD_CORTEX_ML = 30;
+/** crossed cerebellar diaschisis can be seen within hours (Pantano 1986) */
+const CCD_ONSET_H = 6;
+
+/** share of a bed's supply that comes from vessels of these families */
+function familyShare(b: Bed, families: Family[]): number {
+  let x = 0;
+  for (const s of b.supply) {
+    const v = VESSEL_BY_ID[s.v];
+    if (v && families.includes(v.family)) x += s.share;
+  }
+  return x;
+}
 
 function regionFinal(bedFinal: Record<string, number>): Record<string, number> {
   const acc: Record<string, [number, number]> = {};
@@ -693,7 +747,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // ── 3. oedema & mass effect ────────────────────────────────────
   let hydrocephalusOnsetH: number | null = null;
   let hydrocephalusEndH: number | null = null;
-  let midlineShift: CascadeOutput['midlineShift'] = null;
+  const fatalRisk = new Set<FatalRisk>();
   let palatalTremorFromH: number | null = null;
   if (vol.total >= 3) {
     events.push({
@@ -703,6 +757,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 12,
       peakH: 84,
       endH: 400,
+      shiftSymptoms: true,
       title: { zh: '血管性水腫（第 2–5 天達高峰）', en: 'Vasogenic oedema (peaks day 2–5)' },
       desc: {
         zh: '血腦屏障受損，液體滲入梗塞組織，腦組織腫脹。小梗塞影響不大；大梗塞會擠壓周圍與遠處的腦組織，約 2–3 週後消退。',
@@ -715,9 +770,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const v = vol.supra[s];
     const sideZh = s === 'r' ? '右' : '左';
     const sideEn = s === 'r' ? 'right' : 'left';
-    // malignant course: early (≤ 14 h) lesion > 145 mL (Oppenheim 2000) or a very large final infarct
+    // malignant course: early (≤ 14 h) lesion > 145 mL (Oppenheim 2000) or a very large final infarct.
+    // The level of consciousness is not fixed by this event: simulate() takes it from the midline
+    // shift the oedema model computes at the displayed time (Ropper AH. N Engl J Med 1986;314:953–958;
+    // C4-F2). Timing: of 53 massive MCA infarcts that deteriorated from oedema, 36% did so within
+    // 24 h and 68% by 48 h, and deaths peaked on day 3 (Qureshi AI et al. Crit Care Med
+    // 2003;31:272–277); deterioration over days 2–5 (Hacke W et al. Arch Neurol 1996;53:309–315).
     if (earlySupra[s] >= 145 || v >= 250) {
-      midlineShift = { side: s, peakMm: Math.min(15, 5 + (v - 145) / 20), onsetH: 24 };
       events.push({
         id: `malignant_edema_${s}`,
         kind: 'secondary',
@@ -725,13 +784,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: 24,
         peakH: 72,
         endH: 336,
+        shiftSymptoms: true,
         title: { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` },
         desc: {
-          zh: `發病 14 小時內的梗塞已約 ${earlySupra[s].toFixed(0)} mL（> 145 mL 為惡性水腫高風險），最終約 ${v.toFixed(0)} mL。腫脹的半球把中線推向對側，造成意識變差。${decompression ? '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。' : '若未減壓，死亡率可高達約 70–80%。'}`,
-          en: `Infarct ≈ ${earlySupra[s].toFixed(0)} mL within 14 h (> 145 mL carries high risk), ≈ ${v.toFixed(0)} mL in the end. The swollen hemisphere pushes the midline across and consciousness falls. ${decompression ? 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' : 'Without decompression mortality can reach ~70–80%.'}`,
+          zh: `發病 14 小時內的梗塞已約 ${earlySupra[s].toFixed(0)} mL（> 145 mL 為惡性水腫高風險），最終約 ${v.toFixed(0)} mL。腫脹的半球把中線推向對側，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡）。惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${decompression ? '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。' : '若未減壓，大多數會因疝脫死亡（見「疝脫後可能死亡」）。'}`,
+          en: `Infarct ≈ ${earlySupra[s].toFixed(0)} mL within 14 h (> 145 mL carries high risk), ≈ ${v.toFixed(0)} mL in the end. The swollen hemisphere pushes the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm). Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${decompression ? 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' : 'Without decompression most patients die of herniation (see "Death likely after herniation").'}`,
         },
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
-        symptoms: [{ id: 'somnolence', side: null, sev: 2 }],
       });
       if (decompression) {
         events.push({
@@ -741,8 +800,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           onsetH: 36,
           title: { zh: '減壓性半側顱骨切除術', en: 'Decompressive hemicraniectomy' },
           desc: {
-            zh: '在 48 小時內（60 歲以下證據最強）移除一大片頭骨並擴大硬腦膜，死亡率可從約 70% 降到約 20–30%，但存活者常留下中重度失能（Vahedi 2007 合併分析）。',
-            en: 'Removing a large bone flap and opening the dura within 48 h (strongest evidence under age 60) lowers mortality from ~70% to ~20–30%, although survivors often remain moderately–severely disabled (Vahedi 2007 pooled analysis).',
+            zh: '在 48 小時內（60 歲以下證據最強）移除一大片頭骨並擴大硬腦膜。三個隨機試驗的合併分析（60 歲以下、48 小時內）：一年存活 78% vs 未手術 29%，mRS 0–4 的比例 75% vs 24%；但存活者常留下中重度失能（Vahedi 2007）。',
+            en: 'Removing a large bone flap and opening the dura within 48 h (strongest evidence under age 60). In the pooled analysis of three randomised trials (age ≤ 60, within 48 h) 1-year survival was 78% vs 29% without surgery and mRS 0–4 75% vs 24%, although survivors often remain moderately–severely disabled (Vahedi 2007).',
           },
           regions: [],
         });
@@ -771,28 +830,49 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         mid.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: 72, endH: 336, event: `uncal_${s}` }));
         const pons = BEDS.filter((b) => /^pons_rostral_(tegmentum|basis)/.test(b.region));
         pons.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: 84, endH: 336, event: `uncal_${s}` }));
+        // No fixed end: the coma, the third-nerve palsy and the Kernohan weakness last while the
+        // midline shift stays in the coma range (≥ 8 mm, Ropper 1986) after the oedema peak, so a
+        // survivor wakes as the swelling subsides instead of at a fixed two weeks (C4-F1).
         events.push({
           id: `uncal_${s}`,
           kind: 'secondary',
           severity: 'danger',
           onsetH: 72,
+          peakH: 120,
           title: { zh: '顳葉鉤迴疝脫 → 壓迫中腦與後大腦動脈', en: 'Uncal (transtentorial) herniation → midbrain & PCA compressed' },
           desc: {
-            zh: `內側顳葉從小腦天幕切跡擠下去：壓迫同側動眼神經（${sideZh}側瞳孔放大）、壓扁中腦（昏迷、去大腦姿勢）、夾住${sideZh}側後大腦動脈造成枕葉續發梗塞；對側大腦腳被頂到天幕邊緣（Kernohan 切跡）會讓「同側」肢體也無力。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。`,
-            en: `The medial temporal lobe slides through the tentorial notch: it compresses the ${sideEn} oculomotor nerve (dilated ${sideEn} pupil), squeezes the midbrain (coma, posturing) and kinks the ${sideEn} PCA causing a secondary occipital infarct; the opposite peduncle pressed on the tentorium (Kernohan notch) weakens the SAME-side limbs. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal.`,
+            zh: `內側顳葉從小腦天幕切跡擠下去：壓迫同側動眼神經（${sideZh}側瞳孔放大）、壓扁中腦（昏迷、去大腦姿勢）、夾住${sideZh}側後大腦動脈造成枕葉續發梗塞；對側大腦腳被頂到天幕邊緣（Kernohan 切跡）會讓「同側」肢體也無力。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。若病人存活，昏迷要等水腫消退、中線偏移減少後才逐漸解除。`,
+            en: `The medial temporal lobe slides through the tentorial notch: it compresses the ${sideEn} oculomotor nerve (dilated ${sideEn} pupil), squeezes the midbrain (coma, posturing) and kinks the ${sideEn} PCA causing a secondary occipital infarct; the opposite peduncle pressed on the tentorium (Kernohan notch) weakens the SAME-side limbs. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal. If the patient survives, the coma lifts only gradually as the oedema subsides and the midline shift falls.`,
           },
           regions: [...new Set([...pca.map((b) => b.region), ...mid.map((b) => b.region)])],
-          endH: 336,
           symptoms: [
             { id: 'coma', side: null, sev: 3 },
             { id: 'cn3_palsy', side: s, sev: 3 },
             { id: 'arm_weak', side: s, sev: 2 },
             { id: 'leg_weak', side: s, sev: 2 },
           ],
+          symptomsWhileShiftMm: COMA_SHIFT_MM,
+        });
+        // Death is the usual end point, which the model does not represent (C4-F1): Hacke W et al.
+        // Arch Neurol 1996;53:309–315 (complete MCA-territory infarction: 43 of 55, 78%, died of
+        // transtentorial herniation and brain death; survivors' mean Barthel index 60); Vahedi K
+        // et al. Lancet Neurol 2007;6:215–222 (pooled DECIMAL, DESTINY, HAMLET, age ≤ 60: 1-year
+        // survival 29% without vs 78% with early surgery; mRS ≤ 4 24% vs 75%).
+        fatalRisk.add('herniation');
+        events.push({
+          id: `herniation_fatal_${s}`,
+          kind: 'secondary',
+          severity: 'danger',
+          onsetH: 72,
+          title: { zh: '疝脫後可能死亡（未減壓）', en: 'Death likely after herniation (no decompression)' },
+          desc: {
+            zh: '完整中大腦動脈區梗塞的 55 位病人中，43 位（78%）因天幕切跡疝脫與腦死而死亡，多在第 2–5 天；存活者的平均 Barthel 指數為 60（Hacke 1996）。三個隨機試驗的合併分析（60 歲以下、48 小時內隨機分組）中，沒有手術的一年存活率只有 29%（手術 78%），mRS 0–4 為 24% vs 75%——兩組的主要差別在於能否存活，未手術的存活者多數仍是 mRS 0–4（Vahedi 2007）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是「假如病人存活（少數）」的情況。',
+            en: 'Of 55 patients with complete MCA-territory infarction, 43 (78%) died of transtentorial herniation and brain death, mostly on days 2–5; the survivors had a mean Barthel index of 60 (Hacke 1996). In the pooled analysis of three randomised trials (age ≤ 60, randomised within 48 h) 1-year survival without surgery was only 29% (78% with it), and mRS 0–4 24% vs 75% — the main difference between the arms is survival, and most untreated survivors were still mRS 0–4 (Vahedi 2007). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show what happens if the patient survives (a minority).',
+          },
+          regions: [],
         });
       }
     } else if (v >= 70) {
-      midlineShift = midlineShift ?? { side: s, peakMm: 2 + (v - 70) / 25, onsetH: 24 };
       events.push({
         id: `mass_effect_${s}`,
         kind: 'secondary',
@@ -800,49 +880,95 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: 24,
         peakH: 72,
         endH: 336,
+        shiftSymptoms: true,
         title: { zh: `${sideZh}半球中度占位效應`, en: `Moderate mass effect (${sideEn} hemisphere)` },
         desc: {
-          zh: `梗塞約 ${v.toFixed(0)} mL，水腫可擠壓側腦室並造成數毫米的中線偏移；需密切觀察意識與瞳孔，多數不會形成疝脫。`,
-          en: `Infarct ≈ ${v.toFixed(0)} mL; oedema can compress the lateral ventricle and shift the midline a few millimetres. Consciousness and pupils need close watching; most patients do not herniate.`,
+          zh: `梗塞約 ${v.toFixed(0)} mL，水腫可擠壓側腦室並造成數毫米的中線偏移；需密切觀察意識與瞳孔，多數不會形成疝脫。中線偏移達約 4 mm 以上時，模型會讓意識跟著下降（Ropper 1986）。`,
+          en: `Infarct ≈ ${v.toFixed(0)} mL; oedema can compress the lateral ventricle and shift the midline a few millimetres. Consciousness and pupils need close watching; most patients do not herniate. From a shift of about 4 mm the model lowers consciousness with it (Ropper 1986).`,
         },
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
       });
     }
   }
 
+  // Space-occupying cerebellar infarct (C4-F3). Of 93 space-occupying cerebellar infarcts 33
+  // (35.5%) developed malignant swelling; a volume of 38 cm³ marked a swelling rate above 50%;
+  // a concomitant brainstem infarct was associated in univariate analysis only (51.5% vs 16.7%);
+  // 13 of 33 (39.4%) swelled after more than 3 days (Baki E et al. Stroke Vasc Neurol
+  // 2025;10:323–329, one centre, retrospective). Deterioration of consciousness typically on days
+  // 2–4, most often day 3; surgery was no better than medical care in awake/drowsy or
+  // somnolent/stuporous patients, and half of those operated on in coma recovered meaningfully
+  // (Jauss M et al. J Neurol 1999;246:257–264). Brainstem compression lowers consciousness with
+  // early corneal-reflex loss and miosis; ventriculostomy should be accompanied by suboccipital
+  // craniectomy to avoid upward cerebellar displacement (Wijdicks EF et al. Stroke
+  // 2014;45:1222–1238). SCA infarcts swell too: delayed coma from swelling in 6 of 9 (Amarenco P,
+  // Hauw JJ. Neurology 1990;40:1383–1390, autopsy series). Pooled mortality after suboccipital
+  // decompressive craniectomy 20% (Ayling OGS et al. World Neurosurg 2018;110:450–459).
   const cbTotal = vol.cerebellum.r + vol.cerebellum.l;
-  if (cbTotal >= 25) {
+  if (cbTotal >= CEREBELLAR_SPACE_ML) {
     const bs = BEDS.filter((b) => /^(pons|medulla)_/.test(b.region));
+    const malignant = cbTotal >= CEREBELLAR_MALIGNANT_ML;
+    const brainstemToo = vol.brainstem >= 1;
+    const sideCb: Side = vol.cerebellum.r >= vol.cerebellum.l ? 'r' : 'l';
+    const riskZh = malignant
+      ? `達 38 mL 以上：一個單中心系列中，這麼大的占位性小腦梗塞有一半以上發生惡性腫脹，模型讓它發生。`
+      : `一個系列中，占位性小腦梗塞約三分之一（35.5%）惡性腫脹，38 mL 以上的超過一半；模型讓這個大小（未達 38 mL）不發生惡性腫脹，但實際上仍要密切觀察數天。`;
+    const riskEn = malignant
+      ? ` At 38 mL or more, more than half of such space-occupying cerebellar infarcts swelled malignantly in a single-centre series, and the model lets it happen.`
+      : ` In one series about a third (35.5%) of space-occupying cerebellar infarcts swelled malignantly, more than half of those of 38 mL or more; the model lets an infarct of this size (under 38 mL) run without malignant swelling, but in reality it needs close watching for days.`;
+    const brainstemZh = brainstemToo ? '同時有腦幹梗塞也與惡性腫脹有關（單變項分析）。' : '';
+    const brainstemEn = brainstemToo ? ' A brainstem infarct as well was also associated with malignant swelling (univariate analysis).' : '';
+    const surgeryZh = decompression
+      ? '已施行枕下減壓顱骨切除（± 腦室外引流）：多數功能恢復良好，但合併分析的死亡率仍約 20%。'
+      : '意識變差時應做枕下減壓顱骨切除（AHA/ASA 2014）。只放腦室外引流而不減壓，可能讓小腦向上經天幕切跡疝脫（向上疝脫），所以引流應合併枕下減壓；沒有惡化、清醒或只是嗜睡的病人，手術並不比內科治療好。';
+    const surgeryEn = decompression
+      ? ' Suboccipital decompressive craniectomy (± an external ventricular drain) has been performed: most recover well, but pooled mortality is still about 20%.'
+      : ' Suboccipital decompressive craniectomy is indicated when consciousness falls (AHA/ASA 2014). A ventricular drain alone, without decompression, can let the cerebellum herniate upward through the tentorial notch, so drainage should be combined with suboccipital decompression; in patients who are awake or only drowsy, surgery was not better than medical care.';
     events.push({
       id: 'cerebellar_edema',
       kind: 'secondary',
-      severity: 'danger',
+      severity: malignant ? 'danger' : 'warn',
       onsetH: 24,
-      peakH: 60,
+      peakH: 72,
       endH: 336,
-      title: { zh: '占位性小腦梗塞：水腫擠壓第四腦室與腦幹', en: 'Space-occupying cerebellar infarct: oedema compresses the 4th ventricle and brainstem' },
+      title: malignant
+        ? { zh: '占位性小腦梗塞：可能惡性腫脹，壓迫第四腦室與腦幹', en: 'Space-occupying cerebellar infarct: malignant swelling likely, compressing the 4th ventricle and brainstem' }
+        : { zh: '占位性小腦梗塞：有腫脹風險，需密切觀察', en: 'Space-occupying cerebellar infarct: risk of swelling, watch closely' },
       desc: {
-        zh: `小腦梗塞約 ${cbTotal.toFixed(0)} mL。後顱窩空間很小，第 1–3 天腫脹會壓住第四腦室造成阻塞性水腦（整個腦室系統擴大、頭痛嘔吐、意識下降），並直接壓迫橋腦與延髓；嚴重時小腦扁桃體向下疝脫壓迫延髓呼吸中樞。${decompression ? '已施行枕下減壓（± 腦室外引流），預後通常不錯。' : '需要神經外科評估枕下減壓或腦室外引流——及時處理時存活者功能常相當好。'}`,
-        en: `Cerebellar infarct ≈ ${cbTotal.toFixed(0)} mL. The posterior fossa is tight: over days 1–3 swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness) and compresses the pons and medulla; tonsillar herniation can then compress the medullary respiratory centre. ${decompression ? 'Suboccipital decompression (± external ventricular drain) has been performed; outcomes are often good.' : 'Neurosurgical suboccipital decompression or ventricular drainage is needed — when done in time, survivors often recover well.'}`,
+        zh: `小腦梗塞約 ${cbTotal.toFixed(0)} mL（後下與上小腦動脈的梗塞都可能腫脹）。後顱窩空間很小：腫脹會壓住第四腦室造成阻塞性水腦（整個腦室系統擴大、頭痛嘔吐、意識下降），並直接壓迫橋腦與延髓（意識下降、早期角膜反射消失、瞳孔縮小）；嚴重時小腦扁桃體向下疝脫壓迫延髓呼吸中樞。惡化通常在第 2–4 天、第 3 天最多，但一個系列中約 40% 的惡性腫脹發生在第 3 天之後，所以要觀察超過 72 小時。${riskZh}${brainstemZh}${surgeryZh}`,
+        en: `Cerebellar infarct ≈ ${cbTotal.toFixed(0)} mL (PICA and SCA infarcts can both swell). The posterior fossa is tight: swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness), and compresses the pons and medulla (falling consciousness, early loss of corneal reflexes, small pupils); tonsillar herniation can then compress the medullary respiratory centre. Deterioration typically comes on days 2–4, most often on day 3, but in one series about 40% of malignant swellings came after day 3, so monitoring has to continue beyond 72 h.${riskEn}${brainstemEn}${surgeryEn}`,
       },
       regions: [...new Set(bs.map((b) => b.region))],
-      // direct pressure on the pontine tegmentum: gaze / VI palsy on the side of the infarct
-      symptoms: decompression
-        ? []
-        : [
-            { id: 'nausea_vomiting', side: null, sev: 2 },
-            { id: 'gaze_palsy_horizontal', side: vol.cerebellum.r >= vol.cerebellum.l ? 'r' : 'l', sev: 1 },
-          ],
     });
-    if (!decompression) {
-      hydrocephalusOnsetH = 36;
+    if (malignant && !decompression) {
+      hydrocephalusOnsetH = CEREBELLAR_DETERIORATION_H;
       hydrocephalusEndH = 336;
-      bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: 48, endH: 336, event: 'cerebellar_edema' }));
+      bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: CEREBELLAR_DETERIORATION_H, endH: 336, event: 'brainstem_compression' }));
+      events.push({
+        id: 'brainstem_compression',
+        kind: 'secondary',
+        severity: 'danger',
+        onsetH: CEREBELLAR_DETERIORATION_H,
+        endH: 336,
+        title: { zh: '小腦腫脹壓迫腦幹', en: 'Swollen cerebellum compresses the brainstem' },
+        desc: {
+          zh: '腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。',
+          en: 'The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists.',
+        },
+        regions: [...new Set(bs.map((b) => b.region))],
+        symptoms: [
+          { id: 'coma', side: null, sev: 2 },
+          { id: 'miosis', side: null, sev: 1 },
+          { id: 'corneal_reflex_loss', side: null, sev: 1 },
+          { id: 'gaze_palsy_horizontal', side: sideCb, sev: 1 },
+          { id: 'nausea_vomiting', side: null, sev: 2 },
+        ],
+      });
       events.push({
         id: 'hydrocephalus',
         kind: 'secondary',
         severity: 'danger',
-        onsetH: 36,
+        onsetH: CEREBELLAR_DETERIORATION_H,
         endH: hydrocephalusEndH,
         symptoms: [
           // raised pressure and a dilated aqueduct: drowsiness and upgaze palsy
@@ -853,6 +979,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         desc: {
           zh: '腦脊髓液出不去，側腦室與第三腦室脹大，顱內壓上升——遠離小腦的大腦也因此受影響（頭痛、嘔吐、嗜睡）。',
           en: 'CSF cannot drain, the lateral and third ventricles balloon and intracranial pressure rises — affecting the cerebrum far from the cerebellar infarct (headache, vomiting, drowsiness).',
+        },
+        regions: [],
+      });
+      // coma without decompression: life-threatening; no untreated mortality figure is established
+      fatalRisk.add('posterior_fossa');
+      events.push({
+        id: 'posterior_fossa_fatal',
+        kind: 'secondary',
+        severity: 'danger',
+        onsetH: CEREBELLAR_DETERIORATION_H,
+        title: { zh: '危及生命：腦幹受壓合併昏迷，未減壓', en: 'Life-threatening: brainstem compression with coma, no decompression' },
+        desc: {
+          zh: '小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況。',
+          en: 'Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives.',
         },
         regions: [],
       });
@@ -1114,38 +1254,79 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       regions: [],
     });
   }
-  const corticalInfarct = infarctedRegions.some((r) => REGION_BY_ID[r]?.category === 'cortex');
-  if (corticalInfarct) {
+  // Seizures (C4-F4). Early, acute symptomatic seizures (≤ 7 days): 4.1% after a first stroke,
+  // lobar infarct 5.9% vs deep infarct 0.6%, status epilepticus in 27% of them, NIHSS not an
+  // independent predictor (Labovitz DL et al. Neurology 2001;57:200–206); 6.5% with cortical
+  // infarction, generally within 48 h (Kilpatrick CJ et al. Arch Neurol 1990;47:157–160); 3.1% of
+  // all strokes (haemorrhages included) within 24 h (Szaflarski JP et al. Epilepsia
+  // 2008;49:974–981); 4.2% after an infarct, 12.5% (4 of 32) with haemorrhagic transformation, not
+  // significant (OR 2.7, 0.8–9.6), cortical involvement OR 3.1 (Beghi E et al. Neurology
+  // 2011;77:1785–1793). Late seizures (> 7 days): 4% at 1 year and 8% at 5 years; SeLECT (severity,
+  // large-artery aetiology, early seizure, cortical involvement, MCA territory) 0.7–63% at 1 year
+  // (Galovic M et al. Lancet Neurol 2018;17:143–152); 8.6% after an ischaemic stroke over a mean
+  // 9 months, epilepsy in 2.5% of all 1897 strokes, a late first seizure predicting epilepsy
+  // (HR 12.37; Bladin CF et al. Arch Neurol 2000;57:1617–1622).
+  const corticalRegions = infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex');
+  if (corticalRegions.length) {
     events.push({
-      id: 'seizure',
+      id: 'seizure_early',
       kind: 'complication',
       severity: 'info',
-      onsetH: 24,
-      endH: 4320,
-      title: { zh: '中風後癲癇', en: 'Post-stroke seizures' },
+      onsetH: 0,
+      endH: 168,
+      title: { zh: '早發性癲癇發作（第一週）', en: 'Early seizures (first week)' },
       desc: {
-        zh: '皮質受損的疤痕可能成為異常放電來源：早發性（1 週內）或晚發性（數月後，較容易變成慢性癲癇）。',
-        en: 'Scarred cortex can become a seizure focus: early (within a week) or late (months later, more likely to become chronic epilepsy).',
+        zh: '第一週內的發作是急性症狀性的：來自急性缺血對皮質的刺激，不是疤痕。多半在最初 24–48 小時。皮質（腦葉）梗塞約 4–6%（一個社區研究：腦葉梗塞 5.9%、深部梗塞 0.6%；另一研究皮質梗塞 6.5%），其中約四分之一以癲癇重積狀態表現。出血轉化時可能較高（一項研究 12.5%，但只有 32 人、未達統計顯著）。中風嚴重度（NIHSS）不是獨立的預測因子。',
+        en: 'Seizures in the first week are acute symptomatic: they come from the acute ischaemic irritation of the cortex, not from a scar. Most occur within the first 24–48 h. About 4–6% after a cortical (lobar) infarct (in one community study 5.9% after a lobar and 0.6% after a deep infarct; in another 6.5% after cortical infarction), and about a quarter of them present as status epilepticus. Haemorrhagic transformation may raise the risk (12.5% in one study, but only 32 patients and not statistically significant). Stroke severity (NIHSS) was not an independent predictor.',
       },
-      regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex'),
+      regions: corticalRegions,
+    });
+    // the SeLECT predictors this case shows; severity, aetiology and an early seizure are left out
+    // (a border-zone bed shared half and half with another artery does not count)
+    const mcaTerritory = BEDS.some((b) => (bedFinal[b.id] ?? 0) >= 0.3 && familyShare(b, MCA_FAMILIES) > 0.5);
+    const predZh = mcaTerritory ? '皮質受損、中大腦動脈區受損' : '皮質受損';
+    const predEn = mcaTerritory ? 'cortical involvement and the territory of the middle cerebral artery' : 'cortical involvement';
+    events.push({
+      id: 'seizure_late',
+      kind: 'complication',
+      severity: 'info',
+      onsetH: 168,
+      title: { zh: '晚發性癲癇與中風後癲癇症', en: 'Late seizures and post-stroke epilepsy' },
+      desc: {
+        zh: `一週後的發作來自皮質疤痕，較容易反覆（第一次晚發性發作是日後癲癇症的強力預測因子）。缺血性中風後的晚發性發作約 1 年 4%、5 年 8%，風險在 6 個月後仍持續。SeLECT 評分用五個因子估計 1 年風險（0.7% 到 63%）：中風嚴重度、大動脈粥狀硬化的病因、早發性發作、皮質受損、中大腦動脈區受損。這個病例看得到的有：${predZh}；嚴重度、病因與是否有早發性發作，模型不判定，所以這裡不算分數。`,
+        en: `Seizures after the first week come from the cortical scar and recur more often (a late first seizure strongly predicts epilepsy). After an ischaemic stroke late seizures occur in about 4% at 1 year and 8% at 5 years, and the risk continues past 6 months. The SeLECT score estimates the 1-year risk (0.7% to 63%) from five predictors: stroke severity, large-artery atherosclerotic cause, early seizures, cortical involvement and the territory of the middle cerebral artery. This case shows ${predEn}; the model does not decide severity, cause or whether an early seizure occurred, so no score is given here.`,
+      },
+      regions: corticalRegions,
     });
   }
 
   // ── 7. remote effects: diaschisis & degeneration ──────────────
   for (const s of ['r', 'l'] as Side[]) {
+    // Crossed cerebellar diaschisis (C4-F6): in 55 carotid-territory strokes CCD was significant in
+    // 58% of PET studies, more prominent with internal-capsule or extensive cortical involvement,
+    // pyramidal-tract damage neither necessary nor sufficient; seen within hours, it tended to
+    // persist but sometimes disappeared within days (Pantano P et al. Brain 1986;109:677–694).
+    // Triggers: fronto-motor or capsular involvement, or an extensive carotid-territory cortical
+    // infarct in any lobe (illustrative ≥ 30 mL). Not extended to posterior-territory cortex,
+    // which that study did not include.
     const drivers = FRONTO_MOTOR.map((b) => `${b}_${s}`).filter((r) => infarcted(r, 0.3));
-    if (drivers.length && vol.supra[s] >= 8) {
+    // infarcted cortex weighted by the carotid share of its supply (a border-zone bed counts by half)
+    const carotidCortex = BEDS.filter((b) => b.region.endsWith(`_${s}`) && REGION_BY_ID[b.region].category === 'cortex').reduce(
+      (a, b) => a + (bedFinal[b.id] ?? 0) * b.volume * familyShare(b, CAROTID_FAMILIES),
+      0,
+    );
+    if ((drivers.length && vol.supra[s] >= 8) || carotidCortex >= CCD_CORTEX_ML) {
       const cb = BEDS.filter((b) => /^cerebellum_(superior|posterior_inferior|anterior_inferior)_/.test(b.region) && b.region.endsWith(`_${opp(s)}`));
-      cb.forEach((b) => addEffect(b.id, { kind: 'diaschisis', onsetH: 24, event: `ccd_${s}` }));
+      cb.forEach((b) => addEffect(b.id, { kind: 'diaschisis', onsetH: CCD_ONSET_H, event: `ccd_${s}` }));
       events.push({
         id: `ccd_${s}`,
         kind: 'secondary',
         severity: 'info',
-        onsetH: 24,
+        onsetH: CCD_ONSET_H,
         title: { zh: '交叉性小腦功能抑制（遠隔效應）', en: 'Crossed cerebellar diaschisis (remote effect)' },
         desc: {
-          zh: `${s === 'r' ? '右' : '左'}側大腦的額葉／運動區受損，經皮質—橋腦—小腦路徑的輸入中斷，對側（${s === 'r' ? '左' : '右'}側）小腦半球的血流與代謝跟著下降。小腦本身沒有梗塞、通常沒有症狀，PET／SPECT 上看得到，可持續數月。`,
-          en: `Damage to the ${s === 'r' ? 'right' : 'left'} frontal/motor cortex removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (${s === 'r' ? 'left' : 'right'}) cerebellar hemisphere. It is not infarcted and usually silent, but visible on PET/SPECT for months.`,
+          zh: `${s === 'r' ? '右' : '左'}側大腦的梗塞（內囊，或大範圍的皮質，任何腦葉都可以）切斷皮質—橋腦—小腦路徑的輸入，對側（${s === 'r' ? '左' : '右'}側）小腦半球的血流與代謝跟著下降。一個頸動脈區中風的 PET 研究中，58% 的檢查看得到；有沒有偏癱都可能出現。小腦本身沒有梗塞、通常沒有症狀。發作後數小時內就可能出現，多半持續數月，有時數天內就消失。`,
+          en: `The ${s === 'r' ? 'right' : 'left'} cerebral infarct (the internal capsule, or an extensive stretch of cortex in any lobe) removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (${s === 'r' ? 'left' : 'right'}) cerebellar hemisphere. In a PET study of carotid-territory strokes it was present in 58% of studies, with or without hemiparesis. The cerebellum is not infarcted and it is usually silent. It can appear within hours of onset and usually persists for months, though sometimes it disappears within days.`,
         },
         regions: [...new Set(cb.map((b) => b.region))],
       });
@@ -1177,8 +1358,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           onsetH: 336,
           title: { zh: '皮質脊髓徑的沃勒氏退化', en: 'Wallerian degeneration of the corticospinal tract' },
           desc: {
-            zh: '運動神經元的細胞本體或纖維被切斷後，下游的軸突會一路往下退化：大腦腳 → 橋腦 → 延髓錐體（在延髓下端交叉到對側脊髓）。擴散張量影像約 1–2 週可見，傳統 MRI 約 4 週後出現訊號變化，腦幹在數年間逐漸萎縮。',
-            en: 'Once motor neurons or their fibres are cut, the axons below degenerate all the way down: peduncle → pons → medullary pyramid (crossing to the opposite spinal cord at the bottom of the medulla). Diffusion-tensor imaging shows it after ~1–2 weeks, conventional MRI after ~4 weeks, and the brainstem shrinks over years.',
+            zh: '運動神經元的細胞本體或纖維被切斷後，下游的軸突會一路往下退化：大腦腳 → 橋腦 → 延髓錐體（在延髓下端交叉到對側脊髓）。擴散張量影像約 1–2 週可見；傳統 MRI 上這條徑路約 4 週時在 T2 先變暗，10–14 週後變成永久的亮訊號，腦幹在數年間逐漸萎縮。',
+            en: 'Once motor neurons or their fibres are cut, the axons below degenerate all the way down: peduncle → pons → medullary pyramid (crossing to the opposite spinal cord at the bottom of the medulla). Diffusion-tensor imaging shows it after ~1–2 weeks; on conventional MRI the tract first turns dark on T2 at about 4 weeks and permanently bright after 10–14 weeks, and the brainstem shrinks over years.',
           },
           regions: down,
         });
@@ -1270,8 +1451,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 720,
       title: { zh: '亞急性期：清除壞死組織', en: 'Subacute phase: clearing dead tissue' },
       desc: {
-        zh: '巨噬細胞清除壞死組織，新生血管長入（CT 上梗塞在 2–3 週時可能暫時「變淡」，稱為起霧效應）。水腫消退後，許多功能障礙會部分改善。',
-        en: 'Macrophages clear the necrotic tissue and new vessels grow in (on CT the infarct may transiently fade at 2–3 weeks — the "fogging effect"). As oedema settles many deficits partly improve.',
+        zh: '巨噬細胞清除壞死組織，新生血管長入（CT 上梗塞在 2–3 週時可能暫時「變淡」，稱為起霧效應）。水腫消退後，許多功能障礙會部分改善。MRI 上梗塞並不消失：擴散係數（ADC）第一週偏低、第二週「假性正常化」、之後高於正常；DWI 影像因 T2 透射效應仍偏亮、在數週內慢慢變淡，T2／FLAIR 則一直是亮的。',
+        en: 'Macrophages clear the necrotic tissue and new vessels grow in (on CT the infarct may transiently fade at 2–3 weeks — the "fogging effect"). As oedema settles many deficits partly improve. On MRI the infarct does not disappear: the apparent diffusion coefficient (ADC) is low in week 1, pseudonormal in week 2 and raised afterwards, while the DWI image stays bright from T2 shine-through and fades only over weeks, and T2/FLAIR stays bright.',
       },
       regions: infarctedRegions,
     });
@@ -1282,8 +1463,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 720,
       title: { zh: '慢性期：腦軟化與膠質疤痕', en: 'Chronic phase: encephalomalacia & gliosis' },
       desc: {
-        zh: '壞死組織被液化吸收，留下充滿腦脊髓液的空腔與膠質疤痕，鄰近腦室會被「拉」大。',
-        en: 'The necrotic tissue liquefies and is resorbed, leaving a CSF-filled cavity and glial scar; the adjacent ventricle is pulled larger.',
+        zh: '壞死組織被液化吸收，留下充滿腦脊髓液的空腔與膠質疤痕，鄰近腦室會被「拉」大。MRI 上慢性梗塞在 T2 是亮的；FLAIR 上空腔和腦脊髓液一樣暗，周圍膠質增生的邊緣則是亮的。',
+        en: 'The necrotic tissue liquefies and is resorbed, leaving a CSF-filled cavity and glial scar; the adjacent ventricle is pulled larger. On MRI the chronic infarct is bright on T2; on FLAIR the cavity is dark like CSF, with a bright rim of gliosis.',
       },
       regions: infarctedRegions,
     });
@@ -1342,8 +1523,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 4320,
       title: { zh: '神經可塑性與復原', en: 'Neuroplasticity & recovery' },
       desc: {
-        zh: '周圍與對側的腦區會重新分工，大部分自發性恢復發生在前 3 個月，之後仍可透過密集復健緩慢進步。死掉的神經元不會再生，恢復靠的是「重新接線」。',
-        en: 'Surrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.',
+        zh: `${fatalRisk.size ? (fatalRisk.has('herniation') ? '假如病人存活（未減壓時是少數）：' : '假如病人存活：') : ''}周圍與對側的腦區會重新分工，大部分自發性恢復發生在前 3 個月，之後仍可透過密集復健緩慢進步。死掉的神經元不會再生，恢復靠的是「重新接線」。`,
+        en: `${fatalRisk.size ? (fatalRisk.has('herniation') ? 'If the patient survives (a minority without decompression): s' : 'If the patient survives: s') : 'S'}urrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.`,
       },
       regions: [],
     });
@@ -1418,7 +1599,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     savedVolume,
     hydrocephalusOnsetH,
     hydrocephalusEndH,
-    midlineShift,
+    fatalRisk: [...fatalRisk],
     palatalTremorFromH,
   };
 }

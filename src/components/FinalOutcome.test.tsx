@@ -248,6 +248,58 @@ describe('最終 tab', () => {
   });
 });
 
+describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
+  it('shows the mortality next to the NIHSS, and labels the NIHSS as if the patient survives', () => {
+    useApp.getState().loadScenario('r_m1_malignant');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const callout = within(nihss).getByText(/78%/);
+    expect(callout.className).toContain('callout');
+    expect(callout.textContent).toContain('29%');
+    within(nihss).getByText('3 個月（假如存活）');
+    within(nihss).getByText('6 個月（假如存活）');
+    cleanup();
+
+    useApp.setState({ lang: 'en' });
+    const en = render(<RightPanel sim={simOf()} />);
+    const n2 = en.container.querySelector('.outcome-nihss') as HTMLElement;
+    within(n2).getByText(/78%/);
+    within(n2).getByText('3 months (if the patient survives)');
+  });
+
+  it('says nothing of the kind after decompression or for an ordinary infarct', () => {
+    for (const id of ['r_m1_decompression', 'l_m1']) {
+      useApp.getState().loadScenario(id);
+      useApp.setState({ rightTab: 'final' });
+      const { container } = render(<RightPanel sim={simOf()} />);
+      const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+      expect(within(nihss).queryByText(/78%/), id).toBeNull();
+      within(nihss).getByText('3 個月');
+      cleanup();
+    }
+  });
+
+  it('a swollen cerebellum in coma: life-threatening, with no invented mortality figure', () => {
+    useApp.getState().loadScenario('cerebellar_swelling');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const callout = within(nihss).getByText(/枕下減壓/);
+    expect(callout.textContent).not.toMatch(/78%/);
+  });
+
+  it('adds a row to the treated / untreated comparison', () => {
+    // left M1 with moderate collaterals: herniates untreated, not when reopened at 1 h
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final', collateral: 'moderate', reperfusionH: 1 });
+    render(<RightPanel sim={simOf()} />);
+    const table = screen.getByRole('table');
+    const cells = within(within(table).getByRole('rowheader', { name: '可能死亡（疝脫）' }).closest('tr')!).getAllByRole('cell').map((c) => c.textContent);
+    expect(cells).toEqual(['—', '很可能']);
+  });
+});
+
 describe('最終 tab: common problems after stroke (population figures)', () => {
   const TITLE = '中風後常見的其他問題';
   const section = (c: HTMLElement) => c.querySelector('.outcome-risks') as HTMLElement | null;
