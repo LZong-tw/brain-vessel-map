@@ -1761,6 +1761,29 @@ svg .flow-num {
   width: 4px;
   height: 4px;
 }
+/* present, but not examinable at the patient's level of consciousness (X1-2) */
+.now-symptoms.unexaminable .now-event::before {
+  background: transparent;
+  border: 1.5px dashed var(--text-2);
+  width: 4px;
+  height: 4px;
+}
+.func-group.unexaminable {
+  border-left-style: dashed;
+}
+.func-group.unexaminable .func-title {
+  color: var(--text-2);
+}
+/* the symptom lists (Now, Outcome): the same deficits, named apart in a muted, dashed group */
+.sym-group.unexaminable,
+.sym-group.outcome-unexaminable {
+  border-left: 2px dashed var(--text-2);
+  padding-left: 8px;
+}
+.sym-group.unexaminable h4,
+.sym-group.outcome-unexaminable h4 {
+  color: var(--text-2);
+}
 .rec-status li.little .rec-dot {
   background: transparent;
   border: 2px solid var(--warn);
@@ -1972,6 +1995,9 @@ select.sched-sev {
 }
 .badge.cd-better {
   color: #a8e6b4;
+}
+.badge.cd-again {
+  color: var(--text-2);
 }
 
 /* treatment details (Settings) and the treatment summary (Results) */

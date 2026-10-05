@@ -89,3 +89,31 @@ describe('function heat-map cell detail', () => {
     expect(arm!.events).not.toContain('gated_test');
   });
 });
+
+// X1-2: what cannot be examined at the patient's level of consciousness has not resolved, and when
+// the patient can be examined again it is not new
+describe('function heat-map cell detail under reduced consciousness', () => {
+  const sc = SCENARIOS.find((s) => s.id === 'l_m1')!;
+  const lm1 = seriesOf({ occlusions: sc.occlusions, collateral: 'moderate' });
+
+  it('lists the signs that cannot be examined in coma apart, not as resolved', () => {
+    const d = systemCellDetail(lm1, at(48), 'cognition');
+    expect(lm1[at(48)].nihss.items['1a']).toBe(3);
+    expect(d.resolved.map((s) => s.id)).not.toContain('executive');
+    expect(d.unexaminable.map((s) => s.id)).toContain('executive');
+    const lang = systemCellDetail(lm1, at(48), 'language');
+    for (const id of ['aphasia_global', 'alexia', 'agraphia']) {
+      expect(lang.resolved.map((s) => s.id), id).not.toContain(id);
+      expect(lang.unexaminable.map((s) => s.id), id).toContain(id);
+    }
+  });
+
+  it('marks them as examinable again, not new, once the patient is awake', () => {
+    const d = systemCellDetail(lm1, at(336), 'cognition');
+    expect(lm1[at(336) - 1].nihss.items['1a']).toBe(3);
+    const ex = d.items.find((s) => s.id === 'executive');
+    expect(ex?.change).toBe('again');
+    expect(ex?.prevSev).toBeGreaterThan(0);
+    expect(d.unexaminable).toEqual([]);
+  });
+});

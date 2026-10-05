@@ -138,7 +138,9 @@ export function FinalOutcome() {
                 <td>{untreated.m6.nihss.total}</td>
               </tr>
               <tr>
-                <th scope="row">{o.rowLasting}</th>
+                <th scope="row" title={o.rowLastingNote}>
+                  {o.rowLasting}
+                </th>
                 <td>{o.items(course.lasting)}</td>
                 <td>{o.items(untreated.lasting)}</td>
               </tr>
@@ -218,6 +220,23 @@ export function FinalOutcome() {
             </ul>
           </div>
         ))}
+        {shown.unexaminable.length > 0 && (
+          <div className="sym-group outcome-unexaminable">
+            <h4 title={RECOVERY_UI[lang].unexaminableTitle}>
+              {RECOVERY_UI[lang].unexaminableLabel} <span className="num">{shown.unexaminable.length}</span>
+            </h4>
+            <p className="muted small">{RECOVERY_UI[lang].unexaminableTitle}</p>
+            <ul className="bullets">
+              {bySystem(shown.unexaminable).map((s) => (
+                <li key={s.id + s.side}>
+                  <span className={`sev sev${s.sev}`} aria-hidden="true" />
+                  {symptomLabel(s, lang, t)}
+                  <span className="muted small"> · {tr(SYSTEM_LABEL[systemOf(s.id)], lang)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p className="muted small">{RECOVERY_UI[lang].caveat}</p>
       </section>
 

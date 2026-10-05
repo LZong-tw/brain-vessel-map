@@ -146,31 +146,143 @@ const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_sc
  */
 const SPASTICITY_PARESIS = ['arm_weak', 'leg_weak', 'arm_weak_proximal'];
 /**
- * Symptoms that only an awake, cooperating patient can show or be examined for, not listed while
- * the patient is stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of consciousness: behaviour,
- * executive function, gait, word finding and emotional expression (R5-7), and also colour vision,
- * reading, writing, calculation and finger naming. Colour loss is already left out where nothing
- * is seen (R1-5); "alexia without agraphia" (R1-9) and the Gerstmann tetrad are named for what the
- * patient reads and writes. Neither can be tested in a patient who does not respond. The NIHSS
- * scores none of them.
+ * What can be examined depends on the level of consciousness. A sign that cannot be examined at
+ * the patient's level is not listed then; the engine names it in `SimResult.unexaminable`, so it
+ * is not mistaken for one that has gone (X1-2), and it is listed again once it can be examined.
+ * Whether a sign can be examined is decided by how it is elicited, and for the signs the NIHSS
+ * scores by the scale's own instructions (Torab-Miandoab A et al. Turk J Emerg Med 2020;20:118-134,
+ * Appendix 3; PMID 32832731).
+ *
+ * Signs that only an awake, cooperating patient can show, report or be examined for: not listed
+ * while the patient is stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of consciousness. A
+ * stuporous patient "requires repeated stimulation to attend" (item 1a = 2) and cannot be tested
+ * for any of them. The NIHSS scores none of them in such a patient: limb ataxia is scored absent
+ * in a patient who cannot understand, and an arm by its drift and weakness (arm_weak, which stays
+ * listed), not by the skill of the hand.
  */
 export const NEEDS_AWAKE = [
+  // behaviour, executive function, gait and emotional expression (R5-7)
   'disinhibition',
   'executive',
   'ataxia_gait',
-  'aphasia_thalamic',
   'emotionalism',
   'emotional_facial_paresis',
+  // colour vision, reading, writing, calculation and finger naming (R1-5, R1-9 with R5-7): colour
+  // loss is already left out where nothing is seen; "alexia without agraphia" and the Gerstmann
+  // tetrad are named for what the patient reads and writes
   'achromatopsia',
   'hemiachromatopsia',
   'alexia',
   'agraphia',
   'acalculia',
   'finger_agnosia',
+  // the other higher cortical signs (X1-12): recognising faces and objects, reaching under sight,
+  // awareness of the deficit, praxis, spatial and route finding, the melody of speech and speech
+  // planning, keeping a posture, the hand that acts on its own, recognising objects by touch,
+  // memory, initiative and mood
+  'prosopagnosia',
+  'visual_agnosia',
+  'simultanagnosia',
+  'optic_ataxia',
+  'anosognosia',
+  'apraxia',
+  'callosal_apraxia',
+  'visuospatial',
+  'topographic',
+  'aprosodia',
+  'apraxia_of_speech',
+  'motor_impersistence',
+  'alien_hand',
+  'cortical_sensory',
+  'amnesia',
+  'abulia',
+  'emotional',
+  // what only the patient can report (X1-12); the signs the examiner sees (nystagmus, misaligned
+  // eyes, the pupils) stay listed
+  'vertigo',
+  'diplopia',
+  'hearing_loss',
+  'taste_loss',
+  'monocular_blind',
+  'macular_sparing',
+  'proprio_loss',
+  'central_pain',
+  'central_pain_face',
+  // movements made on request: the finger–nose test (the scale scores limb ataxia as absent in a
+  // patient who cannot understand), fine finger movements, an intention tremor, the late jerky and
+  // unsteady hand; the weakness of the same arm stays listed and scored
+  'ataxia_limb',
+  'hand_clumsy',
+  'tremor',
+  'jerky_dystonic_hand',
 ];
+/**
+ * What is heard in the patient's speech, language (NIHSS item 9) and articulation (item 10): "The
+ * examiner must choose a score for the patient with stupor or limited cooperation", and
+ * articulation is rated from whatever speech there is, so an aphasia, a dysarthria and a hoarse
+ * voice are listed and scored through stupor. In coma (1a = 3) the scale scores item 9 as 3
+ * itself, and the comatose patient, being mute, scores 2 on item 10; a disorder of consciousness
+ * is scored as a mute patient who follows no command (estimateNihss). None of them is listed then:
+ * an aphasia type would claim fluent speech or good repetition, and a slurred or hoarse voice
+ * speech that is not there (X1-5, X1-12). Anarthria, no speech at all from the bilateral ventral
+ * pons, says nothing more than that and stays listed.
+ */
+export const SPEECH_SIGNS = [...Object.keys(APHASIA_FEATURES), 'aphasia_thalamic', 'dysarthria', 'hoarseness'];
+/**
+ * Attention (NIHSS item 11): "Since the abnormality is scored only if present, the item is never
+ * untestable", so a neglect is listed while it can be seen, a disorder of consciousness included
+ * (orienting to one side of space only). In coma it cannot be told apart from the unresponsiveness:
+ * no neglect is listed then (X1-12), and estimateNihss scores the item by its convention for the
+ * comatose patient (11 = 2).
+ */
+const ATTENTION_SIGNS = ['neglect'];
+/**
+ * Reported by a drowsy, not a comatose patient: hallucinations (C3-F10; the release
+ * hallucinations of a blind half-field, C1-F11, as much as the peduncular ones) and a tremor of
+ * the arm the person moves (R5-2): not listed while there is any coma or a disorder of
+ * consciousness.
+ */
+const NEEDS_ALERT = ['peduncular_hallucinosis', 'visual_release_hallucinations', 'holmes_tremor'];
+
+/** NIHSS item 1a given by the listed level-of-consciousness symptoms (0 alert … 3 coma) */
+function consciousnessItem(symptoms: SymptomItem[]): number {
+  let loc = 0;
+  for (const s of symptoms) {
+    const n = SYMPTOM_BY_ID[s.id]?.nihss;
+    if (n?.item === '1a' && !s.delayed) loc = Math.max(loc, n.pts[s.sev - 1]);
+  }
+  return loc;
+}
+
+/**
+ * Whether a sign cannot be examined at the level of consciousness of `symptoms` (the symptom list
+ * it would join), and so is not listed: see NEEDS_AWAKE, SPEECH_SIGNS, ATTENTION_SIGNS and
+ * NEEDS_ALERT.
+ */
+export function unexaminable(id: string, symptoms: SymptomItem[]): boolean {
+  const doc = symptoms.some((s) => s.id === 'disorder_of_consciousness');
+  if (NEEDS_ALERT.includes(id)) return doc || symptoms.some((s) => s.id === 'coma');
+  const loc = consciousnessItem(symptoms);
+  if (NEEDS_AWAKE.includes(id)) return loc >= 2 || doc;
+  if (SPEECH_SIGNS.includes(id)) return loc >= 3 || doc;
+  if (ATTENTION_SIGNS.includes(id)) return loc >= 3;
+  return false;
+}
+
+/** The symptom list as shown (what can be examined now) and what is left out of it for the level of consciousness. */
+export function byConsciousness(symptoms: SymptomItem[]): { shown: SymptomItem[]; unexaminable: SymptomItem[] } {
+  const shown: SymptomItem[] = [];
+  const hidden: SymptomItem[] = [];
+  for (const s of symptoms) (unexaminable(s.id, symptoms) ? hidden : shown).push(s);
+  return { shown, unexaminable: hidden };
+}
 const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
 
-export function aggregateSymptoms(
+/**
+ * Everything the regional dysfunction gives, at every level of consciousness: aggregateSymptoms
+ * without leaving out what cannot be examined (byConsciousness).
+ */
+export function lesionSymptoms(
   regionDys: Record<string, number>,
   regionInf: Record<string, number>,
   tH: number,
@@ -441,21 +553,6 @@ export function aggregateSymptoms(
     del('skew_deviation', 'r');
     del('skew_deviation', 'l');
   }
-  // hallucinations are reported by a drowsy, not a comatose patient (C3-F10) — the release
-  // hallucinations of a blind half-field (C1-F11) as much as the peduncular ones
-  if (map.has('coma|') || map.has('disorder_of_consciousness|')) {
-    del('peduncular_hallucinosis', null);
-    for (const fs of ['r', 'l'] as Side[]) del('visual_release_hallucinations', fs);
-    // a tremor of the arm the person moves, not of an unconscious one (R5-2)
-    for (const fs of ['r', 'l'] as Side[]) del('holmes_tremor', fs);
-  }
-  // what only an awake, cooperating patient can show or be examined for (behaviour, executive
-  // function, gait, word finding, emotional expression; colour, reading, writing, calculation) is
-  // not listed while the patient is stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of
-  // consciousness (R5-7, and R1-5 / R1-9 with it)
-  if ((get('coma', null)?.sev ?? 0) >= 2 || map.has('disorder_of_consciousness|')) {
-    for (const id of NEEDS_AWAKE) for (const side of [null, 'r', 'l'] as SymptomItem['side'][]) del(id, side);
-  }
   // an emotional facial paresis is a face that moves normally on command: not on a side whose face
   // is weak on command (R5-7)
   for (const fs of ['r', 'l'] as Side[])
@@ -466,6 +563,14 @@ export function aggregateSymptoms(
     add('diplopia', null, 2, [...map.values()].find((s) => eye.includes(s.id))!.sources[0], false);
   }
   return [...map.values()];
+}
+
+/**
+ * The symptoms of the regional dysfunction as listed: what can be examined at the patient's level
+ * of consciousness (byConsciousness; R5-7, X1-5, X1-12). The parameters are lesionSymptoms'.
+ */
+export function aggregateSymptoms(...args: Parameters<typeof lesionSymptoms>): SymptomItem[] {
+  return byConsciousness(lesionSymptoms(...args)).shown;
 }
 
 /**
@@ -547,8 +652,9 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   // limb ataxia is scored only if out of proportion to weakness, and is absent in a patient who
   // cannot understand or is paralysed: not on a side whose arm cannot move against gravity or
   // whose leg cannot move at all, and not at all in a stuporous patient (1a ≥ 2, who cannot do
-  // the finger-nose test) or one whose aphasia leaves too little comprehension to follow it
-  const cannotCooperate = (items['1a'] ?? 0) >= 2 || (poorComprehension?.sev ?? 0) >= 2;
+  // the finger-nose test), one in a disorder of consciousness (who follows no command, below) or
+  // one whose aphasia leaves too little comprehension to follow it
+  const cannotCooperate = (items['1a'] ?? 0) >= 2 || has('disorder_of_consciousness') || (poorComprehension?.sev ?? 0) >= 2;
   const ax = cannotCooperate
     ? 0
     : (['r', 'l'] as Side[]).reduce((a, sd) => a + (armSide[sd] >= 3 || legSide[sd] >= 4 ? 0 : ataxia[sd]), 0);
@@ -569,10 +675,20 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   }
   // a disorder of consciousness after coma (unresponsive wakefulness, a minimally conscious state,
   // akinetic mutism, or awareness hidden by a locked-in state; the model cannot tell them apart) is
-  // a patient who is mute and responds to no one-step command reliably: item 9 is 3, and 1c and 10
-  // follow from it (the next rule). Without this, the language and dysarthria items read normal once
-  // the thalamic aphasia is no longer listed in it (R5-7 with R1-1).
-  if (has('disorder_of_consciousness')) set('9', 3, 3);
+  // scored as the bedside examination records it: a patient who is mute and follows no one-step
+  // command reliably, so item 9 is 3, and 1c and 10 follow from it (the next rule); such a patient
+  // does not comprehend the questions either (1b = 2, as for the stuporous patient below). Without
+  // this, the language and dysarthria items read normal once no aphasia is listed in it (R5-7 with
+  // R1-1, X1-5). The state also covers awareness hidden by a locked-in state (X1-16): such awareness
+  // goes unrecognised for weeks to months (Laureys S et al. Prog Brain Res 2005;150:495–511: 2.5
+  // months on average), and until it is found the examiner records what is scored here. Once answers
+  // by eye movement are found, the patient follows the eye commands and would be scored as alert;
+  // the model cannot simulate that finding (its locked-in syndromes, with the tegmentum spared, are
+  // alert patients and scored as such).
+  if (has('disorder_of_consciousness')) {
+    set('9', 3, 3);
+    set('1b', 2, 2);
+  }
   // "a score of 3 [on item 9] should be used only if the patient is mute and follows no one-step
   // commands": such a patient performs neither command (1c = 2) and, being mute, scores 2 on
   // dysarthria ("mute/anarthric"). The comatose patient (1a = 3) is scored below.
@@ -613,9 +729,11 @@ export function symptomQuery(symptoms: SymptomItem[]): SymptomQuery {
 /**
  * Named syndromes: the region rules (on the primary vascular dysfunction), gated for a label
  * named for its signs by those signs being in `symptoms` (shown at the same time); a label named
- * for its vascular pattern is marked silent when no symptom from its side is left.
+ * for its vascular pattern is marked silent when no symptom from its side is left, listed or there
+ * but not examinable at the patient's level of consciousness (`unexaminable`, which has not gone:
+ * X1-2).
  */
-export function detectSyndromes(ctx: SyndromeCtx, symptoms: SymptomItem[] = []): SyndromeMatch[] {
+export function detectSyndromes(ctx: SyndromeCtx, symptoms: SymptomItem[] = [], unexaminable: SymptomItem[] = []): SyndromeMatch[] {
   const q = symptomQuery(symptoms);
   const signs = (def: SyndromeDef, s: Side) => !def.requires || def.requires(q, s);
   const found: SyndromeMatch[] = [];
@@ -628,7 +746,7 @@ export function detectSyndromes(ctx: SyndromeCtx, symptoms: SymptomItem[] = []):
   }
   // a symptom produced by a region on that side (any region, for a bilateral label)
   const fromSide = (side: Side | null) =>
-    symptoms.some((s) => s.sources.some((src) => !!REGION_BY_ID[src] && (side === null || REGION_BY_ID[src].side === side)));
+    [...symptoms, ...unexaminable].some((s) => s.sources.some((src) => !!REGION_BY_ID[src] && (side === null || REGION_BY_ID[src].side === side)));
   return found
     .filter(
       (m) =>

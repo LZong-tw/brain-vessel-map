@@ -130,7 +130,9 @@ describe('C10-F2: each late symptom starts when the evidence says, and its event
   it('every scenario: the late events are shown exactly when their symptoms are (small infarcts and lacunes included)', () => {
     for (const sc of SCENARIOS) {
       const r = scenario(sc.id, 2160);
-      const pain = ids(r).some((id) => id === 'central_pain' || id === 'central_pain_face');
+      // a pain that a patient in a disorder of consciousness cannot report is still a possibility
+      // to look for (X1-12): listed, or there but not examinable
+      const pain = [...r.symptoms, ...r.unexaminable].some((s) => s.id === 'central_pain' || s.id === 'central_pain_face');
       expect(activeEvents(r).includes('central_pain'), `${sc.id}: central_pain`).toBe(pain);
       expect(activeEvents(r).includes('spasticity'), `${sc.id}: spasticity`).toBe(ids(r).includes('spasticity'));
     }

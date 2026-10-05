@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
-import { aggregateSymptoms, symptomQuery, type SymptomItem } from './clinical';
+import { aggregateSymptoms, estimateNihss, symptomQuery, type SymptomItem } from './clinical';
 import type { Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
@@ -247,5 +247,189 @@ describe('a disorder of consciousness is scored as a mute patient who follows no
     const r = scenario('percheron', 2160);
     expect(ids(r)).not.toContain('disorder_of_consciousness');
     expect(r.nihss.items['9'] ?? 0).toBeLessThan(3);
+  });
+});
+
+// ── third round: what cannot be examined under reduced consciousness (X1) ──
+
+const items = (r: SimResult) => r.nihss.items;
+const hidden = (r: SimResult) => (r.unexaminable ?? []).map((s) => s.id);
+
+describe('a stuporous patient’s language is scored and listed; in coma or a disorder of consciousness no aphasia type is (X1-5)', () => {
+  // the NIHSS: "The examiner must choose a score for the patient with stupor or limited
+  // cooperation"; "the patient in a coma (item 1a = 3) will automatically score 3 on this item"
+  it('the thalamic aphasia of the stuporous Percheron patient stays listed and scores item 9', () => {
+    for (const id of ['percheron', 'percheron_midbrain'])
+      for (const collateral of ['good', 'moderate', 'poor'] as const)
+        for (const tH of [0, 1, 24, 168]) {
+          const r = scenario(id, tH, { collateral });
+          const where = `${id} ${collateral} ${tH} h`;
+          expect(items(r)['1a'], where).toBe(2);
+          expect(ids(r), where).toContain('aphasia_thalamic');
+          expect(items(r)['9'], where).toBe(1);
+        }
+    expect(scenario('percheron', 24).nihss.total).toBe(6);
+    expect(scenario('percheron_midbrain', 24).nihss.total).toBe(7);
+  });
+
+  it('no aphasia type is listed in a comatose patient or a disorder of consciousness, and item 9 is 3', () => {
+    const cases: [string, SimResult][] = [
+      ['l_m1 moderate 72 h (herniation coma)', scenario('l_m1', 72, { collateral: 'moderate' })],
+      ['l_m1 poor 168 h', scenario('l_m1', 168, { collateral: 'poor' })],
+      ['basilar_tip poor 6 h (coma)', scenario('basilar_tip', 6, { collateral: 'poor' })],
+      ['basilar_tip poor 720 h (disorder of consciousness)', scenario('basilar_tip', 720, { collateral: 'poor' })],
+    ];
+    for (const [name, r] of cases) {
+      expect(unaware(r), name).toBe(true);
+      expect(aphasias(r.symptoms), name).toEqual([]);
+      expect(items(r)['9'], name).toBe(3);
+    }
+    // a transcortical sensory aphasia (fluent, repeats well) is not listed beside a mute patient
+    expect(hidden(cases[3][1])).toContain('aphasia_tc_sensory');
+    // awake again, the left M1 patient's aphasia is listed once more
+    expect(aphasias(scenario('l_m1', 336, { collateral: 'moderate' }).symptoms)).toEqual(['aphasia_global']);
+  });
+});
+
+describe('the other higher cortical signs need an awake patient too (X1-12)', () => {
+  it('no recognition, praxis, awareness, memory or initiative signs while comatose, and no neglect label', () => {
+    for (const tH of [48, 72, 168]) {
+      const r = scenario('r_m1_malignant', tH, { collateral: 'poor' });
+      expect(items(r)['1a'], `${tH} h`).toBe(3);
+      for (const id of ['prosopagnosia', 'anosognosia', 'amnesia', 'abulia', 'neglect']) expect(ids(r), `${tH} h ${id}`).not.toContain(id);
+      expect(labels(r), `${tH} h`).not.toContain('neglect');
+      // the scale still scores extinction and inattention in coma (item 11 = 2)
+      expect(items(r)['11'], `${tH} h`).toBe(2);
+    }
+    for (const tH of [72, 120]) {
+      const r = scenario('l_m1', tH, { collateral: 'moderate' });
+      for (const id of ['apraxia', 'callosal_apraxia', 'alien_hand', 'cortical_sensory', 'apraxia_of_speech', 'visuospatial'])
+        expect(ids(r), `${tH} h ${id}`).not.toContain(id);
+    }
+    // awake at 3 months, the right-hemisphere picture is listed and named again
+    const late = scenario('r_m1_malignant', 2160, { collateral: 'poor' });
+    for (const id of ['prosopagnosia', 'anosognosia', 'neglect']) expect(ids(late), id).toContain(id);
+    expect(labels(late)).toContain('neglect');
+  });
+
+  it('the stuporous Percheron patient: no memory or initiative testing, but the neglect the scale scores is listed', () => {
+    const r = scenario('percheron', 24);
+    expect(items(r)['1a']).toBe(2);
+    for (const id of ['amnesia', 'abulia']) {
+      expect(ids(r), id).not.toContain(id);
+      expect(hidden(r), id).toContain(id);
+    }
+    expect(sided(r.symptoms)).toContain('neglect(l)');
+    // the amnesia of the summary is listed once the patient is awake
+    expect(ids(scenario('percheron', 336))).toContain('amnesia');
+  });
+
+  it('a disorder of consciousness lists no memory, initiative or reported pain', () => {
+    const r = scenario('basilar_tip', 2160);
+    expect(ids(r)).toContain('disorder_of_consciousness');
+    for (const id of ['amnesia', 'abulia', 'central_pain', 'proprio_loss']) expect(ids(r), id).not.toContain(id);
+  });
+
+  it('what only the patient can report is not listed while stuporous or comatose; what the examiner sees is', () => {
+    for (const tH of [48, 72]) {
+      const r = scenario('cerebellar_swelling', tH);
+      expect(unaware(r), `${tH} h`).toBe(true);
+      for (const id of ['vertigo', 'diplopia']) expect(ids(r), `${tH} h ${id}`).not.toContain(id);
+      // misaligned eyes and nystagmus can be seen
+      for (const id of ['nystagmus', 'gaze_palsy_horizontal']) expect(ids(r), `${tH} h ${id}`).toContain(id);
+      // the finger–nose test needs a patient who understands: the scale scores no limb ataxia then
+      expect(ids(r), `${tH} h`).not.toContain('ataxia_limb');
+      expect(items(r)['7'] ?? 0, `${tH} h`).toBe(0);
+    }
+    // alert again: vertigo and double vision are reported
+    const awake = scenario('cerebellar_swelling', 336);
+    for (const id of ['vertigo', 'diplopia', 'ataxia_limb']) expect(ids(awake), id).toContain(id);
+  });
+});
+
+describe('speech is rated only while the patient speaks, and a clumsy hand only in a patient who moves on request (X1-12)', () => {
+  // the NIHSS rates articulation from the patient's speech, in a stuporous patient too; in coma
+  // the scale scores item 10 as 2 itself, and a disorder of consciousness is scored as mute
+  it('no slurred speech or hoarseness is listed in coma or a disorder of consciousness; the scale scores item 10 = 2', () => {
+    const cases: [string, SimResult][] = [
+      ['r_m1_malignant poor 48 h (herniation coma)', scenario('r_m1_malignant', 48, { collateral: 'poor' })],
+      ['cerebellar_swelling 72 h (coma)', scenario('cerebellar_swelling', 72)],
+      ['basilar_tip 336 h (disorder of consciousness)', scenario('basilar_tip', 336)],
+    ];
+    for (const [name, r] of cases) {
+      expect(unaware(r), name).toBe(true);
+      for (const id of ['dysarthria', 'hoarseness']) expect(ids(r), `${name} ${id}`).not.toContain(id);
+      expect(hidden(r), name).toContain('dysarthria');
+      expect(items(r)['10'], name).toBe(2);
+    }
+    expect(hidden(cases[1][1])).toContain('hoarseness');
+    // stuporous, the patient's speech is still rated
+    const stupor = scenario('cerebellar_swelling', 48);
+    expect(items(stupor)['1a']).toBe(2);
+    for (const id of ['dysarthria', 'hoarseness']) expect(ids(stupor), id).toContain(id);
+  });
+
+  it('no clumsy hand is listed while the patient is stuporous, comatose or in a disorder of consciousness', () => {
+    const cases: [string, SimResult][] = [
+      ['basilar_upper 24 h (coma)', one('basilar_upper', 24)],
+      ['basilar_upper 2160 h (disorder of consciousness)', one('basilar_upper', 2160)],
+      ['basilar_upper reopened at 8 h, 24 h (stupor)', simulate({ ...one('basilar_upper', 24).input, reperfusionH: 8 })],
+      ['r_m1_malignant poor 48 h (coma)', scenario('r_m1_malignant', 48, { collateral: 'poor' })],
+    ];
+    expect(items(cases[2][1])['1a']).toBe(2);
+    for (const [name, r] of cases) {
+      expect(unaware(r) || (items(r)['1a'] ?? 0) >= 2, name).toBe(true);
+      expect(ids(r), name).not.toContain('hand_clumsy');
+      expect(hidden(r), name).toContain('hand_clumsy');
+      // the weak arm is still scored
+      expect(ids(r), name).toContain('arm_weak');
+    }
+    // awake at 1 day, the right M1 patient's clumsy hand is listed
+    expect(ids(scenario('r_m1_malignant', 24, { collateral: 'poor' }))).toContain('hand_clumsy');
+  });
+});
+
+describe('a disorder of consciousness is scored as the examination records an unresponsive patient (X1-16)', () => {
+  it('the symptom text says how the scale scores it, and that eye answers make it a locked-in syndrome', () => {
+    const d = SYMPTOM_BY_ID.disorder_of_consciousness.desc;
+    expect(d.en).toMatch(/NIHSS/);
+    expect(d.en).toMatch(/locked-in/);
+    expect(d.zh).toMatch(/NIHSS/);
+    expect(d.zh).toMatch(/閉鎖/);
+    // the recognised locked-in syndrome is a different, awake patient (basilar_mid)
+    const li = scenario('basilar_mid', 2160);
+    expect(ids(li)).not.toContain('disorder_of_consciousness');
+    expect(items(li)['1a'] ?? 0).toBe(0);
+    expect(items(li)['9'] ?? 0).toBe(0);
+  });
+});
+
+describe('what cannot be examined follows the level of consciousness of stacked lesions too (X1-5, X1-12)', () => {
+  it('a left M1 infarct, then an upper basilar occlusion a month later: its higher cortical signs go with the coma and the disorder of consciousness, without changing the NIHSS', () => {
+    const run = (tH: number) =>
+      simulate({
+        occlusions: [
+          { vessel: 'mca_m1_l', severity: 1 },
+          { vessel: 'basilar_upper', severity: 1, fromH: 720 },
+        ],
+        variants: [],
+        collateral: 'poor',
+        map: 93,
+        tH,
+        reperfusionH: null,
+        decompression: false,
+      });
+    // awake between the herniation coma and the second stroke
+    expect(ids(run(336))).toContain('executive');
+    for (const tH of [720, 2160]) {
+      const r = run(tH);
+      expect(unaware(r), `${tH} h`).toBe(true);
+      for (const id of ['executive', 'alexia', 'amnesia']) {
+        expect(ids(r), `${tH} h ${id}`).not.toContain(id);
+        expect(hidden(r), `${tH} h ${id}`).toContain(id);
+      }
+      expect(aphasias(r.symptoms), `${tH} h`).toEqual([]);
+      expect(estimateNihss([...r.symptoms, ...r.unexaminable], []).items, `${tH} h`).toEqual(r.nihss.items);
+    }
   });
 });

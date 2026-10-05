@@ -75,7 +75,10 @@ describe('C9-F1: the midbrain is an explicit part of the paramedian pattern, not
     expect(inf(r, 'midbrain_paramedian_r')).toBeLessThan(0.25);
     expect(inf(r, 'midbrain_paramedian_l')).toBeLessThan(0.25);
     for (const id of MIDBRAIN_SIGNS) expect(ids(r), id).not.toContain(id);
-    expect(ids(r)).toContain('amnesia');
+    // X1-12: the amnesia cannot be tested while the patient is stuporous; it is there, and listed
+    // once the patient is awake
+    expect(r.unexaminable.map((s) => s.id)).toContain('amnesia');
+    expect(ids(scenario('percheron', 336))).toContain('amnesia');
     expect(ids(r)).toContain('vertical_gaze_palsy');
     expect(syn(r)).toEqual(['thalamic_paramedian_bilateral']);
   });
@@ -344,8 +347,10 @@ describe('R4-9: the Percheron outcome figures come from a series of 15', () => {
 
 describe('R5-7: thalamic signs that need an awake patient, or a face that moves on command, are not listed against them', () => {
   /** items that cannot be shown or examined in a stuporous or comatose patient, or in a disorder of consciousness */
-  const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism', 'emotional_facial_paresis'];
+  const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'emotionalism', 'emotional_facial_paresis'];
   const unaware = (r: SimResult) => sym(r, 'coma').some((s) => s.sev >= 2) || ids(r).includes('disorder_of_consciousness');
+  /** X1-5: the thalamic aphasia is scored in stupor (NIHSS item 9), so it goes only in coma or a disorder of consciousness */
+  const mute = (r: SimResult) => (r.nihss.items['1a'] ?? 0) >= 3 || ids(r).includes('disorder_of_consciousness');
   const CASES: [string, () => SimResult[]][] = [
     ['basilar_tip', () => [24, 336, 2160, 4320].map((tH) => scenario('basilar_tip', tH))],
     ['basilar_tip good', () => [24, 336, 4320].map((tH) => scenario('basilar_tip', tH, { collateral: 'good' }))],
@@ -357,6 +362,7 @@ describe('R5-7: thalamic signs that need an awake patient, or a face that moves 
     const rs = runs();
     expect(rs.some(unaware)).toBe(true);
     for (const r of rs) if (unaware(r)) for (const id of NEEDS_AWAKE) expect(ids(r), `${r.input.tH} h ${id}`).not.toContain(id);
+    for (const r of rs) if (mute(r)) expect(ids(r), `${r.input.tH} h aphasia_thalamic`).not.toContain('aphasia_thalamic');
   });
 
   it('emotional facial paresis is not listed on a side whose face is weak on command', () => {

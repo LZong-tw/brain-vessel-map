@@ -4,7 +4,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { symptomsAddedAt } from './cascade';
-import { NEEDS_AWAKE, aggregateSymptoms } from './clinical';
+import { SPEECH_SIGNS, NEEDS_AWAKE, aggregateSymptoms, estimateNihss } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { unitState } from './tissue';
@@ -76,12 +76,12 @@ describe('output invariants', () => {
   });
 
   // R6-11: the same over the whole course, for single occlusions too. A symptom may go and come
-  // back only for a reason the model has: a sign that needs an awake patient is not listed while
-  // the patient is stuporous, comatose or in a disorder of consciousness (R5-7), and the sparing of
-  // central vision is lost while the oedema of days 1–2 weeks silences the occipital pole too
+  // back only for a reason the model has: a sign that cannot be examined at the patient's level of
+  // consciousness is not listed then (R5-7, X1-12: the engine names it in `unexaminable`), and the
+  // sparing of central vision is lost while the oedema of days 1–2 weeks silences the occipital
+  // pole too
   const ALL_STOPS = TIME_STOPS.map((s) => s.h);
-  const AWAKE_ONLY = [...NEEDS_AWAKE, 'holmes_tremor'];
-  const unaware = (r: SimResult) => r.symptoms.some((x) => (x.id === 'coma' && x.sev >= 2) || x.id === 'disorder_of_consciousness');
+  const unexaminableNow = (r: SimResult, key: string) => r.unexaminable.some((x) => `${x.id}|${x.side}` === key);
   const oedema = (r: SimResult, tH: number) => r.cascade.events.some((e) => e.id === 'vasogenic_edema' && e.onsetH <= tH && tH < (e.endH ?? Infinity));
   const CONSCIOUSNESS = ['coma', 'somnolence', 'disorder_of_consciousness', 'hypersomnia'];
   const noUnexplainedReturn = (name: string, runs: SimResult[]) => {
@@ -93,7 +93,7 @@ describe('output invariants', () => {
       const last = on.lastIndexOf(true);
       for (let i = first + 1; i < last; i++) {
         if (on[i]) continue;
-        const why = AWAKE_ONLY.includes(id) ? unaware(runs[i]) : id === 'macular_sparing' ? oedema(runs[i], ALL_STOPS[i]) : false;
+        const why = unexaminableNow(runs[i], key) || (id === 'macular_sparing' && oedema(runs[i], ALL_STOPS[i]));
         expect(why, `${name}: ${key} is ${on.map((x) => (x ? '■' : '□')).join('')}`).toBe(true);
       }
     }
@@ -258,9 +258,12 @@ describe('syndromes and events agree with the symptoms', () => {
     from: (id, side, base) =>
       r.symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side && (!base || REGION_BY_ID[src].baseId === base))),
   });
-  /** a symptom produced by a region on this side (lateral labels) or by any region (bilateral ones) */
+  /**
+   * a symptom produced by a region on this side (lateral labels) or by any region (bilateral
+   * ones), listed or there but not examinable at the patient's level of consciousness (X1-2)
+   */
   const anyFrom = (r: SimResult, side: 'r' | 'l' | null) =>
-    r.symptoms.some((s) => s.sources.some((src) => REGION_BY_ID[src] && (side === null || REGION_BY_ID[src].side === side)));
+    [...r.symptoms, ...r.unexaminable].some((s) => s.sources.some((src) => REGION_BY_ID[src] && (side === null || REGION_BY_ID[src].side === side)));
 
   it('the syndromes named for their signs carry the signs they need', () => {
     const gated = SYNDROMES.filter((d) => d.requires).map((d) => d.id);
@@ -300,7 +303,7 @@ describe('syndromes and events agree with the symptoms', () => {
     });
   });
 
-  it.each(CASES)('%s: a pattern label is marked silent exactly when no symptom from its side is left', (name) => {
+  it.each(CASES)('%s: a pattern label is marked silent exactly when no symptom from its side is left, listed or not examinable (X1-2)', (name) => {
     series(name).forEach((r, i) => {
       for (const m of r.syndromes) {
         const where = `${name} ${STOPS[i]} h: ${m.def.id}_${m.side ?? ''}`;
@@ -368,21 +371,42 @@ describe('syndromes and events agree with the symptoms', () => {
   });
 
   // R5-7: what cannot be shown or examined in a stuporous or comatose patient, or in a disorder of
-  // consciousness, is not listed then (colour, reading and writing too: R1-5 and R1-9 with R5-7);
-  // an emotional facial paresis needs a face that moves on command
-  it.each(CASES)('%s: no sign that needs an awake patient while stuporous, comatose or in a disorder of consciousness (R5-2, R5-7)', (name) => {
+  // consciousness, is not listed then (colour, reading and writing too: R1-5 and R1-9 with R5-7;
+  // the other higher cortical signs, what only the patient can report, and the finger–nose test:
+  // X1-12). Speech and attention, which the NIHSS scores in a stuporous patient (items 9, 10 and
+  // 11), are listed through stupor and not in coma, where the scale scores those items itself;
+  // nor is an aphasia type, a slurred or a hoarse voice in a disorder of consciousness, which is
+  // scored as mute (X1-5, X1-12). An emotional facial paresis needs a face that moves on command.
+  it.each(CASES)('%s: no sign that needs an awake patient while stuporous, comatose or in a disorder of consciousness (R5-2, R5-7, X1-5, X1-12)', (name) => {
     series(name).forEach((r, i) => {
-      const unaware = r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness');
+      const doc = r.symptoms.some((s) => s.id === 'disorder_of_consciousness');
+      const loc = r.nihss.items['1a'] ?? 0;
+      const unaware = loc >= 2 || doc;
       const holmesUnaware = r.symptoms.some((s) => s.id === 'coma' || s.id === 'disorder_of_consciousness');
       for (const s of r.symptoms) {
-        if (s.id === 'holmes_tremor') expect(holmesUnaware, `${name} ${STOPS[i]} h: holmes_tremor`).toBe(false);
-        else if (NEEDS_AWAKE.includes(s.id)) expect(unaware, `${name} ${STOPS[i]} h: ${s.id}`).toBe(false);
+        const where = `${name} ${STOPS[i]} h: ${s.id}`;
+        if (s.id === 'holmes_tremor') expect(holmesUnaware, where).toBe(false);
+        else if (NEEDS_AWAKE.includes(s.id)) expect(unaware, where).toBe(false);
+        else if (SPEECH_SIGNS.includes(s.id)) expect(loc >= 3 || doc, where).toBe(false);
+        else if (s.id === 'neglect') expect(loc, where).toBeLessThan(3);
       }
       for (const e of r.symptoms.filter((s) => s.id === 'emotional_facial_paresis'))
         expect(
           r.symptoms.some((s) => (s.id === 'face_weak' || s.id === 'face_weak_peripheral') && (s.side === e.side || s.side === 'both')),
           `${name} ${STOPS[i]} h: emotional_facial_paresis_${e.side} with a weak face on that side`,
         ).toBe(false);
+    });
+  });
+
+  // X1-5: a sign that cannot be examined at the patient's level of consciousness is not listed,
+  // but the NIHSS does not drop for it: the scale has its own rules for the stuporous and the
+  // comatose patient (the examiner must still choose a language score in stupor; limb ataxia is
+  // absent in a patient who cannot understand; coma sets items 9 and 11), and a disorder of
+  // consciousness is scored as a mute patient who follows no command
+  it.each(CASES)('%s: leaving out what cannot be examined never changes the NIHSS (X1-5)', (name) => {
+    series(name).forEach((r, i) => {
+      const all = estimateNihss([...r.symptoms, ...r.unexaminable], []);
+      expect(r.nihss.items, `${name} ${STOPS[i]} h: ${r.unexaminable.map((s) => s.id).join(', ')}`).toEqual(all.items);
     });
   });
 

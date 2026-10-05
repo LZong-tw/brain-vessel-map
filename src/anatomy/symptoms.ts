@@ -53,8 +53,8 @@ export const SYMPTOMS: SymptomDef[] = [
       en: 'Disorder of consciousness after coma (unresponsive wakefulness, minimally conscious state) — or awareness hidden by paralysis',
     },
     desc: {
-      zh: '昏迷之後眼睛會睜開、恢復睡醒週期，但覺察能力可能沒有回來（無反應覺醒症候群，舊稱植物人狀態）、時有時無（最小意識狀態），或中腦大範圍受損後呈無動性緘默。也可能其實完全清醒，只是全身癱瘓、無法表達（閉鎖症候群）——外觀相近、常被誤判：要請病人用上下看或眨眼回答問題來確認。模型分不出是哪一種；意識能否恢復、何時恢復都難以預測。',
-      en: 'After coma the eyes open and sleep–wake cycles return, but awareness may not have returned (unresponsive wakefulness syndrome, formerly the vegetative state), may come and go (minimally conscious state), or the person may be in akinetic mutism after extensive midbrain damage. Or they may be fully aware but paralysed and unable to show it (locked-in syndrome) — the states look alike and are often confused: ask for answers by looking up or blinking. The model cannot tell which; whether and when awareness returns is hard to predict.',
+      zh: '昏迷之後眼睛會睜開、恢復睡醒週期，但覺察能力可能沒有回來（無反應覺醒症候群，舊稱植物人狀態）、時有時無（最小意識狀態），或中腦大範圍受損後呈無動性緘默。也可能其實完全清醒，只是全身癱瘓、無法表達（閉鎖症候群）——外觀相近、常被誤判：要請病人用上下看或眨眼回答問題來確認。模型分不出是哪一種；意識能否恢復、何時恢復都難以預測。NIHSS 依床邊檢查所見計分：不能說話、聽不懂也不能遵從任何指令（1b 意識問答 2 分、1c 意識指令 2 分、9 語言 3 分、10 構音 2 分）。若發現病人能用眼球動作回答，那就是閉鎖症候群，應改以清醒的病人計分（模型無法模擬這個發現）。',
+      en: 'After coma the eyes open and sleep–wake cycles return, but awareness may not have returned (unresponsive wakefulness syndrome, formerly the vegetative state), may come and go (minimally conscious state), or the person may be in akinetic mutism after extensive midbrain damage. Or they may be fully aware but paralysed and unable to show it (locked-in syndrome) — the states look alike and are often confused: ask for answers by looking up or blinking. The model cannot tell which; whether and when awareness returns is hard to predict. The NIHSS is scored as the bedside examination finds the patient: mute, not understanding and following no command (1b LOC questions 2, 1c LOC commands 2, 9 language 3, 10 dysarthria 2). If answers by eye movement are found, the person is locked-in and is scored as an alert patient instead (the model cannot simulate that finding).',
     },
     system: 'consciousness',
     lateralised: false,

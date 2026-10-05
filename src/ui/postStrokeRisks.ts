@@ -68,7 +68,8 @@ export function formatPrevalence(p: PostStrokeRisk['prevalence'], lang: Lang): s
 /** NIHSS categories counted as a "moderate or worse" deficit (NIHSS ≥ 5) */
 const MODERATE_OR_WORSE: ReadonlySet<NihssResult['category']> = new Set(['moderate', 'moderate_severe', 'severe']);
 
-const hasLastingCognitive = (m6: SimResult) => m6.symptoms.some((s) => systemOf(s.id) === 'cognition');
+/** a cognitive deficit at 6 months, listed or there but not examinable in a disorder of consciousness (X1-12) */
+const hasLastingCognitive = (m6: SimResult) => [...m6.symptoms, ...m6.unexaminable].some((s) => systemOf(s.id) === 'cognition');
 
 /** the order of the groups: the systems of the case's symptoms, then what belongs to none */
 export const RISK_GROUP_ORDER: RiskGroupId[] = [...SYSTEM_ORDER, 'general'];

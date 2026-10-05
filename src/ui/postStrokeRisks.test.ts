@@ -139,4 +139,13 @@ describe('no personalised number', () => {
     for (const id of ['anxiety', 'fatigue', 'insomnia', 'sleep_apnoea', 'emotionalism', 'dementia'])
       expect(caseNotes(risk(id) as PostStrokeRisk, m6)).toEqual([]);
   });
+
+  // X1-12: memory and initiative cannot be examined in a disorder of consciousness and are not
+  // listed then; the cognitive deficit is still there
+  it('a disorder of consciousness at 6 months still counts as a lasting cognitive deficit', () => {
+    const m6 = at6m('basilar_tip');
+    expect(m6.symptoms.map((s) => s.id)).toContain('disorder_of_consciousness');
+    for (const id of ['depression', 'apathy'])
+      expect(caseNotes(risk(id), m6).some((n) => /cognitive deficit/.test(n.en)), id).toBe(true);
+  });
 });

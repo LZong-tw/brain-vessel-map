@@ -33,6 +33,8 @@ export interface OutcomeStrings {
   rowNihss3: string;
   rowNihss6: string;
   rowLasting: string;
+  /** what the deficit count includes (X1-2) */
+  rowLastingNote: string;
   /**
    * a row of the comparison per risk (C4-F1): herniation without decompression usually ends in
    * death; a swollen cerebellum in coma without surgery is life-threatening, with no reliable
@@ -96,6 +98,7 @@ const zh: OutcomeStrings = {
   rowNihss3: 'NIHSS（3 個月）',
   rowNihss6: 'NIHSS（6 個月）',
   rowLasting: '6 個月時的缺損',
+  rowLastingNote: '列出的缺損，加上意識下降、目前無法檢查但仍存在的缺損',
   rowFatal: { herniation: '很可能死亡（疝脫）', posterior_fossa: '危及生命（腦幹受壓、未手術）' },
   fatalYes: { herniation: '很可能', posterior_fossa: '是' },
   fatalNo: '—',
@@ -158,6 +161,7 @@ const en: OutcomeStrings = {
   rowNihss3: 'NIHSS (3 months)',
   rowNihss6: 'NIHSS (6 months)',
   rowLasting: 'Deficits at 6 months',
+  rowLastingNote: 'The deficits listed, plus those still there that cannot be examined at the patient’s level of consciousness',
   rowFatal: { herniation: 'Death likely (herniation)', posterior_fossa: 'Life-threatening (brainstem compression, no surgery)' },
   fatalYes: { herniation: 'likely', posterior_fossa: 'yes' },
   fatalNo: '—',

@@ -7,7 +7,7 @@ import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { fmtMl, midlineShiftOf, pct, shortTitle, stopIndexAtOrAfter, stopTime, symptomLabel } from '../ui/format';
-import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, silencedVolume } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, silencedVolume, unexaminableNow } from '../ui/recoveryFormat';
 
 const SEV_RANK: Record<EventSeverity, number> = { danger: 0, warn: 1, good: 2, info: 3 };
 const bySeverity = (a: CascadeEvent, b: CascadeEvent) => SEV_RANK[a.severity] - SEV_RANK[b.severity] || a.onsetH - b.onsetH;
@@ -94,7 +94,9 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   if (tH >= NO_BACKUP_FROM_H && upTo.length && upTo[peakAt].nihss.total > sim.nihss.total) {
     sentences.push(rt.nowNihssTrend(upTo[peakAt].nihss.total, stopTime(peakAt, lang), sim.nihss.total));
   }
-  const improved = prev ? improvedSince(prev.symptoms, sim.symptoms) : [];
+  // what cannot be examined at this level of consciousness has not improved; it is named apart (X1-2)
+  const improved = prev ? improvedSince(prev.symptoms, sim.symptoms, sim.unexaminable) : [];
+  const unexaminable = unexaminableNow(sim);
   const noBackup = tH >= NO_BACKUP_FROM_H ? sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s)).sort((a, b) => b.sev - a.sev) : [];
   recoveryShown ||= noBackup.length > 0;
 
@@ -120,6 +122,14 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
           items={improved.map((x) => ({ s: x.s, text: `${x.from}→${x.to === 0 ? rt.goneWord : x.to}` }))}
         />
       )}
+      {unexaminable.length > 0 && (
+        <SymptomLine
+          label={rt.unexaminableLabel}
+          title={rt.unexaminableTitle}
+          cls="unexaminable"
+          items={unexaminable.map((s) => ({ s, text: '' }))}
+        />
+      )}
       {noBackup.length > 0 && <SymptomLine label={rt.noBackupLabel} cls="nobackup" items={noBackup.map((s) => ({ s, text: '' }))} />}
       {started.length > 0 && <EventLine label={t.nowStarted} events={started} />}
       {ongoing.length > 0 && <EventLine label={t.nowOngoing} events={ongoing} />}
@@ -140,12 +150,14 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   );
 }
 
-function SymptomLine({ label, cls, items }: { label: string; cls: string; items: { s: SymptomItem; text: string }[] }) {
+function SymptomLine({ label, title, cls, items }: { label: string; title?: string; cls: string; items: { s: SymptomItem; text: string }[] }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   return (
     <div className="now-line">
-      <span className="now-line-label">{label}</span>
+      <span className="now-line-label" title={title}>
+        {label}
+      </span>
       <span className={`now-events now-symptoms ${cls}`}>
         {items.slice(0, 5).map(({ s, text }) => (
           <span key={`${s.id}|${s.side ?? ''}`} className="now-event">

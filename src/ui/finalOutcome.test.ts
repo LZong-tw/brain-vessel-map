@@ -84,10 +84,25 @@ describe('treated vs untreated', () => {
     expect(out.untreated!.m6.input.reperfusionH).toBeNull();
     expect(out.course.m3.input.tH).toBe(2160);
     expect(out.course.m6.input.tH).toBe(4320);
-    // lasting deficits = symptoms still present at 6 months
-    expect(out.course.lasting).toBe(at(4320, 2).symptoms.length);
-    expect(out.untreated!.lasting).toBe(at(4320, null).symptoms.length);
+    // lasting deficits = symptoms still present at 6 months, listed or there but not examinable
+    // at the patient's level of consciousness (X1-2)
+    const deficits = (r: ReturnType<typeof at>) => r.symptoms.length + r.unexaminable.length;
+    expect(out.course.lasting).toBe(deficits(at(4320, 2)));
+    expect(out.untreated!.lasting).toBe(deficits(at(4320, null)));
     expect(out.untreated!.finalInfarct).toBeCloseTo(at(4320, null).volumes.finalInfarct, 6);
+  });
+
+  // X1-2: a deficit that cannot be examined in a disorder of consciousness has not gone; leaving
+  // it out of the count made the untreated top-of-the-basilar occlusion look as if it left fewer
+  // deficits than the treated one (22 listed against 25, beside 14 not examinable)
+  it('counts the deficits a disorder of consciousness hides as lasting, so treatment is not made to look worse', () => {
+    const tip = finalOutcome({ ...scenarioInput('basilar_tip'), collateral: 'moderate', reperfusionH: 4 });
+    const u = tip.untreated!;
+    expect(u.m6.symptoms.map((x) => x.id)).toContain('disorder_of_consciousness');
+    expect(u.m6.unexaminable.length).toBeGreaterThan(0);
+    expect(tip.course.m6.unexaminable).toEqual([]);
+    expect(u.lasting).toBe(u.m6.symptoms.length + u.m6.unexaminable.length);
+    expect(u.lasting).toBeGreaterThan(tip.course.lasting);
   });
 
   it('reuses 3- and 6-month simulations handed to it', () => {

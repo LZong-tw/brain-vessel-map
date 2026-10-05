@@ -26,6 +26,7 @@ import {
   COMPENSATION_SHOWN,
   SILENCED_FILL,
   SILENCED_SHOWN,
+  UNEXAMINABLE_FILL,
   compensatedShare,
   hasNoBackup,
   peakSeverity,
@@ -46,6 +47,8 @@ const T2_COLOR = '#a08cff';
 const DEAD_FOR_COMPENSATION = 0.2;
 
 const fromRegion = (sim: SimResult, id: string) => sim.symptoms.filter((s) => s.sources.includes(id));
+/** what the region gives but cannot be examined at the patient's level of consciousness (X1-2) */
+const hiddenFromRegion = (sim: SimResult, id: string) => sim.unexaminable.filter((s) => s.sources.includes(id));
 
 interface Tag {
   cls: string;
@@ -81,7 +84,9 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
 
   const funcs = useMemo(() => {
     const now = fromRegion(sim, id);
-    const nowKeys = new Set(now.map(symptomKey));
+    // not examinable now is neither recovered nor taken over (X1-2)
+    const unexaminable = hiddenFromRegion(sim, id).sort((a, b) => b.sev - a.sev);
+    const nowKeys = new Set([...now, ...unexaminable].map(symptomKey));
     const earlier = new Map<string, SymptomItem>();
     const later = new Map<string, { s: SymptomItem; i: number }>();
     series.forEach((s, i) => {
@@ -99,6 +104,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
     const gone = [...earlier.values()];
     return {
       now,
+      unexaminable,
       recovered: gone.filter((s) => !takenOver(s)),
       compensated: gone.filter(takenOver),
       later: [...later.values()],
@@ -122,14 +128,19 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         cells: series.map((s) => {
           const syms = fromRegion(s, id);
           const lv = syms.reduce((m, x) => Math.max(m, x.sev), 0);
+          const sep = lang === 'en' ? '; ' : '、';
           const names = syms
             .sort((a, b) => b.sev - a.sev)
             .slice(0, 4)
             .map((x) => symptomLabel(x, lang, t));
           const fill = SEV_FILL[lv] ?? null;
           const comp = fill !== null && syms.some((x) => compensatedShare(x) >= COMPENSATION_SHOWN);
-          const title = names.length ? names.join(lang === 'en' ? '; ' : '、') : t.funcNone;
-          return { color: fill && comp ? withHatch(fill) : fill, title: comp ? (lang === 'en' ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
+          // a stop at which the region's deficits cannot be examined does not read "no loss" (X1-2)
+          const hidden = hiddenFromRegion(s, id).map((x) => symptomLabel(x, lang, t));
+          const hiddenText = hidden.length ? `${rt.unexaminableLabel}${lang === 'en' ? ': ' : '：'}${hidden.join(sep)}` : '';
+          const title = [names.join(sep), hiddenText].filter(Boolean).join(sep) || t.funcNone;
+          const color = fill ? (comp ? withHatch(fill) : fill) : hidden.length ? UNEXAMINABLE_FILL : null;
+          return { color, title: comp ? (lang === 'en' ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
         }),
       },
     ];
@@ -286,8 +297,11 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         )}
 
         <h4>{t.funcNow}</h4>
-        {funcs.now.length === 0 && <p className="muted small">{t.funcNone}</p>}
+        {funcs.now.length === 0 && funcs.unexaminable.length === 0 && <p className="muted small">{t.funcNone}</p>}
         {funcs.now.length > 0 && <FuncGroup cls={nowGroup[0]} title={nowGroup[1]} items={funcs.now} tags={funcs.now.map(tagOf)} />}
+        {funcs.unexaminable.length > 0 && (
+          <FuncGroup cls="unexaminable" title={rt.unexaminableLabel} titleHint={rt.unexaminableTitle} items={funcs.unexaminable} />
+        )}
         {funcs.compensated.length > 0 && <FuncGroup cls="compensated" title={rt.funcCompensatedGone} items={funcs.compensated} />}
         {funcs.recovered.length > 0 && <FuncGroup cls="recovered" title={t.funcRecovered} items={funcs.recovered} />}
         {funcs.later.length > 0 && (
@@ -323,12 +337,28 @@ function Meter({ label, v, color, note }: { label: string; v: number; color: str
   );
 }
 
-function FuncGroup({ cls, title, items, notes, tags }: { cls: string; title: string; items: SymptomItem[]; notes?: string[]; tags?: (Tag | null)[] }) {
+function FuncGroup({
+  cls,
+  title,
+  titleHint,
+  items,
+  notes,
+  tags,
+}: {
+  cls: string;
+  title: string;
+  titleHint?: string;
+  items: SymptomItem[];
+  notes?: string[];
+  tags?: (Tag | null)[];
+}) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   return (
     <div className={`func-group ${cls}`}>
-      <div className="func-title small">{title}</div>
+      <div className="func-title small" title={titleHint}>
+        {title}
+      </div>
       <ul className="bullets">
         {items.map((s, i) => {
           const tag = tags?.[i];

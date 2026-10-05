@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { REGION_BY_ID, regionName } from '../anatomy';
 import { POST_STROKE_RISKS } from '../anatomy/postStrokeRisks';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
@@ -182,6 +183,23 @@ describe('最終 tab', () => {
     fireEvent.click(within(box).getByRole('button', { name: '3 個月' }));
     expect(within(box).getByRole('button', { name: '3 個月' }).getAttribute('aria-pressed')).toBe('true');
     expect(count('.outcome-group li')).toBe(simulate({ ...simOf().input, tH: 2160 }).symptoms.length);
+  });
+
+  // X1-12: memory and initiative cannot be examined in a disorder of consciousness; they are not
+  // "no longer there"
+  it('names apart the deficits that cannot be examined in a disorder of consciousness (top of the basilar at 6 months)', () => {
+    useApp.getState().loadScenario('basilar_tip');
+    useApp.setState({ rightTab: 'final' });
+    const m6 = at6m();
+    expect(m6.symptoms.map((s) => s.id)).toContain('disorder_of_consciousness');
+    expect(m6.unexaminable.map((s) => s.id)).toEqual(expect.arrayContaining(['amnesia', 'abulia']));
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const box = container.querySelector('.outcome-deficits .outcome-unexaminable') as HTMLElement;
+    expect(box).not.toBeNull();
+    within(box).getByText('意識下降，目前無法檢查');
+    within(box).getByText(SYMPTOM_BY_ID.amnesia.name.zh);
+    // the lasting-deficit groups list only what is listed
+    expect(container.querySelectorAll('.outcome-deficits .outcome-group li').length).toBe(m6.symptoms.length);
   });
 
   it('names the syndrome that remains at 6 months (locked-in after a mid-basilar occlusion)', () => {

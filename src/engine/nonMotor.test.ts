@@ -319,15 +319,18 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C5-F1: stuporous (1a = 2), so the questions score 2 and the ataxia is not scored; C9-F1: the
   // default Percheron pattern spares the midbrain (no CN III/IV palsy, item 2); C9-F3/F4: thalamic
   // aphasia from the left (9) and neglect from the right (11) paramedian thalamus (was 5); R5-7: the
-  // thalamic word-finding difficulty cannot be examined in a stuporous patient (9: 1 → 0; was 6)
-  'percheron@24': [5, { '1a': 2, '1b': 2, 11: 1 }, ['thalamic_paramedian_bilateral']],
+  // thalamic word-finding difficulty cannot be examined in a stuporous patient (9: 1 → 0; was 6).
+  // X1-5: the scale has the examiner choose a language score in stupor, so the thalamic aphasia is
+  // listed and scored again (9: 0 → 1; was 5)
+  'percheron@24': [6, { '1a': 2, '1b': 2, 9: 1, 11: 1 }, ['thalamic_paramedian_bilateral']],
   // C3-F2: the coma of the paramedian thalami has given way to persistent hypersomnia by 3 months
   // (1a 1 → 0); C9-F1, C9-F3/F4: as at 24 h, the neglect has recovered (was 4)
   'percheron@2160': [1, { 9: 1 }, ['thalamic_paramedian_bilateral']],
   // C9-F1: the Percheron pattern with the midbrain (a scenario of its own). MERGE: stuporous
   // (1a = 2), so C5-F1 scores the questions 2 and not the ataxia (1b: 2 in place of 7: 2); R5-7:
-  // stuporous, so no thalamic word-finding difficulty is listed (9: 1 → 0; was 7)
-  'percheron_midbrain@24': [6, { '1a': 2, '1b': 2, 2: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
+  // stuporous, so no thalamic word-finding difficulty is listed (9: 1 → 0; was 7). X1-5: listed and
+  // scored again in stupor, as for percheron@24 (9: 0 → 1; was 6)
+  'percheron_midbrain@24': [7, { '1a': 2, '1b': 2, 2: 1, 9: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
   'percheron_midbrain@2160': [4, { 2: 1, 7: 2, 9: 1 }, ['thalamomesencephalic_bilateral']],
   // C1-F3: the untreated P2 occlusion infarcts the calcarine cortex: a hemianopia (3: 1 → 2; was 4),
   // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l']);

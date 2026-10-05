@@ -7,7 +7,7 @@ import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
 import { NO_BACKUP_KINDS, redundancyFor, type RedundancyKind } from '../anatomy/redundancy';
 import type { NihssResult, SymptomItem } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
-import { SEV_FILL, symptomKey } from './format';
+import { SEV_FILL, SYSTEM_ORDER, symptomKey, systemOf } from './format';
 
 /** a symptom counts as "partly compensated" from this share */
 export const COMPENSATION_SHOWN = 0.1;
@@ -104,21 +104,35 @@ export interface Improvement {
   to: number;
 }
 
-/** Symptoms that are milder (or gone) now than in `before`, worst first. */
-export function improvedSince(before: SymptomItem[], now: SymptomItem[]): Improvement[] {
+/**
+ * Symptoms that are milder (or gone) now than in `before`, worst first. A symptom left out of the
+ * list because it cannot be examined at the patient's level of consciousness now (`unexaminable`,
+ * SimResult.unexaminable) has not improved (X1-2).
+ */
+export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexaminable: SymptomItem[] = []): Improvement[] {
   const nowByKey = new Map(now.map((s) => [symptomKey(s), s]));
   const nowIds = new Set(now.map((s) => s.id));
+  const hidden = new Set(unexaminable.map(symptomKey));
   const out: Improvement[] = [];
   for (const b of before) {
     if (b.delayed) continue;
     const n = nowByKey.get(symptomKey(b));
     if (n) {
       if (n.sev < b.sev) out.push({ s: n, from: b.sev, to: n.sev });
-    } else if (!(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id))) {
+    } else if (!hidden.has(symptomKey(b)) && !(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id))) {
       out.push({ s: b, from: b.sev, to: 0 });
     }
   }
   return out.sort((a, b) => b.from - b.to - (a.from - a.to) || b.from - a.from);
+}
+
+/**
+ * What the lesion gives but cannot be examined at the patient's level of consciousness now
+ * (SimResult.unexaminable), worst first, then in the order of the function systems.
+ */
+export function unexaminableNow(sim: SimResult): SymptomItem[] {
+  const rank = (s: SymptomItem) => SYSTEM_ORDER.indexOf(systemOf(s.id));
+  return [...sim.unexaminable].sort((a, b) => b.sev - a.sev || rank(a) - rank(b));
 }
 
 /** Highest severity each symptom (id + side) has reached in `series`. */
@@ -132,6 +146,11 @@ export function peakSeverity(series: SimResult[]): Map<string, number> {
 /** diagonal stripes laid over a severity fill: "partly compensated" */
 const HATCH = 'repeating-linear-gradient(135deg, rgba(150, 235, 190, 0.8) 0 1.5px, transparent 1.5px 5px)';
 export const withHatch = (color: string) => `${HATCH}, ${color}`;
+/**
+ * a heat-map cell whose deficits are all there but cannot be examined at the patient's level of
+ * consciousness (SimResult.unexaminable): grey dots, neither a severity nor "no loss" (X1-2)
+ */
+export const UNEXAMINABLE_FILL = 'radial-gradient(circle, rgba(160, 160, 175, 0.85) 0 1px, transparent 1.4px) 0 0 / 4px 4px';
 /** fills of the "temporarily silenced" and "compensated" strips (index 1–3 = intensity) */
 export const SILENCED_FILL: (string | null)[] = [null, 'rgba(110, 168, 255, 0.35)', 'rgba(110, 168, 255, 0.62)', 'rgba(110, 168, 255, 0.9)'];
 export const COMPENSATED_FILL: (string | null)[] = [null, 'rgba(67, 181, 129, 0.35)', 'rgba(67, 181, 129, 0.62)', 'rgba(67, 181, 129, 0.9)'];

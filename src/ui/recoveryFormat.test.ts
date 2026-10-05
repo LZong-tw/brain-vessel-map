@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { SymptomItem } from '../engine/clinical';
+import { SCENARIO_BY_ID, SCENARIOS } from '../anatomy/scenarios';
+import { TIME_STOPS } from '../anatomy/timeline';
+import { NEEDS_AWAKE, type SymptomItem } from '../engine/clinical';
+import { simulate, type SimResult } from '../engine/simulate';
 import { improvedSince } from './recoveryFormat';
 
 const item = (id: string, sev: 1 | 2 | 3, side: SymptomItem['side'] = null): SymptomItem => ({ id, side, sev, sources: ['x'], delayed: false });
@@ -27,5 +30,44 @@ describe('improvedSince', () => {
   it('an aphasia that changes type is not listed as gone', () => {
     expect(improvedSince([item('aphasia_global', 2)], [item('aphasia_broca', 1)])).toEqual([]);
     expect(improvedSince([item('aphasia_global', 2)], []).map((x) => [x.s.id, x.to])).toEqual([['aphasia_global', 0]]);
+  });
+});
+
+// X1-2: a sign that cannot be examined at the patient's level of consciousness is left out of the
+// list (R5-7, X1-12); that is not an improvement — the patient has got worse
+describe('improvedSince and signs that cannot be examined now', () => {
+  it('does not report as gone a sign that the engine says cannot be examined now', () => {
+    const before = [item('executive', 2), item('alexia', 2)];
+    const now = [item('coma', 3)];
+    expect(improvedSince(before, now, [item('executive', 2), item('alexia', 2)])).toEqual([]);
+    // one that has really gone still counts
+    expect(improvedSince(before, now, [item('alexia', 2)]).map((x) => [x.s.id, x.to])).toEqual([['executive', 0]]);
+  });
+
+  /** stuporous or comatose (coma at least 2), or in a disorder of consciousness */
+  const unaware = (r: SimResult) => r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness');
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: no awake-only sign is "better" or "gone" when the patient falls into stupor or coma', (id) => {
+    const sc = SCENARIO_BY_ID[id];
+    for (const collateral of ['good', 'moderate', 'poor'] as const) {
+      const runs = TIME_STOPS.map((st) =>
+        simulate({
+          occlusions: sc.occlusions,
+          variants: sc.variants ?? [],
+          collateral,
+          map: sc.map ?? 93,
+          tH: st.h,
+          reperfusionH: sc.reperfusionH ?? null,
+          decompression: sc.decompression ?? false,
+        }),
+      );
+      for (let i = 1; i < runs.length; i++) {
+        const now = runs[i];
+        for (const x of improvedSince(runs[i - 1].symptoms, now.symptoms, now.unexaminable)) {
+          const where = `${id} ${collateral} ${TIME_STOPS[i].h} h: ${x.s.id} ${x.from}→${x.to}`;
+          expect(NEEDS_AWAKE.includes(x.s.id) && unaware(now), where).toBe(false);
+          expect(now.unexaminable.some((u) => u.id === x.s.id && u.side === x.s.side), where).toBe(false);
+        }
+      }
+    }
   });
 });

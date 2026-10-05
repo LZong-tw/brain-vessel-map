@@ -6,7 +6,8 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { REGION_BY_ID, regionName } from '../anatomy';
+import { REGION_BY_ID, regionName, tr } from '../anatomy';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { regionAffectedPct } from '../ui/regionLabel';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
@@ -129,5 +130,31 @@ describe('a lacune can be placed within its bundle (C6-F5)', () => {
       expect(screen.queryByRole('combobox', { name: 'Where the branch lies' })).toBeNull();
       cleanup();
     }
+  });
+});
+
+// X1-2: the symptom list of the displayed time names apart what the lesion gives but cannot be
+// examined while the patient is comatose, rather than leaving it out without a word
+describe('symptom list under reduced consciousness', () => {
+  it.each(['zh-TW', 'en'] as const)('%s: the herniation coma of a left M1 infarct lists executive function and reading apart, as not examinable', (lang) => {
+    const occlusions = occl('mca_m1_l');
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 48, reperfusionH: null, decompression: false });
+    expect(sim.nihss.items['1a']).toBe(3);
+    useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(48), lang });
+    const { container } = render(<RightPanel sim={sim} />);
+    const group = container.querySelector('.sym-group.unexaminable') as HTMLElement;
+    expect(group).not.toBeNull();
+    within(group).getByText(lang === 'en' ? /Cannot be examined at this level of consciousness/ : /意識下降，目前無法檢查/);
+    for (const id of ['executive', 'alexia']) within(group).getByText(tr(SYMPTOM_BY_ID[id].name, lang));
+    // what is listed is not repeated there
+    expect(within(group).queryByText(tr(SYMPTOM_BY_ID.arm_weak.name, lang))).toBeNull();
+  });
+
+  it('no such group for an awake patient', () => {
+    const occlusions = occl('mca_m1_l');
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });
+    useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(24), lang: 'en' });
+    const { container } = render(<RightPanel sim={sim} />);
+    expect(container.querySelector('.sym-group.unexaminable')).toBeNull();
   });
 });

@@ -118,7 +118,11 @@ export interface CourseEnd {
   m6: SimResult;
   /** the final infarct volume (mL), evaluated at schedule.finalH */
   finalInfarct: number;
-  /** deficits still present at 6 months */
+  /**
+   * deficits still present at 6 months: those listed and those the lesion still gives that cannot
+   * be examined at the patient's level of consciousness (SimResult.unexaminable), which have not
+   * gone (X1-2)
+   */
   lasting: number;
   /**
    * the course usually ends in death, which the model does not represent; the 3- and 6-month
@@ -150,7 +154,7 @@ export interface FinalOutcome {
 export function courseEnd(input: OutcomeInput, known?: { m3?: SimResult; m6?: SimResult }): CourseEnd {
   const m3 = known?.m3 ?? simulate({ ...input, tH: H_3M });
   const m6 = known?.m6 ?? simulate({ ...input, tH: H_6M });
-  return { m3, m6, finalInfarct: m6.volumes.finalInfarct, lasting: m6.symptoms.length, fatal: m6.cascade.fatalRisk };
+  return { m3, m6, finalInfarct: m6.volumes.finalInfarct, lasting: m6.symptoms.length + m6.unexaminable.length, fatal: m6.cascade.fatalRisk };
 }
 
 /** Everything the Outcome tab shows, from one simulation input (the displayed time is ignored). */

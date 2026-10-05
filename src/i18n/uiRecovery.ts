@@ -55,6 +55,9 @@ export interface RecoveryStrings {
   improvedLabel: (since: string) => string;
   noBackupLabel: string;
   goneWord: string;
+  /** signs the lesion gives that cannot be examined at the patient's level of consciousness (X1-2) */
+  unexaminableLabel: string;
+  unexaminableTitle: string;
 }
 
 const zh: RecoveryStrings = {
@@ -113,6 +116,9 @@ const zh: RecoveryStrings = {
   improvedLabel: (since) => `比 ${since} 改善`,
   noBackupLabel: '沒有備援、不會再改善',
   goneWord: '消失',
+  unexaminableLabel: '意識下降，目前無法檢查',
+  unexaminableTitle:
+    '病灶仍會造成這些缺損，只是病人昏睡、昏迷或處於意識障礙時檢查不出來（需要病人清醒、配合或自己說出來），所以暫時不列在症狀清單裡，也不算改善；能檢查時會再列出。',
 };
 
 const en: RecoveryStrings = {
@@ -177,6 +183,9 @@ const en: RecoveryStrings = {
   improvedLabel: (since) => `Better than at ${since}`,
   noBackupLabel: 'No backup — will not improve',
   goneWord: 'gone',
+  unexaminableLabel: 'Cannot be examined at this level of consciousness',
+  unexaminableTitle:
+    'The lesion still causes these deficits, but they cannot be examined while the patient is stuporous, comatose or in a disorder of consciousness (they need an awake, cooperating patient, or the patient’s own report), so they are left out of the symptom list for now and do not count as improved; they are listed again once they can be examined.',
 };
 
 export const RECOVERY_UI: Record<Lang, RecoveryStrings> = { 'zh-TW': zh, en };

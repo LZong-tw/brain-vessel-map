@@ -69,9 +69,10 @@ import {
   type ListedCourse,
 } from './cascade';
 import {
-  aggregateSymptoms,
+  byConsciousness,
   detectSyndromes,
   estimateNihss,
+  lesionSymptoms,
   type BorderLevel,
   type NihssResult,
   type SymptomItem,
@@ -155,6 +156,12 @@ export interface SimResult {
   beds: Record<string, BedTimeState>;
   regions: Record<string, RegionTimeState>;
   symptoms: SymptomItem[];
+  /**
+   * what the lesion gives but cannot be examined at the patient's level of consciousness, so is
+   * not in `symptoms` (stupor, coma, a disorder of consciousness: clinical.byConsciousness). It has
+   * not gone: it is listed again once it can be examined (X1-2).
+   */
+  unexaminable: SymptomItem[];
   nihss: NihssResult;
   syndromes: SyndromeMatch[];
   cascade: CascadeOutput;
@@ -1320,7 +1327,11 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
     }
     if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
   }
-  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute, regionAgeH);
+  // what cannot be examined at the patient's level of consciousness is left out of the list and
+  // named apart (R5-7, X1-2, X1-12)
+  const { shown: symptoms, unexaminable } = byConsciousness(
+    lesionSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute, regionAgeH),
+  );
   if (symptomsOnly) return symptoms;
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
@@ -1353,7 +1364,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       symptoms
         .filter((x) => x.id === id && !x.delayed && (side === undefined || x.side === side || x.side === 'both'))
         .reduce((m, x) => Math.max(m, x.sev), 0),
-  }, symptoms);
+  }, symptoms, unexaminable);
 
   // ── volumes ──
   let core = 0;
@@ -1373,6 +1384,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
     beds,
     regions,
     symptoms,
+    unexaminable,
     nihss,
     syndromes,
     // on the simulation clock, like the timeline (the second pass, made on first reading)

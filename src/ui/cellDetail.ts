@@ -4,7 +4,8 @@ import { consciousnessFromShift, symptomsAddedAt, type CascadeEvent } from '../e
 import type { SimResult } from '../engine/simulate';
 import { symptomKey, systemOf } from './format';
 
-export type SymptomChange = 'new' | 'worse' | 'better' | 'same';
+/** `again`: listed again now that it can be examined, after a stop at which it could not be (X1-2) */
+export type SymptomChange = 'new' | 'worse' | 'better' | 'same' | 'again';
 
 export interface CellSymptom {
   id: string;
@@ -27,6 +28,8 @@ export interface CellDetail {
   items: CellSymptom[];
   /** present at the previous stop, gone now */
   resolved: { id: string; side: SymptomItem['side']; prevSev: number }[];
+  /** given by the lesion now but not examinable at the patient's level of consciousness (SimResult.unexaminable), worst first */
+  unexaminable: { id: string; side: SymptomItem['side']; sev: number }[];
 }
 
 /**
@@ -38,6 +41,9 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const prev = index > 0 ? series[index - 1] : null;
   const inSystem = (s: SymptomItem) => systemOf(s.id) === system;
   const prevByKey = new Map((prev?.symptoms ?? []).filter(inSystem).map((s) => [symptomKey(s), s] as const));
+  const prevHidden = new Map((prev?.unexaminable ?? []).filter(inSystem).map((s) => [symptomKey(s), s] as const));
+  const hiddenNow = now.unexaminable.filter(inSystem);
+  const hiddenKeys = new Set(hiddenNow.map(symptomKey));
   const tH = now.input.tH;
   const shift = now.edema.midlineShiftMm;
   const byShift = consciousnessFromShift(shift);
@@ -51,8 +57,10 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const items: CellSymptom[] = now.symptoms
     .filter(inSystem)
     .map((s) => {
-      const prevSev = prevByKey.get(symptomKey(s))?.sev ?? 0;
-      const change: SymptomChange = prevSev === 0 ? 'new' : s.sev > prevSev ? 'worse' : s.sev < prevSev ? 'better' : 'same';
+      const shownBefore = prevByKey.get(symptomKey(s));
+      const prevSev = shownBefore?.sev ?? prevHidden.get(symptomKey(s))?.sev ?? 0;
+      const change: SymptomChange =
+        !shownBefore && prevSev > 0 ? 'again' : prevSev === 0 ? 'new' : s.sev > prevSev ? 'worse' : s.sev < prevSev ? 'better' : 'same';
       return {
         id: s.id,
         side: s.side,
@@ -66,6 +74,10 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
     })
     .sort((a, b) => b.sev - a.sev || a.id.localeCompare(b.id));
   const nowKeys = new Set(items.map((s) => symptomKey(s)));
-  const resolved = [...prevByKey.values()].filter((s) => !nowKeys.has(symptomKey(s))).map((s) => ({ id: s.id, side: s.side, prevSev: s.sev }));
-  return { system, index, items, resolved };
+  // what cannot be examined now has not resolved (X1-2)
+  const resolved = [...prevByKey.values()]
+    .filter((s) => !nowKeys.has(symptomKey(s)) && !hiddenKeys.has(symptomKey(s)))
+    .map((s) => ({ id: s.id, side: s.side, prevSev: s.sev }));
+  const unexaminable = hiddenNow.map((s) => ({ id: s.id, side: s.side, sev: s.sev })).sort((a, b) => b.sev - a.sev || a.id.localeCompare(b.id));
+  return { system, index, items, resolved, unexaminable };
 }
