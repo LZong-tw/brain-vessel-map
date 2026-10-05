@@ -369,8 +369,8 @@ export const SYNDROMES: SyndromeDef[] = [
     // first week in 36 % (Nasreddine ZS, Saver JL. Neurology 1997;48:1196-1199, PMID 9153442); the
     // central_pain symptom is listed as possible from 2 weeks (C10-F1, F2)
     desc: {
-      zh: '視丘下外側（視丘膝狀體動脈）區：對側半身（臉、手、腳）所有感覺減退，加上運動失調，起初常有輕微、數週內消失的無力。之後可能出現頑固的燒灼痛（視丘痛）：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一，右側病灶比較常見；約三分之一在第一週就開始，其他在幾週到幾個月後。',
-      en: 'Inferolateral (thalamogeniculate) territory: loss of all sensation over the opposite half of the body (face, arm, leg) with ataxia, and at first often a mild weakness that passes within weeks. Intractable burning pain (thalamic pain) may follow: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic territory, more often after right-sided lesions; about a third start in the first week, the rest weeks to months later.',
+      zh: '視丘下外側（視丘膝狀體動脈）區：對側半身（臉、手、腳）所有感覺減退，加上運動失調，起初常有輕微、數週內消失的無力。之後可能出現頑固的燒灼痛（視丘痛）：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一，已發表的病例中右側病灶比較常見（可能有報告偏差）；約三分之一在第一週就開始，其他在幾週到幾個月後。',
+      en: 'Inferolateral (thalamogeniculate) territory: loss of all sensation over the opposite half of the body (face, arm, leg) with ataxia, and at first often a mild weakness that passes within weeks. Intractable burning pain (thalamic pain) may follow: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic territory, more often after right-sided lesions among published cases (possibly reporting bias); about a third start in the first week, the rest weeks to months later.',
     },
     // the inferolateral (thalamogeniculate) territory: hemisensory loss, hemiparesis, hemiataxia
     // and pain (Schmahmann JD. Stroke 2003;34:2264-2278, PMID 12933968); one branch alone is a

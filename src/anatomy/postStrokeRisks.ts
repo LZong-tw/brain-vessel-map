@@ -29,6 +29,12 @@ export interface PostStrokeRisk {
    * `high` are its confidence interval or range when reported
    */
   prevalence: { value: number; low?: number; high?: number };
+  /**
+   * whom the figure counts when it is not stroke survivors as a whole: a single selected cohort
+   * (R3-7), shown after the figure instead of "of stroke survivors"; it reads on from the figure
+   * ("about 73 % …")
+   */
+  population?: L;
   /** when after the stroke the figure applies, e.g. "within the first year" */
   window: L;
   /** factors with consistent evidence, and what is (or is not) known about the lesion site */
@@ -257,6 +263,8 @@ export const POST_STROKE_RISKS: PostStrokeRisk[] = [
       en: 'Balance, strength, vision and attention can all be worse after a stroke, so falls are common; they can cause fractures, and the fear of falling makes people less active.',
     },
     prevalence: { value: 0.73 },
+    // one trial cohort of 108 people aged 60 or over, at home with residual disability (Forster 1995)
+    population: { zh: '的 60 歲以上、出院回家時留有失能的病人（單一世代）', en: 'of people aged 60 or over who went home with residual disability (one cohort)' },
     window: {
       zh: '出院回家後 6 個月內至少跌倒一次（60 歲以上、留有部分失能的人，108 人中 79 人）；住院期間約 25%',
       en: 'at least one fall within 6 months of going home (people aged 60 or over with some residual disability, 79 of 108); about 25 % during the hospital stay',
@@ -320,6 +328,8 @@ export const POST_STROKE_RISKS: PostStrokeRisk[] = [
       en: 'Among the commonest complications during the hospital stay: urinary tract infection and pneumonia (often from dysphagia and aspiration). Fever after a stroke means looking for an infection first.',
     },
     prevalence: { value: 0.24 },
+    // one multicentre cohort of 311 patients admitted to hospital (Langhorne 2000)
+    population: { zh: '的住院病人（單一世代）', en: 'of patients in hospital (one cohort)' },
     window: {
       zh: '住院期間的尿路感染（肺部感染 22%；一個多中心世代，311 人）',
       en: 'urinary tract infection during the hospital stay (chest infection 22 %; one multicentre cohort of 311)',

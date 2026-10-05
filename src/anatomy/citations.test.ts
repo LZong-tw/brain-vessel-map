@@ -9,6 +9,7 @@ import CASCADE_SRC from '../engine/cascade.ts?raw';
 import TISSUE_SRC from '../engine/tissue.ts?raw';
 import TISSUE_PARAMS_SRC from '../engine/tissueParams.ts?raw';
 import EDEMA_SRC from '../engine/edema.ts?raw';
+import SOURCES_SRC from './sources.ts?raw';
 
 /**
  * Citation corrections from the clinical-detail audit (cluster C11). Each reference was checked
@@ -27,6 +28,25 @@ describe('reference list mirrors REFERENCES.md', () => {
   it('REFERENCES.md lists each reference once', () => {
     const bullets = REFERENCES_MD.split('\n').filter((l) => l.startsWith('- '));
     expect(bullets.filter((b, i) => bullets.indexOf(b) !== i)).toEqual([]);
+  });
+
+  // R3-8: the scientific section holds exactly the app's list, each once, in the same sections
+  it('the scientific section of REFERENCES.md has as many bullets as the app lists, and each is listed in the app', () => {
+    const sec = REFERENCES_MD.slice(REFERENCES_MD.indexOf('## 醫學與生理文獻'), REFERENCES_MD.indexOf('## 參考的開源專案'));
+    const bullets = sec.split('\n').filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
+    expect(bullets).toHaveLength(SCIENTIFIC_REFERENCES.length);
+    expect(new Set(SCIENTIFIC_REFERENCES).size).toBe(SCIENTIFIC_REFERENCES.length);
+    for (const b of bullets) expect(SCIENTIFIC_REFERENCES, b).toContain(b);
+  });
+
+  it('the post-stroke references sit under their own header in sources.ts, as in REFERENCES.md', () => {
+    const md = REFERENCES_MD.slice(REFERENCES_MD.indexOf('### 中風後常見'), REFERENCES_MD.indexOf('## 參考的開源專案'));
+    const post = md.split('\n').filter((l) => l.startsWith('- ')).map((l) => l.slice(2));
+    expect(post.length).toBeGreaterThan(20);
+    const header = SOURCES_SRC.indexOf('// ── common problems after stroke');
+    expect(header).toBeGreaterThan(0);
+    const after = SOURCES_SRC.slice(header, SOURCES_SRC.indexOf('];', header));
+    for (const r of post) expect(after, r).toContain(r.replace(/'/g, "\\'"));
   });
 
   // R2-4, R2-6: checked against their PubMed records (PMID 11960898, 9409346)

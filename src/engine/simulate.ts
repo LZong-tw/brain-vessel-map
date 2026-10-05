@@ -57,8 +57,10 @@ import {
   noInfarctEvents,
   type BedEffectKind,
   type CascadeEvent,
+  type CascadeInput,
   type CascadeOutput,
   type CascadeTreatment,
+  type ListedCourse,
 } from './cascade';
 import {
   aggregateSymptoms,
@@ -100,6 +102,7 @@ import {
   type TreatmentOptions,
 } from './treatment';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, canBeLacunar, lacuneSiteOf } from '../anatomy/lacunes';
+import { TIME_STOPS } from '../anatomy/timeline';
 import { isWatershedPicture } from '../anatomy/syndromes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
@@ -637,6 +640,12 @@ interface Model {
    * branch is closed then, at its level): the early picture that predicts late consequences
    */
   regionAcute: Record<string, number>;
+  /**
+   * replaces `cascade` and `shownCascade` with the second pass, whose aspiration warning and
+   * cardiac severity read the sampled symptom list (R3-1, R3-4); nothing per-time depends on what
+   * it changes, so the per-time state may use the first pass
+   */
+  finish: () => void;
 }
 
 const modelCache = new Map<string, Model>();
@@ -733,7 +742,7 @@ function modelFor(input: SimInput): Model {
       : undefined;
   // the core when treatment is decided: at the treatment, or 6 h after onset without one (text only)
   const decisionH = onsetH + (reperf !== null && reperf >= onsetH ? reperf - onsetH : 6);
-  const cascade = computeCascade({
+  const cascadeInput: CascadeInput = {
     reperfusionH: reperf !== null && reperf >= onsetH ? reperf - onsetH : null,
     decompression: input.decompression,
     occlusions: onsetPiece.active,
@@ -754,7 +763,11 @@ function modelFor(input: SimInput): Model {
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
     bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
     map: input.map,
-  });
+  };
+  // first pass: everything but what reads the symptom list (the aspiration warning and the
+  // cardiac severity carry no symptoms, so the list sampled below is the same with either pass)
+  const cascade = computeCascade(cascadeInput);
+  const prodromal = onsetH > 0 ? prodromalEvents(input, course, finalH, onsetH, untreated, x) : [];
   const model: Model = {
     course,
     untreated,
@@ -768,13 +781,61 @@ function modelFor(input: SimInput): Model {
     edemaReperfusionH: episodeEndH === null ? null : episodeEndH - onsetH,
     cascade,
     unitSaved,
-    shownCascade: shownCascadeOf(cascade, onsetH, onsetH > 0 ? prodromalEvents(input, course, finalH, onsetH, untreated, x) : []),
+    shownCascade: shownCascadeOf(cascade, onsetH, prodromal),
     hemoAt: hemoAtT,
     regionAcute: acuteDys,
+    finish: () => {},
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
+  // second pass (R3-1): the events that follow the symptom list, read from the list itself; made
+  // when a result's cascade is first read, since sampling the list costs about as much as the rest
+  // of the model and many callers need only the symptoms
+  let done = false;
+  model.finish = () => {
+    if (done) return;
+    done = true;
+    const second = computeCascade({ ...cascadeInput, listed: listedCourse(input, onsetH) });
+    model.cascade = second;
+    model.shownCascade = shownCascadeOf(second, onsetH, prodromal);
+  };
   return model;
+}
+
+/** what makes swallowing unsafe: a reduced level of consciousness */
+const DROWSY_IDS = ['coma', 'somnolence', 'disorder_of_consciousness'];
+/** … of which stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness, is a severe stroke */
+const comaLike = (s: SymptomItem) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness';
+/** the first two weeks, in which the aspiration and cardiac warnings run */
+const LISTED_WINDOW_H = 336;
+
+/**
+ * When the symptom list first shows dysphagia, reduced consciousness, or stupor and coma in the
+ * first two weeks after the index onset (clinical clock), sampled at the time stops a learner can
+ * see: those of the clinical clock and those of the simulation clock from the onset on. Runs on a
+ * cached model (its first-pass cascade), so each sample costs only the per-time part.
+ */
+function listedCourse(input: SimInput, onsetH: number): ListedCourse {
+  const times = new Set<number>();
+  for (const s of TIME_STOPS) {
+    if (s.h < LISTED_WINDOW_H) times.add(onsetH + s.h);
+    if (s.h >= onsetH && s.h - onsetH < LISTED_WINDOW_H) times.add(s.h);
+  }
+  const out: ListedCourse = { dysphagiaFromH: null, drowsyFromH: null, comaFromH: null, dysphagiaRegions: [] };
+  const regions = new Set<string>();
+  for (const tAbs of [...times].sort((a, b) => a - b)) {
+    const h = tAbs - onsetH;
+    for (const s of symptomsAt({ ...input, tH: tAbs })) {
+      if (s.id === 'dysphagia') {
+        out.dysphagiaFromH ??= h;
+        for (const r of s.sources) regions.add(r);
+      }
+      if (DROWSY_IDS.includes(s.id)) out.drowsyFromH ??= h;
+      if (comaLike(s)) out.comaFromH ??= h;
+    }
+  }
+  out.dysphagiaRegions = [...regions];
+  return out;
 }
 
 /** the cascade on the simulation clock, with the TIA stories of earlier, reopened attacks */
@@ -810,6 +871,17 @@ function regionAgg(values: Record<string, number>): Record<string, number> {
 const EFFECT_PRIORITY: BedEffectKind[] = ['secondary', 'compressed', 'degeneration', 'diaschisis'];
 
 export function simulate(input: SimInput): SimResult {
+  return run(input, false);
+}
+
+/** the symptom list at input.tH alone (no NIHSS, syndromes or volumes) */
+function symptomsAt(input: SimInput): SymptomItem[] {
+  return run(input, true);
+}
+
+function run(input: SimInput, symptomsOnly: true): SymptomItem[];
+function run(input: SimInput, symptomsOnly: false): SimResult;
+function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] {
   // ── schedule, flow per piece of the timeline, index onset and cascade (independent of t; cached) ──
   const model = modelFor(input);
   const { course, plan } = model;
@@ -1040,6 +1112,7 @@ export function simulate(input: SimInput): SimResult {
     if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
   }
   const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute);
+  if (symptomsOnly) return symptoms;
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
 
@@ -1092,8 +1165,11 @@ export function simulate(input: SimInput): SimResult {
     symptoms,
     nihss,
     syndromes,
-    // on the simulation clock, like the timeline
-    cascade: model.shownCascade,
+    // on the simulation clock, like the timeline (the second pass, made on first reading)
+    get cascade() {
+      model.finish();
+      return model.shownCascade;
+    },
     volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume },
     neuronsLost: core * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH && (cascade.hydrocephalusEndH === null || t < cascade.hydrocephalusEndH),

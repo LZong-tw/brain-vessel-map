@@ -124,6 +124,25 @@ export interface CascadeInput {
   bedAtDecision?: Record<string, number>;
   /** mean arterial pressure (mmHg); left out, no blood-pressure note */
   map?: number;
+  /**
+   * what the case's symptom list shows in the first two weeks (R3-1): simulate() samples it at
+   * the time stops in a second pass, so the aspiration warning and the cardiac severity follow the
+   * listed deficits exactly (lacunes and deficits that appear later included). Left out (the first
+   * pass), there is no aspiration warning and "severe" rests on the volume and locked-in state.
+   */
+  listed?: ListedCourse;
+}
+
+/** when (h after onset) the symptom list first shows what makes swallowing unsafe, or null */
+export interface ListedCourse {
+  /** dysphagia */
+  dysphagiaFromH: number | null;
+  /** reduced consciousness: somnolence, stupor or coma, or a disorder of consciousness */
+  drowsyFromH: number | null;
+  /** stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness */
+  comaFromH: number | null;
+  /** the regions the listed dysphagia comes from */
+  dysphagiaRegions: string[];
 }
 
 /**
@@ -1303,9 +1322,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   // one lateral medulla (C7-F1): one side of the pontomedullary reticular formation and nucleus
   // ambiguus is enough to lose automatic breathing (Bogousslavsky J et al. Ann Neurol
-  // 1990;28:668–673, PMID 2260854). Overt respiratory failure complicates 2–6 % of one-sided
-  // lateral medullary infarcts (Pavšič K et al. Sleep Breath 2020;24:1557–1563, PMID 32064553);
-  // 8 of 102 died of respiratory failure within 10 days, more often with severe dysphagia,
+  // 1990;28:668–673, PMID 2260854). Overt respiratory failure in 2–6 % of one-sided lateral
+  // medullary infarcts is an older-literature figure (the background statement of Pavšič K et al.
+  // Sleep Breath 2020;24:1557–1563, PMID 32064553, not that study's data), so the texts give it as
+  // such (R3-6); in a recent hospital series 8 of 102 died of respiratory failure within 10 days, more often with severe dysphagia,
   // dysarthria, ipsilateral hemiparesis, urinary retention, disability before the stroke or lung
   // disease (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384); 5 of 43 died of
   // respiratory or cardiovascular complications in the acute phase of a population series
@@ -1328,52 +1348,68 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 240,
       title: { zh: '延髓外側梗塞：前 10 天呼吸可能衰竭', en: 'Lateral medullary infarct: breathing may fail in the first 10 days' },
       desc: {
-        zh: '延髓外側有讓呼吸自動進行的神經網路，以及呼吸道、心跳與血壓的反射；只壞一側就可能失去自動呼吸（睡著就停，「Ondine 詛咒」）。前約 10 天呼吸可能變慢或停止，多半在睡眠中：單側延髓外側梗塞約 2–6% 出現明顯的呼吸衰竭；一個醫院的系列 102 人中有 8 人在 10 天內死於呼吸衰竭，一個較早的族群研究 43 人中有 5 人在急性期死於呼吸或心血管併發症。嚴重吞嚥困難、構音障礙、病灶同側的手腳無力、尿液滯留、中風前已失能或有肺病時風險較高——病灶同側的無力（Opalski 變異型，延髓最下段已交叉的錐體徑受損）本模型沒有重現。這段期間要密切觀察呼吸，包括睡眠中；失去的自動呼吸有時會恢復。',
-        en: 'The lateral medulla holds the network that keeps breathing going automatically, and the reflexes of the airway, heart rate and blood pressure; losing one side can be enough to lose automatic breathing (breathing stops in sleep: "Ondine\'s curse"). For about the first 10 days breathing can slow or stop, mostly in sleep: overt respiratory failure complicates about 2–6 % of one-sided lateral medullary infarcts; in one hospital series 8 of 102 died of respiratory failure within 10 days, and in an older population series 5 of 43 died of respiratory or cardiovascular complications in the acute phase. The risk is higher with severe dysphagia, dysarthria, weakness of the limbs on the same side as the infarct, urinary retention, disability before the stroke or lung disease — the same-side weakness (Opalski variant, from the crossed pyramidal tract in the lowest medulla) is not reproduced by this model. Breathing is watched closely during this time, including in sleep; lost automatic breathing sometimes recovers.',
+        zh: '延髓外側有讓呼吸自動進行的神經網路，以及呼吸道、心跳與血壓的反射；只壞一側就可能失去自動呼吸（睡著就停，「Ondine 詛咒」）。前約 10 天呼吸可能變慢或停止，多半在睡眠中：較早的系列中約 2–6% 出現明顯的呼吸衰竭（單側延髓外側梗塞）；一個較新的醫院系列 102 人中有 8 人（8%）在 10 天內死於呼吸衰竭，一個較早的族群研究 43 人中有 5 人在急性期死於呼吸或心血管併發症。嚴重吞嚥困難、構音障礙、病灶同側的手腳無力、尿液滯留、中風前已失能或有肺病時風險較高——病灶同側的無力（Opalski 變異型，延髓最下段已交叉的錐體徑受損）本模型沒有重現。這段期間要密切觀察呼吸，包括睡眠中；失去的自動呼吸有時會恢復。',
+        en: 'The lateral medulla holds the network that keeps breathing going automatically, and the reflexes of the airway, heart rate and blood pressure; losing one side can be enough to lose automatic breathing (breathing stops in sleep: "Ondine\'s curse"). For about the first 10 days breathing can slow or stop, mostly in sleep: overt respiratory failure was reported in about 2–6 % in older series (of one-sided lateral medullary infarcts); in one recent hospital series 8 of 102 (8 %) died of respiratory failure within 10 days, and in an older population series 5 of 43 died of respiratory or cardiovascular complications in the acute phase. The risk is higher with severe dysphagia, dysarthria, weakness of the limbs on the same side as the infarct, urinary retention, disability before the stroke or lung disease — the same-side weakness (Opalski variant, from the crossed pyramidal tract in the lowest medulla) is not reproduced by this model. Breathing is watched closely during this time, including in sleep; lost automatic breathing sometimes recovers.',
       },
       regions: lateralMedulla,
     });
   }
 
   // ── 6. systemic complications ──────────────────────────────────
-  // the aspiration risk follows the swallowing deficit (C1-F4): the regions that produce
-  // dysphagia (one-sided hemispheric ones included), reduced consciousness, or — as before — a
-  // large supratentorial infarct. Dysphagia roughly triples the risk of pneumonia, and aspiration
-  // multiplies it by about 11 (Martino R et al. Stroke 2005;36:2756-2763, PMID 16269630); it is
-  // present from the start, so the swallow screen comes before any oral intake (onset 0 h).
-  const affects = (r: (typeof REGIONS)[number], ids: string[]) =>
-    r.deficits.some((d) => {
-      if (!ids.includes(d.s) || (d.only && r.side !== d.only)) return false;
-      // the threshold at which the symptom itself appears
-      const thr = Math.max(0.25, d.minLevel ?? 0);
-      if (!acute(r.id, thr)) return false;
-      return !d.bilateralOnly || (r.side !== 'm' && acute(`${r.baseId}_${r.side === 'r' ? 'l' : 'r'}`, thr));
-    });
-  const swallowing = REGIONS.filter((r) => affects(r, ['dysphagia'])).map((r) => r.id);
-  const drowsy = REGIONS.some((r) => affects(r, ['coma', 'somnolence']));
-  // a TIA (blood back before any tissue died) leaves no swallowing problem or immobility behind:
+  // The aspiration risk follows what the case lists (C1-F4, R3-1 … R3-3): dysphagia (one-sided
+  // hemispheric, lacunar and later-appearing ones included) or a reduced level of consciousness,
+  // read from the symptom list itself, so the warning runs whenever they are listed and names
+  // dysphagia only when it is. Dysphagia roughly triples the risk of pneumonia, and aspiration
+  // multiplies it by about 11 (Martino R et al. Stroke 2005;36:2756-2763, PMID 16269630); when it
+  // is there from the start, the swallow screen comes before any oral intake (onset 0 h). A large
+  // supratentorial infarct with neither listed keeps a warning, but one that says so: dysphagia
+  // was found in 37–78 % of stroke patients depending on how it was tested (Martino 2005), so the
+  // swallow is screened anyway.
+  // A TIA (blood back before any tissue died) leaves no swallowing problem or immobility behind:
   // its symptoms clear when the flow returns, so the complications of a lasting deficit (aspiration,
   // venous thrombosis) are not told for it; ischaemia that lasts without infarction keeps them
   const tia = noInfarct && input.flowReturnsH != null;
-  const dysphagiaRisk = !tia && (swallowing.length > 0 || drowsy || vol.supra.r + vol.supra.l > 60 || lockedIn);
-  if (dysphagiaRisk) {
+  const listed = input.listed;
+  const swallowFromH = lockedIn ? 0 : (listed?.dysphagiaFromH ?? null);
+  const drowsyFromH = listed?.drowsyFromH ?? null;
+  const largeSupra = vol.supra.r + vol.supra.l > 60;
+  if (listed && !tia && (swallowFromH !== null || drowsyFromH !== null || largeSupra)) {
+    const kind = swallowFromH !== null ? 'dysphagia' : drowsyFromH !== null ? 'drowsy' : 'screen';
+    const fromH = Math.min(swallowFromH ?? Infinity, drowsyFromH ?? Infinity);
     events.push({
       id: 'aspiration',
       kind: 'complication',
       severity: 'warn',
-      onsetH: 0,
+      onsetH: kind === 'screen' || largeSupra ? 0 : fromH,
       endH: 336,
-      title: { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' },
+      title:
+        kind === 'dysphagia'
+          ? { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' }
+          : kind === 'drowsy'
+            ? { zh: '意識變差 → 吸入性肺炎', en: 'Reduced consciousness → aspiration pneumonia' }
+            : { zh: '吸入風險：進食前先做吞嚥篩檢', en: 'Aspiration risk: swallow screen before oral intake' },
       // fever early after an ischaemic stroke is mostly infection or aspiration (Grau AJ et al.,
       // J Neurol Sci 1999;171:115–120); central fever is described mostly with haemorrhage and
       // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is shown only as a
       // risk after extensive bilateral tegmental infarction with coma ('central_hyperthermia'
       // above; see the temperature section of anatomy/symptoms.ts)
       desc: {
-        zh: '中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見（主要是兩側腦幹被蓋大範圍受損又昏迷時，見「中樞性高熱的風險」），只有排除感染後才考慮。',
-        en: 'One of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.',
+        zh:
+          (kind === 'drowsy'
+            ? '意識變差的病人無法安全吞嚥、也保護不了呼吸道，容易吸入。'
+            : kind === 'screen'
+              ? '這個病例沒有列出吞嚥困難或意識變差，但梗塞很大。吞嚥困難在中風後很常見（依檢查方法不同，37–78%），模型沒有列出的也可能存在，所以仍要先做吞嚥篩檢。'
+              : '') +
+          '吸入性肺炎是中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見（主要是兩側腦幹被蓋大範圍受損又昏迷時，見「中樞性高熱的風險」），只有排除感染後才考慮。',
+        en:
+          (kind === 'drowsy'
+            ? 'A patient with reduced consciousness cannot swallow safely or protect the airway, and is prone to aspiration. '
+            : kind === 'screen'
+              ? 'This case lists no swallowing problem or reduced consciousness, but the infarct is large. Dysphagia is common after stroke (37–78 % depending on how it is tested) and can be present even where the model lists none, so the swallow is still screened. '
+              : '') +
+          'Aspiration pneumonia is one of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.',
       },
-      regions: swallowing,
+      regions: kind === 'dysphagia' ? [...listed.dysphagiaRegions] : [],
     });
   }
   // the heart after any stroke (C10-F5): serious cardiac adverse events in 19 % of 846 ischaemic
@@ -1386,11 +1422,14 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // 2017;81:502-511, PMID 28253544; left insula and adverse cardiac outcome at 1 year: Laowattana S
   // et al. Neurology 2006;66:477-483, PMID 16505298). Prolonged monitoring newly finds atrial
   // fibrillation in 23.7 % (Sposato LA et al. Lancet Neurol 2015;14:377-387, PMID 25748102) —
-  // cause-finding, not a complication. "Severe" here is a volume proxy for stroke severity.
+  // cause-finding, not a complication. "Severe" stands for stroke severity: a large infarct
+  // (≥ 60 mL), a locked-in state, or stupor or coma in the symptom list during the first two
+  // weeks (R3-4: a comatose top-of-the-basilar or swollen cerebellar stroke is severe whatever
+  // its volume).
   const brainInfarct = anyIschemia && !eyeOnly && !earInfarct && !noInfarct;
   if (brainInfarct) {
     const insula = (['insula_r', 'insula_l'] as const).filter((r) => acute(r, 0.3));
-    const severe = vol.total >= 60 || lockedIn;
+    const severe = vol.total >= 60 || lockedIn || (listed?.comaFromH ?? null) !== null;
     const sideZh = (r: string) => (r.endsWith('_r') ? '右' : '左');
     const sideEn = (r: string) => (r.endsWith('_r') ? 'right' : 'left');
     events.push({

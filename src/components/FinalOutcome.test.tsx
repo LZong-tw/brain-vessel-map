@@ -359,6 +359,31 @@ describe('最終 tab: problems after stroke (population figures)', () => {
     within(box).getByText(/cannot predict whether this case will develop them/);
   });
 
+  // R3-7: a figure from one selected cohort is not shown as a rate for all stroke survivors
+  it('names the population of a single-cohort figure instead of "of stroke survivors"', () => {
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final' });
+    const zh = render(<RightPanel sim={simOf()} />);
+    let box = section(zh.container)!;
+    within(box).getByText(/來自系統性回顧、中風登錄與單一世代研究/);
+    const prev = (id: string) => (box.querySelector(`[data-risk="${id}"] .risk-prev`) as HTMLElement).textContent;
+    expect(prev('falls')).toContain('的 60 歲以上、出院回家時留有失能的病人（單一世代）');
+    expect(prev('falls')).not.toContain('的中風存活者');
+    expect(prev('infections')).toContain('的住院病人（單一世代）');
+    expect(prev('infections')).not.toContain('的中風存活者');
+    expect(prev('depression')).toContain('的中風存活者');
+    cleanup();
+
+    useApp.setState({ lang: 'en' });
+    const en = render(<RightPanel sim={simOf()} />);
+    box = section(en.container)!;
+    within(box).getByText(/from systematic reviews, stroke registries and single cohorts/);
+    expect(prev('falls')).toContain('of people aged 60 or over who went home with residual disability (one cohort)');
+    expect(prev('falls')).not.toContain('of stroke survivors');
+    expect(prev('infections')).toContain('of patients in hospital (one cohort)');
+    expect(prev('depression')).toContain('of stroke survivors');
+  });
+
   it('does not appear for a TIA that leaves nothing', () => {
     useApp.getState().loadScenario('tia_l_mca');
     useApp.setState({ rightTab: 'final' });

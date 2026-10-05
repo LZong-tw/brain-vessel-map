@@ -287,7 +287,7 @@ function PostStrokeRisks({ m6 }: { m6: SimResult }) {
                 <div className="risk-prev">
                   <strong className="num">{formatPrevalence(risk.prevalence, lang)}</strong>
                   {en ? ' ' : ''}
-                  {r.ofSurvivors}
+                  {risk.population ? tr(risk.population, lang) : r.ofSurvivors}
                   <span className="muted"> · {tr(risk.window, lang)}</span>
                 </div>
                 <p className="risk-desc">{tr(risk.desc, lang)}</p>
