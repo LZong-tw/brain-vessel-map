@@ -44,12 +44,14 @@ describe('default treatment = the model before treatment details', () => {
   // was implemented): the default treatment must keep them exactly. The l_m1 and basilar values
   // moved in the 7th significant digit when the two inferior pontine paramedian arteries got their
   // refined centrelines (the generated paths had been missing them; their length enters the flow
-  // model).
+  // model). They moved again (l_m1 core 59.006 → 59.161 mL, the basilar cores by 0.002 mL) when
+  // the cuneus was given its calcarine supply (clinical-detail audit C1-F3): the new perfusion
+  // units shift the PCA branch flows and, through the circle of Willis, the rest of the network.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
-    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 59.005893551050434, finalInfarct: 59.005893551050434, saved: 90.22734174234623, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5450941402345201, finalInfarct: 0.5450941402345201, saved: 2.2891307414568884, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 59.161362892924636, finalInfarct: 59.161362892924636, saved: 90.47295693283041, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5470383522649774, finalInfarct: 0.5470383522649774, saved: 2.289069925132848, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
     ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 485.13835470147296, finalInfarct: 485.13835470147296, saved: 3.0127011996228248e-12, nihss: 37, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5519665529281932, finalInfarct: 0.5519665529281932, saved: 2.2822583287632154, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5539324067875427, finalInfarct: 0.5539324067875427, saved: 2.2821758706102826, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {
     const id = label.split(' ')[0];

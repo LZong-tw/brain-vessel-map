@@ -85,6 +85,13 @@ const MCA_CORTEX = [
 
 const mcaCount = (c: SyndromeCtx, s: Side) => MCA_CORTEX.filter((b) => c.has(b, s, 0.3)).length;
 
+/**
+ * A hemisphere whose dysfunction is a border-zone (watershed) picture: at least 4 mL in border-zone
+ * beds, and at least 35 % of all its dysfunctional tissue. The watershed label uses it, and so does
+ * the border-zone motor pattern of the motor strip (simulate → clinical.aggregateSymptoms).
+ */
+export const isWatershedPicture = (b: { border: number; total: number }) => b.border >= 4 && b.border / Math.max(b.total, 1e-6) >= 0.35;
+
 export const SYNDROMES: SyndromeDef[] = [
   // ─────────────── anterior circulation ───────────────
   {
@@ -135,8 +142,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '中大腦動脈下分支症候群', en: 'MCA inferior-division syndrome' },
     desc: {
-      zh: '通常沒有明顯無力。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併對側上象限偏盲。',
-      en: "Usually little weakness. Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often an upper quadrantanopia.",
+      zh: '通常沒有明顯無力。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
+      en: "Usually little weakness. Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
     },
     test: (c, s) =>
       c.hasAny(['superior_temporal_posterior', 'angular'], s, 0.3) && !c.has('precentral_face_arm', s, 0.3),
@@ -187,19 +194,29 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Left angular gyrus tetrad: agraphia, acalculia, finger agnosia and left–right confusion, often with alexia.',
     },
     test: (c, s) => s === 'l' && c.has('angular', 'l', 0.4),
-    // the modelled parts of the tetrad (left–right confusion is not a separate symptom)
-    requires: (q) => ['agraphia', 'acalculia', 'finger_agnosia'].every((id) => q.from(id, 'l')),
+    // the modelled parts of the tetrad (left–right confusion is not a separate symptom); the
+    // tetrad cannot be tested in a patient whose aphasia leaves too little comprehension (global,
+    // Wernicke or mixed transcortical aphasia), so the label is not given then (C1-F1)
+    requires: (q) =>
+      ['agraphia', 'acalculia', 'finger_agnosia'].every((id) => q.from(id, 'l')) &&
+      !['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'].some((id) => q.has(id)),
   },
   {
+    // the critical sites: the angular gyrus in MCA strokes and the parahippocampal region in PCA
+    // strokes (Mort DJ et al. Brain 2003;126:1986-1997, PMID 12821519), the superior temporal
+    // cortex (Karnath HO et al. Nature 2001;411:950-953, PMID 11418859; disputed by Mort), the
+    // inferior frontal gyrus (Husain M, Kennard C. J Neurol 1996;243:652-657, PMID 8892067) and
+    // the basal ganglia (Karnath HO et al. Brain 2002;125:350-360, PMID 11844735). A superior
+    // parietal lesion alone is not one (C1-F5).
     id: 'neglect',
     group: 'anterior',
     lateral: true,
-    name: { zh: '右頂葉症候群：左側忽略', en: 'Right parietal syndrome: left neglect' },
+    name: { zh: '右半球症候群：左側忽略', en: 'Right-hemisphere syndrome: left neglect' },
     desc: {
-      zh: '忽略左半邊的空間與身體、否認自己癱瘓（病覺缺失）、穿衣與建構失用。患者常不覺得自己有問題，是跌倒與復健困難的主要原因。',
-      en: 'Ignores the left side of space and body, denies the paralysis (anosognosia), dressing and constructional apraxia. Patients often feel nothing is wrong — a major cause of falls and poor rehabilitation.',
+      zh: '忽略左半邊的空間與身體、否認自己癱瘓（病覺缺失）、穿衣與建構失用。常見於右頂下小葉（角迴、緣上迴）、顳上迴、額下迴或基底核受損，後大腦動脈中風則與海馬旁迴有關。患者常不覺得自己有問題，是跌倒與復健困難的主要原因。',
+      en: 'Ignores the left side of space and body, denies the paralysis (anosognosia), dressing and constructional apraxia. Typical of right inferior parietal (angular, supramarginal), superior temporal, inferior frontal or basal ganglia lesions, and of the parahippocampal region in PCA strokes. Patients often feel nothing is wrong — a major cause of falls and poor rehabilitation.',
     },
-    test: (c, s) => s === 'r' && c.hasAny(['angular', 'supramarginal', 'superior_parietal'], 'r', 0.35),
+    test: (c, s) => s === 'r' && c.hasAny(['angular', 'supramarginal', 'superior_temporal_posterior', 'parahippocampal'], 'r', 0.35),
     requires: (q) => q.from('neglect', 'r'),
   },
 
@@ -228,15 +245,19 @@ export const SYNDROMES: SyndromeDef[] = [
     test: (c, s) => s === 'l' && c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'l', 0.3) && c.has('splenium', 'l', 0.3),
   },
   {
+    // both banks of the calcarine fissure on both sides (one bank on each side leaves bilateral
+    // quadrantic defects; spared poles leave central vision); named for the blindness itself
+    // (C1-F7). Anton syndrome: 3 of 25 in Aldrich MS et al. Ann Neurol 1987;21:149-158 (PMID 3827223).
     id: 'cortical_blindness',
     group: 'posterior',
     lateral: false,
     name: { zh: '皮質盲（可合併 Anton 症候群）', en: 'Cortical blindness (± Anton syndrome)' },
     desc: {
-      zh: '雙側枕葉受損：完全看不見但瞳孔反射正常；部分病人堅稱自己看得到並編造所見（Anton 症候群）。常見於基底動脈頂端栓塞。',
-      en: 'Both occipital lobes: complete blindness with normal pupillary reflexes; some patients insist they can see and confabulate (Anton syndrome). Typical of basilar-tip emboli.',
+      zh: '雙側枕葉受損：完全看不見但瞳孔反射正常。少數病人（25 人中約 3 人）堅稱自己看得到並編造所見（Anton 症候群）。常見於基底動脈頂端栓塞；中風造成的皮質盲恢復通常很差。',
+      en: 'Both occipital lobes: complete blindness with normal pupillary reflexes. A few patients (about 3 in 25) insist they can see and confabulate (Anton syndrome). Typical of basilar-tip emboli; cortical blindness from stroke usually recovers poorly.',
     },
-    test: (c) => c.hasAny(['cuneus', 'lingual'], 'r', 0.3) && c.hasAny(['cuneus', 'lingual'], 'l', 0.3),
+    test: (c) => (['r', 'l'] as Side[]).every((s) => c.has('cuneus', s, 0.3) && c.has('lingual', s, 0.3)),
+    requires: (q) => q.has('cortical_blindness'),
     supersedes: ['pca'],
   },
   {
@@ -582,13 +603,36 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '分水嶺（邊界區）缺血', en: 'Watershed (border-zone) ischaemia' },
     desc: {
-      zh: '兩條動脈末梢交界處血壓最低，當血壓下降或頸動脈嚴重狹窄時最先缺血。前分水嶺（前／中大腦動脈之間）造成對側肩膀與上臂近端無力、臉與手指相對保留，雙側時雙臂無力而雙腿正常（「桶中人」）；後分水嶺（中／後大腦動脈之間）影響視覺與語言理解；內分水嶺在深部白質呈串珠狀。',
-      en: 'Where two arterial trees meet, pressure is lowest, so these zones fail first when blood pressure drops or the carotid is severely narrowed. The anterior watershed (ACA–MCA) gives contralateral proximal arm/shoulder weakness with face and hand relatively spared; bilateral lesions weaken both arms with normal legs ("man in a barrel"); the posterior (MCA–PCA) affects vision and comprehension; the internal watershed forms a string of deep white-matter lesions.',
+      zh: '兩條動脈末梢交界處血壓最低，當血壓下降或頸動脈嚴重狹窄時最先缺血。前分水嶺（前／中大腦動脈之間）位在運動區管肩膀與上臂的上段，可造成對側近端手臂無力、臉與手相對保留；雙側時為雙臂無力而雙腿能動的「桶中人」；後分水嶺（中／後大腦動脈之間）影響視覺與語言理解；內分水嶺在深部白質呈串珠狀。單側分水嶺梗塞多半發生在頸動脈阻塞或嚴重狹窄再加上血壓下降等血流因素時，發作時常有昏厥（37%）或局部肢體抖動（12%）。',
+      en: 'Where two arterial trees meet, pressure is lowest, so these zones fail first when blood pressure drops or the carotid is severely narrowed. The anterior watershed (ACA–MCA) lies over the shoulder and upper-arm part of the motor strip and can weaken the opposite proximal arm with face and hand relatively spared; on both sides it gives the "man in a barrel" (both arms weak, legs moving); the posterior (MCA–PCA) affects vision and comprehension; the internal watershed forms a string of deep white-matter lesions. One-sided watershed infarcts mostly come with carotid occlusion or tight stenosis plus a haemodynamic factor such as low blood pressure; syncope (37 %) or focal limb shaking (12 %) at onset are frequent.',
     },
-    test: (c, s) => {
-      const b = c.border(s);
-      return b.border >= 4 && b.border / Math.max(b.total, 1e-6) >= 0.35;
+    // Bogousslavsky J, Regli F. Unilateral watershed cerebral infarcts. Neurology 1986;36:373-377
+    // (PMID 3951705): 51 patients, a characteristic picture per type, syncope 37 %, limb shaking
+    // 12 %, 75 % with ICA occlusion or tight stenosis plus a haemodynamic factor
+    test: (c, s) => isWatershedPicture(c.border(s)),
+  },
+  {
+    // bilateral anterior border-zone infarcts: bilateral brachial paralysis, worst proximally
+    // (Martí-Vilalta JL, Arboix A, Garcia JH. J Stroke Cerebrovasc Dis 1994;4:114-120, PMID
+    // 26487612); after hypotension, 11 of 34 comatose patients moved their legs but not their
+    // arms, with a poor prognosis (Sage JI, Van Uitert RL. Neurology 1986;36:1102-1103, PMID
+    // 3736874). Named for its signs: proximal arm weakness on both sides, with the leg area of
+    // both paracentral lobules spared (C1-F6).
+    id: 'man_in_barrel',
+    group: 'watershed',
+    lateral: false,
+    name: { zh: '雙側前分水嶺梗塞（桶中人症候群）', en: 'Bilateral anterior watershed infarction (man-in-the-barrel)' },
+    desc: {
+      zh: '全身血壓過低（例如心跳停止、休克）後，兩側前／中大腦動脈交界區同時缺血：兩側肩膀與上臂癱瘓、雙腿卻能動，好像被套在桶子裡。預後通常很差。',
+      en: 'After a profound fall in blood pressure (cardiac arrest, shock) both ACA–MCA border zones fail together: both shoulders and upper arms are paralysed while the legs still move, as if the person were standing in a barrel. The prognosis is usually poor.',
     },
+    test: (c) =>
+      (['r', 'l'] as Side[]).every((s) => {
+        const b = c.border(s);
+        return isWatershedPicture(b) && b.kinds.some((k) => k.startsWith('ACA|MCA')) && !c.has('paracentral', s, 0.3);
+      }),
+    requires: (q) => q.on('arm_weak_proximal', 'r') && q.on('arm_weak_proximal', 'l'),
+    supersedes: ['watershed'],
   },
   {
     id: 'subclavian_steal',

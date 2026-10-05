@@ -143,9 +143,14 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'dysphagia',
     name: { zh: '吞嚥困難', en: 'Dysphagia (swallowing difficulty)' },
     desc: {
-      zh: '喝水嗆咳、食物卡住；會大幅增加吸入性肺炎風險。',
-      en: 'Choking on liquids, food sticking; greatly increases the risk of aspiration pneumonia.',
+      zh: '喝水嗆咳、食物卡住；會大幅增加吸入性肺炎風險。腦幹（延髓、雙側橋腦）受損時最嚴重；單側大腦半球中風（島葉、額蓋、運動皮質）也常見，約三分之一的人吞嚥檢查不通過，多半在一到兩週內恢復。',
+      en: 'Choking on liquids, food sticking; greatly increases the risk of aspiration pneumonia. Worst with brainstem lesions (medulla, both sides of the pons), but common after a one-sided hemispheric stroke too (insula, frontal operculum, motor cortex): about a third fail a swallowing test, and most recover within one to two weeks.',
     },
+    // Barer DH, J Neurol Neurosurg Psychiatry 1989;52:236-241 (PMID 2564884): ~30 % of conscious
+    // single-hemisphere strokes, mostly resolved within a week, tracking facial weakness and speech
+    // rather than side; Gordon C et al., BMJ 1987;295:411-414 (PMID 3115478): 37 of 41 dysphagic
+    // patients had a single-hemisphere stroke, 19 of 22 recovered within 14 days; Hamdy S et al.,
+    // Lancet 1997;350:686-692 (PMID 9291902): up to a third of unilateral hemispheric strokes
     system: 'cranial',
     lateralised: false,
   },
@@ -194,12 +199,37 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: false,
   },
   {
+    // Watson RT, Heilman KM. Callosal apraxia. Brain 1983;106:391-403 (PMID 6850274): after a
+    // callosal lesion, apraxia and apraxic agraphia confined to the left hand
+    id: 'callosal_apraxia',
+    name: { zh: '手部失用與失寫（胼胝體斷聯）', en: 'Apraxia and agraphia of the hand (callosal disconnection)' },
+    desc: {
+      zh: '胼胝體受損，左手收不到左半球的動作與書寫指令：左手做不出指定的動作、也寫不出字，右手卻正常。',
+      en: "The corpus callosum no longer carries the left hemisphere's movement and writing plans to the left hand: the left hand cannot perform movements on command or write, while the right hand can.",
+    },
+    system: 'cognition',
+    lateralised: true,
+    sideWord: 'body',
+  },
+  {
     id: 'abulia',
     name: { zh: '意志缺失（主動性降低）', en: 'Abulia (loss of initiative)' },
     desc: {
       zh: '變得被動、反應慢、不主動說話或做事。',
       en: 'Passive and slow, rarely initiating speech or action.',
     },
+    system: 'cognition',
+    lateralised: false,
+  },
+  {
+    id: 'motor_impersistence',
+    name: { zh: '動作持續不能', en: 'Motor impersistence' },
+    desc: {
+      zh: '無法按指示把一個動作維持住：閉眼、張嘴、伸舌或往左看，幾秒後就放掉了。右半球（尤其額葉與中央區）中風明顯比左半球常見；瀰漫性腦病變也會出現。',
+      en: 'Cannot keep up an action on command: closed eyes open again, the mouth closes, the tongue goes back in, gaze to the left drifts back within seconds. Clearly more common after right-hemisphere (especially frontal and central) strokes than left; also seen with diffuse brain disease.',
+    },
+    // Kertesz A, Nicholson I, Cancelliere A, Kassa K, Black SE. Motor impersistence: a
+    // right-hemisphere syndrome. Neurology 1985;35:662-666 (PMID 3990966). Not an NIHSS item.
     system: 'cognition',
     lateralised: false,
   },
@@ -227,9 +257,10 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'alien_hand',
     name: { zh: '異己手症候群', en: 'Alien hand' },
     desc: {
-      zh: '一隻手好像有自己的意志，會做出不受控制的動作。',
-      en: 'One hand performs purposeful-looking movements outside voluntary control.',
+      zh: '一隻手好像有自己的意志，會做出不受控制的動作。額葉型（優勢側內側額葉加胼胝體前部）：右手會不自主地抓握、摸索東西；非優勢側額葉的病例描述得較少。胼胝體型（胼胝體前部）：左手和右手互相作對（雙手衝突）。',
+      en: 'One hand performs purposeful-looking movements outside voluntary control. Frontal type (dominant medial frontal cortex plus anterior corpus callosum): the right hand grasps and gropes at objects; non-dominant frontal cases are described less often. Callosal type (anterior corpus callosum): the left hand works against the right (intermanual conflict).',
     },
+    // Feinberg TE et al. Two alien hand syndromes. Neurology 1992;42:19-24 (PMID 1734302)
     system: 'motor',
     lateralised: true,
     sideWord: 'body',
@@ -459,22 +490,16 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'cortical_blindness',
     name: { zh: '皮質盲', en: 'Cortical blindness' },
     desc: {
-      zh: '雙側視覺皮質受損：眼睛正常、瞳孔反射正常，卻看不見。',
-      en: 'Both visual cortices damaged: eyes and pupil reflexes are normal, yet nothing is seen.',
+      zh: '兩側視覺皮質（距狀溝上下唇與枕極）都受損：眼睛正常、瞳孔反射正常，卻看不見。少數人否認自己失明、編造所見（Anton 症候群，25 人中約 3 人），也有人不自覺看不見；中風造成的皮質盲恢復通常很差。',
+      en: 'Both visual cortices (both banks of the calcarine fissure and the poles) damaged: eyes and pupil reflexes are normal, yet nothing is seen. A few deny being blind and confabulate what they "see" (Anton syndrome, about 3 in 25), others are simply unaware of it; cortical blindness from stroke usually recovers poorly.',
     },
+    // Aldrich MS, Alessi AG, Beck RW, Gilman S. Cortical blindness: etiology, diagnosis, and
+    // prognosis. Ann Neurol 1987;21:149-158 (PMID 3827223): 3 of 25 denied blindness, 4 more were
+    // unaware of it; visual recovery after stroke was poor. Anton syndrome is therefore described
+    // here, not listed as a symptom of every case.
     system: 'vision',
     lateralised: false,
     nihss: { item: '3', pts: [3, 3, 3] },
-  },
-  {
-    id: 'anton',
-    name: { zh: '否認失明（Anton 症候群）', en: 'Denial of blindness (Anton syndrome)' },
-    desc: {
-      zh: '看不見卻堅稱自己看得到，並編造所見。',
-      en: 'Blind but insists on seeing, confabulating descriptions.',
-    },
-    system: 'cognition',
-    lateralised: false,
   },
   {
     id: 'monocular_blind',
@@ -498,11 +523,52 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: false,
   },
   {
+    // both colour areas (ventral occipitotemporal cortex) damaged; usually incomplete and never
+    // limited to colour vision (Bouvier SE, Engel SA. Behavioral deficits and cortical damage loci
+    // in cerebral achromatopsia. Cereb Cortex 2006;16:183-191, PMID 15858161)
     id: 'achromatopsia',
     name: { zh: '後天性色盲', en: 'Achromatopsia' },
-    desc: { zh: '世界變成灰階。', en: 'The world looks grey.' },
+    desc: {
+      zh: '兩側的顏色區都受損：世界看起來變灰、褪色。通常不是完全的色盲，也一定合併其他視覺問題。',
+      en: 'The colour areas of both sides are damaged: the world looks grey or washed out. Usually incomplete, and never the only visual problem.',
+    },
     system: 'vision',
     lateralised: false,
+  },
+  {
+    // one side: colour is lost in the opposite half of the field — in Paulson's two patients its
+    // lower quarter, below an upper quadrantanopia — and patients do not notice it (Paulson HL,
+    // Galetta SL, Grossman M, Alavi A. Hemiachromatopsia of unilateral occipitotemporal infarcts.
+    // Am J Ophthalmol 1994;118:518-523, PMID 7943133; hemifield-specific after a one-sided lesion:
+    // Nestmann S, Karnath HO, Rennig J. Cortex 2021;142:357-369, PMID 34358731)
+    id: 'hemiachromatopsia',
+    name: { zh: '半側視野色盲', en: 'Hemiachromatopsia' },
+    desc: {
+      zh: '一側的顏色區受損：對側半邊視野的顏色變淡、變灰；常合併上象限偏盲，此時褪色的是還看得見的下方四分之一。病人多半自己沒有察覺。',
+      en: 'The colour area of one side is damaged: colours fade to grey in the opposite half of the visual field; often there is also an upper quadrantanopia, and the colour loss is then in the lower quarter that is still seen. Most patients do not notice it.',
+    },
+    system: 'vision',
+    lateralised: true,
+    sideWord: 'field',
+  },
+  {
+    // Kölmel HW. Complex visual hallucinations in the hemianopic field. J Neurol Neurosurg
+    // Psychiatry 1985;48:29-38 (PMID 3973619): 16 of 120 patients with a homonymous hemianopia,
+    // after a latent period, stereotyped, told apart from epileptic auras; hallucinations in 12 of
+    // 117 superficial PCA infarcts, from either side (Cals N et al., J Neurol 2002;249:855-861,
+    // PMID 12140669). The latency is not given in the abstracts: `onsetH` is illustrative, and no
+    // course over time is modelled (it stays while the field defect does).
+    id: 'visual_release_hallucinations',
+    name: { zh: '盲視野中的釋放性幻視', en: 'Release hallucinations in the blind field' },
+    desc: {
+      zh: '枕葉梗塞後，經過一段潛伏期，在看不見的那半邊視野裡出現人物、動物或景物的影像；影像一再重複、顏色偏淡。這是視野缺損造成的現象，不是精神病，也和癲癇的視覺先兆不同。約十分之一的枕葉中風會有。',
+      en: 'After an occipital infarct and a latent period, images of people, animals or scenes appear in the blind half of the field; the same images recur, pale in colour. They come from the field loss, not from psychosis, and differ from an epileptic visual aura. About one in ten occipital strokes.',
+    },
+    system: 'vision',
+    lateralised: true,
+    sideWord: 'field',
+    fromInfarct: true,
+    onsetH: 48,
   },
   {
     id: 'visual_agnosia',
@@ -739,18 +805,20 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'language',
     lateralised: false,
-    nihss: { item: '9', pts: [2, 2, 2] },
+    // graded like the other aphasias: a mild receptive aphasia is "mild-to-moderate" (1)
+    nihss: { item: '9', pts: [1, 2, 2] },
   },
   {
     id: 'aphasia_global',
     name: { zh: '全面性失語', en: 'Global aphasia' },
     desc: {
-      zh: '說與聽都嚴重受損，幾乎無法溝通。',
-      en: 'Both expression and comprehension are severely impaired.',
+      zh: '說、聽、複誦都嚴重受損，幾乎無法溝通。恢復最差的失語類型；部分人隨時間轉為較輕的類型。',
+      en: 'Expression, comprehension and repetition are all severely impaired. The aphasia type with the poorest recovery; some patients move on to a milder type over time.',
     },
     system: 'language',
     lateralised: false,
-    nihss: { item: '9', pts: [3, 3, 3] },
+    // 3 = mute / global aphasia; a partly compensated one still scores as severe (2)
+    nihss: { item: '9', pts: [2, 3, 3] },
   },
   {
     id: 'aphasia_conduction',
@@ -784,6 +852,17 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'language',
     lateralised: false,
     nihss: { item: '9', pts: [1, 1, 1] },
+  },
+  {
+    id: 'aphasia_mixed_tc',
+    name: { zh: '混合型經皮質失語（語言區孤立）', en: 'Mixed transcortical aphasia (isolation of the speech area)' },
+    desc: {
+      zh: '主動說話很少、也聽不懂，卻能複誦別人說的話。',
+      en: 'Very little spontaneous speech and poor comprehension, yet repeats what is said.',
+    },
+    system: 'language',
+    lateralised: false,
+    nihss: { item: '9', pts: [1, 2, 2] },
   },
   {
     id: 'apraxia_of_speech',
@@ -839,14 +918,18 @@ export const SYMPTOMS: SymptomDef[] = [
 
   // ── Cognition ────────────────────────────────────────────────────
   {
+    // the side is the neglected side of space. In 1281 acute strokes neglect affected 43 % of
+    // right- and 20 % of left-hemisphere strokes acutely and 17 % vs 5 % at 3 months, most often
+    // with temporal lesions (Ringman JM et al. Neurology 2004;63:468-474, PMID 15304577)
     id: 'neglect',
-    name: { zh: '左側半側忽略', en: 'Left hemispatial neglect' },
+    name: { zh: '半側空間忽略', en: 'Hemispatial neglect' },
     desc: {
-      zh: '右頂葉受損：完全忽略左邊的空間與身體，只吃盤子右半邊的食物。',
-      en: 'Right parietal damage: ignores the left side of space and body, e.g. eats only the right half of the plate.',
+      zh: '忽略一側的空間與身體，例如只吃盤子另一半的食物。右半球中風後忽略左側最常見、最嚴重也最持久；左半球中風後也可能忽略右側，但較少見、較輕。',
+      en: 'Ignores one side of space and of the body, e.g. eats only one half of the plate. Neglect of the left side after a right-hemisphere stroke is the commonest, most severe and most lasting; neglect of the right side after a left-hemisphere stroke happens too, less often and milder.',
     },
     system: 'cognition',
-    lateralised: false,
+    lateralised: true,
+    sideWord: 'body',
     nihss: { item: '11', pts: [1, 2, 2] },
   },
   {

@@ -138,13 +138,15 @@ export const REDUNDANCY: Record<string, Redundancy> = {
 
   // ── cognition / behaviour ──
   apraxia: partial(0.5, 0.2),
+  callosal_apraxia: partial(0.5, 0.2),
+  // TODO(medical-review): no data on its course after stroke
+  motor_impersistence: partial(0.5, 0.2),
   abulia: partial(0.5, 0.3),
   akinetic_mutism: partial(0.5, 0.3),
   // bladder control is represented on both sides
   incontinence: bilateral(0.7, 0.2),
   // the pontine micturition centres are paired. TODO(medical-review)
   urinary_retention: bilateral(0.75, 0.3),
-  anton: partial(0.6, 0.5),
   prosopagnosia: partial(0.4, 0.15),
   visual_agnosia: partial(0.4, 0.15),
   simultanagnosia: partial(0.4, 0.15),
@@ -191,6 +193,10 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   monocular_blind: NONE,
   macular_sparing: EXEMPT,
   achromatopsia: partial(0.4, 0.15),
+  hemiachromatopsia: partial(0.4, 0.15),
+  // a positive phenomenon of the blind field, not a lost function: shown while the field defect
+  // is; its own course over time is not modelled (not given in the sources)
+  visual_release_hallucinations: EXEMPT,
 
   // ── eye movements ──
   // the other hemisphere's frontal eye field takes over within days–weeks
@@ -222,10 +228,13 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // ── language (left hemisphere): perilesional and right-hemisphere reorganisation ──
   aphasia_broca: partial(0.45, 0.15),
   aphasia_wernicke: partial(0.45, 0.15),
+  // the poorest outlook of the aphasia types (Kertesz A, McCabe P, Brain 1977;100:1-18); applied
+  // when the components resolve to a global type (clinical.aggregateSymptoms)
   aphasia_global: partial(0.3, 0.1),
   aphasia_conduction: partial(0.6, 0.2),
   aphasia_tc_motor: partial(0.6, 0.2),
   aphasia_tc_sensory: partial(0.6, 0.2),
+  aphasia_mixed_tc: partial(0.6, 0.2),
   apraxia_of_speech: partial(0.45, 0.15),
   aprosodia: partial(0.45, 0.15),
   alexia: partial(0.4, 0.15),

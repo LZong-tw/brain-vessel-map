@@ -82,11 +82,12 @@ describe('named syndromes', () => {
     simulate({ occlusions: scenarioOcc, variants: [], map, collateral: 'good', tH, reperfusionH: null, decompression: false });
 
   it('tags a vascular-pattern label whose side has no symptom left as clinically silent, in both languages', () => {
-    // the watershed teaching case: right ICA stenosis with low blood pressure
+    // right ICA stenosis with low blood pressure (65 mmHg: a proximal arm weakness that recovers;
+    // at 60 mmHg, the teaching scenario, a mild one stays: C1-F6)
     const occlusions = [{ vessel: 'ica_cervical_r', severity: 0.85 }];
-    const late = at(occlusions, 2160, 60);
+    const late = at(occlusions, 2160, 65);
     expect(late.syndromes.find((s) => s.def.id === 'watershed')?.silent).toBe(true);
-    useApp.setState({ occlusions, map: 60, rightTab: 'now', tIndex: tIndexFor(2160), lang: 'zh-TW' });
+    useApp.setState({ occlusions, map: 65, rightTab: 'now', tIndex: tIndexFor(2160), lang: 'zh-TW' });
     const { container } = render(<RightPanel sim={late} />);
     const box = container.querySelector('details.syndrome') as HTMLElement;
     expect(within(box).getByText('臨床無症狀').getAttribute('title')).toContain('這一側已沒有可察覺的症狀');
@@ -98,7 +99,7 @@ describe('named syndromes', () => {
     cleanup();
 
     // the acute stage has symptoms: no tag
-    const early = at(occlusions, 24, 60);
+    const early = at(occlusions, 24, 65);
     useApp.setState({ lang: 'zh-TW', tIndex: tIndexFor(24) });
     const acute = render(<RightPanel sim={early} />);
     expect(early.syndromes.some((s) => s.def.id === 'watershed')).toBe(true);

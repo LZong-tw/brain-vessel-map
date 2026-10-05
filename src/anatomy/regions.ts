@@ -66,6 +66,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'gaze_deviation', lat: 'ipsi', sev: 2 },
       { s: 'aphasia_tc_motor', lat: 'none', only: 'l', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
+      // right frontal and central lesions (Kertesz A et al., Neurology 1985;35:662-666, PMID 3990966)
+      { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -91,6 +93,11 @@ export const REGION_DEFS: RegionDef[] = [
       // TODO(medical-review): sev
       { s: 'hyperhidrosis', lat: 'contra', sev: 1 },
       { s: 'taste_loss', lat: 'none', sev: 1 },
+      // the frontal operculum: swallowing (see the precentral gyrus)
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
+      // right inferior frontal gyrus (BA 44): Husain M, Kennard C, J Neurol 1996;243:652-657 (PMID 8892067)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -107,7 +114,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'abulia', lat: 'none', sev: 1 },
       { s: 'leg_weak', lat: 'contra', sev: 1 },
       { s: 'arm_weak_proximal', lat: 'contra', sev: 1 },
-      { s: 'alien_hand', lat: 'contra', sev: 1 },
+      // frontal alien hand: the dominant (right) hand, after dominant medial frontal damage
+      // (Feinberg TE et al., Neurology 1992;42:19-24, PMID 1734302)
+      { s: 'alien_hand', lat: 'contra', only: 'l', sev: 1 },
       { s: 'aphasia_tc_motor', lat: 'none', only: 'l', sev: 1 },
       { s: 'incontinence', lat: 'none', sev: 1 },
       { s: 'akinetic_mutism', lat: 'none', sev: 3, bilateralOnly: true },
@@ -136,8 +145,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'precentral_face_arm',
     name: { zh: '中央前迴（臉、手、手臂運動區）', en: 'Precentral gyrus (face, hand & arm motor area)' },
     func: {
-      zh: '初級運動皮質：控制對側下半臉、舌頭、手與手臂的自主運動。',
-      en: 'Primary motor cortex for the opposite lower face, tongue, hand and arm.',
+      zh: '初級運動皮質：控制對側下半臉、舌頭、手與手臂的自主運動。靠近頭頂、前與中大腦動脈交界（前分水嶺）的上段管肩膀與上臂。',
+      en: 'Primary motor cortex for the opposite lower face, tongue, hand and arm. Its upper part near the vertex, in the ACA–MCA border zone (anterior watershed), serves the shoulder and upper arm.',
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
@@ -150,7 +159,23 @@ export const REGION_DEFS: RegionDef[] = [
       // vasomotor asymmetry with pyramidal signs (Korpelainen et al., Stroke 1995).
       // TODO(medical-review): sev
       { s: 'cold_limb', lat: 'contra', sev: 1 },
+      // frontal operculum, insula, motor cortex and the corticobulbar white matter: swallowing
+      // after a one-sided hemispheric stroke (anterior insula: Daniels SK, Foundas AL, Dysphagia
+      // 1997;12:146-156, PMID 9190100; pre/postcentral, opercular and subcortical white matter:
+      // Suntrup S et al., Eur J Neurol 2015;22:832-838, PMID 25677582). Only a large lesion
+      // (minLevel), so that it tracks the facial weakness and speech problems it comes with
+      // (Barer 1989), and it mostly settles within one to two weeks (fast; Gordon et al. 1987).
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
+      // right central lesions (Kertesz et al. 1985)
+      { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
     ],
+    // anterior border zone (ACA–MCA) only: proximal arm and shoulder weakness with the face and
+    // hand relatively spared; on both sides the bilateral brachial paralysis of the
+    // "man-in-the-barrel" (Martí-Vilalta JL, Arboix A, Garcia JH. J Stroke Cerebrovasc Dis
+    // 1994;4:114-120, PMID 26487612; Sage JI, Van Uitert RL. Neurology 1986;36:1102-1103,
+    // PMID 3736874). TODO(medical-review): the one-sided pattern follows the same anatomy; no
+    // series of one-sided cases was verified.
+    borderDeficits: [{ s: 'arm_weak_proximal', lat: 'contra', sev: 2 }],
     compartment: 'supra',
   }),
   bi({
@@ -165,6 +190,8 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'sens_face_arm', lat: 'contra', sev: 3 },
       { s: 'cortical_sensory', lat: 'contra', sev: 2 },
+      // swallowing: see the precentral gyrus (Suntrup et al. 2015)
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
     ],
     compartment: 'supra',
   }),
@@ -201,7 +228,9 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'cortical_sensory', lat: 'contra', sev: 1 },
       { s: 'optic_ataxia', lat: 'none', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      // no neglect from here: the critical sites lie in the inferior parietal lobule, superior
+      // temporal and inferior frontal cortex and basal ganglia (Mort DJ et al., Brain
+      // 2003;126:1986-1997, PMID 12821519; Karnath HO et al., Nature 2001;411:950-953, PMID 11418859)
       { s: 'visuospatial', lat: 'none', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
@@ -218,7 +247,10 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'aphasia_conduction', lat: 'none', only: 'l', sev: 2 },
       { s: 'apraxia', lat: 'none', only: 'l', sev: 2 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 2 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 2 },
+      // after a left-hemisphere stroke neglect of the right side is rarer, milder and clears
+      // sooner (20 % acutely, 5 % at 3 months vs 43 % and 17 % on the right: Ringman et al. 2004)
+      { s: 'neglect', lat: 'contra', only: 'l', sev: 1, fast: true },
       { s: 'anosognosia', lat: 'none', only: 'r', sev: 1 },
       { s: 'cortical_sensory', lat: 'contra', sev: 1 },
     ],
@@ -228,8 +260,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'angular',
     name: { zh: '角迴（頂下小葉）', en: 'Angular gyrus (inferior parietal lobule)' },
     func: {
-      zh: '左側：閱讀、書寫、計算、手指與左右辨識；右側：空間注意力。',
-      en: 'Left: reading, writing, calculation, finger and left–right knowledge. Right: spatial attention.',
+      zh: '左側：閱讀、書寫、計算、手指與左右辨識；右側：空間注意力。深部白質有視放射的頂葉部分（對側下方視野）。',
+      en: "Left: reading, writing, calculation, finger and left–right knowledge. Right: spatial attention. The parietal part of the optic radiation (opposite lower visual field) runs deep to it.",
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
@@ -239,8 +271,15 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'acalculia', lat: 'none', only: 'l', sev: 2 },
       { s: 'finger_agnosia', lat: 'none', only: 'l', sev: 2 },
       { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 2 },
+      // the critical site of neglect in MCA strokes (Mort et al. 2003)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 2 },
+      { s: 'neglect', lat: 'contra', only: 'l', sev: 1, fast: true },
       { s: 'visuospatial', lat: 'none', only: 'r', sev: 2 },
+      // the optic radiation, the second commonest lesion site of homonymous hemianopia after the
+      // occipital lobe (32 % of 904: Zhang X et al., Neurology 2006;66:906-910, PMID 16567710),
+      // runs deep to the parietal cortex; reached only by a large (deep) lesion, not by cortical
+      // spill-over. With Meyer's loop (temporal) it makes the hemianopia of a large MCA infarct.
+      { s: 'quadrant_inf', lat: 'contra', sev: 2, minLevel: 0.5 },
     ],
     compartment: 'supra',
   }),
@@ -277,6 +316,9 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'aphasia_wernicke', lat: 'none', only: 'l', sev: 2 },
       { s: 'aprosodia', lat: 'none', only: 'r', sev: 1 },
+      // right superior temporal cortex (Karnath et al. 2001; disputed as the critical site by
+      // Mort et al. 2003, so milder than the inferior parietal sources)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -327,6 +369,8 @@ export const REGION_DEFS: RegionDef[] = [
       // TODO(medical-review): sev
       { s: 'hyperhidrosis', lat: 'contra', sev: 1 },
       { s: 'taste_loss', lat: 'none', sev: 1 },
+      // the anterior insula (Daniels & Foundas 1997): see the precentral gyrus
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
     ],
     compartment: 'supra',
   }),
@@ -343,7 +387,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'prosopagnosia', lat: 'none', only: 'r', sev: 1 },
       { s: 'prosopagnosia', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'visual_agnosia', lat: 'none', sev: 2, bilateralOnly: true },
-      { s: 'achromatopsia', lat: 'none', sev: 1 },
+      // colour: full achromatopsia needs both sides; one side loses colour in the opposite
+      // field, and only from a large (posterior) lesion, not MCA spill-over into the gyrus
+      { s: 'achromatopsia', lat: 'none', sev: 1, bilateralOnly: true },
+      { s: 'hemiachromatopsia', lat: 'contra', sev: 1, minLevel: 0.5 },
       { s: 'alexia', lat: 'none', only: 'l', sev: 1 },
     ],
     compartment: 'supra',
@@ -361,6 +408,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'amnesia', lat: 'none', sev: 1 },
       { s: 'amnesia', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'topographic', lat: 'none', only: 'r', sev: 1 },
+      // damaged in every patient with neglect after a PCA stroke (Mort et al. 2003); visual
+      // neglect in 9 of 117 superficial PCA infarcts on the right, 2 on the left (Cals et al. 2002)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -370,12 +420,15 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'cuneus',
     name: { zh: '楔葉（距狀溝上唇）', en: 'Cuneus (upper bank of the calcarine fissure)' },
     func: {
-      zh: '初級視覺皮質的上半：看見對側「下方」的視野。',
-      en: 'Upper half of primary visual cortex: sees the opposite LOWER visual quadrant.',
+      zh: '初級視覺皮質的上半：看見對側「下方」的視野。由距狀動脈與頂枕動脈共同供應。',
+      en: 'Upper half of primary visual cortex: sees the opposite LOWER visual quadrant. Fed by both the calcarine and the parieto-occipital artery.',
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
-    deficits: [{ s: 'quadrant_inf', lat: 'contra', sev: 2 }],
+    deficits: [
+      { s: 'quadrant_inf', lat: 'contra', sev: 2 },
+      { s: 'visual_release_hallucinations', lat: 'contra', sev: 1 },
+    ],
     compartment: 'supra',
   }),
   bi({
@@ -389,7 +442,10 @@ export const REGION_DEFS: RegionDef[] = [
     cbf: CORTEX_CBF,
     deficits: [
       { s: 'quadrant_sup', lat: 'contra', sev: 2 },
-      { s: 'achromatopsia', lat: 'none', sev: 1 },
+      // see the fusiform gyrus
+      { s: 'achromatopsia', lat: 'none', sev: 1, bilateralOnly: true },
+      { s: 'hemiachromatopsia', lat: 'contra', sev: 1 },
+      { s: 'visual_release_hallucinations', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -402,7 +458,10 @@ export const REGION_DEFS: RegionDef[] = [
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
-    deficits: [{ s: 'central_scotoma', lat: 'contra', sev: 2 }],
+    deficits: [
+      { s: 'central_scotoma', lat: 'contra', sev: 2 },
+      { s: 'visual_release_hallucinations', lat: 'contra', sev: 1 },
+    ],
     compartment: 'supra',
   }),
   bi({
@@ -433,9 +492,14 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'deep',
     cbf: WM_CBF,
     supply: [{ v: 'aca_pericallosal_{s}', share: 1 }],
+    // callosal disconnection affects the left hand, whichever side the lesion is on: the
+    // intermanual conflict of the callosal alien hand (Feinberg et al. 1992) and apraxia with
+    // apraxic agraphia (Watson RT, Heilman KM, Brain 1983;106:391-403, PMID 6850274)
     deficits: [
-      { s: 'apraxia', lat: 'none', sev: 1 },
-      { s: 'alien_hand', lat: 'none', sev: 1 },
+      { s: 'callosal_apraxia', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'callosal_apraxia', lat: 'ipsi', only: 'l', sev: 1 },
+      { s: 'alien_hand', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'alien_hand', lat: 'ipsi', only: 'l', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -475,6 +539,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'spasticity', lat: 'contra', sev: 1 },
       // TODO(medical-review): sev
       { s: 'cold_limb', lat: 'contra', sev: 1 },
+      // corticobulbar fibres to the swallowing muscles (subcortical white matter: Suntrup et al.
+      // 2015); see the precentral gyrus
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
     ],
     compartment: 'supra',
   }),
@@ -497,6 +564,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'abulia', lat: 'none', sev: 2 },
       { s: 'executive', lat: 'none', sev: 1 },
       { s: 'movement_disorder', lat: 'contra', sev: 1 },
+      // right basal ganglia (Karnath HO, Himmelbach M, Rorden C, Brain 2002;125:350-360, PMID 11844735)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -532,6 +601,8 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
+      // the right putamen is a critical subcortical site (Karnath et al. 2002)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
       // lenticulocapsular strokes (Kim & Choi-Kwon, Neurology 2000; Kim, J Neurol 2002).
       // TODO(medical-review): sev
       { s: 'emotionalism', lat: 'none', sev: 1 },
@@ -591,6 +662,8 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'face_weak', lat: 'contra', sev: 3 },
       { s: 'dysarthria', lat: 'none', sev: 2 },
+      // corticobulbar fibres to the swallowing muscles (Suntrup et al. 2015); see the precentral gyrus
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
       // corticobulbar fibres, part of the lenticulocapsular group (Kim & Choi-Kwon 2000).
       // TODO(medical-review): sev
       { s: 'emotionalism', lat: 'none', sev: 1 },
@@ -636,7 +709,7 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'amnesia', lat: 'none', sev: 2 },
       { s: 'abulia', lat: 'none', sev: 1 },
       { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -700,7 +773,7 @@ export const REGION_DEFS: RegionDef[] = [
     ],
     deficits: [
       { s: 'hemianopia', lat: 'contra', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),

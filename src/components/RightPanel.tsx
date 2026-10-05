@@ -388,6 +388,7 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
     .map((eid) => sim.cascade.events.find((e) => e.id === eid))
     .filter((e): e is CascadeEvent => !!e);
   const deficits = def.deficits.filter((d) => !d.only || d.only === r.side);
+  const borderDeficits = (def.borderDeficits ?? []).filter((d) => !d.only || d.only === r.side);
   return (
     <div className="details">
       <div className="kicker">{t.region}</div>
@@ -445,13 +446,15 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
         <section>
           <h3>{t.ifDamaged}</h3>
           <ul className="bullets">
-            {deficits.map((d, i) => {
+            {[...deficits.map((d) => ({ d, border: false })), ...borderDeficits.map((d) => ({ d, border: true }))].map(({ d, border }, i) => {
               const sym = SYMPTOM_BY_ID[d.s];
               const side = d.lat === 'none' || r.side === 'm' ? null : d.lat === 'contra' ? (r.side === 'r' ? 'l' : 'r') : r.side;
               return (
                 <li key={d.s + i}>
                   {symptomLabel({ id: d.s, side, sev: d.sev ?? 2, sources: [], delayed: !!sym?.delayed }, lang, t)}
                   {d.bilateralOnly && <span className="muted"> {lang === 'en' ? '(if both sides)' : '（雙側受損時）'}</span>}
+                  {d.minLevel && <span className="muted"> {lang === 'en' ? '(if extensive)' : '（大範圍受損時）'}</span>}
+                  {border && <span className="muted"> {lang === 'en' ? '(border zone alone)' : '（只有分水嶺區受損時）'}</span>}
                   {sym?.delayed && <span className="tag">{t.delayedTag}</span>}
                 </li>
               );

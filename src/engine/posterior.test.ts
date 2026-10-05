@@ -150,7 +150,10 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
     ica_silent: 0,
     ica_isolated: 428.8,
     fetal_pca: 76.199,
-    watershed: 17.861,
+    // C1-F3: the calcarine artery now feeds 60 % of the cuneus, so the parieto-occipital artery
+    // carries less, its end pressure is higher, and its border-zone beds (precuneus, superior
+    // parietal, lateral occipital) lose less at low blood pressure (was 17.861)
+    watershed: 16.331,
     subclavian_steal: 0,
     amaurosis: 0,
     // added with the occlusion schedules: a 5-minute event within the ischaemic lag leaves no infarct

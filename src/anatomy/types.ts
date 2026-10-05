@@ -168,6 +168,13 @@ export interface DeficitRef {
   bilateralOnly?: boolean;
   /** a lacune in this structure usually spares this function (e.g. sensation in a capsular pure motor lacune) */
   spareInLacune?: boolean;
+  /**
+   * needs at least this much of the region affected (default: the symptom threshold, 0.25): for
+   * a function that only a large lesion reaches, e.g. a tract running deep to part of the region
+   */
+  minLevel?: number;
+  /** the compensation of this source settles within ~1–2 weeks (overrides the symptom's own pace) */
+  fast?: boolean;
 }
 
 export interface StructureInfo {
@@ -195,6 +202,12 @@ export interface RegionDef {
   /** explicit baseline flow (mL/min) for non-brain beds */
   flow?: number;
   deficits: DeficitRef[];
+  /**
+   * what the region does when its dysfunction lies mainly in its ACA–MCA border-zone beds (the
+   * part of the motor strip next to the vertex): these replace `deficits` then (see
+   * clinical.aggregateSymptoms)
+   */
+  borderDeficits?: DeficitRef[];
   structures?: StructureInfo[];
   /** supratentorial / infratentorial compartment (mass effect) */
   compartment: 'supra' | 'infra' | 'none';
@@ -299,4 +312,6 @@ export interface SymptomDef {
    * deficit described after infarcts but not during passing ischaemia
    */
   fromInfarct?: boolean;
+  /** appears only this many hours after onset (a latent period), not from the start */
+  onsetH?: number;
 }

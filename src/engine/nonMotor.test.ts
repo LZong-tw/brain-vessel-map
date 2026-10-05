@@ -234,27 +234,45 @@ describe('every new symptom can occur', () => {
  * signs a sign-named syndrome requires are not among them), so adding them must leave every value
  * as it was. Re-baselined on purpose for the clinical-detail audit, each changed row commented
  * with the finding that explains it: C5-F1 (the NIHSS item rules: mild weakness is drift = 1;
- * stupor scores 1b = 2 and no ataxia; anarthria scores 1b = 1) and C5-F2 (a syndrome named for
- * its signs is shown only with them). [total, items > 0, syndromes (with lesion side)]
+ * stupor scores 1b = 2 and no ataxia; anarthria scores 1b = 1), C5-F2 (a syndrome named for
+ * its signs is shown only with them) and C1 (hemispheric syndromes: F1 one aphasia type, graded;
+ * F2 the MCA hemianopia; F3 the PCA hemianopia; F5 where neglect comes from; F6 the border-zone
+ * arm weakness). [total, items > 0, syndromes (with lesion side)]
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
-  'l_m1@24': [19, { '1b': 2, '1c': 1, 2: 1, 3: 1, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1 }, ['gerstmann_l', 'mca_complete_l']],
-  'l_m1@2160': [12, { '1b': 2, '1c': 1, 3: 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 3, 10: 1 }, ['mca_complete_l']], // C5-F1 drift: was 14 (5r 2, 6r 2)
+  // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
+  // right neglect after a left-hemisphere stroke (11: 0 → 1); C1-F1: Gerstmann cannot be tested
+  // with a global aphasia, so it is not named (was 19, ['gerstmann_l', 'mca_complete_l'])
+  'l_m1@24': [21, { '1b': 2, '1c': 1, 2: 1, 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1, 11: 1 }, ['mca_complete_l']],
+  // C5-F1 drift: was 14 (5r 2, 6r 2); C1-F1: the global aphasia is graded from its compensated
+  // components (sev 1): 9: 3 → 2, 1b: 2 → 1, 1c: 1 → 0 (was 12)
+  'l_m1@2160': [9, { '1b': 1, 3: 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 2, 10: 1 }, ['mca_complete_l']],
   'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
-  'l_m1_thrombectomy@2160': [10, { '1b': 2, '1c': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']], // C5-F1 drift: was 12
-  'r_m1_malignant@24': [17, { '1a': 1, 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 10)
+  'l_m1_thrombectomy@2160': [7, { '1b': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_inferior_l']],
+  // C1-F2: hemianopia (3: 1 → 2; was 17)
+  'r_m1_malignant@24': [18, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_m1_malignant@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
-  'r_m1_decompression@24': [17, { '1a': 1, 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  'r_m1_decompression@2160': [9, { 3: 1, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 10 (6l 2)
+  // C1-F2: hemianopia (3: 1 → 2; was 17)
+  'r_m1_decompression@24': [18, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9)
+  'r_m1_decompression@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
   'r_ica_t@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_ica_t@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
-  'l_m2_sup@24': [13, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1 }, ['mca_superior_l']],
-  'l_m2_sup@2160': [5, { '1b': 1, 4: 1, '5r': 1, 8: 1, 9: 1 }, ['mca_superior_l']], // C5-F1 drift: was 6 (5r 2)
-  'l_m2_inf@24': [7, { '1b': 2, '1c': 1, 3: 1, 9: 2, 10: 1 }, ['gerstmann_l', 'mca_inferior_l']],
-  'l_m2_inf@2160': [6, { '1b': 2, '1c': 1, 3: 1, 9: 2 }, ['mca_inferior_l']],
+  // C1-F5: right neglect from the left supramarginal gyrus (11: 0 → 1; was 13)
+  'l_m2_sup@24': [14, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1, 11: 1 }, ['mca_superior_l']],
+  // C5-F1 drift: was 6 (5r 2); C1-F5: the right neglect of a large supramarginal infarct is still
+  // there (11: 0 → 1; was 5)
+  'l_m2_sup@2160': [6, { '1b': 1, 4: 1, '5r': 1, 8: 1, 9: 1, 11: 1 }, ['mca_superior_l']],
+  // C1-F2: hemianopia (3: 1 → 2); C1-F5: right neglect (11: 0 → 1); C1-F1: no Gerstmann label
+  // with a Wernicke aphasia (was 7, ['gerstmann_l', 'mca_inferior_l'])
+  'l_m2_inf@24': [9, { '1b': 2, '1c': 1, 3: 2, 9: 2, 10: 1, 11: 1 }, ['mca_inferior_l']],
+  // C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 6)
+  'l_m2_inf@2160': [3, { '1b': 1, 3: 1, 9: 1 }, ['mca_inferior_l']],
   'tia_l_mca@24': [0, {}, []],
   'tia_l_mca@2160': [0, {}, []],
-  'r_aca@24': [7, { '5l': 1, '6l': 4, 8: 1, 11: 1 }, ['aca_r', 'neglect_r']],
+  // C1-F5: the superior parietal lobule alone gives no neglect (was 7, 11: 1, ['aca_r', 'neglect_r'])
+  'r_aca@24': [6, { '5l': 1, '6l': 4, 8: 1 }, ['aca_r']],
   // C5-F1 drift: was 4 (6l 2); C5-F2: the neglect has resolved, so its label goes (aca_r stays)
   'r_aca@2160': [3, { '5l': 1, '6l': 1, 8: 1 }, ['aca_r']],
   'l_acha@24': [12, { 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['acha_l']],
@@ -269,10 +287,15 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C5-F1: stuporous (1a = 2), so the questions score 2 and the ataxia is not scored (was 7: 2)
   'percheron@24': [5, { '1a': 2, '1b': 2, 2: 1 }, ['thalamic_paramedian_bilateral']],
   'percheron@2160': [4, { '1a': 1, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
-  'l_pca@24': [4, { 3: 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
-  'l_pca@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
-  'basilar_tip@24': [36, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 1, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
-  'basilar_tip@2160': [22, { '1a': 2, '1b': 2, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']], // C5-F1 stupor: 1b 1 → 2
+  // C1-F3: the untreated P2 occlusion infarcts the calcarine cortex: a hemianopia (3: 1 → 2; was 4),
+  // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l'])
+  'l_pca@24': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
+  'l_pca@2160': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
+  // C1-F3: the calcarine artery also feeds the cuneus, so the left PCA's both banks fail: a
+  // hemianopia (3: 1 → 2; was 36)
+  'basilar_tip@24': [37, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
+  // C5-F1 stupor: 1b 1 → 2; C1-F3: an upper quadrantanopia stays (3: 0 → 1; was 22)
+  'basilar_tip@2160': [23, { '1a': 2, '1b': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']],
   // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
   'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
   'basilar_mid@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
@@ -300,8 +323,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'fetal_pca@24': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
   'fetal_pca@2160': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
   'watershed@24': [5, { 4: 1, '5l': 1, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']], // C5-F1 drift: was 7
-  // the border-zone infarct stays named, marked clinically silent (syndromeSigns.test.ts)
-  'watershed@2160': [0, {}, ['watershed_r']],
+  // C1-F6: the anterior border zone of the motor strip leaves a mild proximal arm weakness, so
+  // the label is no longer clinically silent (was 0, {}; the silent case is now at 65 mmHg,
+  // syndromeSigns.test.ts)
+  'watershed@2160': [1, { '5l': 1 }, ['watershed_r']],
   'subclavian_steal@24': [0, {}, ['subclavian_steal_l']],
   'subclavian_steal@2160': [0, {}, ['subclavian_steal_l']],
   'amaurosis@24': [0, {}, ['amaurosis_r']],

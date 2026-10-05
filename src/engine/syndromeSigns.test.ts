@@ -9,6 +9,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS } from '../anatomy/scenarios';
+import { SYNDROMES } from '../anatomy/syndromes';
+import { symptomQuery } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
@@ -33,15 +35,20 @@ const labels = (r: SimResult) => r.syndromes.map((s) => s.def.id + (s.side ? `_$
 const sym = (r: SimResult) => r.symptoms.map((s) => `${s.id}(${s.side ?? '-'})`);
 
 describe('a syndrome named for its signs is shown only with them', () => {
-  it('right ACA: the neglect label follows the neglect, while the ACA territory label stays', () => {
-    const d1 = scenario('r_aca', 24);
+  // (a right ACA infarct served here before; its superior parietal lesion no longer gives neglect
+  // at all, C1-F5)
+  it('right angular gyrus: the neglect label follows the neglect', () => {
+    const d1 = occlusion(occl('mca_angular_r'), 24, 'moderate');
     expect(d1.symptoms.some((s) => s.id === 'neglect')).toBe(true);
-    expect(labels(d1)).toEqual(expect.arrayContaining(['aca_r', 'neglect_r']));
+    expect(labels(d1)).toContain('neglect_r');
+    // the region rule alone does not decide it: without the sign in the list the label is not given
+    const def = SYNDROMES.find((d) => d.id === 'neglect')!;
+    expect(def.requires!(symptomQuery(d1.symptoms), 'r')).toBe(true);
+    expect(def.requires!(symptomQuery(d1.symptoms.filter((s) => s.id !== 'neglect')), 'r')).toBe(false);
     // three months on the neglect has been compensated away, so "ignores the left side … denies
     // the paralysis" no longer describes the patient
-    const m3 = scenario('r_aca', 2160);
+    const m3 = occlusion(occl('mca_angular_r'), 2160, 'moderate');
     expect(m3.symptoms.some((s) => s.id === 'neglect')).toBe(false);
-    expect(labels(m3)).toContain('aca_r');
     expect(labels(m3)).not.toContain('neglect_r');
   });
 
@@ -99,12 +106,15 @@ describe('bilateral ventral pons', () => {
 });
 
 describe('a label named for the vascular pattern is marked clinically silent when no symptom is left', () => {
+  // right ICA stenosis at a mean pressure of 65 mmHg: the proximal arm weakness recovers (the
+  // teaching scenario at 60 mmHg now keeps a mild one, C1-F6)
   it('watershed (border-zone) infarct: symptomatic at 24 h, silent at 3 months', () => {
-    const d1 = scenario('watershed', 24);
+    const ws = (tH: number) => simulate(inputOf('watershed', { tH, map: 65 }));
+    const d1 = ws(24);
     const w1 = d1.syndromes.find((s) => s.def.id === 'watershed');
     expect(w1?.side).toBe('r');
     expect(w1?.silent ?? false).toBe(false);
-    const m3 = scenario('watershed', 2160);
+    const m3 = ws(2160);
     expect(m3.symptoms).toEqual([]);
     const w3 = m3.syndromes.find((s) => s.def.id === 'watershed');
     expect(w3).toBeDefined();

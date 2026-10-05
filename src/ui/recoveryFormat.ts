@@ -67,14 +67,25 @@ export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: num
   return { edemaMl, remoteMl };
 }
 
+const APHASIA_TYPES = [
+  'aphasia_global',
+  'aphasia_broca',
+  'aphasia_wernicke',
+  'aphasia_conduction',
+  'aphasia_tc_motor',
+  'aphasia_tc_sensory',
+  'aphasia_mixed_tc',
+];
 // symptoms that "disappear" only because they were merged into a larger one
 const MERGED_INTO: Record<string, string[]> = {
   quadrant_sup: ['hemianopia', 'cortical_blindness'],
   quadrant_inf: ['hemianopia', 'cortical_blindness'],
   central_scotoma: ['hemianopia', 'cortical_blindness'],
   hemianopia: ['cortical_blindness'],
-  aphasia_broca: ['aphasia_global'],
-  aphasia_wernicke: ['aphasia_global'],
+  hemiachromatopsia: ['achromatopsia'],
+  // one aphasia type at a time: a type that is no longer listed has changed into another one
+  // (e.g. global → Broca) rather than gone, as long as some aphasia is still listed (C1-F1)
+  ...Object.fromEntries(APHASIA_TYPES.map((id) => [id, APHASIA_TYPES.filter((o) => o !== id)])),
   somnolence: ['coma'],
   hypersomnia: ['coma'],
   // when both lateral medullas fail, the breathing problem is no longer only one of sleep

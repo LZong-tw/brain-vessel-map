@@ -196,8 +196,10 @@ describe('最終 tab', () => {
   });
 
   it('marks a vascular-pattern label with no symptom left as clinically silent (watershed at 6 months)', () => {
+    // right ICA stenosis at a mean pressure of 65 mmHg: a proximal arm weakness that recovers
+    // (the teaching scenario at 60 mmHg keeps a mild one, C1-F6)
     useApp.getState().loadScenario('watershed');
-    useApp.setState({ rightTab: 'final' });
+    useApp.setState({ map: 65, rightTab: 'final' });
     const ws = at6m().syndromes.find((s) => s.def.id === 'watershed');
     expect(ws?.silent).toBe(true);
     const { container } = render(<RightPanel sim={simOf()} />);

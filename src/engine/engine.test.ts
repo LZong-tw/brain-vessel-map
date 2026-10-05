@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BEDS } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
+import { aggregateSymptoms } from './clinical';
 import { dropEmbolus } from './embolus';
 import { simulateHemodynamics, type HemoInput } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
@@ -230,8 +231,12 @@ describe('clinical details that are easy to get wrong', () => {
   });
 
   it('an occipital-pole lesion alone gives a central scotoma, not a hemianopia', () => {
-    const ids = symptomIds(sim({ occlusions: occl('pca_p2_l'), collateral: 'moderate' }));
+    // (a P2 occlusion with moderate collaterals served here before; it now infarcts the calcarine
+    // cortex and gives a hemianopia, C1-F3)
+    const pole = { occipital_pole_l: 0.9 };
+    const ids = aggregateSymptoms(pole, pole, 24).map((x) => x.id + (x.side ? `(${x.side})` : ''));
     expect(ids).toContain('central_scotoma(r)');
+    expect(ids.some((x) => x.startsWith('hemianopia'))).toBe(false);
   });
 
   it('hydrocephalus causes drowsiness and upgaze palsy, not bilateral horizontal gaze palsy', () => {

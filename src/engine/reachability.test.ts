@@ -32,10 +32,14 @@ function runs(): Run[] {
     for (const v of ['ica_cervical_r', 'basilar_mid', 'pca_p1_r', 'aca_a1_r', 'va_v4_dist_r', 'va_v4_dist_l', 'subclavian_prox_l'])
       out.push({ o: [{ vessel: v, severity: 1 }], c: 'moderate', v: [va.id], map: 93 });
   for (const map of [45, 60]) out.push({ o: [{ vessel: 'ica_cervical_r', severity: 0.85 }], c: 'good', v: [], map });
+  // global hypotension alone: both anterior border zones (man-in-the-barrel)
+  out.push({ o: [], c: 'good', v: [], map: 50 });
   for (const pair of [
     ['pca_p2_r', 'pca_p2_l'],
     ['thalamoperforator_r', 'thalamoperforator_l'],
     ['va_v4_dist_r', 'va_v4_dist_l'],
+    // left medial frontal + angular gyrus: transcortical motor + sensory = mixed transcortical aphasia
+    ['aca_a2_l', 'mca_angular_l'],
   ])
     out.push({ o: pair.map((vessel) => ({ vessel, severity: 1 })), c: 'moderate', v: [], map: 93 });
   return out;

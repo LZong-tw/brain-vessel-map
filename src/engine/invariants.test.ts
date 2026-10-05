@@ -168,6 +168,9 @@ describe('syndromes and events agree with the symptoms', () => {
         'one_and_half',
         'weber_benedikt',
         'claude',
+        // C1-F6, C1-F7
+        'man_in_barrel',
+        'cortical_blindness',
       ]),
     );
     // a label is either named for its signs or for its vascular pattern

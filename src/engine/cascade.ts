@@ -13,7 +13,7 @@
  * TODO(medical-review): thresholds and timings are educational approximations.
  */
 
-import { BEDS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
+import { BEDS, REGIONS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { L, Side } from '../anatomy';
 import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
@@ -762,18 +762,28 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   }
 
   // ── 6. systemic complications ──────────────────────────────────
-  const dysphagiaRisk =
-    acute('medulla_lateral_r') ||
-    acute('medulla_lateral_l') ||
-    (acute('ic_genu_r') && acute('ic_genu_l')) ||
-    vol.supra.r + vol.supra.l > 60 ||
-    lockedIn;
+  // the aspiration risk follows the swallowing deficit (C1-F4): the regions that produce
+  // dysphagia (one-sided hemispheric ones included), reduced consciousness, or — as before — a
+  // large supratentorial infarct. Dysphagia roughly triples the risk of pneumonia, and aspiration
+  // multiplies it by about 11 (Martino R et al. Stroke 2005;36:2756-2763, PMID 16269630); it is
+  // present from the start, so the swallow screen comes before any oral intake (onset 0 h).
+  const affects = (r: (typeof REGIONS)[number], ids: string[]) =>
+    r.deficits.some((d) => {
+      if (!ids.includes(d.s) || (d.only && r.side !== d.only)) return false;
+      // the threshold at which the symptom itself appears
+      const thr = Math.max(0.25, d.minLevel ?? 0);
+      if (!acute(r.id, thr)) return false;
+      return !d.bilateralOnly || (r.side !== 'm' && acute(`${r.baseId}_${r.side === 'r' ? 'l' : 'r'}`, thr));
+    });
+  const swallowing = REGIONS.filter((r) => affects(r, ['dysphagia'])).map((r) => r.id);
+  const drowsy = REGIONS.some((r) => affects(r, ['coma', 'somnolence']));
+  const dysphagiaRisk = swallowing.length > 0 || drowsy || vol.supra.r + vol.supra.l > 60 || lockedIn;
   if (dysphagiaRisk) {
     events.push({
       id: 'aspiration',
       kind: 'complication',
       severity: 'warn',
-      onsetH: 24,
+      onsetH: 0,
       endH: 336,
       title: { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' },
       // fever early after an ischaemic stroke is mostly infection or aspiration (Grau AJ et al.,
@@ -784,7 +794,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         zh: '中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見，只有排除感染後才考慮。',
         en: 'One of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke and is considered only once infection has been ruled out.',
       },
-      regions: [],
+      regions: swallowing,
     });
   }
   const insulaR = acute('insula_r', 0.3);

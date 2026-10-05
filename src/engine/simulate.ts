@@ -51,7 +51,15 @@
 import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import type { Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput, type CascadeTreatment } from './cascade';
-import { aggregateSymptoms, detectSyndromes, estimateNihss, type NihssResult, type SymptomItem, type SyndromeMatch } from './clinical';
+import {
+  aggregateSymptoms,
+  detectSyndromes,
+  estimateNihss,
+  type BorderLevel,
+  type NihssResult,
+  type SymptomItem,
+  type SyndromeMatch,
+} from './clinical';
 import { getUnits, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion, type Unit } from './hemodynamics';
 import { computeEdema, type EdemaBedInput } from './edema';
 import type { EdemaState } from './edemaTypes';
@@ -82,6 +90,7 @@ import {
   type TreatmentOptions,
 } from './treatment';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
+import { isWatershedPicture } from '../anatomy/syndromes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
@@ -841,7 +850,48 @@ export function simulate(input: SimInput): SimResult {
       for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
     }
   }
-  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly);
+  // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern)
+  const borderOf = (side: Side) => {
+    let border = 0;
+    let total = 0;
+    const kinds = new Set<string>();
+    for (const b of BEDS) {
+      if (!b.region.endsWith(`_${side}`)) continue;
+      const reg = REGION_BY_ID[b.region];
+      if (!BRAIN.has(reg.category)) continue;
+      const v = primaryDys[b.id] * b.volume;
+      total += v;
+      if (b.terr.length === 2 && v > 0) {
+        border += v;
+        kinds.add(b.terr.join('|'));
+      }
+    }
+    return { border, total, kinds: [...kinds] };
+  };
+  const borderBySide = { r: borderOf('r'), l: borderOf('l') };
+  // the ACA–MCA border-zone beds of regions that act differently when only they fail (C1-F6), in
+  // a hemisphere whose dysfunction is a border-zone picture (not a territorial infarct whose
+  // collaterals happen to rescue the core of the motor strip but not its edge)
+  const border: Record<string, BorderLevel> = {};
+  for (const r of REGIONS) {
+    if (!r.borderDeficits || r.side === 'm' || !isWatershedPicture(borderBySide[r.side])) continue;
+    let vol = 0;
+    let dysVol = 0;
+    let infVol = 0;
+    let allDysVol = 0;
+    for (const bid of r.beds) {
+      const bed = BED_BY_ID[bid];
+      const w = bed.volume || 1;
+      allDysVol += beds[bid].dys * w;
+      if (bed.terr.length === 2 && bed.terr.includes('ACA') && bed.terr.some((x) => x.startsWith('MCA'))) {
+        vol += w;
+        dysVol += beds[bid].dys * w;
+        infVol += beds[bid].infarct * w;
+      }
+    }
+    if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
+  }
+  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border);
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
 
@@ -857,23 +907,7 @@ export function simulate(input: SimInput): SimResult {
     both: (base, thr = 0.25) => (rPrim[`${base}_r`] ?? 0) >= thr && (rPrim[`${base}_l`] ?? 0) >= thr,
     occluded: (base, side) => occl.has(idOf(base, side)) || (!side && (occl.has(`${base}_r`) || occl.has(`${base}_l`))),
     reversed: (base, side) => rev.has(idOf(base, side)),
-    border: (side) => {
-      let border = 0;
-      let total = 0;
-      const kinds = new Set<string>();
-      for (const b of BEDS) {
-        if (!b.region.endsWith(`_${side}`)) continue;
-        const reg = REGION_BY_ID[b.region];
-        if (!BRAIN.has(reg.category)) continue;
-        const v = primaryDys[b.id] * b.volume;
-        total += v;
-        if (b.terr.length === 2 && v > 0) {
-          border += v;
-          kinds.add(b.terr.join('|'));
-        }
-      }
-      return { border, total, kinds: [...kinds] };
-    },
+    border: (side) => borderBySide[side],
     cortexCount: (side, thr = 0.2) =>
       REGIONS.filter((r) => r.side === side && r.category === 'cortex' && rPrim[r.id] >= thr).length,
     map: input.map,

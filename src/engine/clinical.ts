@@ -3,7 +3,7 @@
  */
 
 import { REGIONS, REGION_BY_ID } from '../anatomy';
-import type { NihssItem, Side } from '../anatomy';
+import type { NihssItem, Region, Side } from '../anatomy';
 import { REGION_DEFS } from '../anatomy/regions';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
@@ -56,6 +56,57 @@ const DELAY_H = 336;
 /** a deficit compensated below this (continuous) severity is no longer noticeable */
 const COMPENSATED_OUT = 0.35;
 
+/**
+ * The dysfunction of a region's ACA–MCA border-zone beds (the strip of the motor cortex next to
+ * the vertex, between the ACA and MCA territories), for regions with `borderDeficits`.
+ */
+export interface BorderLevel {
+  /** dysfunctional fraction of the border-zone beds */
+  dys: number;
+  /** infarcted fraction of the border-zone beds */
+  inf: number;
+  /** share of the region's dysfunctional volume that lies in them (0–1) */
+  share: number;
+}
+/**
+ * the region's dysfunction "lies mainly" in its border-zone beds from this share: a border-zone
+ * (watershed) picture, not a territorial infarct that also reaches the border (an M1 occlusion
+ * whose collaterals rescue the core of the motor strip, an ACA infarct)
+ */
+const BORDER_MAIN = 2 / 3;
+
+/**
+ * Aphasia types (C1-F1). Every patient has one type, assigned from fluency, comprehension and
+ * repetition (Kertesz A, Poole E. The aphasia quotient: the taxonomic approach to measurement of
+ * aphasic disability. Can J Neurol Sci 1974, reprinted 2004;31:175-184, PMID 15198441); a
+ * transcortical sensory aphasia keeps repetition (Heilman KM et al. Arch Neurol 1981;38:236-239,
+ * PMID 7213147), so it cannot coexist with a global or conduction aphasia. Each region-level
+ * component adds features; the listed type follows from all of them, and changes as components
+ * are compensated away (59 % of patients changed type within the first year, most in the first
+ * two weeks: Pashek GV, Holland AL. Cortex 1988;24:411-423, PMID 3191724; global aphasia has the
+ * worst outlook: Kertesz A, McCabe P. Brain 1977;100:1-18, PMID 861709).
+ */
+const APHASIA_FEATURES: Record<string, { nonfluent?: true; comprehension?: true; repetition?: true }> = {
+  aphasia_broca: { nonfluent: true, repetition: true },
+  aphasia_wernicke: { comprehension: true, repetition: true },
+  aphasia_conduction: { repetition: true },
+  aphasia_tc_motor: { nonfluent: true },
+  aphasia_tc_sensory: { comprehension: true },
+  aphasia_mixed_tc: { nonfluent: true, comprehension: true },
+  aphasia_global: { nonfluent: true, comprehension: true, repetition: true },
+};
+const aphasiaType = (f: { nonfluent?: boolean; comprehension?: boolean; repetition?: boolean }): string => {
+  if (f.nonfluent) {
+    if (f.comprehension) return f.repetition ? 'aphasia_global' : 'aphasia_mixed_tc';
+    return f.repetition ? 'aphasia_broca' : 'aphasia_tc_motor';
+  }
+  if (f.comprehension) return f.repetition ? 'aphasia_wernicke' : 'aphasia_tc_sensory';
+  return 'aphasia_conduction';
+};
+/** aphasia types whose patient does not comprehend well (NIHSS 1b, 1c and 7; Gerstmann testing) */
+export const POOR_COMPREHENSION_APHASIA = ['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'];
+const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_scotoma'];
+
 export function aggregateSymptoms(
   regionDys: Record<string, number>,
   regionInf: Record<string, number>,
@@ -63,6 +114,8 @@ export function aggregateSymptoms(
   extra: SymptomItem[] = [],
   /** regions damaged only by a lacune (functions marked spareInLacune are kept) */
   lacuneOnly: string[] = [],
+  /** border-zone levels of the regions with `borderDeficits` (see BorderLevel) */
+  border: Record<string, BorderLevel> = {},
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
@@ -81,13 +134,19 @@ export function aggregateSymptoms(
   };
   // which sides have dead tissue serving each function: a one-sided loss compensates better
   const lesions = lesionSides(regionInf);
+  /** the strongest region source of each aphasia component before compensation (for a global aphasia) */
+  const aphasiaRaw = new Map<string, { raw: number; r: Region; level: number; inf: number }>();
 
   for (const r of REGIONS) {
-    const dys = regionDys[r.id] ?? 0;
-    const inf = regionInf[r.id] ?? 0;
-    if (!reaches(dys) && !reaches(inf)) continue;
     const def = DEF_BY_BASE[r.baseId];
-    for (const d of def.deficits) {
+    // a region whose dysfunction lies mainly in its ACA–MCA border-zone beds does what that
+    // strip does (C1-F6), at the level of those beds
+    const b = def.borderDeficits ? border[r.id] : undefined;
+    const inBorder = !!b && b.share >= BORDER_MAIN && (reaches(b.dys) || reaches(b.inf));
+    const dys = inBorder ? b!.dys : regionDys[r.id] ?? 0;
+    const inf = inBorder ? b!.inf : regionInf[r.id] ?? 0;
+    if (!reaches(dys) && !reaches(inf)) continue;
+    for (const d of inBorder ? def.borderDeficits! : def.deficits) {
       const sym = SYMPTOM_BY_ID[d.s];
       if (!sym) continue;
       if (d.only && r.side !== d.only) continue;
@@ -95,26 +154,30 @@ export function aggregateSymptoms(
       const delayed = !!sym.delayed;
       const byInfarct = delayed || !!sym.fromInfarct;
       const level = byInfarct ? inf : dys;
-      if (!reaches(level)) continue;
+      const thr = Math.max(DYS_THR, d.minLevel ?? 0);
+      if (!reaches(level, thr)) continue;
       if (delayed && tH < DELAY_H) continue;
+      if (sym.onsetH && tH < sym.onsetH) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
         const lvl2 = byInfarct ? regionInf[other] ?? 0 : regionDys[other] ?? 0;
-        if (!reaches(lvl2)) continue;
+        if (!reaches(lvl2, thr)) continue;
       }
       let side: SymptomItem['side'] = null;
       if (sym.lateralised) {
         if (r.side === 'm' || d.lat === 'none') side = r.side === 'm' ? 'both' : null;
         else side = d.lat === 'contra' ? opp(r.side) : r.side;
       }
-      let sevEff = (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, level / 0.8));
+      const raw = (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, level / 0.8));
+      let sevEff = raw;
       // weeks–months later, spared pathways take over part of what the dead tissue did
-      const rec = symptomCompensation(d.s, r, level, inf, lesions, tH);
+      const rec = symptomCompensation(d.s, r, level, inf, lesions, tH, d.fast);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
       }
+      if (APHASIA_FEATURES[d.s] && raw > (aphasiaRaw.get(d.s)?.raw ?? 0)) aphasiaRaw.set(d.s, { raw, r, level, inf });
       add(d.s, side, sevEff, r.id, delayed, rec);
     }
   }
@@ -128,7 +191,8 @@ export function aggregateSymptoms(
     const inf = get('quadrant_inf', fs);
     if (sup && inf) {
       add('hemianopia', fs, Math.max(sup.sev, inf.sev, 2), sup.sources[0], false);
-      get('hemianopia', fs)!.sources.push(...inf.sources);
+      const h = get('hemianopia', fs)!;
+      for (const src of inf.sources) if (!h.sources.includes(src)) h.sources.push(src);
       del('quadrant_sup', fs);
       del('quadrant_inf', fs);
     }
@@ -139,33 +203,67 @@ export function aggregateSymptoms(
       del('central_scotoma', fs);
     }
   }
-  const occip = (h: Side) =>
-    reaches(regionDys[`cuneus_${h}`]) || reaches(regionDys[`lingual_${h}`]);
-  if (occip('r') && occip('l')) {
-    for (const fs of ['r', 'l'] as Side[]) {
-      del('hemianopia', fs);
-      del('quadrant_sup', fs);
-      del('quadrant_inf', fs);
-      del('central_scotoma', fs);
-    }
-    add('cortical_blindness', null, 3, 'cuneus_r', false);
-    add('anton', null, 1, 'cuneus_r', false);
+  // cortical blindness (C1-F7) needs both banks of the calcarine fissure on both sides, and
+  // central vision lost too: one bank on each side leaves bilateral quadrantic (altitudinal)
+  // defects, and spared poles a bilateral hemianopia with central ("keyhole") vision
+  const occip = (h: Side) => reaches(regionDys[`cuneus_${h}`]) || reaches(regionDys[`lingual_${h}`]);
+  const banks = (h: Side) => reaches(regionDys[`cuneus_${h}`]) && reaches(regionDys[`lingual_${h}`]);
+  // the pole (central vision) has dual PCA + MCA supply: when it is clearly less damaged than
+  // the calcarine cortex, the centre of the field is (at least partly) spared
+  const calcarine = (h: Side) => Math.min(regionDys[`cuneus_${h}`] ?? 0, regionDys[`lingual_${h}`] ?? 0);
+  const poleSpared = (h: Side) => (regionDys[`occipital_pole_${h}`] ?? 0) < 0.75 * calcarine(h);
+  if (banks('r') && banks('l') && !(poleSpared('r') && poleSpared('l'))) {
+    const srcs = ['cuneus_r', 'lingual_r', 'cuneus_l', 'lingual_l'];
+    for (const fs of ['r', 'l'] as Side[]) for (const id of FIELD_DEFECTS) del(id, fs);
+    for (const src of srcs) add('cortical_blindness', null, 3, src, false);
   } else {
     for (const h of ['r', 'l'] as Side[]) {
-      const fs = opp(h);
-      // the pole (central vision) has dual PCA + MCA supply: when it is clearly less damaged
-      // than the calcarine cortex, the centre of the field is (at least partly) spared
-      const calcarine = Math.min(regionDys[`cuneus_${h}`] ?? 0, regionDys[`lingual_${h}`] ?? 0);
-      if (occip(h) && get('hemianopia', fs) && (regionDys[`occipital_pole_${h}`] ?? 0) < 0.75 * calcarine) {
-        add('macular_sparing', null, 1, `occipital_pole_${h}`, false);
-      }
+      if (occip(h) && get('hemianopia', opp(h)) && poleSpared(h)) add('macular_sparing', null, 1, `occipital_pole_${h}`, false);
     }
   }
-  if (map.has('aphasia_broca|') && map.has('aphasia_wernicke|')) {
-    const s = Math.max(map.get('aphasia_broca|')!.sev, map.get('aphasia_wernicke|')!.sev, 2);
-    add('aphasia_global', null, s + 1, map.get('aphasia_broca|')!.sources[0], false);
-    del('aphasia_broca', null);
-    del('aphasia_wernicke', null);
+  // release hallucinations are seen in a blind part of the field (C1-F11)
+  for (const fs of ['r', 'l'] as Side[]) {
+    if (get('visual_release_hallucinations', fs) && !map.has('cortical_blindness|') && !FIELD_DEFECTS.some((id) => get(id, fs)))
+      del('visual_release_hallucinations', fs);
+  }
+  // colour lost in the whole field takes in the half-field loss (C1-F8)
+  if (map.has('achromatopsia|')) for (const fs of ['r', 'l'] as Side[]) del('hemiachromatopsia', fs);
+
+  // one aphasia type (C1-F1), from the features of the components still listed
+  const components = [...map.values()].filter((s) => APHASIA_FEATURES[s.id]);
+  if (components.length > 0) {
+    const f = Object.assign({}, ...components.map((s) => APHASIA_FEATURES[s.id]));
+    const type = aphasiaType(f);
+    let sev = Math.max(...components.map((s) => s.sev));
+    let recovery = components.find((s) => s.sev === sev)?.recovery;
+    if (type === 'aphasia_global') {
+      // graded from its components, without a fixed step up, and compensated as a global
+      // aphasia (the poorest outlook), so that it can become a Broca or Wernicke type later
+      let best = -1;
+      for (const s of components) {
+        const c = aphasiaRaw.get(s.id);
+        if (!c) continue;
+        const rec = symptomCompensation('aphasia_global', c.r, c.level, c.inf, lesions, tH);
+        const v = c.raw * (1 - rec.compensated);
+        if (v > best) {
+          best = v;
+          recovery = rec;
+        }
+      }
+      if (best > 0) sev = Math.max(1, Math.min(3, Math.round(best))) as 1 | 2 | 3;
+    }
+    const sources = [...new Set(components.flatMap((s) => s.sources))];
+    for (const s of components) del(s.id, null);
+    map.set(`${type}|`, recovery ? { id: type, side: null, sev: sev as 1 | 2 | 3, sources, delayed: false, recovery } : { id: type, side: null, sev: sev as 1 | 2 | 3, sources, delayed: false });
+    // apraxia of speech is a non-fluent motor-speech disorder: a fluent aphasia type contradicts it
+    if (!f.nonfluent) del('apraxia_of_speech', null);
+  }
+  // swallowing has a bilateral cortical representation (Hamdy S et al. Nat Med 1996;2:1217-1224,
+  // PMID 8898748): a lesion of both hemispheres leaves less to take over
+  const dysphagia = get('dysphagia', null);
+  if (dysphagia && dysphagia.sev < 2) {
+    const sides = new Set(dysphagia.sources.map((src) => REGION_BY_ID[src]?.side));
+    if (sides.has('r') && sides.has('l')) dysphagia.sev = 2;
   }
   // bilateral ventral pons: anarthria (no speech at all) replaces, rather than adds to, the
   // milder unilateral dysarthria picture
@@ -264,11 +362,13 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
     }
   }
   const has = (id: string) => symptoms.some((s) => s.id === id && !s.delayed);
+  // the aphasia type with poor comprehension (global, Wernicke, mixed transcortical), if any
+  const poorComprehension = symptoms.find((s) => !s.delayed && POOR_COMPREHENSION_APHASIA.includes(s.id));
   // limb ataxia is scored only if out of proportion to weakness, and is absent in a patient who
   // cannot understand or is paralysed: not on a side whose arm cannot move against gravity or
   // whose leg cannot move at all, and not at all in a stuporous patient (1a ≥ 2, who cannot do
-  // the finger-nose test) or one with global or Wernicke aphasia (who cannot follow it)
-  const cannotCooperate = (items['1a'] ?? 0) >= 2 || has('aphasia_global') || has('aphasia_wernicke');
+  // the finger-nose test) or one whose aphasia leaves too little comprehension to follow it
+  const cannotCooperate = (items['1a'] ?? 0) >= 2 || (poorComprehension?.sev ?? 0) >= 2;
   const ax = cannotCooperate
     ? 0
     : (['r', 'l'] as Side[]).reduce((a, sd) => a + (armSide[sd] >= 3 || legSide[sd] >= 4 ? 0 : ataxia[sd]), 0);
@@ -277,14 +377,14 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   if (brainstemSensory.size === 2) set('8', 2, 2);
   // hemianopia on both sides without explicit cortical blindness
   if (symptoms.filter((s) => s.id === 'hemianopia').length >= 2) set('3', 3, 3);
-  // questions / commands depend on language and consciousness
-  if (has('aphasia_global')) {
+  // questions / commands depend on language and consciousness: an aphasic patient who does not
+  // comprehend the questions scores 2, one who answers one of them 1 (C1-F1: graded by the
+  // severity of the aphasia, so a compensated global or Wernicke aphasia no longer scores as one
+  // that does not comprehend at all)
+  if (poorComprehension && poorComprehension.sev >= 2) {
     set('1b', 2, 2);
     set('1c', 1, 2);
-  } else if (has('aphasia_wernicke')) {
-    set('1b', 2, 2);
-    set('1c', 1, 2);
-  } else if (has('aphasia_broca') || has('aphasia_tc_sensory')) {
+  } else if (poorComprehension || has('aphasia_broca') || has('aphasia_tc_sensory')) {
     set('1b', 1, 2);
   }
   // a stuporous patient does not comprehend the questions: 2. The scale gives no such rule for

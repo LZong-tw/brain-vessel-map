@@ -126,6 +126,7 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
     const bottleneck = BOTTLENECK_REGIONS.includes(r.baseId);
     for (const d of r.deficits) {
       if (d.only && r.side !== d.only) continue;
+      if (d.minLevel && (regionInf[r.id] ?? 0) < d.minLevel) continue;
       put(bySymptom, d.s, r);
       if (bottleneck) put(bottleneckBySymptom, d.s, r);
     }
@@ -146,6 +147,8 @@ export function symptomCompensation(
   inf: number,
   lesions: LesionSides,
   tH: number,
+  /** this source settles within ~1–2 weeks (DeficitRef.fast) */
+  fast = false,
 ): SymptomRecovery {
   const red = redundancyFor(symptomId, region.baseId);
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
@@ -153,7 +156,7 @@ export function symptomCompensation(
   let compensated = 0;
   if (red.kind !== 'exempt' && !NO_BACKUP_KINDS.has(red.kind) && level > 0) {
     const gain = bilateral ? red.bi * (bottleneck ? BOTTLENECK_FACTOR : 1) : red.uni;
-    compensated = gain * compensationProgress(tH, red.fast) * clamp01(inf / level);
+    compensated = gain * compensationProgress(tH, red.fast || fast) * clamp01(inf / level);
   }
   return { kind: red.kind, compensated, bilateral, bottleneck };
 }
@@ -217,7 +220,8 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
       for (const d of r.deficits) {
         if (d.only && r.side !== d.only) continue;
         if (d.bilateralOnly && (lesions.bySymptom.get(d.s)?.size ?? 0) < 2) continue;
-        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH);
+        if (d.minLevel && inf < d.minLevel) continue;
+        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH, d.fast);
         if (c.kind === 'exempt') continue;
         const w = d.sev ?? 2;
         sum += c.compensated * w;

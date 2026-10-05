@@ -1632,14 +1632,22 @@ export const VESSEL_DEFS: VesselDef[] = [
     name: { zh: '後大腦動脈 P2 段', en: 'Posterior cerebral artery, P2 segment' },
     abbr: 'P2',
     desc: {
-      zh: '繞過大腦腳往後走，發出供應視丘外側與後部的分支，再分成供應枕葉與顳葉內下側的皮質支。',
-      en: 'Wraps around the cerebral peduncle, gives branches to the lateral and posterior thalamus, then divides into cortical branches to the occipital and inferomedial temporal lobes.',
+      zh: '繞過大腦腳往後走，發出供應視丘外側與後部的分支，再分成供應枕葉與顳葉內下側的皮質支。未治療的阻塞通常造成對側同側偏盲。',
+      en: 'Wraps around the cerebral peduncle, gives branches to the lateral and posterior thalamus, then divides into cortical branches to the occipital and inferomedial temporal lobes. Untreated occlusion usually leaves a contralateral homonymous hemianopia.',
     },
     kind: 'trunk',
     group: 'posterior',
     family: 'PCA',
     from: 'pca_pcomm_{s}',
     to: 'pca_p2_end_{s}',
+    // calibration (C1-F3): the clot is taken to reach the terminal division, so the collaterals
+    // that fill one cortical branch backwards cannot run on through the division into the
+    // others. Otherwise the leptomeningeal inflow of all branches pooled there and a P2
+    // occlusion left less ischaemia in the calcarine cortex than an occlusion of the calcarine
+    // artery alone. A visual field defect is the main sign of superficial PCA infarcts
+    // (hemianopia 67 %, quadrantanopia 22 %, bilateral 7 % of 117: Cals N et al. J Neurol
+    // 2002;249:855-861, PMID 12140669; Kumral E et al. Eur J Neurol 2004;11:237-246, PMID 15061825).
+    occludesDistalJunction: true,
     parent: 'pca_p1_{s}',
     r: 1.0,
     path: [
@@ -1724,8 +1732,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'pca_calcarine',
     name: { zh: '距狀動脈', en: 'Calcarine artery' },
     desc: {
-      zh: '沿距狀溝走，供應初級視覺皮質。阻塞造成對側同側偏盲。',
-      en: 'Runs in the calcarine fissure to the primary visual cortex; occlusion gives a contralateral homonymous hemianopia.',
+      zh: '沿距狀溝走，供應初級視覺皮質（距狀溝上下唇；上唇的楔葉也由頂枕動脈供應）。阻塞造成對側同側偏盲。',
+      en: 'Runs in the calcarine fissure to the primary visual cortex (both banks; the upper bank, the cuneus, shares the parieto-occipital artery); occlusion gives a contralateral homonymous hemianopia.',
     },
     kind: 'branch',
     group: 'posterior',
@@ -1747,8 +1755,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'pca_parietooccipital',
     name: { zh: '頂枕動脈', en: 'Parieto-occipital artery' },
     desc: {
-      zh: '沿頂枕溝往上，供應楔葉與楔前葉後部。',
-      en: 'Ascends in the parieto-occipital sulcus to the cuneus and posterior precuneus.',
+      zh: '沿頂枕溝往上，供應楔前葉後部，並與距狀動脈共同供應楔葉。',
+      en: 'Ascends in the parieto-occipital sulcus to the posterior precuneus, and shares the cuneus with the calcarine artery.',
     },
     kind: 'branch',
     group: 'posterior',
