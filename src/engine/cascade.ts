@@ -776,9 +776,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 24,
       endH: 336,
       title: { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' },
+      // fever early after an ischaemic stroke is mostly infection or aspiration (Grau AJ et al.,
+      // J Neurol Sci 1999;171:115–120); central fever is described mostly with haemorrhage and
+      // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is not a symptom
+      // of this model (see the temperature section of anatomy/symptoms.ts)
       desc: {
-        zh: '中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。',
-        en: 'One of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required.',
+        zh: '中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見，只有排除感染後才考慮。',
+        en: 'One of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke and is considered only once infection has been ruled out.',
       },
       regions: [],
     });

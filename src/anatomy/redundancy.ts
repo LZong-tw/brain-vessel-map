@@ -25,7 +25,8 @@
  *     descending sympathetic pathway): other areas cannot take it over, only strategies (turning
  *     the head, scanning) make up for it.
  *   • exempt — not a lost function but a late consequence or a descriptor (spasticity, central
- *     pain, palatal tremor, macular sparing, double vision that follows an eye palsy); left as is.
+ *     pain, palatal tremor, macular sparing, double vision that follows an eye palsy, the cold
+ *     paretic limb); left as is.
  *
  * Bottleneck: in the ventral pons (and the cerebral peduncles) both corticospinal tracts, both
  * corticobulbar tracts and many cortico-reticular fibres run together, so a lesion of both sides
@@ -82,6 +83,22 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   coma: partial(0.5, 0.3),
   somnolence: partial(0.7, 0.4),
 
+  // ── sleep ── TODO(medical-review): uni / bi
+  // persistent hypersomnia after paramedian thalamic stroke: sleep needs almost normal by a year
+  // after a one-sided lesion, only improved after a two-sided one (Hermann et al., Stroke 2008;
+  // 39:62–8)
+  hypersomnia: partial(0.7, 0.35),
+  // REM-sleep atonia: no data on its course after stroke; kept mostly persistent
+  rbd: partial(0.3, 0.1),
+  // central apnoea after a one-sided lateral medullary infarct: the other side's respiratory
+  // network takes over; central events fewer at 3–6 months (Pavšič et al., Sleep Breath 2020;
+  // 24:1557–63). Two-sided lesions are listed as `respiratory`.
+  central_sleep_apnoea: bilateral(0.7, 0.3),
+
+  // ── mood ── TODO(medical-review): uni / bi
+  // emotionalism: 21 % at 6 months, 11 % at 12 (House et al., BMJ 1989; 298:991–4)
+  emotionalism: partial(0.5, 0.3),
+
   // ── motor ──
   // corticobulbar: the upper face is bilaterally innervated and central facial weakness
   // usually improves a lot
@@ -115,6 +132,9 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   jaw_weak: bilateral(0.75, 0.2, { fcpSources: ['pons_rostral_lateral'] }),
   hearing_loss: NONE,
   palatal_tremor: EXEMPT,
+  // TODO(medical-review): above the upper pons the taste pathway runs on both sides; 80 % of central taste disorders
+  // improved by 24 weeks (Onoda et al., J Neurol 2012; 259:261–6)
+  taste_loss: bilateral(0.8, 0.4),
 
   // ── cognition / behaviour ──
   apraxia: partial(0.5, 0.2),
@@ -122,6 +142,8 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   akinetic_mutism: partial(0.5, 0.3),
   // bladder control is represented on both sides
   incontinence: bilateral(0.7, 0.2),
+  // the pontine micturition centres are paired. TODO(medical-review)
+  urinary_retention: bilateral(0.75, 0.3),
   anton: partial(0.6, 0.5),
   prosopagnosia: partial(0.4, 0.15),
   visual_agnosia: partial(0.4, 0.15),
@@ -185,6 +207,17 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // follows the eye-movement deficit that causes it
   diplopia: EXEMPT,
   horner: NONE,
+
+  // ── temperature regulation & sweating ── TODO(medical-review): uni / bi
+  // the descending sympathetic pathway, as for Horner: hypohidrosis still in 76 % at 6 months
+  // (Korpelainen et al., Stroke 1993; 24:100–4)
+  hypohidrosis: NONE,
+  // clinically visible hemihyperhidrosis lasts days to weeks (Labar et al., Neurology 1988;
+  // 38:1679–82; Kim et al., Stroke 1995; 26:896–9)
+  hyperhidrosis: partial(0.9, 0.6, { fast: true }),
+  // a late vasomotor consequence that persists (Korpelainen et al., Stroke 1995; 26:1543–7;
+  // Wanklyn et al., Stroke 1995; 26:1867–70)
+  cold_limb: EXEMPT,
 
   // ── language (left hemisphere): perilesional and right-hemisphere reorganisation ──
   aphasia_broca: partial(0.45, 0.15),
