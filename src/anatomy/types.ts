@@ -305,14 +305,18 @@ export interface SymptomDef {
   /** body-part wording for the side prefix: 'body' → 左側/右側, 'eye' → 左眼/右眼, 'field' → 左側視野 */
   sideWord?: 'body' | 'eye' | 'field' | 'gaze';
   nihss?: { item: NihssItem; pts: [number, number, number] };
-  /** appears only in the chronic phase */
+  /** a late consequence of dead tissue (not in the acute NIHSS), from `onsetH` or 2 weeks */
   delayed?: boolean;
   /**
    * appears only where tissue has died (from the start, not only in the chronic phase): for a
    * deficit described after infarcts but not during passing ischaemia
    */
   fromInfarct?: boolean;
-  /** appears only this many hours after onset (a latent period), not from the start */
+  /**
+   * appears only this many hours after onset (a latent period), not from the start; for a
+   * `delayed` symptom it replaces the default start at 2 weeks (symptoms.DELAYED_ONSET_H), so each
+   * late consequence starts when its own evidence says (C10-F2)
+   */
   onsetH?: number;
   /**
    * worst between these hours after onset [from, to): one severity step more than the lesion

@@ -67,8 +67,10 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 
 - Torab-Miandoab A, Samad-Soltani T, Shams-Vahdati S, Rezaei-Hachesu P. An intelligent system for improving adherence to guidelines on acute stroke. Turk J Emerg Med 2020;20:118–134. (Appendix 3 reproduces the NIH Stroke Scale instructions behind the item rules: drift, stupor, anarthria, ataxia, bilateral brainstem sensory loss.)
 - Aldrich MS, Alessi AG, Beck RW, Gilman S. Cortical blindness: etiology, diagnosis, and prognosis. Ann Neurol 1987;21:149–158. (Only 3 of 25 denied their blindness, so Anton syndrome is described rather than listed for every case.)
+- Amarenco P et al. One-year risk of stroke after transient ischemic attack or minor stroke. N Engl J Med 2016;374:1533–1542.
 - Amarenco P, Hauw JJ, Hénin D, Duyckaerts C, Roullet E, Laplane D, Gautier JC, Lhermitte F, Buge A, Castaigne P. Cerebellar infarction in the area of the posterior cerebellar artery. Clinicopathology of 28 cases. Rev Neurol (Paris) 1989;145:277–286. (In French, on the territory of the posterior inferior cerebellar artery; 5 of 9 medial-branch infarcts reached the dorsolateral medulla, 4 presenting as Wallenberg syndrome.)
 - Amarenco P, Roullet E, Hommel M, Chaine P, Marteau R. Infarction in the territory of the medial branch of the posterior inferior cerebellar artery. J Neurol Neurosurg Psychiatry 1990;53:731–735.
+- Andersen G, Vestergaard K, Ingeman-Nielsen M, Jensen TS. Incidence of central post-stroke pain. Pain 1995;61:187–193.
 - Arboix A, Bell Y, García-Eroles L, Massons J, Comes E, Balcells M, Targa C. Clinical study of 35 patients with dysarthria-clumsy hand syndrome. J Neurol Neurosurg Psychiatry 2004;75:231–234.
 - Barer DH. The natural history and functional consequences of dysphagia after hemispheric stroke. J Neurol Neurosurg Psychiatry 1989;52:236–241.
 - Barow E, Pinnschmidt H, Boutitie F, Königsberg A, Ebinger M, Endres M, Fiebach JB, Fiehler J, Thijs V, Lemmens R, Muir KW, Nighoghossian N, Pedraza S, Simonsen CZ, Gerloff C, Thomalla G, Cheng B; WAKE-UP investigators. Symptoms and probabilistic anatomical mapping of lacunar infarcts. Neurol Res Pract 2020;2:21.
@@ -84,6 +86,9 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Donnan GA, O'Malley HM, Quang L, Hurley S, Bladin PF. The capsular warning syndrome: pathogenesis and clinical features. Neurology 1993;43:957–962.
 - Feinberg TE, Schindler RJ, Flanagan NG, Haber LD. Two alien hand syndromes. Neurology 1992;42:19–24.
 - Fisher CM. Ataxic hemiparesis. A pathologic study. Arch Neurol 1978;35:126–128.
+- Forster A, Young J. Incidence and consequences of falls due to stroke: a systematic inquiry. BMJ 1995;311:83–86.
+- Galovic M et al. Prediction of late seizures after ischaemic stroke with a novel prognostic model (the SeLECT score): a multivariable prediction model development and validation study. Lancet Neurol 2018;17:143–152.
+- Garcia-Larrea L, Perchet C, Creac'h C, Convers P, Peyron R, Laurent B, Mauguière F, Magnin M. Operculo-insular pain (parasylvian pain): a distinct central pain syndrome. Brain 2010;133:2528–2539. (5 of 270; text only.)
 - Ghika-Schmid F, Ghika J, Regli F, Bogousslavsky J. Hyperkinetic movement disorders during and after acute stroke: the Lausanne Stroke Registry. J Neurol Sci 1997;146:109–116.
 - Gordon C, Hewer RL, Wade DT. Dysphagia in acute stroke. Br Med J (Clin Res Ed) 1987;295:411–414.
 - Gorman MJ, Dafer R, Levine SR. Ataxic hemiparesis: critical appraisal of a lacunar syndrome. Stroke 1998;29:2549–2555.
@@ -108,38 +113,54 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Kim JS. Delayed onset mixed involuntary movements after thalamic stroke: clinical, radiological and pathophysiological findings. Brain 2001;124:299–309.
 - Kim JS. Pure lateral medullary infarction: clinical-radiological correlation of 130 acute, consecutive patients. Brain 2003;126:1864–1872.
 - Kobayashi S, Suzuki K, Takekawa H, Watanabe Y, Okamura M, Suzuki A, Tsukui D, Hirata K. Bilateral medial medulla infarction mimicking Guillain-Barré syndrome and its variants. Brain Nerve 2020;72:901–905. (In Japanese; a case report.)
+- Krause T, Werner K, Fiebach JB, Villringer K, Piper SK, Haeusler KG, Endres M, Scheitz JF, Nolte CH. Stroke in right dorsal anterior insular cortex is related to myocardial injury. Ann Neurol 2017;81:502–511.
 - Kölmel HW. Complex visual hallucinations in the hemianopic field. J Neurol Neurosurg Psychiatry 1985;48:29–38.
 - Kumral E, Bayulkem G, Ataç C, Alper Y. Spectrum of superficial posterior cerebral artery territory infarcts. Eur J Neurol 2004;11:237–246.
 - Kumral E, Kisabay A, Ataç C, Calli C, Yunten N. Spectrum of the posterior inferior cerebellar artery territory infarcts. Clinical-diffusion-weighted imaging correlates. Cerebrovasc Dis 2005;20:370–380.
+- Langhorne P, Stott DJ, Robertson L, MacDonald J, Jones L, McAlpine C, Dick F, Taylor GS, Murray G. Medical complications after stroke: a multicenter study. Stroke 2000;31:1223–1229.
+- Laowattana S, Zeger SL, Lima JA, Goodman SN, Wittstein IS, Oppenheimer SM. Left insular stroke is associated with adverse cardiac outcome. Neurology 2006;66:477–483.
 - Lee H, Baloh RW. Sudden deafness in vertebrobasilar ischemia: clinical features, vascular topographical patterns and long-term outcome. J Neurol Sci 2005;228:99–104.
 - Lee H, Kim JS, Chung EJ, Yi HA, Chung IS, Lee SR, Shin JY. Infarction in the territory of anterior inferior cerebellar artery: spectrum of audiovestibular loss. Stroke 2009;40:3745–3751.
 - Lee H, Sohn SI, Cho YW, Lee SR, Ahn BH, Park BR, Baloh RW. Cerebellar infarction presenting isolated vertigo: frequency and vascular topographical patterns. Neurology 2006;67:1178–1183.
+- Lindgren I, Jönsson AC, Norrving B, Lindgren A. Shoulder pain after stroke: a prospective population-based study. Stroke 2007;38:343–348.
+- MacGowan DJ, Janal MN, Clark WC, Wharton RN, Lazar RM, Sacco RL, Mohr JP. Central poststroke pain and Wallenberg's lateral medullary infarction: frequency, character, and determinants in 63 patients. Neurology 1997;49:120–125.
 - Marinković SV, Milisavljević MM, Lolić-Draganić V, Kovačević MS. Distribution of the occipital branches of the posterior cerebral artery. Correlation with occipital lobe infarcts. Stroke 1987;18:728–732.
 - Martí-Vilalta JL, Arboix A, Garcia JH. Brain infarcts in the arterial border zones: clinical-pathologic correlations. J Stroke Cerebrovasc Dis 1994;4:114–120.
 - Martino R, Foley N, Bhogal S, Diamant N, Speechley M, Teasell R. Dysphagia after stroke: incidence, diagnosis, and pulmonary complications. Stroke 2005;36:2756–2763.
+- Mohan KM, Wolfe CD, Rudd AG, Heuschmann PU, Kolominsky-Rabas PL, Grieve AP. Risk and cumulative risk of stroke recurrence: a systematic review and meta-analysis. Stroke 2011;42:1489–1494.
 - Mort DJ, Malhotra P, Mannan SK, Rorden C, Pambakian A, Kennard C, Husain M. The anatomy of visual neglect. Brain 2003;126:1986–1997.
 - Moulin T, Bogousslavsky J, Chopard JL, Ghika J, Crépin-Leblond T, Martin V, Maeder P. Vascular ataxic hemiparesis: a re-evaluation. J Neurol Neurosurg Psychiatry 1995;58:422–427.
+- Nasreddine ZS, Saver JL. Pain after thalamic stroke: right diencephalic predominance and clinical features in 180 patients. Neurology 1997;48:1196–1199. (Pooled published cases: the right-sided excess may partly be reporting bias.)
 - Nestmann S, Karnath HO, Rennig J. Hemifield-specific color perception deficits after unilateral V4α lesions. Cortex 2021;142:357–369.
 - Norrving B, Cronqvist S. Lateral medullary infarction: prognosis in an unselected series. Neurology 1991;41:244–248.
 - Ogawa K, Suzuki Y, Takahashi K, Akimoto T, Kamei S, Soma M. Clinical study of seven patients with infarction in territories of the anterior inferior cerebellar artery. J Stroke Cerebrovasc Dis 2017;26:574–581.
 - Palomeras E, Fossas P, Cano AT, Sanz P, Floriach M. Anterior choroidal artery infarction: a clinical, etiologic and prognostic study. Acta Neurol Scand 2008;118:42–47.
 - Pashek GV, Holland AL. Evolution of aphasia in the first year post-onset. Cortex 1988;24:411–423.
+- Patel M, Coshall C, Rudd AG, Wolfe CD. Natural history and effects on 2-year outcomes of urinary incontinence after stroke. Stroke 2001;32:122–127.
 - Paul NL, Simoni M, Chandratheva A, Rothwell PM. Population-based study of capsular warning syndrome and prognosis after early recurrent TIA. Neurology 2012;79:1356–1362.
 - Paulson HL, Galetta SL, Grossman M, Alavi A. Hemiachromatopsia of unilateral occipitotemporal infarcts. Am J Ophthalmol 1994;118:518–523.
 - Pongmoragot J, Parthasarathy S, Selchen D, Saposnik G. Bilateral medial medullary infarction: a systematic review. J Stroke Cerebrovasc Dis 2013;22:775–780.
 - Postuma RB, Lang AE. Hemiballism: revisiting a classic disorder. Lancet Neurol 2003;2:661–668.
+- Prosser J, MacGregor L, Lees KR, Diener HC, Hacke W, Davis S; VISTA Investigators. Predictors of early cardiac morbidity and mortality after ischemic stroke. Stroke 2007;38:2295–2302.
 - Ringman JM, Saver JL, Woolson RF, Clarke WR, Adams HP. Frequency, risk factors, anatomy, and course of unilateral neglect in an acute stroke cohort. Neurology 2004;63:468–474.
 - Sacco RL, Freddo L, Bello JA, Odel JG, Onesti ST, Mohr JP. Wallenberg's lateral medullary syndrome. Clinical-magnetic resonance imaging correlations. Arch Neurol 1993;50:609–614.
 - Sage JI, Van Uitert RL. Man-in-the-barrel syndrome. Neurology 1986;36:1102–1103.
 - Saito T, Itabashi R, Kawabata Y, Yazawa Y. Clinical characteristics of patients with lateral medullary infarction who had fatal respiratory failure. J Neurol Sci 2022;434:120167.
 - Saposnik G, Noel de Tilly L, Caplan LR. Pontine warning syndrome. Arch Neurol 2008;65:1375–1377.
+- Scheitz JF, Nolte CH, Doehner W, Hachinski V, Endres M. Stroke-heart syndrome: clinical presentation and underlying mechanisms. Lancet Neurol 2018;17:1109–1120.
 - Schmahmann JD, Sherman JC. The cerebellar cognitive affective syndrome. Brain 1998;121:561–579.
+- Sommerfeld DK, Eek EU, Svensson AK, Holmqvist LW, von Arbin MH. Spasticity after stroke: its occurrence and association with motor impairments and activity limitations. Stroke 2004;35:134–139.
+- Sposato LA, Cipriano LE, Saposnik G, Ruíz Vargas E, Riccio PM, Hachinski V. Diagnosis of atrial fibrillation after stroke and transient ischaemic attack: a systematic review and meta-analysis. Lancet Neurol 2015;14:377–387.
 - Suntrup S, Kemmling A, Warnecke T, Hamacher C, Oelenberg S, Niederstadt T, Heindel W, Wiendl H, Dziewas R. The impact of lesion location on dysphagia incidence, pattern and complications in acute stroke. Part 1: dysphagia incidence, severity and aspiration. Eur J Neurol 2015;22:832–838.
 - Takano K, Takasugi K. A case of bilateral lower pons-medial medullary infarction presenting quadriparesis. No To Shinkei 2003;55:879–883. (In Japanese; a case report.)
 - Tatemichi TK, Desmond DW, Prohovnik I, Cross DT, Gropen TI, Mohr JP, Stern Y. Confusion and memory loss from capsular genu infarction: a thalamocortical disconnection syndrome? Neurology 1992;42:1966–1979.
 - Uemura M, Naritomi H, Uno H, Umesaki A, Miyashita K, Toyoda K, Minematsu K, Nagatsuka K. Ipsilateral hemiparesis in lateral medullary infarction: clinical investigation of the lesion location on magnetic resonance imaging. J Neurol Sci 2016;365:40–45. (Opalski variant.)
+- Urban PP, Wolf T, Uebele M, Marx JJ, Vogt T, Stoeter P, Bauermann T, Weibrich C, Vucurevic GD, Schneider A, Wissel J. Occurence and clinical predictors of spasticity after ischemic stroke. Stroke 2010;41:2016–2020.
 - Vynckier J, Maamari B, Grunder L, Goeldlin MB, Meinel TR, Kaesmacher J, Hakim A, Arnold M, Gralla J, Seiffge DJ, Fischer U. Early neurologic deterioration in lacunar stroke: clinical and imaging predictors and association with long-term outcome. Neurology 2021;97:e1437–e1446.
 - Watson RT, Heilman KM. Callosal apraxia. Brain 1983;106:391–403.
+- Weaver NA et al. Strategic infarct locations for post-stroke cognitive impairment: a pooled analysis of individual patient data from 12 acute ischaemic stroke cohorts. Lancet Neurol 2021;20:448–459.
+- Weaver NA et al. Strategic infarct locations for poststroke depressive symptoms: a lesion- and disconnection-symptom mapping study. Biol Psychiatry Cogn Neurosci Neuroimaging 2023;8:387–396.
+- Wissel J, Schelosky LD, Scott J, Christe W, Faiss JH, Mueller J. Early development of spasticity following stroke: a prospective, observational trial. J Neurol 2010;257:1067–1072.
 - Zhang X, Kedar S, Lynn MJ, Newman NJ, Biousse V. Homonymous hemianopias: clinical-anatomic correlations in 904 cases. Neurology 2006;66:906–910.
 
 ### 血流、組織與臨床模型 · Flow, tissue and clinical model
@@ -253,6 +274,15 @@ Shown as population figures next to the outcome, never as symptoms of the simula
 - Kim JS. Delayed onset mixed involuntary movements after thalamic stroke: clinical, radiological and pathophysiological findings. Brain 2001;124:299–309.
 - Bogousslavsky J, Regli F, Uske A. Thalamic infarcts: clinical syndromes, etiology, and prognosis. Neurology 1988;38:837–848.
 - Bhatia KP, Marsden CD. The behavioural and motor consequences of focal lesions of the basal ganglia in man. Brain 1994;117:859–876.
+- Amarenco P et al. One-year risk of stroke after transient ischemic attack or minor stroke. N Engl J Med 2016;374:1533–1542.
+- Forster A, Young J. Incidence and consequences of falls due to stroke: a systematic inquiry. BMJ 1995;311:83–86.
+- Langhorne P, Stott DJ, Robertson L, MacDonald J, Jones L, McAlpine C, Dick F, Taylor GS, Murray G. Medical complications after stroke: a multicenter study. Stroke 2000;31:1223–1229.
+- Lindgren I, Jönsson AC, Norrving B, Lindgren A. Shoulder pain after stroke: a prospective population-based study. Stroke 2007;38:343–348.
+- Mohan KM, Wolfe CD, Rudd AG, Heuschmann PU, Kolominsky-Rabas PL, Grieve AP. Risk and cumulative risk of stroke recurrence: a systematic review and meta-analysis. Stroke 2011;42:1489–1494.
+- Patel M, Coshall C, Rudd AG, Wolfe CD. Natural history and effects on 2-year outcomes of urinary incontinence after stroke. Stroke 2001;32:122–127.
+- Weaver NA et al. Strategic infarct locations for post-stroke cognitive impairment: a pooled analysis of individual patient data from 12 acute ischaemic stroke cohorts. Lancet Neurol 2021;20:448–459.
+- Weaver NA et al. Strategic infarct locations for poststroke depressive symptoms: a lesion- and disconnection-symptom mapping study. Biol Psychiatry Cogn Neurosci Neuroimaging 2023;8:387–396.
+- Martino R, Foley N, Bhogal S, Diamant N, Speechley M, Teasell R. Dysphagia after stroke: incidence, diagnosis, and pulmonary complications. Stroke 2005;36:2756–2763.
 
 ## 參考的開源專案（未複製程式碼）· Open-source projects consulted (no code copied)
 

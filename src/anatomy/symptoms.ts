@@ -246,9 +246,13 @@ export const SYMPTOMS: SymptomDef[] = [
   {
     id: 'incontinence',
     name: { zh: '尿失禁', en: 'Urinary incontinence' },
+    // Patel M et al. Stroke 2001;32:122-127 (PMID 11136926): 40 % at about 10 days, 19 % at 3
+    // months; linked to age > 75, dysphagia, weakness and field defects, less after lacunar
+    // infarcts. That non-localising risk is an Outcome entry (postStrokeRisks.ts); this symptom is
+    // the specific medial frontal cause. C10-F6
     desc: {
-      zh: '內側額葉的排尿控制中樞受損。',
-      en: 'The medial frontal micturition control area is affected.',
+      zh: '內側額葉的排尿控制中樞受損時，會無法憋尿、來不及上廁所。這是一個特定的原因；中風後大多數的尿失禁與病灶位置無關，而與中風的嚴重度、年齡、行動不便有關（中風約 10 天時 40%，3 個月時 19%；見「最終」頁）。',
+      en: 'When the medial frontal micturition control area is damaged, the person cannot hold urine or reach the toilet in time. This is one specific cause; most incontinence after a stroke is not tied to the lesion site but to how severe the stroke is, age and immobility (40 % at about 10 days, 19 % at 3 months; see the Outcome tab).',
     },
     system: 'autonomic',
     lateralised: false,
@@ -301,16 +305,23 @@ export const SYMPTOMS: SymptomDef[] = [
   // involuntary movements (hemichorea–hemiballism, dystonia) follow about 1 % of strokes, so they
   // are not a symptom here but a figure with the problems after stroke (postStrokeRisks.ts, C6-F3)
   {
+    // Sommerfeld DK et al. Stroke 2004;35:134-139 (PMID 14684785): 19 % of 95 first strokes at 3
+    // months. Urban PP et al. Stroke 2010;41:2016-2020 (PMID 20705930): 42.6 % of patients with a
+    // central paresis at 6 months, severe (MAS >= 3) in 15.6 %, predicted by severe paresis and
+    // hemihypesthesia at onset — so severity 2 only with severe early weakness or sensory loss on
+    // that side, otherwise 1 (clinical.ts; C10-F1). Wissel J et al. J Neurol 2010;257:1067-1072
+    // (PMID 20140444): increased tone within 2 weeks in 24.5 % — hence the 2-week onset (C10-F2).
     id: 'spasticity',
     name: { zh: '肌肉痙攣、僵硬（數週後）', en: 'Spasticity (weeks later)' },
     desc: {
-      zh: '運動路徑受損後，數週到數月逐漸出現肌張力增加與攣縮。',
-      en: 'After motor pathway damage, increased tone and contractures develop over weeks to months.',
+      zh: '運動路徑受損後，數週到數月逐漸出現肌張力增加與攣縮。不是每個人都會：中風後 3 個月約 19%，有肢體無力的人 6 個月時約 43%（嚴重的約 16%）；早期無力很嚴重或半身感覺減退的人較容易出現，也較嚴重。約四分之一在 2 週內就出現肌張力增加。',
+      en: 'After motor pathway damage, increased tone and contractures develop over weeks to months. Not everyone gets it: about 19 % of people 3 months after a stroke, and about 43 % of those with a weak limb at 6 months (severe in about 16 %); it is commoner and worse after severe early weakness or loss of sensation on that side. About a quarter show increased tone within 2 weeks.',
     },
     system: 'motor',
     lateralised: true,
     sideWord: 'body',
     delayed: true,
+    onsetH: 336,
   },
 
   // ── Sensory ──────────────────────────────────────────────────────
@@ -405,16 +416,43 @@ export const SYMPTOMS: SymptomDef[] = [
     sideWord: 'body',
   },
   {
+    // A possible late consequence, not a certainty (C10-F1): Nasreddine ZS, Saver JL. Neurology
+    // 1997;48:1196-1199 (PMID 9153442: 14 % after any thalamic stroke, 24 % after a
+    // geniculothalamic one; 114 right vs 66 left among published cases — reporting bias possible;
+    // onset in the first week in 36 %); MacGowan DJ et al. Neurology 1997;49:120-125 (PMID
+    // 9222179: 25 % after a lateral medullary infarct, all within 6 months); Andersen G et al. Pain
+    // 1995;61:187-193 (PMID 7659428: 8 % of all strokes in the first year). Operculo-insular pain
+    // is described in 5 of 270 patients examined for sensory problems (Garcia-Larrea L et al. Brain
+    // 2010;133:2528-2539, PMID 20724291); the model's insula is one region, so it is text only
+    // (C10-F3). Listed from 2 weeks (`onsetH`), with its cascade event (C10-F2).
     id: 'central_pain',
-    name: { zh: '中樞性中風後疼痛（數週至數月後）', en: 'Central post-stroke pain (weeks–months later)' },
+    name: { zh: '可能出現的中樞性中風後疼痛（數週至數月後）', en: 'Possible central post-stroke pain (weeks–months later)' },
     desc: {
-      zh: '感覺路徑受損後出現燒灼、刺痛的慢性疼痛，典型見於視丘（Dejerine–Roussy）或延髓外側。',
-      en: 'Burning, lancinating chronic pain after sensory pathway damage, classically thalamic (Dejerine–Roussy) or lateral medullary.',
+      zh: '感覺路徑受損後，原本麻木的地方可能出現燒灼、刺痛或一碰就痛的慢性疼痛。不是每個人都會：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一，延髓外側梗塞後約四分之一（6 個月內出現），所有中風合計一年內約 8%。已發表的視丘痛病例中右側病灶較多（可能有報告偏差）；約三分之一在第一週就開始，其他在幾週到幾個月後。後島葉與頂葉島蓋內側的病灶也可能造成，但很少見。這裡列出的是「可能」，不是預測。',
+      en: 'After sensory pathway damage, the numb area can develop burning, lancinating or touch-evoked chronic pain. Not everyone gets it: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic (lateral thalamic) territory, about 1 in 4 after a lateral medullary infarct (within 6 months), and about 8 % of all strokes within a year. Among published thalamic cases right-sided lesions are more frequent (possibly reporting bias); about a third start in the first week, the rest weeks to months later. Lesions of the posterior insula and inner parietal operculum can cause it too, rarely. It is listed as possible, not predicted.',
     },
     system: 'sensory',
     lateralised: true,
     sideWord: 'body',
     delayed: true,
+    onsetH: 336,
+  },
+  {
+    // MacGowan DJ et al. Neurology 1997;49:120-125 (PMID 9222179): after a lateral medullary
+    // infarct, central pain most often affected the face around the eye on the side of the
+    // infarct, alone or with the opposite limbs; 2 of 63 developed facial ulceration on that side.
+    // C10-F3
+    id: 'central_pain_face',
+    name: { zh: '可能出現的臉部中樞性疼痛（眼睛周圍，數週至數月後）', en: 'Possible central facial pain (around the eye, weeks–months later)' },
+    desc: {
+      zh: '延髓外側梗塞後，約四分之一的人在 6 個月內出現中樞性疼痛，最常在病灶同側的眼睛周圍（額頭、眼眶），燒灼或刺痛，可以單獨出現，也可以合併對側手腳的疼痛；少數人因為那一側臉部沒有感覺又疼痛而抓出潰瘍。這裡列出的是「可能」，不是預測。',
+      en: 'After a lateral medullary infarct about 1 in 4 develop central pain within 6 months, most often around the eye (forehead, orbit) on the side of the infarct — burning or stabbing, alone or together with pain in the opposite arm and leg; a few develop ulcers of that numb, painful side of the face. It is listed as possible, not predicted.',
+    },
+    system: 'sensory',
+    lateralised: true,
+    sideWord: 'body',
+    delayed: true,
+    onsetH: 336,
   },
 
   // ── Vision ───────────────────────────────────────────────────────
@@ -996,8 +1034,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'emotional',
     name: { zh: '情緒改變', en: 'Emotional change' },
     desc: {
-      zh: '邊緣系統（扣帶迴、杏仁核、顳極）受損後的冷漠、焦慮等情緒變化；小腦蚓部受損也可能讓情感變得平淡，或言行失當（小腦認知情感症候群）。突然停不下來的哭或笑另列為「病理性哭笑」。',
-      en: 'Apathy, anxiety and similar changes in mood after damage to the limbic system (cingulate, amygdala, temporal pole); damage to the cerebellar vermis can also blunt the affect or make behaviour disinhibited (cerebellar cognitive affective syndrome). Sudden crying or laughing that cannot be stopped is listed separately as pathological crying or laughing.',
+      zh: '邊緣系統（扣帶迴、杏仁核、顳極）受損後的冷漠、情感平淡等情緒變化；小腦蚓部受損也可能讓情感變得平淡，或言行失當（小腦認知情感症候群）。突然停不下來的哭或笑另列為「病理性哭笑」。中風後的焦慮很常見，但回顧研究沒有把它歸因於特定病灶位置，所以列在「最終」頁的族群數字裡。',
+      en: 'Apathy, blunted feelings and similar changes in mood after damage to the limbic system (cingulate, amygdala, temporal pole); damage to the cerebellar vermis can also blunt the affect or make behaviour disinhibited (cerebellar cognitive affective syndrome). Sudden crying or laughing that cannot be stopped is listed separately as pathological crying or laughing. Anxiety after a stroke is common but not tied to a lesion site by the reviews, so it is a population figure on the Outcome tab.',
     },
     system: 'mood',
     lateralised: false,
@@ -1010,17 +1048,22 @@ export const SYMPTOMS: SymptomDef[] = [
     // also 55 % after medullary lesions — not modelled, the mechanism is unclear).
     // Kim JS. J Neurol 2002;249:805–810 (52 % after small lenticulocapsular strokes; dorsal pallidum).
     // House A et al. BMJ 1989;298:991–994 (15 % at 1 month, 21 % at 6, 11 % at 12; not mostly
-    // bilateral; episodes provoked by real emotional cues).
+    // bilateral; almost all episodes provoked by clearly identified, appropriate emotional
+    // experiences; linked to left frontal and temporal lesions — Kim & Choi-Kwon found none after
+    // temporal ones, so only the frontal MCA cortex is mapped, C10-F8).
     // Sacco S et al. Arch Phys Med Rehabil 2008;89:775–778 (locked-in syndrome — 4 cases).
+    // Onset: within the first month (House: 15 % at 1 month; Gillespie 2016: 17 % within the
+    // first month) — listed from about 3 weeks (`onsetH`, illustrative). C10-F2
     id: 'emotionalism',
     name: { zh: '病理性哭笑（情緒失禁）', en: 'Pathological crying or laughing (emotionalism)' },
     desc: {
-      zh: '突然哭出來（較少是笑）、停不下來，強度遠超過當下的感受；常被一點小事（一句關心、一個悲傷的畫面）引發。中風後幾週到幾個月常見，與豆狀核—內囊、橋腦腹側與額葉的病灶有關；兩側橋腦腹側受損（閉鎖症候群）時特別明顯。常隨時間減輕。',
-      en: 'Sudden bouts of crying (less often laughing) that are hard to stop and far stronger than what the person feels, often set off by something small — a kind word, a sad picture. Common in the weeks to months after a stroke and linked to lesions of the lentiform nucleus and internal capsule, the ventral pons and the frontal lobe; especially marked when the ventral pons is damaged on both sides (locked-in syndrome). It often lessens over time.',
+      zh: '突然哭出來（較少是笑）、很難停下來。通常是被真實的情緒線索引發（一句關心、一個悲傷的畫面），但反應的強度和持續時間與當下的感受不成比例，也控制不住。中風後幾週到幾個月常見，與豆狀核—內囊、橋腦腹側與額葉（包括中大腦動脈供應的額葉）的病灶有關；兩側橋腦腹側受損（閉鎖症候群）時特別明顯。常隨時間減輕。',
+      en: 'Sudden bouts of crying (less often laughing) that are hard to stop. They usually follow a real emotional cue — a kind word, a sad picture — but are out of proportion to it, last longer than the feeling and cannot be held back. Common in the weeks to months after a stroke and linked to lesions of the lentiform nucleus and internal capsule, the ventral pons and the frontal lobe (including its MCA-supplied part); especially marked when the ventral pons is damaged on both sides (locked-in syndrome). It often lessens over time.',
     },
     system: 'mood',
     lateralised: false,
     delayed: true,
+    onsetH: 504,
   },
 
   // ── Sleep & breathing in sleep ───────────────────────────────────
@@ -1042,25 +1085,14 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: false,
     delayed: true,
   },
-  {
-    // Loss of REM-sleep atonia. Evidence is thin, hence severity 1 everywhere (regions.ts):
-    // case reports (Kimura K et al. Neurology 2000;55:894–895; Xi Z, Luning W. Sleep Med
-    // 2009;10:143–146 — a unilateral paramedian pontine tegmental lacune), a questionnaire study
-    // at 3 months (Tang WK et al. BMC Neurol 2014;14:88 — brainstem infarcts predicted RBD, OR 3.7)
-    // and lesion network mapping of 25 published cases (Odd H et al. Neuroimage Clin
-    // 2025;45:103751 — along the tract from the rostral locus coeruleus to the medulla). Against:
-    // Tellenbach N et al. J Sleep Res 2023;32:e13640 (15 brainstem strokes on polysomnography:
-    // less, not more, muscle activity in REM sleep).
-    id: 'rbd',
-    name: { zh: '快速動眼期睡眠行為障礙（夢境演出）', en: 'REM sleep behaviour disorder (acting out dreams)' },
-    desc: {
-      zh: '做夢（快速動眼期）時肌肉本該放鬆不動；負責這件事的橋腦被蓋路徑受損後，肌肉仍會動，人可能在夢中說話、大叫、揮拳或踢腳，傷到自己或枕邊人。中風後並不常見：證據來自個案報告、一項 3 個月時的問卷研究與病灶網路分析，而一項腦幹中風的睡眠檢查研究並沒有看到這種現象。',
-      en: 'During dreaming (REM) sleep the muscles are normally switched off; when the pontine tegmental pathway that does this is damaged they are not, and the person may talk, shout, punch or kick while dreaming and hurt themselves or a bed partner. Uncommon after stroke: the evidence comes from case reports, a questionnaire study at 3 months and a lesion-network analysis, while a sleep-laboratory study of brainstem strokes did not find it.',
-    },
-    system: 'sleep',
-    lateralised: false,
-    delayed: true,
-  },
+  // REM sleep behaviour disorder is not a symptom of any one site: the questionnaire study that
+  // links it to brainstem infarcts found it after ventral pontine and medullary lesions and none
+  // in the tegmentum (Tang WK et al. BMC Neurol 2014;14:88, PMID 24758223: 6 of 27 — 5 ventral
+  // pontine, 1 medullary), polysomnography found less, not more, muscle activity in REM sleep
+  // (Tellenbach N et al. J Sleep Res 2023;32:e13640, PMID 35609965), and lesion network mapping
+  // points to a tract from the locus coeruleus to the medulla (Odd H et al. Neuroimage Clin
+  // 2025;45:103751, PMID 39954565). It is a possible late problem of any pontine or medullary
+  // infarct, shown as an information event (cascade.ts, C10-F7).
   {
     // Central sleep apnoea after a ONE-sided lateral medullary infarct. The severe form —
     // automatic breathing failing outright (Ondine's curse) — can follow one side too: the cascade
@@ -1089,8 +1121,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'autonomic_cardiac',
     name: { zh: '心律不整、自主神經失調', en: 'Arrhythmia / autonomic instability' },
     desc: {
-      zh: '島葉（尤其右側）與延髓參與心臟自主神經控制，中風後可能出現心律不整、血壓波動。延髓外側梗塞後，檢查常發現調節心跳的迷走神經（副交感）功能變差（一項研究 25 人中 14 人，對照組 29 人中 4 人），與病灶偏向延髓腹側有關。',
-      en: 'The insula (especially right) and medulla regulate cardiac autonomic tone; arrhythmias and blood-pressure swings can follow. After a lateral medullary infarct, testing often shows reduced vagal (parasympathetic) control of the heart rate (14 of 25 patients against 4 of 29 controls in one study), linked to involvement of the ventral medulla.',
+      zh: '島葉與延髓參與心臟自主神經控制，中風後可能出現心律不整、血壓波動。哪一側的島葉比較重要，證據不一致：右側背前島葉與心肌旋轉蛋白（troponin）上升有關，左側島葉與之後一年的心臟事件有關。延髓外側梗塞後，檢查常發現調節心跳的迷走神經（副交感）功能變差（一項研究 25 人中 14 人，對照組 29 人中 4 人），與病灶偏向延髓腹側有關。',
+      en: 'The insula and medulla regulate cardiac autonomic tone; arrhythmias and blood-pressure swings can follow. Which insula matters more is not settled: the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year. After a lateral medullary infarct, testing often shows reduced vagal (parasympathetic) control of the heart rate (14 of 25 patients against 4 of 29 controls in one study), linked to involvement of the ventral medulla.',
     },
     // Hong JM et al. Neurol Sci 2013;34:1963–1969 (PMID 23543393): heart-rate-variability testing,
     // no arrhythmia rate (C7-F1)
@@ -1173,16 +1205,19 @@ export const SYMPTOMS: SymptomDef[] = [
     // Wanklyn P et al. Stroke 1994;25:1765–1770 (symptomatic cold hemiplegic hand: lower finger
     // temperature, 35 % less hand blood flow).
     // Wanklyn P et al. Stroke 1995;26:1867–1870 (53 % of 75 at ≥ 12 months; median onset 1 month).
+    // The felt coldness is listed from 1 month (`onsetH`, C10-F2); the measured cooling from the
+    // first days, and the warmer arm of earlier studies (Wanklyn 1994), are in the text.
     id: 'cold_limb',
     name: { zh: '手腳發冷（數週後）', en: 'Cold arm and leg (weeks later)' },
     desc: {
-      zh: '癱瘓那一側的手腳皮膚溫度較低、摸起來冰冷，手部血流也減少；常在中風後約一個月開始、可持續一年以上，有些人覺得很困擾。與運動路徑受損（調節皮膚血管的自主神經可能跟著受影響）有關，延髓外側中風則出現在病灶對側。這是血管調節的改變，和感覺不到冷熱的「溫度覺喪失」不同。',
-      en: 'The skin of the arm and leg on the paralysed side is cooler and feels cold, with less blood flow to the hand; it often starts about a month after the stroke, can last more than a year and troubles some people a lot. Linked to damage of the motor pathways (probably because the autonomic control of skin blood vessels is affected with them) and, after a lateral medullary stroke, found on the side opposite the lesion. This is a change in blood-vessel control, not the loss of temperature sensation.',
+      zh: '癱瘓那一側的手腳皮膚溫度較低、摸起來冰冷，手部血流也減少；常在中風後約一個月開始覺得冷（中位數 1 個月）、可持續一年以上，有些人覺得很困擾。用儀器測量，從中風後最初幾天起到 6 個月，對側的手腳就已經比較涼；較早的研究則多半發現癱瘓的手臂比較溫暖。與運動路徑受損（調節皮膚血管的自主神經可能跟著受影響）有關，延髓外側中風則出現在病灶對側。這是血管調節的改變，和感覺不到冷熱的「溫度覺喪失」不同。',
+      en: 'The skin of the arm and leg on the paralysed side is cooler and feels cold, with less blood flow to the hand; the coldness is often first felt about a month after the stroke (the median), can last more than a year and troubles some people a lot. Measured with instruments, the limbs on the opposite side are already cooler from the first days to 6 months; earlier studies mostly found the paralysed arm warmer. Linked to damage of the motor pathways (probably because the autonomic control of skin blood vessels is affected with them) and, after a lateral medullary stroke, found on the side opposite the lesion. This is a change in blood-vessel control, not the loss of temperature sensation.',
     },
     system: 'thermo',
     lateralised: true,
     sideWord: 'body',
     delayed: true,
+    onsetH: 720,
   },
 
   {
@@ -1212,3 +1247,9 @@ export const SYMPTOMS: SymptomDef[] = [
 ];
 
 export const SYMPTOM_BY_ID: Record<string, SymptomDef> = indexById(SYMPTOMS, (s) => s.id);
+
+/** when a `delayed` symptom without its own `onsetH` appears (hours after onset) */
+export const DELAYED_ONSET_H = 336;
+
+/** hours after onset from which a symptom can be listed (0: from the start) */
+export const symptomOnsetH = (def: SymptomDef): number => def.onsetH ?? (def.delayed ? DELAYED_ONSET_H : 0);

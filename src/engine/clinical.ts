@@ -5,7 +5,7 @@
 import { REGIONS, REGION_BY_ID } from '../anatomy';
 import type { DeficitRef, NihssItem, Region, Side } from '../anatomy';
 import { REGION_DEFS } from '../anatomy/regions';
-import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
+import { SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
 import { indexById } from '../anatomy/indexById';
 import { lesionSides, symptomCompensation } from './recovery';
@@ -52,7 +52,6 @@ const DYS_THR = 0.25;
  * is exactly at the threshold (e.g. one quarter-share artery lost) must not flicker on and off
  * with floating-point rounding */
 const reaches = (x: number | undefined, thr = DYS_THR) => (x ?? 0) >= thr - 1e-6;
-const DELAY_H = 336;
 /** a deficit compensated below this (continuous) severity is no longer noticeable */
 const COMPENSATED_OUT = 0.35;
 
@@ -106,6 +105,17 @@ const aphasiaType = (f: { nonfluent?: boolean; comprehension?: boolean; repetiti
 /** aphasia types whose patient does not comprehend well (NIHSS 1b, 1c and 7; Gerstmann testing) */
 export const POOR_COMPREHENSION_APHASIA = ['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'];
 const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_scotoma'];
+/**
+ * Spasticity grading (C10-F1). Spasticity was present in 42.6 % of patients with a central paresis
+ * at 6 months, severe in 15.6 %, and predicted by a severe paresis and hemihypesthesia at onset
+ * (Urban PP et al. Stroke 2010;41:2016-2020, PMID 20705930; 19 % of all first strokes at 3 months:
+ * Sommerfeld DK et al. Stroke 2004;35:134-139, PMID 14684785). So it reaches severity 2 only on a
+ * body side that had a severe (severity-3) arm or leg weakness, or a hemisensory loss, early on;
+ * otherwise it stays mild (1). It is not capped by the later weakness (a modelling choice the
+ * evidence does not support), and does not fade (redundancy EXEMPT).
+ */
+const SPASTICITY_PARESIS = ['arm_weak', 'leg_weak', 'arm_weak_proximal'];
+const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
 
 export function aggregateSymptoms(
   regionDys: Record<string, number>,
@@ -121,6 +131,11 @@ export function aggregateSymptoms(
    * (anatomy/lacunes.ts): it replaces the region's deficits there
    */
   lacuneDeficits: Record<string, DeficitRef[]> = {},
+  /**
+   * the region dysfunction at onset (core + penumbra in the first hour; a lacune at its level),
+   * for what the early picture predicts (spasticity, C10-F1); left out, the levels at `tH` are used
+   */
+  acuteDys?: Record<string, number>,
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
@@ -141,6 +156,9 @@ export function aggregateSymptoms(
   const lesions = lesionSides(regionInf);
   /** the strongest region source of each aphasia component before compensation (for a global aphasia) */
   const aphasiaRaw = new Map<string, { raw: number; r: Region; level: number; inf: number }>();
+  /** per body side: the worst early limb weakness (before rounding) and any early hemisensory loss */
+  const earlyParesis: Record<Side, number> = { r: 0, l: 0 };
+  const earlySensory: Record<Side, boolean> = { r: false, l: false };
 
   for (const r of REGIONS) {
     const def = DEF_BY_BASE[r.baseId];
@@ -158,13 +176,22 @@ export function aggregateSymptoms(
       if (!sym) continue;
       if (d.only && r.side !== d.only) continue;
       if (d.spareInLacune && lacune) continue;
+      const paresis = SPASTICITY_PARESIS.includes(d.s);
+      if ((paresis || SPASTICITY_SENSORY.includes(d.s)) && r.side !== 'm' && !d.bilateralOnly) {
+        const early = acuteDys ? Math.max(acuteDys[r.id] ?? 0, inf) : Math.max(dys, inf);
+        if (reaches(early, Math.max(DYS_THR, d.minLevel ?? 0))) {
+          const bodySide = d.lat === 'ipsi' ? r.side : opp(r.side);
+          if (paresis) earlyParesis[bodySide] = Math.max(earlyParesis[bodySide], (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, early / 0.8)));
+          else earlySensory[bodySide] = true;
+        }
+      }
       const delayed = !!sym.delayed;
       const byInfarct = delayed || !!sym.fromInfarct;
       const level = byInfarct ? inf : dys;
       const thr = Math.max(DYS_THR, d.minLevel ?? 0);
       if (!reaches(level, thr)) continue;
-      if (delayed && tH < DELAY_H) continue;
-      if (sym.onsetH && tH < sym.onsetH) continue;
+      // each late symptom from its own onset (C10-F2)
+      if (tH < symptomOnsetH(sym)) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
@@ -233,6 +260,11 @@ export function aggregateSymptoms(
   for (const fs of ['r', 'l'] as Side[]) {
     if (get('visual_release_hallucinations', fs) && !map.has('cortical_blindness|') && !FIELD_DEFECTS.some((id) => get(id, fs)))
       del('visual_release_hallucinations', fs);
+  }
+  // spasticity is mild unless that side had a severe weakness or a hemisensory loss early (C10-F1)
+  for (const fs of ['r', 'l'] as Side[]) {
+    const sp = get('spasticity', fs);
+    if (sp && sp.sev > 1 && earlyParesis[fs] < 2.5 - 1e-9 && !earlySensory[fs]) sp.sev = 1;
   }
   // colour lost in the whole field takes in the half-field loss (C1-F8)
   if (map.has('achromatopsia|')) for (const fs of ['r', 'l'] as Side[]) del('hemiachromatopsia', fs);

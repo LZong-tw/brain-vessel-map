@@ -1,7 +1,8 @@
 /**
  * The common problems after stroke that the lesion site does not determine (depression, anxiety,
- * fatigue, insomnia, sleep apnoea, apathy, emotionalism, dementia), and the uncommon movement
- * disorders, as the Outcome tab shows them. Pure (no React, no store).
+ * fatigue, insomnia, sleep apnoea, apathy, emotionalism, dementia), the commonest complications
+ * (falls, shoulder pain, urinary incontinence, infections, a recurrent stroke) and the uncommon
+ * movement disorders, as the Outcome tab shows them. Pure (no React, no store).
  *
  * They are population figures from systematic reviews, never a prediction for the simulated case:
  * nothing here computes a probability for the case, and every figure shown is the review's own,
@@ -19,10 +20,10 @@
  */
 
 import { REGION_BY_ID } from '../anatomy';
-import type { L, Lang, RegionCategory, SymptomSystem } from '../anatomy';
-import { POST_STROKE_RISKS, type PostStrokeRisk } from '../anatomy/postStrokeRisks';
+import type { L, Lang, RegionCategory } from '../anatomy';
+import { POST_STROKE_RISKS, type PostStrokeRisk, type RiskGroupId } from '../anatomy/postStrokeRisks';
 import type { NihssResult } from '../engine/clinical';
-import type { SimResult } from '../engine/simulate';
+import { simulate, type SimResult } from '../engine/simulate';
 import { FINAL_REGION_MIN } from './finalOutcome';
 import { SYSTEM_ORDER, systemOf } from './format';
 
@@ -69,6 +70,17 @@ const MODERATE_OR_WORSE: ReadonlySet<NihssResult['category']> = new Set(['modera
 
 const hasLastingCognitive = (m6: SimResult) => m6.symptoms.some((s) => systemOf(s.id) === 'cognition');
 
+/** the order of the groups: the systems of the case's symptoms, then what belongs to none */
+export const RISK_GROUP_ORDER: RiskGroupId[] = [...SYSTEM_ORDER, 'general'];
+
+/** hours after the index onset at which the early picture is read (the predictors were recorded on admission) */
+export const EARLY_H = 24;
+/** the case one day after its index onset (the same input, so the engine's cache serves it) */
+export const earlyOf = (m6: SimResult): SimResult => simulate({ ...m6.input, tH: m6.schedule.onsetH + EARLY_H });
+const WEAKNESS = ['arm_weak', 'leg_weak', 'arm_weak_proximal'];
+const FIELD = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_scotoma', 'cortical_blindness'];
+const ARM = ['arm_weak', 'arm_weak_proximal'];
+
 /** basal ganglia and lateral thalamus (base ids), the sites of post-stroke movement disorders */
 const MOVEMENT_SITES = ['putamen', 'globus_pallidus', 'caudate_head', 'caudate_body', 'thalamus_ventrolateral', 'thalamus_posterior'];
 /** an infarcted share at which a region counts as part of the infarct (the symptom threshold) */
@@ -80,10 +92,39 @@ const DEAD = 0.25;
  *   • depression — stroke severity / disability and cognitive impairment (Ayerbe 2013);
  *   • apathy — cognitive impairment, more frequent in people with apathy (Caeiro 2013);
  *   • movement disorders — an infarct of the basal ganglia (Ghika-Schmid 1997) or of the lateral
- *     thalamus (Kim 2001).
+ *     thalamus (Kim 2001);
+ *   • shoulder pain — lost or impaired arm movement (Lindgren 2007): arm weakness at 6 months, or
+ *     a severe one early on;
+ *   • urinary incontinence — weakness with a visual field defect or dysphagia early on, not a
+ *     lacunar syndrome (Patel 2001);
+ *   • infections — dysphagia early on (pneumonia: Martino 2005).
+ * The early picture is the case one day after onset (`earlyOf`).
  */
 export function caseNotes(risk: PostStrokeRisk, m6: SimResult): L[] {
   const out: L[] = [];
+  if (risk.id === 'shoulder_pain') {
+    const early = earlyOf(m6);
+    if (m6.symptoms.some((s) => ARM.includes(s.id)) || early.symptoms.some((s) => s.id === 'arm_weak' && s.sev >= 3))
+      out.push({
+        zh: '此病例有手臂無力；手臂動作喪失或變差與較高的中風後肩膀痛風險相關。',
+        en: 'This case has arm weakness; lost or impaired arm movement is associated with a higher risk of shoulder pain.',
+      });
+  }
+  if (risk.id === 'incontinence') {
+    const early = earlyOf(m6);
+    const has = (ids: string[]) => early.symptoms.some((s) => ids.includes(s.id));
+    const lacunar = early.syndromes.some((m) => m.def.id.startsWith('lacunar_'));
+    if (has(WEAKNESS) && (has(FIELD) || has(['dysphagia'])) && !lacunar)
+      out.push({
+        zh: '此病例早期有肢體無力，加上視野缺損或吞嚥困難；這些都與較高的中風後尿失禁風險相關。',
+        en: 'Early on this case has limb weakness with a visual field defect or dysphagia; these are associated with a higher risk of incontinence after stroke.',
+      });
+  }
+  if (risk.id === 'infections' && earlyOf(m6).symptoms.some((s) => s.id === 'dysphagia'))
+    out.push({
+      zh: '此病例早期有吞嚥困難；吞嚥困難與較高的肺炎風險相關。',
+      en: 'Early on this case has dysphagia; dysphagia is associated with a higher risk of pneumonia.',
+    });
   if (risk.id === 'depression') {
     if (MODERATE_OR_WORSE.has(m6.nihss.category))
       out.push({
@@ -117,13 +158,13 @@ export interface RiskItem {
 }
 
 export interface RiskGroup {
-  system: SymptomSystem;
+  system: RiskGroupId;
   items: RiskItem[];
 }
 
-/** risks by system in the order the case's symptoms use (SYSTEM_ORDER), in data order within one */
+/** risks by system in the order the case's symptoms use (SYSTEM_ORDER, then `general`), in data order within one */
 export function groupRisks(risks: PostStrokeRisk[], m6?: SimResult): RiskGroup[] {
-  return SYSTEM_ORDER.map((system) => ({
+  return RISK_GROUP_ORDER.map((system) => ({
     system,
     items: risks.filter((r) => r.system === system).map((risk) => ({ risk, notes: m6 ? caseNotes(risk, m6) : [] })),
   })).filter((g) => g.items.length > 0);

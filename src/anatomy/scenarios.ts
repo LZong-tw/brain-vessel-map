@@ -219,8 +219,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: '左視丘膝狀體動脈：視丘感覺中風', en: 'Left thalamogeniculate: thalamic sensory stroke' },
     summary: {
-      zh: '右半身全部麻木；把時間拉到 1–3 個月，看中樞性疼痛如何出現。',
-      en: 'Numbness of the whole right side; move the timeline to 1–3 months to see central pain appear.',
+      zh: '右半身全部麻木。把時間拉到 2 週以後：這條動脈區的中風約四分之一會出現中樞性疼痛（任何視丘中風約七分之一），所以模型把它列為「可能出現」，而不是一定會發生。',
+      en: 'Numbness of the whole right side. Move the timeline beyond 2 weeks: about one in four develop central pain after a stroke in this artery\'s territory (about one in seven after any thalamic stroke), so the model lists it as possible rather than certain.',
     },
     occlusions: [{ vessel: 'thalamogeniculate_l', severity: 1 }],
     tH: 24,

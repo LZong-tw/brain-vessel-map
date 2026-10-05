@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { POST_STROKE_RISKS } from './postStrokeRisks';
 import { SCIENTIFIC_REFERENCES } from './sources';
-import type { L, SymptomSystem } from './types';
-import { SYSTEM_ORDER } from '../ui/format';
+import type { L } from './types';
+import { RISK_GROUP_ORDER } from '../ui/postStrokeRisks';
 import REFERENCES_MD from '../../REFERENCES.md?raw';
 
 const filled = (l: L) => l.zh.trim().length > 0 && l.en.trim().length > 0;
@@ -32,7 +32,7 @@ describe('POST_STROKE_RISKS', () => {
       expect(low).toBeLessThanOrEqual(value);
       expect(value).toBeLessThanOrEqual(high);
     }
-    expect(SYSTEM_ORDER as SymptomSystem[]).toContain(r.system);
+    expect(RISK_GROUP_ORDER).toContain(r.system);
     expect(r.typicalOnsetH).toBeGreaterThanOrEqual(0);
   });
 

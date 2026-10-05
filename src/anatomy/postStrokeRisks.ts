@@ -1,8 +1,9 @@
 /**
  * Problems that are common after a stroke but that the lesion site does not determine, or only
- * weakly: depression, anxiety, fatigue, insomnia, sleep-disordered breathing, apathy … — and an
- * uncommon one that a lesion site makes possible but cannot predict, the post-stroke movement
- * disorders (about 1 %; C6-F3).
+ * weakly: depression, anxiety, fatigue, insomnia, sleep-disordered breathing, apathy … — the
+ * commonest complications (falls, shoulder pain, urinary incontinence, infections, a recurrent
+ * stroke; C10-F4, F6) — and an uncommon one that a lesion site makes possible but cannot predict,
+ * the post-stroke movement disorders (about 1 %; C6-F3).
  *
  * The tissue model cannot tell who will develop them, so they are shown as population figures
  * beside the outcome — how often they occur after a stroke and what is known to raise the risk —
@@ -10,10 +11,16 @@
  */
 import type { L, SymptomSystem } from './types';
 
+/**
+ * where a risk is grouped: the function it belongs to (as the case's symptoms), or `general` for
+ * what belongs to no one function (infections, a recurrent stroke)
+ */
+export type RiskGroupId = SymptomSystem | 'general';
+
 export interface PostStrokeRisk {
   id: string;
-  /** the function it belongs to (for grouping with the case's symptoms) */
-  system: SymptomSystem;
+  /** the function it belongs to (for grouping with the case's symptoms), or `general` */
+  system: RiskGroupId;
   name: L;
   /** what it is, in plain language */
   desc: L;
@@ -57,6 +64,21 @@ const KIM_2001 = 'Kim JS. Delayed onset mixed involuntary movements after thalam
 const BOGOUSSLAVSKY_1988 = 'Bogousslavsky J, Regli F, Uske A. Thalamic infarcts: clinical syndromes, etiology, and prognosis. Neurology 1988;38:837–848.';
 const POSTUMA_2003 = 'Postuma RB, Lang AE. Hemiballism: revisiting a classic disorder. Lancet Neurol 2003;2:661–668.';
 const BHATIA_1994 = 'Bhatia KP, Marsden CD. The behavioural and motor consequences of focal lesions of the basal ganglia in man. Brain 1994;117:859–876.';
+// C10 (checked against the abstracts on PubMed)
+const LANGHORNE_2000 =
+  'Langhorne P, Stott DJ, Robertson L, MacDonald J, Jones L, McAlpine C, Dick F, Taylor GS, Murray G. Medical complications after stroke: a multicenter study. Stroke 2000;31:1223–1229.';
+const FORSTER_1995 = 'Forster A, Young J. Incidence and consequences of falls due to stroke: a systematic inquiry. BMJ 1995;311:83–86.';
+const LINDGREN_2007 = 'Lindgren I, Jönsson AC, Norrving B, Lindgren A. Shoulder pain after stroke: a prospective population-based study. Stroke 2007;38:343–348.';
+const MOHAN_2011 =
+  'Mohan KM, Wolfe CD, Rudd AG, Heuschmann PU, Kolominsky-Rabas PL, Grieve AP. Risk and cumulative risk of stroke recurrence: a systematic review and meta-analysis. Stroke 2011;42:1489–1494.';
+const AMARENCO_2016 = 'Amarenco P et al. One-year risk of stroke after transient ischemic attack or minor stroke. N Engl J Med 2016;374:1533–1542.';
+const PATEL_2001 = 'Patel M, Coshall C, Rudd AG, Wolfe CD. Natural history and effects on 2-year outcomes of urinary incontinence after stroke. Stroke 2001;32:122–127.';
+const MARTINO_2005 =
+  'Martino R, Foley N, Bhogal S, Diamant N, Speechley M, Teasell R. Dysphagia after stroke: incidence, diagnosis, and pulmonary complications. Stroke 2005;36:2756–2763.';
+const WEAVER_2021 =
+  'Weaver NA et al. Strategic infarct locations for post-stroke cognitive impairment: a pooled analysis of individual patient data from 12 acute ischaemic stroke cohorts. Lancet Neurol 2021;20:448–459.';
+const WEAVER_2023 =
+  'Weaver NA et al. Strategic infarct locations for poststroke depressive symptoms: a lesion- and disconnection-symptom mapping study. Biol Psychiatry Cogn Neurosci Neuroimaging 2023;8:387–396.';
 
 /**
  * Pooled figures from systematic reviews / meta-analyses. Each `prevalence` is the review's own
@@ -79,10 +101,10 @@ export const POST_STROKE_RISKS: PostStrokeRisk[] = [
       en: 'pooled over assessments at any time after the stroke (about 25 % between 1 and 5 years)',
     },
     factors: {
-      zh: '一致的預測因子：失能、中風前就有憂鬱、認知障礙、中風嚴重度與焦慮（Ayerbe 2013；該回顧的盛行率為 29%，5 年內累積發生率 39–52%）。病灶位置：系統性回顧不支持「左半球或左前方病灶較易憂鬱」的假說（左對右相對風險 0.95，95% CI 0.83–1.10；Carson 2000）。',
-      en: 'Consistent predictors: disability, depression before the stroke, cognitive impairment, stroke severity and anxiety (Ayerbe 2013; prevalence 29 % in that review, cumulative incidence 39–52 % within 5 years). Lesion site: a systematic review found no support for more depression after left-hemisphere or left anterior lesions (left vs right relative risk 0.95, 95% CI 0.83–1.10; Carson 2000).',
+      zh: '一致的預測因子：失能、中風前就有憂鬱、認知障礙、中風嚴重度與焦慮（Ayerbe 2013；該回顧的盛行率為 29%，5 年內累積發生率 39–52%）。病灶位置：系統性回顧不支持「左半球或左前方病灶較易憂鬱」的假說（左對右相對風險 0.95，95% CI 0.83–1.10；Carson 2000）；一個大型病灶定位研究（553 人，另在 459 人驗證）則發現右側杏仁核與蒼白球的梗塞與憂鬱症狀有關（Weaver 2023）。',
+      en: 'Consistent predictors: disability, depression before the stroke, cognitive impairment, stroke severity and anxiety (Ayerbe 2013; prevalence 29 % in that review, cumulative incidence 39–52 % within 5 years). Lesion site: a systematic review found no support for more depression after left-hemisphere or left anterior lesions (left vs right relative risk 0.95, 95% CI 0.83–1.10; Carson 2000); one large lesion-mapping study (553 patients, validated in 459) linked depressive symptoms to infarcts of the right amygdala and pallidum (Weaver 2023).',
     },
-    sources: [HACKETT_2014, AYERBE_2013, CARSON_2000],
+    sources: [HACKETT_2014, AYERBE_2013, CARSON_2000, WEAVER_2023],
     typicalOnsetH: 720,
   },
   {
@@ -199,8 +221,8 @@ export const POST_STROKE_RISKS: PostStrokeRisk[] = [
       en: 'similar in the acute, subacute and chronic phases (severe, AHI > 30: about 30 %); includes TIA',
     },
     factors: {
-      zh: '很大一部分在中風前就已存在：阻塞型睡眠呼吸中止本身就會增加中風與死亡的風險（Yaggi 2005）。只有約 7% 以中樞型為主；男性與再次中風者比率較高，與中風類型或中風後時間無關（Johnson 2010；Seiler 2019）。這些回顧沒有把它歸因於病灶位置。',
-      en: 'Much of it was there before the stroke: obstructive sleep apnoea itself raises the risk of stroke and death (Yaggi 2005). Only about 7 % is mainly central; it is commoner in men and after recurrent strokes, and does not differ by stroke type or time since stroke (Johnson 2010; Seiler 2019). These reviews do not tie it to a lesion site.',
+      zh: '中風後早期與晚期的盛行率差不多（Johnson 2010；Seiler 2019），表示很大一部分在中風前就已存在；阻塞型睡眠呼吸中止本身與較高的「中風或死亡」合併風險有關（Yaggi 2005，校正後風險比約 2）。只有約 7% 以中樞型為主；男性與再次中風者比率較高；缺血性中風、腦出血與 TIA 之間沒有差別（心因性栓塞的中風較少）。這些回顧沒有把它歸因於病灶位置。',
+      en: 'Its prevalence is about the same early and late after a stroke (Johnson 2010; Seiler 2019), which suggests that much of it predates the stroke; obstructive sleep apnoea is itself associated with a higher combined risk of stroke or death (Yaggi 2005, adjusted hazard ratio about 2). Only about 7 % is mainly central; it is commoner in men and after recurrent strokes, and does not differ between ischaemic stroke, haemorrhage and TIA (it is less common after cardioembolic stroke). These reviews do not tie it to a lesion site.',
     },
     sources: [SEILER_2019, JOHNSON_2010, YAGGI_2005],
     typicalOnsetH: 0,
@@ -219,11 +241,117 @@ export const POST_STROKE_RISKS: PostStrokeRisk[] = [
       en: 'within the first year after a first stroke (population-based studies, dementia before the stroke excluded)',
     },
     factors: {
-      zh: '與中風後失智最相關的是中風本身的特徵與併發症，以及時間與位置上多發的病灶；作者認為主因是中風本身，而不是背後的血管危險因子。再次中風後超過三分之一有失智；另有約一成在首次中風前就已失智（Pendlebury 2009）。個別認知缺損（失語、忽略）取決於病灶位置，已列在病例的症狀裡。',
-      en: 'Most strongly associated with the characteristics and complications of the stroke itself and with multiple lesions in time and place; the authors see the stroke itself, rather than the underlying vascular risk factors, as the central cause. More than a third have dementia after a recurrent stroke, and about one in ten already had dementia before the first one (Pendlebury 2009). Specific cognitive deficits (aphasia, neglect) depend on the lesion site and are listed with the case’s symptoms.',
+      zh: '與中風後失智最相關的是中風本身的特徵與併發症，以及時間與位置上多發的病灶；作者認為主因是中風本身，而不是背後的血管危險因子。再次中風後超過三分之一有失智；另有約一成在首次中風前就已失智（Pendlebury 2009）。較輕的中風後認知障礙在第一年約有一半；12 個世代、2950 人的病灶定位分析中，左側額顳葉、左側視丘與右側頂葉的梗塞關聯最強（Weaver 2021）。個別認知缺損（失語、忽略）取決於病灶位置，已列在病例的症狀裡。',
+      en: 'Most strongly associated with the characteristics and complications of the stroke itself and with multiple lesions in time and place; the authors see the stroke itself, rather than the underlying vascular risk factors, as the central cause. More than a third have dementia after a recurrent stroke, and about one in ten already had dementia before the first one (Pendlebury 2009). Milder post-stroke cognitive impairment affects about half in the first year; in a lesion-mapping analysis of 2950 patients from 12 cohorts, infarcts of the left frontotemporal lobes, left thalamus and right parietal lobe were the most strongly associated with it (Weaver 2021). Specific cognitive deficits (aphasia, neglect) depend on the lesion site and are listed with the case’s symptoms.',
     },
-    sources: [PENDLEBURY_2009],
+    sources: [PENDLEBURY_2009, WEAVER_2021],
     typicalOnsetH: 2160,
+  },
+  {
+    // C10-F4: falls — after discharge, in people aged 60 or over who went home with some disability
+    id: 'falls',
+    system: 'motor',
+    name: { zh: '跌倒', en: 'Falls' },
+    desc: {
+      zh: '中風後平衡、肌力、視野與注意力都可能變差，跌倒很常見，可能造成骨折，也讓人因為害怕跌倒而更少活動。',
+      en: 'Balance, strength, vision and attention can all be worse after a stroke, so falls are common; they can cause fractures, and the fear of falling makes people less active.',
+    },
+    prevalence: { value: 0.73 },
+    window: {
+      zh: '出院回家後 6 個月內至少跌倒一次（60 歲以上、留有部分失能的人，108 人中 79 人）；住院期間約 25%',
+      en: 'at least one fall within 6 months of going home (people aged 60 or over with some residual disability, 79 of 108); about 25 % during the hospital stay',
+    },
+    factors: {
+      zh: '住院時就跌倒過的人，回家後較容易反覆跌倒；反覆跌倒的人 6 個月時社交活動較少、較常情緒低落，照顧者的壓力也較大（Forster 1995）。住院期間的比率來自一個多中心世代（Langhorne 2000）。這些研究沒有把跌倒歸因於病灶位置。',
+      en: 'People who fell in hospital were more likely to fall repeatedly at home; repeated fallers were less socially active and more often low in mood at 6 months, and their carers more stressed (Forster 1995). The in-hospital figure comes from a multicentre cohort (Langhorne 2000). These studies do not tie falls to a lesion site.',
+    },
+    sources: [FORSTER_1995, LANGHORNE_2000],
+    typicalOnsetH: 168,
+  },
+  {
+    // C10-F4: hemiplegic shoulder pain — first-ever strokes, population-based
+    id: 'shoulder_pain',
+    system: 'motor',
+    name: { zh: '中風後肩膀痛', en: 'Shoulder pain after stroke' },
+    desc: {
+      zh: '無力那一側的肩膀疼痛：手臂垂著沒有肌肉支撐、關節半脫位或活動受限都有關；會妨礙穿衣、行走與復健。',
+      en: 'Pain in the shoulder of the weak arm, linked to a hanging arm without muscle support, partial dislocation or a stiff joint; it gets in the way of dressing, walking and rehabilitation.',
+    },
+    prevalence: { value: 0.22 },
+    window: {
+      zh: '首次中風後 4 個月內新出現（以人口為基礎的研究）；到 16 個月時接近三分之一；住院期間約 9%',
+      en: 'new within 4 months of a first stroke (a population-based study), almost a third by 16 months; about 9 % during the hospital stay',
+    },
+    factors: {
+      zh: '預測因子是手臂動作喪失或變差，以及中風當時較高的 NIHSS；大多數是中度到重度的疼痛（Lindgren 2007）。',
+      en: 'Predicted by lost or impaired arm movement and a higher NIHSS at onset; most of the pain was moderate to severe (Lindgren 2007).',
+    },
+    sources: [LINDGREN_2007, LANGHORNE_2000],
+    typicalOnsetH: 336,
+  },
+  {
+    // C10-F6: urinary incontinence — 235 incident strokes (a population register)
+    id: 'incontinence',
+    system: 'autonomic',
+    name: { zh: '尿失禁', en: 'Urinary incontinence' },
+    desc: {
+      zh: '無法控制排尿。中風後大多與病灶位置無關，而與中風的嚴重度、行動不便和能不能及時表達、到廁所有關；內側額葉受損是另一個特定的原因（會列在病例的症狀裡）。',
+      en: 'Loss of bladder control. After a stroke it is mostly not tied to the lesion site but to how severe the stroke is, immobility and being able to ask for or reach the toilet in time; damage to the medial frontal lobe is a separate, specific cause (listed with the case’s symptoms).',
+    },
+    prevalence: { value: 0.4 },
+    window: {
+      zh: '中風後約 10 天（3 個月 19%，1 年 15%，2 年 10%）',
+      en: 'about 10 days after the stroke (19 % at 3 months, 15 % at 1 year, 10 % at 2 years)',
+    },
+    factors: {
+      zh: '獨立相關因子：年齡大於 75 歲、吞嚥困難、肢體無力與視野缺損；腔隙性梗塞較少見。早期尿失禁的人 2 年時死亡、住進照護機構與失能的比率都較高（Patel 2001）。住院期間約 24% 有尿路感染（Langhorne 2000）。',
+      en: 'Independently associated with age over 75, dysphagia, limb weakness and a visual field defect; less common after lacunar infarcts. Those incontinent early had higher death, institutionalisation and disability rates at 2 years (Patel 2001). About 24 % had a urinary tract infection during the hospital stay (Langhorne 2000).',
+    },
+    sources: [PATEL_2001, LANGHORNE_2000],
+    typicalOnsetH: 0,
+  },
+  {
+    // C10-F4: infections — in hospital, a multicentre cohort of 311 admitted strokes
+    id: 'infections',
+    system: 'general',
+    name: { zh: '感染（尿路、肺部）', en: 'Infections (urinary tract, chest)' },
+    desc: {
+      zh: '中風後住院期間最常見的併發症之一：尿路感染與肺炎（常與吞嚥困難、吸入有關）。中風後發燒要先找感染。',
+      en: 'Among the commonest complications during the hospital stay: urinary tract infection and pneumonia (often from dysphagia and aspiration). Fever after a stroke means looking for an infection first.',
+    },
+    prevalence: { value: 0.24 },
+    window: {
+      zh: '住院期間的尿路感染（肺部感染 22%；一個多中心世代，311 人）',
+      en: 'urinary tract infection during the hospital stay (chest infection 22 %; one multicentre cohort of 311)',
+    },
+    factors: {
+      zh: '住院期間 85% 至少有一種併發症；感染與跌倒在之後的追蹤中仍然常見，頻率與病人的依賴程度有關（Langhorne 2000）。吞嚥困難讓肺炎風險增加約 3 倍，確認有吸入時約 11 倍（Martino 2005）。',
+      en: '85 % had at least one complication in hospital; infections and falls stayed common during follow-up, their frequency related to how dependent the patient was (Langhorne 2000). Dysphagia raises the risk of pneumonia about threefold, and confirmed aspiration about elevenfold (Martino 2005).',
+    },
+    sources: [LANGHORNE_2000, MARTINO_2005],
+    typicalOnsetH: 24,
+  },
+  {
+    // C10-F4: a recurrent stroke — pooled cumulative risk after a first stroke (13 studies, 9115
+    // survivors) and, for comparison, after a TIA or minor stroke under rapid specialist care
+    id: 'recurrence',
+    system: 'general',
+    name: { zh: '再次中風', en: 'Recurrent stroke' },
+    desc: {
+      zh: '中風後再發生一次中風。風險在最初幾週到幾個月最高，之後逐年累積；控制血壓、抗血栓藥物、治療頸動脈狹窄或心房顫動等次級預防可以降低。',
+      en: 'Another stroke after the first. The risk is highest in the first weeks to months and keeps adding up over the years; secondary prevention (blood pressure, antithrombotic drugs, treating carotid stenosis or atrial fibrillation) lowers it.',
+    },
+    prevalence: { value: 0.111, low: 0.09, high: 0.133 },
+    window: {
+      zh: '首次中風後 1 年的累積風險（30 天 3.1%，5 年 26.4%，10 年 39.2%）；住院期間約 9%',
+      en: 'cumulative risk 1 year after a first stroke (3.1 % at 30 days, 26.4 % at 5 years, 39.2 % at 10 years); about 9 % during the hospital stay',
+    },
+    factors: {
+      zh: '各研究差異很大，較新的研究 5 年風險較低（32% 降到 16.2%），作者認為可能反映病人組成的差異與次級預防的改變（Mohan 2011）。在快速由中風專科評估的 TIA 或輕微中風病人，1 年中風風險是 5.1%；多發性梗塞、大動脈粥狀硬化與 ABCD² 分數 6–7 分各讓風險增加一倍以上（Amarenco 2016）。',
+      en: 'Estimates vary widely between studies, and the 5-year risk fell from 32 % to 16.2 % across them, which the authors relate to case mix and changes in secondary prevention (Mohan 2011). After a TIA or minor stroke assessed rapidly by stroke specialists the 1-year stroke risk was 5.1 %; multiple infarcts, large-artery atherosclerosis and an ABCD² score of 6–7 each more than doubled it (Amarenco 2016).',
+    },
+    sources: [MOHAN_2011, AMARENCO_2016, LANGHORNE_2000],
+    typicalOnsetH: 0,
   },
   {
     // not a symptom of the case (C6-F3): a registry of first strokes, not a systematic review

@@ -68,6 +68,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'abulia', lat: 'none', sev: 1 },
       // right frontal and central lesions (Kertesz A et al., Neurology 1985;35:662-666, PMID 3990966)
       { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
+      // pathological crying after frontal lesions of the MCA territory: 40 % (Kim JS, Choi-Kwon S.
+      // Neurology 2000;54:1805-1810, PMID 10802788); House A et al. (BMJ 1989;298:991-994, PMID
+      // 2499390) also link it to left frontal and temporal lesions, while Kim found none after
+      // temporal ones, so the temporal cortex is not mapped. C10-F8. TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -359,8 +364,11 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'cortex',
     cbf: CORTEX_CBF,
     deficits: [
-      { s: 'autonomic_cardiac', lat: 'none', only: 'r', sev: 2 },
-      { s: 'autonomic_cardiac', lat: 'none', only: 'l', sev: 1 },
+      // the evidence on the side is mixed: the right dorsal anterior insula is linked to a troponin
+      // rise (Krause T et al. Ann Neurol 2017;81:502-511, PMID 28253544), the left insula to later
+      // adverse cardiac events (Laowattana S et al. Neurology 2006;66:477-483, PMID 16505298), so
+      // both sides carry the same weight. C10-F5
+      { s: 'autonomic_cardiac', lat: 'none', sev: 1 },
       { s: 'apraxia_of_speech', lat: 'none', only: 'l', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'anosognosia', lat: 'none', only: 'r', sev: 1 },
@@ -769,7 +777,11 @@ export const REGION_DEFS: RegionDef[] = [
       // the delayed involuntary movements of lateral thalamic strokes (weeks to months, with severe
       // position-sense loss and ataxia: Kim JS. Brain 2001;124:299-309, PMID 11157557) are listed
       // with the problems after stroke (postStrokeRisks.ts, C6-F3)
-      { s: 'central_pain', lat: 'contra', sev: 2 },
+      // central pain is possible, not certain: 14 % after any thalamic stroke, 24 % after a
+      // geniculothalamic one (Nasreddine ZS, Saver JL. Neurology 1997;48:1196-1199, PMID 9153442;
+      // published cases, right > left, shown in the text only), 3 of 40 thalamic infarcts
+      // (Bogousslavsky 1988) — hence severity 1, labelled as possible. C10-F1
+      { s: 'central_pain', lat: 'contra', sev: 1 },
       // VPM relays taste; side not fixed above the midbrain (Onoda et al., J Neurol 2012).
       // TODO(medical-review): sev
       { s: 'taste_loss', lat: 'none', sev: 1 },
@@ -1026,10 +1038,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 1 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
-      // REM-sleep atonia (next to the locus coeruleus; Odd et al., Neuroimage Clin 2025) and the
-      // pontine micturition centre (Sakakibara et al., J Neurol Sci 1996). Severity 1: case
-      // reports and small series. TODO(medical-review): sev
-      { s: 'rbd', lat: 'none', sev: 1 },
+      // the pontine micturition centre (Sakakibara et al., J Neurol Sci 1996). Severity 1: small
+      // series. TODO(medical-review): sev. (REM sleep behaviour disorder is a possible late problem
+      // of any pontine or medullary infarct, shown as a cascade event: C10-F7.)
       { s: 'urinary_retention', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
@@ -1143,10 +1154,6 @@ export const REGION_DEFS: RegionDef[] = [
       // educational approximation; real severity ranges from mild irregularity to
       // ventilator dependence and is not captured by this model.
       { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
-      // the pathway from the locus coeruleus region down to the medulla that switches the muscles
-      // off in REM sleep (Odd et al., Neuroimage Clin 2025; a paramedian pontine tegmental lacune:
-      // Xi & Luning, Sleep Med 2009). Case reports only. TODO(medical-review): sev
-      { s: 'rbd', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1291,7 +1298,17 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'face_weak', lat: 'ipsi', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'hiccups', lat: 'none', sev: 1 },
+      // central pain after a lateral medullary infarct (25 %, all within 6 months) most often
+      // affects the face around the eye on the side of the infarct, alone or with the opposite
+      // limbs (MacGowan DJ et al. Neurology 1997;49:120-125, PMID 9222179): both are listed as
+      // possible. C10-F3
       { s: 'central_pain', lat: 'contra', sev: 1 },
+      { s: 'central_pain_face', lat: 'ipsi', sev: 1 },
+      // a large infarct also reaches the crossed trigeminothalamic tract, medial to the lateral
+      // medulla: pain and temperature dulled on the other side of the face too (a bilateral
+      // trigeminal pattern, frequent with the "large" type: Kim JS. Brain 2003;126:1864-1872, PMID
+      // 12805095). Sensory loss, not pain; not from a single perforator lacune. C10-F3
+      { s: 'pain_temp_face', lat: 'contra', sev: 1, minLevel: 0.6, spareInLacune: true },
       // one side can be enough to lose automatic breathing (Bogousslavsky J et al. Ann Neurol
       // 1990;28:668–673, PMID 2260854): shown as a complication warning for the first 10 days
       // (cascade.ts, C7-F1); this symptom is for lesions of both sides

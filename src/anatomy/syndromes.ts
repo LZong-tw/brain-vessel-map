@@ -316,9 +316,12 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'posterior',
     lateral: true,
     name: { zh: '視丘感覺症候群（Dejerine–Roussy）', en: 'Thalamic sensory syndrome (Dejerine–Roussy)' },
+    // pain after thalamic stroke: 14 % after any, 24 % after a geniculothalamic one, onset in the
+    // first week in 36 % (Nasreddine ZS, Saver JL. Neurology 1997;48:1196-1199, PMID 9153442); the
+    // central_pain symptom is listed as possible from 2 weeks (C10-F1, F2)
     desc: {
-      zh: '對側半身（臉、手、腳）所有感覺減退；數週到數月後，約 1/4–1/3 的人會出現頑固的燒灼痛（視丘痛）。',
-      en: 'Loss of all sensation over the opposite half of the body (face, arm, leg); weeks to months later a quarter to a third develop intractable burning pain (thalamic pain).',
+      zh: '對側半身（臉、手、腳）所有感覺減退。之後可能出現頑固的燒灼痛（視丘痛）：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一；約三分之一在第一週就開始，其他在幾週到幾個月後。',
+      en: 'Loss of all sensation over the opposite half of the body (face, arm, leg). Intractable burning pain (thalamic pain) may follow: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic territory; about a third start in the first week, the rest weeks to months later.',
     },
     // the inferolateral (thalamogeniculate) territory: hemisensory loss, hemiparesis, hemiataxia
     // and pain (Schmahmann JD. Stroke 2003;34:2264-2278, PMID 12933968); one branch alone is a

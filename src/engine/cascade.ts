@@ -14,7 +14,8 @@
  */
 
 import { BEDS, REGIONS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
-import type { L, Side } from '../anatomy';
+import type { DeficitRef, L, Region, Side } from '../anatomy';
+import { SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
@@ -72,6 +73,12 @@ export interface CascadeInput {
    * flow the model sees is unchanged (C6-F2)
    */
   lacuneIschaemia?: string[];
+  /**
+   * regions whose final damage is a lacune alone: the infarct level the symptoms see there and the
+   * lacune site's own deficit list, if it has one — so a late event follows its late symptom
+   * exactly, small infarcts and lacunes included (C10-F2)
+   */
+  lacuneFinal?: Record<string, { level: number; deficits?: DeficitRef[] }>;
   /**
    * when blood returns to the index territory (hours after onset): treatment that reopened the
    * artery, or an occlusion reopening by itself; null or left out when it never does
@@ -444,6 +451,27 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const rf = regionFinal(bedFinal);
   const infarcted = (rid: string, thr = 0.3) => (rf[rid] ?? 0) >= thr;
   const infarctedRegions = Object.keys(rf).filter((r) => rf[r] >= 0.2);
+  const lacuneFinal = input.lacuneFinal ?? {};
+  /** the final infarct level of a region as the symptoms see it (a lacune at its own level) */
+  const finalLevel = (rid: string) => Math.max(rf[rid] ?? 0, lacuneFinal[rid]?.level ?? 0);
+  /**
+   * the regions that will produce the late symptom `id`: its deficit entry (or the lacune site's)
+   * at its own threshold, on the final infarct — the same rule as clinical.aggregateSymptoms, so a
+   * late event is shown exactly when its symptom is (C10-F2)
+   */
+  const lateSources = (id: string): Region[] =>
+    REGIONS.filter((r) => {
+      const lac = lacuneFinal[r.id];
+      const list = lac?.deficits ?? r.deficits;
+      return list.some(
+        (d) =>
+          d.s === id &&
+          (!d.only || r.side === d.only) &&
+          !(lac && d.spareInLacune) &&
+          !d.bilateralOnly &&
+          finalLevel(r.id) >= Math.max(0.25, d.minLevel ?? 0) - 1e-6,
+      );
+    });
 
   const vol = { supra: { r: 0, l: 0 } as Record<Side, number>, cerebellum: { r: 0, l: 0 } as Record<Side, number>, brainstem: 0, total: 0 };
   let untreatedTotal = 0;
@@ -902,20 +930,47 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       regions: swallowing,
     });
   }
-  const insulaR = acute('insula_r', 0.3);
-  if (insulaR || acute('insula_l', 0.5)) {
+  // the heart after any stroke (C10-F5): serious cardiac adverse events in 19 % of 846 ischaemic
+  // strokes within 3 months and cardiac death in 4.1 %, the first-event hazard peaking on days 2–3
+  // and cardiac death in week 2; predictors heart failure, diabetes, creatinine, stroke severity
+  // and QTc — lesion site not analysed (Prosser J et al. Stroke 2007;38:2295-2302, PMID 17569877);
+  // the stroke–heart syndrome (Scheitz JF et al. Lancet Neurol 2018;17:1109-1120, PMID 30509695).
+  // The insula of either side adds to it, with the same threshold: the evidence on the side is
+  // mixed (right dorsal anterior insula and troponin dynamics: Krause T et al. Ann Neurol
+  // 2017;81:502-511, PMID 28253544; left insula and adverse cardiac outcome at 1 year: Laowattana S
+  // et al. Neurology 2006;66:477-483, PMID 16505298). Prolonged monitoring newly finds atrial
+  // fibrillation in 23.7 % (Sposato LA et al. Lancet Neurol 2015;14:377-387, PMID 25748102) —
+  // cause-finding, not a complication. "Severe" here is a volume proxy for stroke severity.
+  const brainInfarct = anyIschemia && !eyeOnly && !earInfarct && !noInfarct;
+  if (brainInfarct) {
+    const insula = (['insula_r', 'insula_l'] as const).filter((r) => acute(r, 0.3));
+    const severe = vol.total >= 60 || lockedIn;
+    const sideZh = (r: string) => (r.endsWith('_r') ? '右' : '左');
+    const sideEn = (r: string) => (r.endsWith('_r') ? 'right' : 'left');
     events.push({
       id: 'cardiac',
       kind: 'complication',
-      severity: 'warn',
+      severity: severe || insula.length > 0 ? 'warn' : 'info',
       onsetH: 0,
-      endH: 168,
-      title: { zh: '島葉中風 → 心律不整／心肌受損', en: 'Insular stroke → arrhythmia / cardiac injury' },
+      endH: 336,
+      title: { zh: '中風後的心臟：心律不整、心肌受損', en: 'The heart after a stroke: arrhythmia, cardiac injury' },
       desc: {
-        zh: '島葉（尤其右側）調節心臟自主神經，受損後可出現心律不整、QT 延長、心肌酵素上升，甚至猝死——「腦」影響到「心」。',
-        en: 'The insula (especially the right) regulates cardiac autonomic tone; damage can cause arrhythmias, QT prolongation, troponin rise or even sudden death — the brain affecting the heart.',
+        zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；較長時間的心律監測約可新發現四分之一的心房顫動——這是在找中風的原因，不是中風造成的併發症。${
+          severe ? '這是嚴重的中風，風險較高。' : ''
+        }${
+          insula.length
+            ? `梗塞包含${insula.map(sideZh).join('、')}側島葉：島葉參與心臟的自主神經控制，但哪一側比較重要，證據不一致——右側背前島葉與 troponin 上升有關，左側島葉與之後一年的心臟事件有關。`
+            : ''
+        }`,
+        en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; longer rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${
+          severe ? ' This is a severe stroke, which carries a higher risk.' : ''
+        }${
+          insula.length
+            ? ` The infarct involves the ${insula.map(sideEn).join(' and ')} insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.`
+            : ''
+        }`,
       },
-      regions: ['insula_r', 'insula_l'].filter((r) => acute(r, 0.3)),
+      regions: [...insula],
     });
   }
   const legWeak = ['paracentral', 'ic_posterior_limb', 'midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis', 'medulla_medial'].some(
@@ -945,9 +1000,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 24,
       endH: 4320,
       title: { zh: '中風後癲癇', en: 'Post-stroke seizures' },
+      // late (> 7 days) seizures after an ischaemic stroke: 4 % at 1 year and 8 % at 5 years; the
+      // SeLECT score (severity, large-artery atherosclerosis, early seizure, cortical involvement,
+      // MCA territory) ranges from 0.7 % to 63 % at 1 year (Galovic M et al. Lancet Neurol
+      // 2018;17:143-152, PMID 29413315). C10-F4
       desc: {
-        zh: '皮質受損的疤痕可能成為異常放電來源：早發性（1 週內）或晚發性（數月後，較容易變成慢性癲癇）。',
-        en: 'Scarred cortex can become a seizure focus: early (within a week) or late (months later, more likely to become chronic epilepsy).',
+        zh: '皮質受損的疤痕可能成為異常放電來源：早發性（1 週內）或晚發性（數月後，較容易變成慢性癲癇）。缺血性中風後晚發性發作（7 天後）的風險：1 年約 4%、5 年約 8%。SeLECT 分數列出的危險因子是中風嚴重度、大動脈粥狀硬化的病因、早發性發作、皮質受累與中大腦動脈區受累；最低分時 1 年風險不到 1%，最高分時約 63%。',
+        en: 'Scarred cortex can become a seizure focus: early (within a week) or late (months later, more likely to become chronic epilepsy). The risk of late seizures (after 7 days) after an ischaemic stroke is about 4 % at 1 year and 8 % at 5 years. The SeLECT score lists the factors: stroke severity, large-artery atherosclerosis as the cause, early seizures, cortical involvement and MCA-territory involvement; the 1-year risk ranges from under 1 % at the lowest score to about 63 % at the highest.',
       },
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex'),
     });
@@ -1137,50 +1196,21 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       },
       regions: infarctedRegions,
     });
-    const motor = MOTOR_SUPRA.concat(['midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis', 'medulla_medial']).some(
-      (b) => infarcted(`${b}_r`) || infarcted(`${b}_l`),
-    );
-    if (motor) {
-      events.push({
-        id: 'spasticity',
-        kind: 'complication',
-        severity: 'info',
-        onsetH: 336,
-        endH: 4320,
-        title: { zh: '痙攣與攣縮', en: 'Spasticity & contractures' },
-        desc: {
-          zh: '上運動神經元受損後，脊髓反射失去抑制，數週到數月逐漸出現肌肉僵硬、手肘手腕屈曲、足下垂；復健與肉毒桿菌注射可改善。',
-          en: 'Loss of upper-motor-neuron control releases spinal reflexes: over weeks to months stiffness, a flexed elbow/wrist and foot drop develop; rehabilitation and botulinum toxin help.',
-        },
-        regions: [],
-      });
-    }
-    const sensoryPain = ['thalamus_ventrolateral', 'medulla_lateral', 'midbrain_lateral', 'pons_rostral_lateral'].some(
-      (b) => infarcted(`${b}_r`) || infarcted(`${b}_l`),
-    );
-    if (sensoryPain) {
-      events.push({
-        id: 'central_pain',
-        kind: 'complication',
-        severity: 'warn',
-        onsetH: 720,
-        title: { zh: '中樞性中風後疼痛', en: 'Central post-stroke pain' },
-        desc: {
-          zh: '感覺路徑受損數週至數月後，原本麻木的區域反而出現燒灼、刺痛或觸摸誘發的劇痛（視丘痛 Dejerine–Roussy；延髓外側中風也常見）。',
-          en: 'Weeks to months after sensory-pathway damage, the numb area can develop burning, lancinating or touch-evoked pain (Dejerine–Roussy thalamic pain; also common after lateral medullary stroke).',
-        },
-        regions: [],
-      });
-    }
     events.push({
       id: 'depression_cognition',
       kind: 'complication',
       severity: 'info',
       onsetH: 720,
       title: { zh: '中風後憂鬱與認知障礙', en: 'Post-stroke depression & cognitive impairment' },
+      // lesion site: Carson 2000 tested the hemisphere and left-anterior hypotheses only (C10-F10);
+      // depressive symptoms and right amygdala / pallidum infarcts (Weaver NA et al. Biol
+      // Psychiatry Cogn Neurosci Neuroimaging 2023;8:387-396, PMID 34547548); cognitive impairment
+      // and left frontotemporal, left thalamic and right parietal infarcts in 2950 patients from 12
+      // cohorts (Weaver NA et al. Lancet Neurol 2021;20:448-459, PMID 33901427) — in place of an
+      // uncited list of "strategic" sites (C10-F9)
       desc: {
-        zh: '任一時間點約三分之一的中風者有憂鬱（統合分析 31%），5 年內累積有 39–52% 出現過，與病灶位置沒有一致的關聯。首次中風後一年內約 7% 出現失智，再次中風後超過三分之一；關鍵位置（視丘、角迴、海馬迴、額葉）或多次梗塞會增加血管性認知障礙的風險。這些是族群數字，「最終」頁有出處與相關因素。',
-        en: 'At any time about a third of stroke survivors have depression (31 % in a meta-analysis) and 39–52 % have had it within 5 years, with no consistent link to the lesion site. About 7 % develop dementia within a year of a first stroke, more than a third after a recurrent one; strategically placed (thalamus, angular gyrus, hippocampus, frontal) or multiple infarcts raise the risk of vascular cognitive impairment. These are population figures — the Outcome tab lists their sources and the factors involved.',
+        zh: '任一時間點約三分之一的中風者有憂鬱（統合分析 31%），5 年內累積有 39–52% 出現過。系統性回顧沒有找到一致的左右半球或左額葉效應（Carson 2000）；一個大型病灶定位研究則發現右側杏仁核與蒼白球的梗塞與憂鬱症狀有關（Weaver 2023）。中風後第一年約一半有某種認知障礙；12 個世代、2950 人的病灶定位分析中，左側額顳葉、左側視丘與右側頂葉的梗塞關聯最強（Weaver 2021）。首次中風後一年內約 7% 出現失智，再次中風後超過三分之一，多發梗塞也會增加風險。這些是族群數字，「最終」頁有出處與相關因素。',
+        en: 'At any time about a third of stroke survivors have depression (31 % in a meta-analysis) and 39–52 % have had it within 5 years. A systematic review found no consistent hemispheric or left-frontal effect (Carson 2000); one large lesion-mapping study links depressive symptoms to infarcts of the right amygdala and pallidum (Weaver 2023). About half have some cognitive impairment in the first year; in a lesion-mapping analysis of 2950 patients from 12 cohorts, infarcts of the left frontotemporal lobes, left thalamus and right parietal lobe were the most strongly associated with it (Weaver 2021). About 7 % develop dementia within a year of a first stroke, more than a third after a recurrent one, and multiple infarcts raise the risk. These are population figures — the Outcome tab lists their sources and the factors involved.',
       },
       regions: [],
     });
@@ -1196,6 +1226,88 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         en: 'Surrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.',
       },
       regions: [],
+    });
+  }
+
+  // ── 8b. late consequences that follow their symptoms (C10-F1, F2, F3, F7) ───
+  // shown exactly when the late symptom is (same regions, thresholds and onset), small brainstem
+  // infarcts and lacunes included
+  const bodySide = (r: Region, lat: 'ipsi' | 'contra'): Side => (lat === 'ipsi' ? (r.side as Side) : opp(r.side as Side));
+  const spast = lateSources('spasticity');
+  if (spast.length) {
+    events.push({
+      id: 'spasticity',
+      kind: 'complication',
+      severity: 'info',
+      onsetH: symptomOnsetH(SYMPTOM_BY_ID.spasticity),
+      title: { zh: '痙攣與攣縮', en: 'Spasticity & contractures' },
+      // Sommerfeld 2004 (19 % at 3 months), Urban 2010 (42.6 % with a paresis at 6 months, 15.6 %
+      // severe; severe paresis and hemihypesthesia predict it), Wissel 2010 (24.5 % within 2 weeks)
+      desc: {
+        zh: '上運動神經元受損後，脊髓反射失去抑制，數週到數月逐漸出現肌肉僵硬、手肘手腕屈曲、足下垂；復健與肉毒桿菌注射可改善。不是每個人都會：中風後 3 個月約 19%，有肢體無力的人 6 個月時約 43%（嚴重的約 16%）；早期無力嚴重或半身感覺減退時較常見，約四分之一在 2 週內就出現肌張力增加。',
+        en: 'Loss of upper-motor-neuron control releases spinal reflexes: over weeks to months stiffness, a flexed elbow/wrist and foot drop develop; rehabilitation and botulinum toxin help. Not everyone gets it: about 19 % of people 3 months after a stroke, and about 43 % of those with a weak limb at 6 months (severe in about 16 %); it is commoner after severe early weakness or loss of sensation, and about a quarter show increased tone within 2 weeks.',
+      },
+      regions: spast.map((r) => r.id),
+    });
+  }
+  const painBody = lateSources('central_pain');
+  const painFace = lateSources('central_pain_face');
+  if (painBody.length || painFace.length) {
+    const zhSide = (s: Side) => (s === 'r' ? '右' : '左');
+    const enSide = (s: Side) => (s === 'r' ? 'right' : 'left');
+    const thal = painBody.filter((r) => r.baseId === 'thalamus_ventrolateral');
+    const lmi = [...new Set([...painBody, ...painFace].filter((r) => r.baseId === 'medulla_lateral'))];
+    const other = painBody.filter((r) => r.baseId !== 'thalamus_ventrolateral' && r.baseId !== 'medulla_lateral');
+    const zh: string[] = ['感覺路徑受損後，原本麻木的地方可能出現燒灼、刺痛或一碰就痛的慢性疼痛。這是可能的後果，不是必然：所有中風合計一年內約 8%。'];
+    const en: string[] = ['After sensory pathway damage, the numb area can develop burning, lancinating or touch-evoked chronic pain. It is possible, not certain: about 8 % of all strokes within a year.'];
+    for (const r of thal) {
+      const b = bodySide(r, 'contra');
+      zh.push(`視丘中風後約七分之一、視丘膝狀體動脈區中風後約四分之一會出現，在身體的對側（這裡是身體的${zhSide(b)}側）；已發表的病例中右側視丘病灶較多（可能有報告偏差），約三分之一在第一週就開始。`);
+      en.push(`After a thalamic stroke about 1 in 7 develop it (about 1 in 4 after the geniculothalamic territory), on the opposite side of the body — here the ${enSide(b)} side of the body; among published cases right-sided thalamic lesions are more frequent (possibly reporting bias), and about a third start in the first week.`);
+    }
+    for (const r of lmi) {
+      const s0 = r.side as Side;
+      zh.push(`延髓外側梗塞後約四分之一在 6 個月內出現，最常在病灶同側（這裡是${zhSide(s0)}側）的眼睛周圍，可以單獨出現，也可以合併對側（${zhSide(opp(s0))}側）手腳的疼痛。`);
+      en.push(`After a lateral medullary infarct about 1 in 4 develop it within 6 months, most often around the eye on the side of the infarct (here the ${enSide(s0)}), alone or with pain in the opposite (${enSide(opp(s0))}) arm and leg.`);
+    }
+    for (const r of other) {
+      const b = bodySide(r, 'contra');
+      zh.push(`這個病灶的疼痛會在身體的對側（這裡是身體的${zhSide(b)}側）。`);
+      en.push(`From this lesion it would affect the opposite side of the body — here the ${enSide(b)} side of the body.`);
+    }
+    zh.push('後島葉與頂葉島蓋內側的病灶也可能造成中樞性疼痛，但很少見（模型沒有把它列為症狀）。');
+    en.push('Lesions of the posterior insula and inner parietal operculum can also cause central pain, rarely (not listed as a symptom by the model).');
+    events.push({
+      id: 'central_pain',
+      kind: 'complication',
+      severity: 'warn',
+      onsetH: symptomOnsetH(SYMPTOM_BY_ID.central_pain),
+      title: { zh: '可能出現的中樞性中風後疼痛', en: 'Possible central post-stroke pain' },
+      desc: { zh: zh.join(''), en: en.join(' ') },
+      regions: [...new Set([...painBody, ...painFace].map((r) => r.id))],
+    });
+  }
+  // REM sleep behaviour disorder (C10-F7): 6 of 27 brainstem infarcts on a questionnaire at 3
+  // months, 5 ventral pontine and 1 medullary, none tegmental (Tang WK et al. BMC Neurol 2014;14:88,
+  // PMID 24758223); not confirmed on polysomnography in 15 brainstem strokes (Tellenbach N et al. J
+  // Sleep Res 2023;32:e13640, PMID 35609965); lesion network mapping: the tract from the locus
+  // coeruleus to the medulla (Odd H et al. Neuroimage Clin 2025;45:103751, PMID 39954565); case
+  // reports describe pontine lesions (Kimura K et al. Neurology 2000;55:894-895; Xi Z, Luning W.
+  // Sleep Med 2009;10:143-146). So any
+  // pontine or medullary infarct, as a possibility from about 1 month (the study asked at 3 months)
+  const rbd = REGIONS.filter((r) => /^(pons|medulla)_/.test(r.baseId) && finalLevel(r.id) >= 0.25 - 1e-6);
+  if (rbd.length) {
+    events.push({
+      id: 'rbd',
+      kind: 'complication',
+      severity: 'info',
+      onsetH: 720,
+      title: { zh: '可能出現：快速動眼期睡眠行為障礙（夢境演出）', en: 'Possible REM sleep behaviour disorder (acting out dreams)' },
+      desc: {
+        zh: '做夢（快速動眼期）時，肌肉本該被一條從橋腦藍斑核一帶延伸到延髓的路徑關掉；這條路徑受損時，人可能在夢中說話、大叫、揮拳或踢腳，傷到自己或枕邊人。一項問卷研究中，腦幹梗塞的人 3 個月時約五分之一（27 人中 6 人）描述這種情形——5 人是橋腦腹側、1 人是延髓，橋腦被蓋部沒有；但一個小型的睡眠檢查（多項睡眠生理檢查）研究（15 位腦幹中風）沒有證實，反而看到快速動眼期的肌肉活動較少。病灶網路分析指向從藍斑核到延髓的路徑。這裡列出的是可能，不是預測。',
+        en: 'During dreaming (REM) sleep the muscles are normally switched off by a pathway that runs from around the locus coeruleus in the pons down to the medulla; when it is damaged the person may talk, shout, punch or kick while dreaming and hurt themselves or a bed partner. In a questionnaire study about 1 in 5 people with a brainstem infarct (6 of 27) reported acting out dreams at 3 months — 5 with a ventral pontine and 1 with a medullary infarct, none in the pontine tegmentum; a small sleep-laboratory (polysomnography) study of 15 brainstem strokes did not confirm it, finding less muscle activity in REM sleep instead. Lesion-network mapping points to the tract from the locus coeruleus to the medulla. Listed as a possibility, not a prediction.',
+      },
+      regions: rbd.map((r) => r.id),
     });
   }
 

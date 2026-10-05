@@ -12,9 +12,10 @@ import { aggregateSymptoms, type SymptomItem } from './clinical';
 import type { Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
+// REM sleep behaviour disorder is no longer a symptom of one site but a possible late problem of
+// any pontine or medullary infarct, shown as a cascade event (C10-F7; lateEffects.test.ts)
 const NEW_SYMPTOMS = [
   'hypersomnia',
-  'rbd',
   'central_sleep_apnoea',
   'emotionalism',
   'hypohidrosis',
@@ -24,7 +25,7 @@ const NEW_SYMPTOMS = [
   'taste_loss',
 ] as const;
 /** present only from the chronic phase on (`delayed`) */
-const CHRONIC = ['hypersomnia', 'rbd', 'emotionalism', 'cold_limb'];
+const CHRONIC = ['hypersomnia', 'emotionalism', 'cold_limb'];
 
 const inputOf = (id: string, over: Partial<SimInput> = {}): SimInput => {
   const sc = SCENARIOS.find((s) => s.id === id);
@@ -50,7 +51,6 @@ describe('localised non-motor symptoms: catalogue', () => {
   it('are defined in the new systems, without NIHSS points, with a deliberate recovery behaviour', () => {
     const system: Record<string, string> = {
       hypersomnia: 'sleep',
-      rbd: 'sleep',
       central_sleep_apnoea: 'sleep',
       emotionalism: 'mood',
       emotional: 'mood',
@@ -75,10 +75,15 @@ describe('localised non-motor symptoms: catalogue', () => {
 });
 
 describe('sleep', () => {
-  it('mid-basilar occlusion: REM sleep behaviour disorder in the chronic phase, not acutely; none after a left M1', () => {
-    expect(ids(scenario('basilar_mid', 24))).not.toContain('rbd');
-    for (const tH of [720, 2160, 4320]) expect(ids(scenario('basilar_mid', tH)), `${tH} h`).toContain('rbd');
-    for (const tH of [24, 2160, 4320]) expect(ids(scenario('l_m1', tH)), `${tH} h`).not.toContain('rbd');
+  it('mid-basilar occlusion: a possible REM sleep behaviour disorder from 1 month (an event, C10-F7), not acutely; none after a left M1', () => {
+    const rbd = (id: string, tH: number) => {
+      const e = scenario(id, tH).cascade.events.find((ev) => ev.id === 'rbd');
+      return !!e && e.onsetH <= tH && tH < (e.endH ?? Infinity);
+    };
+    expect(rbd('basilar_mid', 24)).toBe(false);
+    for (const tH of [720, 2160, 4320]) expect(rbd('basilar_mid', tH), `${tH} h`).toBe(true);
+    for (const tH of [24, 2160, 4320]) expect(rbd('l_m1', tH), `${tH} h`).toBe(false);
+    for (const tH of [24, 2160]) expect(ids(scenario('basilar_mid', tH))).not.toContain('rbd');
   });
 
   it('Percheron (both paramedian thalami): hypersomnia persists at 1–3 months, worse than after one thalamus', () => {
@@ -210,7 +215,6 @@ describe('every new symptom can occur', () => {
   // one input that produces each (reachability.test.ts checks the whole catalogue too)
   const CASES: [string, Occlusion[], number, Partial<SimInput>][] = [
     ['hypersomnia', [{ vessel: 'thalamoperforator_l', severity: 1 }], 720, {}],
-    ['rbd', [{ vessel: 'pontine_paramedian_caudal_l', severity: 1 }], 2160, {}],
     ['central_sleep_apnoea', [{ vessel: 'va_v4_dist_r', severity: 1 }], 24, {}],
     ['emotionalism', [{ vessel: 'lenticulostriate_l', severity: 1 }], 2160, {}],
     ['hypohidrosis', [{ vessel: 'va_v4_dist_r', severity: 1 }], 24, {}],

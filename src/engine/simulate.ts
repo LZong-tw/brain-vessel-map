@@ -570,6 +570,11 @@ interface Model {
   unitSaved: number[];
   /** the (blended) flow at time t */
   hemoAt: (tH: number) => HemoResult;
+  /**
+   * the region dysfunction at the index onset (core + penumbra in the first hour; a lacune whose
+   * branch is closed then, at its level): the early picture that predicts late consequences
+   */
+  regionAcute: Record<string, number>;
 }
 
 const modelCache = new Map<string, Model>();
@@ -621,7 +626,8 @@ function modelFor(input: SimInput): Model {
   const hemoAcute = hemoAtT(onsetH);
   const hemoAfter = episodeEndH === null ? hemoAcute : hemoAtT(episodeEndH);
 
-  const bedFinal = addLacunes(bedInfarctAt(course, finalH, untreated, x), course, finalH);
+  const bedFinalNoLacune = bedInfarctAt(course, finalH, untreated, x);
+  const bedFinal = addLacunes(bedFinalNoLacune, course, finalH);
   let bedFinalUntreated = bedFinal;
   let unitSaved: number[] = units.map(() => 0);
   if (untreated) {
@@ -636,6 +642,19 @@ function modelFor(input: SimInput): Model {
     // dysfunctional (core or penumbra) in the first hour
     if ((hemoAcute.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
   }
+  const regionAcute = regionAgg(acute);
+  // regions whose final damage is a lacune alone: the level the symptoms see there, and the
+  // site's own deficit list (so a late event follows the late symptom exactly, C10-F2)
+  const finalNoLacune = regionAgg(bedFinalNoLacune);
+  const siteLists = lacuneDeficitsOf(course);
+  const lacuneFinal: Record<string, { level: number; deficits?: DeficitRef[] }> = {};
+  for (const rid of course.lacunes.keys()) {
+    const loss = lacuneLossAt(course, rid, finalH);
+    if (loss <= 0 || finalNoLacune[rid] >= 0.25) continue;
+    lacuneFinal[rid] = siteLists[rid] ? { level: LACUNE_DYSFUNCTION * loss, deficits: siteLists[rid] } : { level: LACUNE_DYSFUNCTION * loss };
+  }
+  const acuteDys = { ...regionAcute };
+  for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, onsetH)) acuteDys[rid] = Math.max(acuteDys[rid] ?? 0, LACUNE_DYSFUNCTION);
   const cascadeTreatment: CascadeTreatment | undefined =
     plan && reperf !== null && reperf >= onsetH && !isDefaultTreatment(plan.options)
       ? {
@@ -657,7 +676,8 @@ function modelFor(input: SimInput): Model {
     bedFinal,
     bedFinalUntreated,
     bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14, untreated, x), course, onsetH + 14),
-    regionAcute: regionAgg(acute),
+    regionAcute,
+    lacuneFinal,
     // a single branch changes no flow the model sees, yet its brain tissue is ischaemic (C6-F2);
     // so is the inner ear behind one labyrinthine branch, which gets the inner-ear story (C7-F7)
     lacuneIschaemia: [...course.lacunes.keys()].filter(
@@ -683,6 +703,7 @@ function modelFor(input: SimInput): Model {
     unitSaved,
     shownCascade: onsetH === 0 ? cascade : shiftTimes(cascade, onsetH),
     hemoAt: hemoAtT,
+    regionAcute: acuteDys,
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -937,7 +958,7 @@ export function simulate(input: SimInput): SimResult {
     }
     if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
   }
-  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course));
+  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute);
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
 

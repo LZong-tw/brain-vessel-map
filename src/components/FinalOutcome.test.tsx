@@ -283,8 +283,17 @@ describe('最終 tab: problems after stroke (population figures)', () => {
     expect(within(dep).getByText('相關因素與病灶位置').tagName).toBe('SUMMARY');
     expect(dep.querySelector('details')!.textContent).toMatch(/Carson 2000/);
     // grouped under headings, in the order of the systems
-    // (C6-F3: the movement disorders, about 1 %, under their own heading)
-    expect([...box.querySelectorAll('.risk-group h4')].map((h) => h.textContent)).toEqual(['動作', '認知', '情緒與動機', '睡眠、精神與體力']);
+    // (C6-F3: the movement disorders, about 1 %, under their own heading; C10-F4/F6: falls and
+    // shoulder pain under movement, incontinence under bladder control, then infections and a
+    // recurrent stroke, which belong to no one function)
+    expect([...box.querySelectorAll('.risk-group h4')].map((h) => h.textContent)).toEqual([
+      '動作',
+      '認知',
+      '情緒與動機',
+      '睡眠、精神與體力',
+      '膀胱控制',
+      '感染與再次中風',
+    ]);
   });
 
   it('in English too', () => {

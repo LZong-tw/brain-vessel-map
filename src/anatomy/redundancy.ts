@@ -94,8 +94,6 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // after a one-sided lesion, only improved after a two-sided one (Hermann et al., Stroke 2008;
   // 39:62–8)
   hypersomnia: partial(0.7, 0.35),
-  // REM-sleep atonia: no data on its course after stroke; kept mostly persistent
-  rbd: partial(0.3, 0.1),
   // central apnoea after a one-sided lateral medullary infarct: the other side's respiratory
   // network takes over; central events fewer at 3–6 months (Pavšič et al., Sleep Breath 2020;
   // 24:1557–63). Two-sided lesions are listed as `respiratory`.
@@ -192,6 +190,8 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   sens_face_all: partial(0.4, 0.15),
   cortical_sensory: partial(0.45, 0.2),
   central_pain: EXEMPT,
+  // the facial (periorbital) central pain of a lateral medullary infarct, likewise (C10-F3)
+  central_pain_face: EXEMPT,
 
   // ── vision: primary visual cortex / radiation / retina is the only route ──
   hemianopia: NONE,

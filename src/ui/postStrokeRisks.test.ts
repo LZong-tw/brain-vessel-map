@@ -3,7 +3,16 @@ import { POST_STROKE_RISKS, type PostStrokeRisk } from '../anatomy/postStrokeRis
 import { simulate, type SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { systemOf, SYSTEM_ORDER } from './format';
-import { brainInfarctMl, caseNotes, formatPrevalence, groupRisks, leavesBrainInfarct, pctText, postStrokeRisksFor } from './postStrokeRisks';
+import {
+  brainInfarctMl,
+  caseNotes,
+  formatPrevalence,
+  groupRisks,
+  leavesBrainInfarct,
+  pctText,
+  postStrokeRisksFor,
+  RISK_GROUP_ORDER,
+} from './postStrokeRisks';
 
 /** a scenario (or the current store state) simulated at the 6-month stop */
 function at6m(scenario?: string): SimResult {
@@ -62,7 +71,10 @@ describe('when the list is shown', () => {
 describe('grouping', () => {
   it('follows the order of the systems and keeps every risk once', () => {
     const groups = groupRisks(POST_STROKE_RISKS);
-    const order = groups.map((g) => SYSTEM_ORDER.indexOf(g.system));
+    const order = groups.map((g) => RISK_GROUP_ORDER.indexOf(g.system));
+    // the systems of the case's symptoms first, then what belongs to none of them (C10-F4)
+    expect(RISK_GROUP_ORDER).toEqual([...SYSTEM_ORDER, 'general']);
+    expect(order.every((i) => i >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     for (const g of groups) for (const i of g.items) expect(i.risk.system).toBe(g.system);
     expect(groups.flatMap((g) => g.items.map((i) => i.risk.id))).toHaveLength(POST_STROKE_RISKS.length);

@@ -266,7 +266,7 @@ function PostStrokeRisks({ m6 }: { m6: SimResult }) {
       <p className="muted small">{r.intro}</p>
       {groups.map((g) => (
         <div key={g.system} className={`risk-group rg-${g.system}`}>
-          <h4>{r.groups[g.system] ?? tr(SYSTEM_LABEL[g.system], lang)}</h4>
+          <h4>{r.groups[g.system] ?? (g.system === 'general' ? r.groups.general : tr(SYSTEM_LABEL[g.system], lang))}</h4>
           <ul className="risk-list">
             {g.items.map(({ risk, notes }) => (
               <li key={risk.id} className="risk-item" data-risk={risk.id}>
