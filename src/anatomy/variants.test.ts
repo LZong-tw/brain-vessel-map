@@ -80,7 +80,9 @@ describe('C8-F6: vertebral hypoplasia', () => {
     expect(sim({ occlusions, variants: ['va_hypoplastic_r'] }).nihss.total).toBe(0);
     const without = sim({ occlusions, variants: ['va_hypoplastic_r', 'pcomm_absent_r', 'pcomm_absent_l'] });
     expect(without.nihss.total).toBeGreaterThan(20);
-    expect(without.syndromes.map((m) => m.def.id)).toContain('locked_in');
+    // the whole brainstem fails, the tegmentum included: comatose, so basilar coma rather than
+    // locked-in (C3-F1)
+    expect(without.syndromes.map((m) => m.def.id)).toContain('basilar_coma');
   });
 });
 

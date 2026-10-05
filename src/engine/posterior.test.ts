@@ -96,7 +96,8 @@ describe('untreated mid-basilar occlusion still ends in locked-in syndrome (goal
   it.each(GRADES)('the ventral pons is infarcted on both sides in the end (%s collaterals)', (c) => {
     for (const tH of [96, 720]) {
       const r = basilar('basilar_mid', c, { tH });
-      expect(syndromeIds(r)).toContain('locked_in');
+      // classical, or incomplete once some limb movement returns (C3-F1)
+      expect(syndromeIds(r).some((id) => id === 'locked_in' || id === 'locked_in_incomplete')).toBe(true);
       for (const s of ['r', 'l']) expect(r.regions[`pons_caudal_basis_${s}`].infarct).toBeGreaterThanOrEqual(0.4);
     }
   });

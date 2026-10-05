@@ -30,10 +30,13 @@
  *
  * Bottleneck: in the ventral pons (and the cerebral peduncles) both corticospinal tracts, both
  * corticobulbar tracts and many cortico-reticular fibres run together, so a lesion of both sides
- * there removes the main pathway and its backup at once — why locked-in syndrome of vascular
- * origin recovers far less than a hemispheric stroke with a similar deficit (review of 139 cases:
- * Patterson & Grabois, Stroke 1986; 17:758–64; some functional gains with early intensive
- * rehabilitation: Casanova et al., Arch Phys Med Rehabil 2003; 84:862–7).
+ * there removes the main pathway and its backup at once. BOTTLENECK_FACTOR is a model assumption
+ * built on that anatomy, not a measured figure. The review of 139 locked-in cases compared
+ * vascular with non-vascular causes, not with hemispheric strokes: vascular cases recovered later
+ * and less completely, and survivors beyond 4 months generally recovered well (Patterson &
+ * Grabois, Stroke 1986; 17:758–64). In a selected series of 14 patients after early intensive
+ * rehabilitation a minority regained swallowing (42 %) or speech (28 %) (Casanova et al., Arch
+ * Phys Med Rehabil 2003; 84:862–7).
  *
  * `uni` / `bi` are the share of the deficit caused by dead tissue that is typically taken over
  * at the plateau (months) after a one-sided / two-sided lesion. They describe an average group
@@ -79,9 +82,14 @@ const EXEMPT: Redundancy = { kind: 'exempt', uni: 0, bi: 0 };
 // TODO(medical-review): all `uni` / `bi` values below
 export const REDUNDANCY: Record<string, Redundancy> = {
   // ── consciousness: the arousal system is a bilateral network; arousal often returns over
-  //    days–weeks, attention and drive less completely ──
+  //    days–weeks, attention and drive less completely. Coma and drowsiness are acute states:
+  //    from two weeks on clinical.ts lists what follows them instead (hypersomnia, or a disorder
+  //    of consciousness after extensive bilateral tegmental damage) ──
   coma: partial(0.5, 0.3),
   somnolence: partial(0.7, 0.4),
+  // awareness after coma: recovery is unpredictable (O'Donnell et al., Neurosci Biobehav Rev 2019).
+  // TODO(medical-review): uni / bi
+  disorder_of_consciousness: partial(0.5, 0.3),
 
   // ── sleep ── TODO(medical-review): uni / bi
   // persistent hypersomnia after paramedian thalamic stroke: sleep needs almost normal by a year
@@ -160,11 +168,16 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   disinhibition: partial(0.4, 0.15),
   emotional: partial(0.5, 0.3),
   topographic: partial(0.5, 0.2),
+  // recurring over months (Benke, J Neurol 2006). TODO(medical-review): uni / bi
+  peduncular_hallucinosis: partial(0.5, 0.3),
 
   // ── balance & coordination: cerebellar and vestibular compensation ──
   ataxia_limb: partial(0.6, 0.3),
   ataxia_gait: partial(0.55, 0.3),
   tremor: partial(0.3, 0.1),
+  // Holmes tremor once it has appeared: little spontaneous settling is an assumption (levodopa
+  // helped 13 of 24 treated: Raina et al., Neurology 2016). TODO(medical-review): uni / bi
+  holmes_tremor: partial(0.2, 0.1),
   // central vestibular compensation recalibrates a one-sided imbalance
   vertigo: bilateral(0.85, 0.3, { fast: true }),
   nystagmus: bilateral(0.8, 0.3),
@@ -204,6 +217,9 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   cn6_palsy: FCP,
   vertical_gaze_palsy: partial(0.4, 0.25),
   upgaze_palsy: partial(0.4, 0.25),
+  // a vestibular tone imbalance in the roll plane, recalibrated like the other vestibular signs
+  // (Brandt & Dieterich, Ann Neurol 1993). TODO(medical-review): uni / bi
+  skew_deviation: bilateral(0.8, 0.3),
   // follows the eye-movement deficit that causes it
   diplopia: EXEMPT,
   horner: NONE,

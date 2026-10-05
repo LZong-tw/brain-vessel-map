@@ -16,11 +16,41 @@ import { indexById } from './indexById';
 export const SYMPTOMS: SymptomDef[] = [
   // ── Consciousness ────────────────────────────────────────────────
   {
+    // One-sided lesions: Parvizi J, Damasio AR. Brain 2003;126:1524–1536 (of 9 brainstem-coma
+    // patients the tegmental lesion was bilateral in 7 and one-sided in 2; 9 patients with a very
+    // small one-sided tegmental lesion were not comatose). Course: coma rarely lasts more than two
+    // weeks and is followed by wakefulness without, or with fluctuating, awareness (O'Donnell JC et
+    // al. Neurosci Biobehav Rev 2019;98:336–346, a review of traumatic coma, for the definitions);
+    // ventral pontine lesions often leave the person comatose for days to weeks before they wake
+    // up locked-in (Laureys S et al. Prog Brain Res 2005;150:495–511); the loss of consciousness
+    // of bilateral pontine infarcts is transient (Kumral E et al. J Neurol 2002;249:1659–1670).
+    // clinical.ts turns a region's coma into what follows it from two weeks on.
     id: 'coma',
     name: { zh: '意識障礙／昏迷', en: 'Reduced consciousness / coma' },
     desc: {
-      zh: '維持清醒的網狀活化系統（腦幹上部、雙側視丘）受損，可能叫不醒。',
-      en: 'The arousal network (upper brainstem reticular formation, both thalami) is damaged; the person may be unrousable.',
+      zh: '維持清醒的網狀活化系統（腦幹上部、雙側視丘）受損，可能叫不醒。通常要兩側都受損；單側的上橋腦或中腦被蓋病灶偶爾也會造成昏迷（一項腦幹中風研究的昏迷病人 9 位中有 2 位是單側），範圍大時也可能只是嗜睡。昏迷很少超過約兩週：之後會醒來，模型改列接下來的狀態——視丘或範圍有限的中腦病灶之後是長期嗜睡；兩側上橋腦或中腦被蓋大範圍梗塞之後，是意識障礙（或其實清醒、但被閉鎖）。',
+      en: 'The arousal network (upper brainstem reticular formation, both thalami) is damaged; the person may be unrousable. It usually takes damage on both sides; a one-sided upper pontine or midbrain tegmental lesion occasionally causes coma (2 of 9 comatose patients in a study of brainstem strokes) and, when extensive, can cause drowsiness instead. Coma rarely lasts more than about two weeks: the person then wakes, and the model lists what follows — persistent hypersomnia after thalamic or limited midbrain lesions, and after extensive damage to the upper pontine or midbrain tegmentum on both sides a disorder of consciousness (or awareness hidden by a locked-in state).',
+    },
+    system: 'consciousness',
+    lateralised: false,
+    nihss: { item: '1a', pts: [1, 2, 3] },
+  },
+  {
+    // What follows coma after extensive bilateral tegmental damage (clinical.ts, from two weeks).
+    // O'Donnell JC et al. Neurosci Biobehav Rev 2019;98:336–346 (unresponsive wakefulness vs
+    // minimally conscious state; the diagnoses are often inaccurate, recovery unpredictable).
+    // Laureys S et al. Prog Brain Res 2005;150:495–511 (locked-in patients superficially resemble a
+    // vegetative state or akinetic mutism; diagnosis took 2.5 months on average).
+    // Castaigne P et al. Ann Neurol 1981;10:127–148 (paramedian thalamopeduncular infarcts:
+    // hypersomnia, deep coma, akinetic mutism).
+    id: 'disorder_of_consciousness',
+    name: {
+      zh: '昏迷之後的意識障礙（無反應覺醒、最小意識狀態），或其實清醒（閉鎖）',
+      en: 'Disorder of consciousness after coma (unresponsive wakefulness, minimally conscious state) — or awareness hidden by paralysis',
+    },
+    desc: {
+      zh: '昏迷之後眼睛會睜開、恢復睡醒週期，但覺察能力可能沒有回來（無反應覺醒症候群，舊稱植物人狀態）、時有時無（最小意識狀態），或中腦大範圍受損後呈無動性緘默。也可能其實完全清醒，只是全身癱瘓、無法表達（閉鎖症候群）——外觀相近、常被誤判：要請病人用上下看或眨眼回答問題來確認。模型分不出是哪一種；意識能否恢復、何時恢復都難以預測。',
+      en: 'After coma the eyes open and sleep–wake cycles return, but awareness may not have returned (unresponsive wakefulness syndrome, formerly the vegetative state), may come and go (minimally conscious state), or the person may be in akinetic mutism after extensive midbrain damage. Or they may be fully aware but paralysed and unable to show it (locked-in syndrome) — the states look alike and are often confused: ask for answers by looking up or blinking. The model cannot tell which; whether and when awareness returns is hard to predict.',
     },
     system: 'consciousness',
     lateralised: false,
@@ -30,8 +60,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'somnolence',
     name: { zh: '嗜睡、反應遲鈍', en: 'Drowsiness / hypersomnolence' },
     desc: {
-      zh: '一直想睡、叫醒後很快又睡著，常見於視丘旁正中或中腦受損。數週後仍持續的睡眠需求增加另列為「長期嗜睡」。',
-      en: 'Excessive sleepiness, drifting off after being roused; typical of paramedian thalamic or midbrain lesions. A raised need for sleep that persists for weeks is listed separately as persistent hypersomnia.',
+      zh: '一直想睡、叫醒後很快又睡著，常見於視丘旁正中或中腦受損，單側上橋腦被蓋大範圍梗塞也可能出現。這是急性期的表現：約兩週後仍持續的睡眠需求增加，改列為「長期嗜睡」。',
+      en: 'Excessive sleepiness, drifting off after being roused; typical of paramedian thalamic or midbrain lesions, and possible with an extensive one-sided upper pontine tegmental infarct. This is the acute picture: a raised need for sleep that persists beyond about two weeks is listed as persistent hypersomnia instead.',
     },
     system: 'consciousness',
     lateralised: false,
@@ -262,6 +292,23 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'balance',
     lateralised: true,
     sideWord: 'body',
+  },
+  {
+    // Raina GB et al. Neurology 2016;86:931–938 (29 patients, 48 % vascular: median 2 months from
+    // the lesion to the tremor, 7 days to 228 months; levodopa helped 13 of 24). Castaigne P et al.
+    // Ann Neurol 1981;10:127–148 (paramedian thalamopeduncular infarcts: abnormal movements always
+    // delayed). Deuschl G, Bain P, Brin M. Mov Disord 1998;13 Suppl 3:2–23 (Holmes tremor as a
+    // tremor syndrome of its own, apart from cerebellar tremor).
+    id: 'holmes_tremor',
+    name: { zh: '霍姆斯（Holmes）顫抖（紅核性顫抖，數週至數月後）', en: 'Holmes (rubral) tremor (weeks to months later)' },
+    desc: {
+      zh: '中腦紅核一帶（或視丘）受損後，對側手臂出現緩慢、不規則的抖動，靜止、維持姿勢和動作時都會抖，動作時最明顯。它不是一開始就出現：中位數約在受損後 2 個月（7 天到數年都有），常合併無力或運動失調。約一半的病人用 levodopa 有幫助；模型讓它只自行減輕一點，這是假設。',
+      en: 'After damage around the red nucleus in the midbrain (or the thalamus), the arm on the opposite side develops a slow, irregular tremor at rest, when holding a posture and during movement, worst with movement. It does not start at once: a median of about 2 months after the lesion (from 7 days to years), often with weakness or ataxia. Levodopa helps about half; the model lets it settle only a little by itself, which is an assumption.',
+    },
+    system: 'motor',
+    lateralised: true,
+    sideWord: 'body',
+    delayed: true,
   },
   {
     id: 'movement_disorder',
@@ -560,8 +607,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'ino',
     name: { zh: '核間性眼肌麻痺（MLF）', en: 'Internuclear ophthalmoplegia (MLF)' },
     desc: {
-      zh: '內側縱束受損：往對側看時，同側眼睛無法向內轉，另一眼出現眼振。',
-      en: 'MLF lesion: on looking away, the eye on the lesion side fails to adduct and the other eye shows nystagmus.',
+      zh: '內側縱束受損：往對側看時，同側眼睛無法向內轉，另一眼出現眼振。常合併眼球垂直偏斜（skew deviation），也就是 HINTS 床邊檢查的「S」。',
+      en: 'MLF lesion: on looking away, the eye on the lesion side fails to adduct and the other eye shows nystagmus. It often comes with a skew deviation, the "S" of the HINTS bedside examination.',
     },
     system: 'eye',
     lateralised: true,
@@ -633,6 +680,23 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'eye',
     lateralised: false,
+  },
+  {
+    // Brandt T, Dieterich M. Ann Neurol 1993;33:528–534 (56 one-sided brainstem infarcts: the
+    // lesion-side eye lower with caudal pontomedullary lesions, the opposite eye lower with rostral
+    // pontomesencephalic ones; always with ocular torsion and a tilted subjective vertical).
+    // Kattah JC et al. Stroke 2009;40:3504–3510 (HINTS: skew in 17 % of acute vestibular syndrome,
+    // 30 % with brainstem involvement, 4 % peripheral; it flagged a lateral pontine stroke when the
+    // head impulse test falsely looked peripheral).
+    id: 'skew_deviation',
+    name: { zh: '眼球垂直偏斜（skew deviation，此眼較低）', en: 'Skew deviation (this eye lower)' },
+    desc: {
+      zh: '前庭到眼球的重力路徑在腦幹受損，兩眼上下不對齊：一眼較高、一眼較低，伴隨眼球旋轉與主觀垂直線傾斜，造成上下錯開的複視，頭常歪向較低的一眼。延髓與橋腦下部的病灶是病灶側的眼睛較低；橋腦上部與中腦的病灶則是對側眼較低。它是 HINTS 床邊檢查的「S」（Test of Skew）：急性眩暈病人有腦幹受損時約三成看得到，內耳問題只有約 4%。不是每個人都有。',
+      en: 'The gravity pathway from the vestibular system to the eyes is damaged in the brainstem, so the eyes are out of vertical alignment: one sits higher, one lower, with the eyes rotated and the subjective vertical tilted, giving vertical double vision and often a head tilt towards the lower eye. With medullary and lower pontine lesions the eye on the lesion side is lower; with upper pontine and midbrain lesions the opposite eye is lower. It is the "S" of the HINTS bedside examination (Test of Skew): seen in about a third of people with acute vertigo whose brainstem is involved, against about 4 % with an inner-ear cause. Not everyone has it.',
+    },
+    system: 'eye',
+    lateralised: true,
+    sideWord: 'eye',
   },
   {
     id: 'diplopia',
@@ -905,6 +969,21 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'cognition',
     lateralised: false,
   },
+  {
+    // Caplan LR. Neurology 1980;30:72–79 (rostral brainstem infarction: somnolence, vivid
+    // hallucinations and dreamlike behaviour). Benke T. J Neurol 2006;253:1561–1571 (5 patients,
+    // otherwise single case reports; midbrain, thalamic or pontine lesions; naturalistic, mostly
+    // visual hallucinations that recurred over months and were taken as real). Uncommon, hence
+    // only after damage on both sides (regions.ts) and named as possible; no onset time is fixed.
+    id: 'peduncular_hallucinosis',
+    name: { zh: '可能出現：大腦腳幻覺症（鮮明的視幻覺）', en: 'Possible: peduncular hallucinosis (vivid visual hallucinations)' },
+    desc: {
+      zh: '上腦幹（中腦）或視丘旁正中受損後，少數人會看到鮮明、像真的一樣、常是整個場景的幻覺，多半是視覺，有時也有聲音或觸感，常伴隨嗜睡、睡醒週期紊亂與夢境般的行為。病人常信以為真，分不清幻覺與現實；可能在數月內反覆出現。只見於病例報告與小型病例系列，多數病人不會有。',
+      en: 'After damage to the upper brainstem (midbrain) or the paramedian thalamus a few people have vivid, lifelike hallucinations, often whole scenes, mostly visual but sometimes with sounds or touch, often together with drowsiness, a disturbed sleep–wake cycle and dreamlike behaviour. They often take them as real and cannot tell them from reality; the scenes can recur over months. Known only from case reports and a small case series; most patients never have it.',
+    },
+    system: 'cognition',
+    lateralised: false,
+  },
 
   // ── Mood & emotional expression ─────────────────────────────────
   // Only what a lesion SITE produces. Post-stroke depression, anxiety and fatigue are common but
@@ -1039,11 +1118,13 @@ export const SYMPTOMS: SymptomDef[] = [
   // ── Temperature regulation & sweating ────────────────────────────
   // The hypothalamus (temperature set point) is not a region of this model, so only the
   // descending sympathetic pathway (brainstem) and the cortical control of sweating are mapped.
-  // Central ("neurogenic") fever is left out: fever early after an ischaemic stroke is mostly
-  // infection or aspiration (Grau AJ et al. J Neurol Sci 1999;171:115–120 — 25 % febrile within
-  // 48 h, most explained by infection), and of 74 patients with early central hyperthermia only
-  // 4 % had a large cortical infarct and 3 % a basilar occlusion, the rest haemorrhages, all with
-  // brainstem involvement (Sung CY et al. Eur Neurol 2009;62:86–92).
+  // Central ("neurogenic") fever is not a symptom here: fever early after an ischaemic stroke is
+  // mostly infection or aspiration (Grau AJ et al. J Neurol Sci 1999;171:115–120 — 25 % febrile
+  // within 48 h, most explained by infection), and of 74 patients with early central hyperthermia
+  // only 4 % had a large cortical infarct and 3 % a basilar occlusion, the rest haemorrhages, all
+  // with brainstem involvement (Sung CY et al. Eur Neurol 2009;62:86–92). Its risk after extensive
+  // bilateral pontine (or paramedian midbrain–thalamic) infarction with coma is shown instead as a
+  // cascade warning, 'central_hyperthermia' (engine/cascade.ts).
   // Temperature SENSATION is a different thing: pain_temp_body / pain_temp_face.
   {
     // Korpelainen JT, Sotaniemi KA, Myllylä VV. Stroke 1993;24:100–104 (18 brainstem infarcts:
@@ -1099,11 +1180,19 @@ export const SYMPTOMS: SymptomDef[] = [
   },
 
   {
+    // Shown only as possible, after a clear infarct of the dentate nucleus, the red nucleus region
+    // or the pontine tegmentum (engine/cascade.ts). Schaller-Paule MA et al. Front Neurol
+    // 2021;12:675123 (olivary degeneration after posterior-fossa stroke in an unknown share);
+    // Tilikete C, Desestret V. Front Neurol 2017;8:302 (palatal or oculopalatal tremor weeks to
+    // months after the lesion, after haemorrhage more often than infarction); Deuschl G, Toro C,
+    // Hallett M. Mov Disord 1994;9:676–678 (ear clicks are a cardinal sign of essential palatal
+    // tremor and do not occur in the symptomatic form); Chang YY et al. Gaoxiong Yi Xue Ke Xue Za
+    // Zhi 1993;9:371–376 (oculopalatal myoclonus 1 and 3 months after the lesion).
     id: 'palatal_tremor',
-    name: { zh: '軟顎顫抖（數月後）', en: 'Palatal tremor (months later)' },
+    name: { zh: '可能出現：軟顎顫抖（數月後，少數人）', en: 'Possible: palatal tremor (months later, a minority)' },
     desc: {
-      zh: '下橄欖核肥大性退化造成軟顎規律抽動，有時聽得到耳內喀喀聲，也可能合併眼球擺動。',
-      en: 'Hypertrophic olivary degeneration causes rhythmic palatal jerks, sometimes an audible ear click, and may be accompanied by pendular eye oscillations.',
+      zh: '下橄欖核肥大性退化可能讓軟顎規律地抽動，有時合併雙眼上下擺動的眼振（眼軟顎顫抖），在受損後數週到數月出現。只有少數病人會有，出血後比梗塞後常見。中風後這種「症狀性」軟顎顫抖不會有耳內喀喀聲——那是原因不明的「原發性」軟顎顫抖的特徵。',
+      en: 'Hypertrophic olivary degeneration can make the soft palate jerk rhythmically, sometimes with a vertical pendular nystagmus (oculopalatal tremor), appearing weeks to months after the lesion. Only a minority develop it, more often after haemorrhage than after infarction. This symptomatic palatal tremor after a stroke has no ear click — ear clicks belong to the essential palatal tremor, which has no known cause.',
     },
     system: 'cranial',
     lateralised: false,

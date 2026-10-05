@@ -193,9 +193,10 @@ describe('late course', () => {
     // … nothing is left at 6 months, and it is not part of the late course
     expect(early.course.m6.symptoms).toEqual([]);
     expect(ids(early.late)).not.toContain('locked_in');
-    // untreated, the locked-in state itself is what remains at 6 months
+    // untreated, the locked-in state itself is what remains at 6 months (incomplete by then: some
+    // limb movement has returned, C3-F1)
     const untreated = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }]));
-    expect(untreated.course.m6.syndromes.map((s) => s.def.id)).toContain('locked_in');
+    expect(untreated.course.m6.syndromes.map((s) => s.def.id)).toContain('locked_in_incomplete');
   });
 
   it('leaves out treatment events such as the reperfusion itself', () => {

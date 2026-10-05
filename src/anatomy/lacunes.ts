@@ -23,7 +23,7 @@ export const LACUNE_TARGET: Record<string, string> = {
   thalamoperforator: 'thalamus_paramedian',
   mesencephalic_perf: 'midbrain_paramedian',
   pontine_paramedian_rostral: 'pons_rostral_basis', // pure motor / ataxic hemiparesis
-  pontine_paramedian_caudal: 'pons_caudal_basis', // + CN VI fascicle: Millard–Gubler / Raymond
+  pontine_paramedian_caudal: 'pons_caudal_basis', // + CN VI fascicle: Raymond (Millard–Gubler only with the facial fascicle)
   pontine_paramedian_inferior: 'pons_caudal_basis',
   pontine_circumferential: 'pons_caudal_tegmentum',
   lat_medullary_perf: 'medulla_lateral',

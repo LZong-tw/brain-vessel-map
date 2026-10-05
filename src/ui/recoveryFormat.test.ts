@@ -14,6 +14,10 @@ describe('improvedSince', () => {
     ['central_sleep_apnoea', 'respiratory'],
     ['hypersomnia', 'coma'],
     ['somnolence', 'coma'],
+    // C3-F2: from two weeks on, drowsiness is listed as persistent hypersomnia and coma after
+    // extensive tegmental damage as a disorder of consciousness — neither is an improvement
+    ['somnolence', 'hypersomnia'],
+    ['coma', 'disorder_of_consciousness'],
   ])('%s replaced by %s is not an improvement', (from, into) => {
     expect(improvedSince([item(from, 1)], [item(into, 3)])).toEqual([]);
   });

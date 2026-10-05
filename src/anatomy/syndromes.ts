@@ -4,7 +4,8 @@
  * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Tatu et al., Neurology 1996
  * (brainstem territories); Sciacca et al., Radiographics 2019 (general review of brainstem
  * anatomy and syndromes; its full text was not checked rule by rule); Schmahmann, Stroke 2003
- * (thalamus).
+ * (thalamus). Pontine patterns: Kumral et al., J Neurol 2002 (150 isolated pontine infarcts) and
+ * Bassetti et al., Neurology 1996 (36); locked-in varieties: Bauer et al., J Neurol 1979.
  * TODO(medical-review)
  */
 
@@ -23,6 +24,11 @@ export interface SyndromeCtx {
   /** number of dysfunctional cortical regions on a side */
   cortexCount(side: Side, thr?: number): number;
   map: number;
+  /**
+   * severity (0 when absent) of a current, non-delayed symptom: on body side `side` (a symptom
+   * listed for both sides counts for each), or its highest severity anywhere when `side` is left out
+   */
+  sym(id: string, side?: Side): number;
 }
 
 export type SyndromeGroup = 'anterior' | 'posterior' | 'brainstem' | 'cerebellar' | 'lacunar' | 'watershed' | 'other';
@@ -52,6 +58,23 @@ const MCA_CORTEX = [
 ];
 
 const mcaCount = (c: SyndromeCtx, s: Side) => MCA_CORTEX.filter((b) => c.has(b, s, 0.3)).length;
+
+/** both sides of the ventral pons (upper or lower) involved, at least `thr` */
+const bothBases = (c: SyndromeCtx, thr: number) => c.both('pons_rostral_basis', thr) || c.both('pons_caudal_basis', thr);
+/** not awake: coma, or a disorder of consciousness after it (C3-F1, C3-F2) */
+const unaware = (c: SyndromeCtx) => c.sym('coma') > 0 || c.sym('disorder_of_consciousness') > 0;
+/** nothing moves in any limb (Bauer's classical locked-in syndrome) */
+const limbsParalysed = (c: SyndromeCtx) =>
+  (['r', 'l'] as Side[]).every((sd) => c.sym('arm_weak', sd) >= 3 && c.sym('leg_weak', sd) >= 3);
+/** classical locked-in: both ventral pons, awake, every limb paralysed */
+const classicalLockedIn = (c: SyndromeCtx) => bothBases(c, 0.4) && !unaware(c) && limbsParalysed(c);
+/** the other side of the ventral pons is spared (below the symptom threshold) */
+const otherBasesSpared = (c: SyndromeCtx, s: Side) => {
+  const o: Side = s === 'r' ? 'l' : 'r';
+  return !c.has('pons_rostral_basis', o, 0.25) && !c.has('pons_caudal_basis', o, 0.25);
+};
+/** what a bilateral ventral pontine label hides: the one-sided pontine and lateral syndromes */
+const PONTINE_ONE_SIDED = ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'];
 
 export const SYNDROMES: SyndromeDef[] = [
   // ─────────────── anterior circulation ───────────────
@@ -226,8 +249,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: false,
     name: { zh: '雙側視丘旁正中梗塞（Percheron 動脈）', en: 'Bilateral paramedian thalamic infarction (artery of Percheron)' },
     desc: {
-      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。',
-      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides.',
+      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺；昏迷之後留下的是長期嗜睡（睡眠需求增加），而不是昏迷。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。長期預後通常不錯，但中腦也梗塞時差很多（只有約四分之一功能良好）。',
+      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy; what remains after the coma is persistent hypersomnia (a raised need for sleep), not coma. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides. The long-term outcome is usually good, but much worse when the midbrain is infarcted too (only about a quarter do well).',
     },
     test: (c) => c.both('thalamus_paramedian', 0.3),
     supersedes: ['claude', 'weber_benedikt'],
@@ -238,8 +261,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: false,
     name: { zh: '基底動脈頂端症候群', en: 'Top-of-the-basilar syndrome' },
     desc: {
-      zh: '中腦與視丘旁正中（意識改變、垂直眼動障礙、瞳孔異常、記憶障礙）加上枕葉（視野缺損、皮質盲）。常由心因性或椎動脈來源的栓子卡在基底動脈分叉處造成。',
-      en: 'Midbrain and paramedian thalami (altered consciousness, vertical gaze and pupil abnormalities, amnesia) plus occipital lobes (field loss, cortical blindness). Usually an embolus lodged at the basilar bifurcation.',
+      zh: '中腦與視丘旁正中（意識改變、垂直眼動障礙、瞳孔異常、記憶障礙）加上枕葉（視野缺損、皮質盲）。可能出現鮮明的幻覺與夢境般的行為（大腦腳幻覺症，Caplan 1980）。意識障礙通常要兩側都受損，單側病灶偶爾也會造成昏迷。常由心因性或椎動脈來源的栓子卡在基底動脈分叉處造成。',
+      en: 'Midbrain and paramedian thalami (altered consciousness, vertical gaze and pupil abnormalities, amnesia) plus occipital lobes (field loss, cortical blindness). Vivid hallucinations and dreamlike behaviour can occur (peduncular hallucinosis; Caplan 1980). Reduced consciousness usually needs damage on both sides, though a one-sided lesion occasionally causes coma. Usually an embolus lodged at the basilar bifurcation.',
     },
     test: (c) =>
       (c.both('midbrain_paramedian', 0.3) || c.both('thalamus_paramedian', 0.3)) &&
@@ -265,8 +288,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'Weber／Benedikt 症候群（中腦腹側＋旁正中）', en: 'Weber / Benedikt syndrome (ventral + paramedian midbrain)' },
     desc: {
-      zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱：典型的「交叉性」腦幹中風。只傷到大腦腳與動眼神經束是 Weber；紅核也受損時對側再加上顫抖、不自主運動與運動失調，稱為 Benedikt。本模型的中腦分區無法把紅核和動眼神經束完全分開。',
-      en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral tremor, involuntary movements and ataxia are added (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
+      zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱：典型的「交叉性」腦幹中風。只傷到大腦腳與動眼神經束是 Weber；紅核也受損時對側再加上運動失調，以及在數週到數月後才出現的顫抖與不自主運動（霍姆斯顫抖），稱為 Benedikt。本模型的中腦分區無法把紅核和動眼神經束完全分開。',
+      en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral ataxia is added, and tremor and involuntary movements (Holmes tremor) follow weeks to months later (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
     },
     test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25),
     supersedes: ['claude'],
@@ -277,8 +300,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'Claude 症候群（中腦被蓋）', en: 'Claude syndrome (midbrain tegmentum)' },
     desc: {
-      zh: '同側動眼神經麻痺＋對側運動失調（紅核與上小腦腳傳出纖維），沒有偏癱。',
-      en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis.',
+      zh: '同側動眼神經麻痺＋對側運動失調（紅核與上小腦腳傳出纖維），沒有偏癱。對側手臂的顫抖（霍姆斯顫抖）可能在數週到數月後才出現。',
+      en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis. A tremor of the opposite arm (Holmes tremor) may follow weeks to months later.',
     },
     test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3),
   },
@@ -295,29 +318,89 @@ export const SYNDROMES: SyndromeDef[] = [
   },
 
   // ─────────────── pons ───────────────
+  // Locked-in syndrome and its relatives (C3-F1): Bauer G et al. J Neurol 1979;221:77–91
+  // (classical: nothing moves but the eyes vertically and the lids; incomplete: other movement
+  // remains; total: not even the eyes, with both cerebral peduncles); Laureys S et al. Prog Brain
+  // Res 2005;150:495–511 (comatose for days to weeks before waking up locked-in); Kumral E et al.
+  // J Neurol 2002;249:1659–1670 (bilateral pontine infarcts 11 %: transient loss of consciousness,
+  // tetraparesis, pseudobulbar palsy). Prognosis and care (C3-F6): Patterson JR, Grabois M. Stroke
+  // 1986;17:758–764 (139 cases: mortality 60 %; lung care and a communication system essential);
+  // Casanova E et al. Arch Phys Med Rehabil 2003;84:862–867 (14 selected patients after early
+  // intensive rehabilitation).
   {
     id: 'locked_in',
     group: 'brainstem',
     lateral: false,
     name: { zh: '閉鎖症候群', en: 'Locked-in syndrome' },
     desc: {
-      zh: '雙側橋腦腹側受損：四肢癱瘓、不能說話與吞嚥，但意識清楚，只能用垂直眼動和眨眼溝通（由中腦控制）。水平眼動常一起喪失，因為外展神經核與 PPRF 就在旁邊的橋腦被蓋。感覺通常保留；病灶延伸到被蓋時可能有部分感覺異常。常見於基底動脈中段阻塞，常被誤認為昏迷。',
-      en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking (controlled by the midbrain). Horizontal gaze is usually lost too, because the abducens nuclei and PPRF lie in the adjacent pontine tegmentum. Sensation is usually preserved; it can be partly affected when the lesion extends into the tegmentum. Typical of mid-basilar occlusion; easily mistaken for coma.',
+      zh: '雙側橋腦腹側受損：四肢癱瘓、不能說話與吞嚥，但意識清楚，只能用垂直眼動和眨眼溝通（由中腦控制）。水平眼動常一起喪失，因為外展神經核與 PPRF 就在旁邊的橋腦被蓋。感覺通常保留；病灶延伸到被蓋時可能有部分感覺異常。常見於基底動脈中段阻塞，常被誤認為昏迷。除眼睛以外完全不能動是「典型」；還有其他動作是「不完全」；連眼睛都不能動（兩側大腦腳／中腦也受損）是「完全型」（Bauer 1979）。早年文獻回顧的死亡率約 60%（139 例）：要積極照護呼吸與肺部（吸入、肺炎），並及早建立溝通方式（眨眼或眼動字母表、眼控電腦）。恢復差異很大：一個早期密集復健的小型選擇性系列（14 人）中，42% 恢復吞嚥、28% 恢復說話；病情穩定後可存活數十年。',
+      en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking (controlled by the midbrain). Horizontal gaze is usually lost too, because the abducens nuclei and PPRF lie in the adjacent pontine tegmentum. Sensation is usually preserved; it can be partly affected when the lesion extends into the tegmentum. Typical of mid-basilar occlusion; easily mistaken for coma. Nothing moving but the eyes is the classical form; with other movement left it is incomplete; with not even the eyes moving (both cerebral peduncles / the midbrain also damaged) it is total (Bauer 1979). Mortality was about 60% in an early review of 139 cases: breathing and lung care (aspiration, pneumonia) and an early communication system (an eye-coded or blink alphabet, eye-controlled computers) are essential. Recovery varies widely: in a small selected series of 14 patients after early intensive rehabilitation 42% regained swallowing and 28% speech; once medically stable, people can live for decades.',
     },
-    test: (c) => c.both('pons_rostral_basis', 0.4) || c.both('pons_caudal_basis', 0.4),
-    supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'],
+    test: (c) => classicalLockedIn(c),
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    id: 'locked_in_incomplete',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '不完全閉鎖症候群（雙側橋腦症候群）', en: 'Incomplete locked-in syndrome (bilateral pontine syndrome)' },
+    desc: {
+      zh: '兩側橋腦腹側都受損，但還有一些動作：四肢無力仍能稍微動、幾乎不能說話、吞嚥嚴重困難，意識清楚。Bauer（1979）把除了垂直眼動與眨眼以外還能動的閉鎖症候群稱為「不完全」；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成這樣。孤立橋腦梗塞中約 11% 是雙側，可在發作時短暫失去意識，留下四肢無力與假性延髓麻痺（Kumral 2002）。照護重點與閉鎖症候群相同：呼吸與肺部照護、及早建立溝通方式。',
+      en: 'Both sides of the ventral pons are damaged, but some movement is left: weak limbs that still move a little, little or no speech and severe swallowing difficulty, with consciousness preserved. Bauer (1979) calls locked-in syndrome incomplete when anything besides vertical eye movements and blinking remains; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months. About 11% of isolated pontine infarcts are bilateral; they can begin with a transient loss of consciousness and leave tetraparesis and pseudobulbar palsy (Kumral 2002). Care is as for locked-in syndrome: breathing and lung care and an early communication system.',
+    },
+    test: (c) => bothBases(c, 0.25) && !unaware(c) && !classicalLockedIn(c),
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    id: 'basilar_coma',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '基底動脈（橋腦）昏迷合併四肢癱瘓', en: 'Basilar (pontine) coma with quadriplegia' },
+    desc: {
+      zh: '橋腦腹側兩側受損（四肢癱瘓）再加上上橋腦或中腦被蓋兩側受損（維持清醒的網狀結構）：病人昏迷，不是閉鎖症候群。腹側橋腦病灶的病人常昏迷數天到數週、需要呼吸器，之後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。',
+      en: 'Both sides of the ventral pons (quadriplegia) plus both sides of the upper pontine or midbrain tegmentum (the arousal network): the person is comatose, not locked-in. With ventral pontine lesions people often stay comatose for days to weeks, needing ventilation, and then gradually wake: some wake up locked-in (aware but unable to move), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.',
+    },
+    test: (c) => bothBases(c, 0.25) && c.sym('coma') > 0,
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    id: 'pontine_doc',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '基底動脈昏迷之後：意識障礙或閉鎖', en: 'After basilar coma: disorder of consciousness or locked-in' },
+    desc: {
+      zh: '昏迷很少超過約兩週。兩側橋腦（或中腦）被蓋大範圍梗塞、又有四肢癱瘓的病人醒來後，眼睛會睜開、有睡醒週期，但可能沒有覺察（無反應覺醒症候群）、時有時無（最小意識狀態），也可能其實完全清醒、只是被閉鎖。閉鎖症候群的診斷平均要 2.5 個月以上，常是家屬先發現病人是清醒的：要反覆請病人用上下看或眨眼回答問題。',
+      en: 'Coma rarely lasts more than about two weeks. After extensive infarction of the pontine (or midbrain) tegmentum on both sides with quadriplegia, the eyes open and sleep–wake cycles return, but awareness may be absent (unresponsive wakefulness syndrome), fluctuating (minimally conscious state) — or fully present in a locked-in state. Locked-in syndrome takes over 2.5 months to diagnose on average, and it is often the family who first notices that the person is aware: ask repeatedly for answers by looking up or blinking.',
+    },
+    test: (c) => bothBases(c, 0.25) && c.sym('disorder_of_consciousness') > 0 && c.sym('coma') === 0,
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    // Kumral E et al. J Neurol 2002;249:1659–1670 (anteromedial pontine syndrome 58 % of 150:
+    // motor deficit with dysarthria and ataxia, mild tegmental signs in a third); Bassetti C et al.
+    // Neurology 1996;46:165–175 (21 of 36 ventral: from mild hemiparesis to severe hemiparesis with
+    // bilateral ataxia and dysarthria)
+    id: 'pontine_anteromedial',
+    group: 'brainstem',
+    lateral: true,
+    name: { zh: '橋腦前內側（旁正中）症候群', en: 'Anteromedial (paramedian) pontine syndrome' },
+    desc: {
+      zh: '最常見的橋腦梗塞型態（150 例孤立橋腦梗塞中占 58%）：旁正中穿通支區域的對側偏癱，合併構音障礙與運動失調，約三分之一有輕微的被蓋徵象（例如核間性眼肌麻痺）。常見原因是基底動脈分支病變（穿通支開口被基底動脈的斑塊堵住；兩個系列的孤立橋腦梗塞中占 39–44%，與大的腹側梗塞特別相關），可能逐步惡化。',
+      en: 'The commonest pattern of pontine infarction (58% of 150 isolated pontine infarcts): contralateral hemiparesis from the territory of the paramedian perforators, with dysarthria and ataxia, and mild tegmental signs (such as an internuclear ophthalmoplegia) in about a third. Often from basilar artery branch disease (plaque in the basilar artery blocking a perforator\'s origin; 39–44% of isolated pontine infarcts in these series, linked especially to large ventral infarcts), and it can worsen stepwise.',
+    },
+    test: (c, s) => (c.has('pons_rostral_basis', s, 0.3) || c.has('pons_caudal_basis', s, 0.3)) && otherBasesSpared(c, s),
   },
   {
     id: 'pontine_ventral',
     group: 'brainstem',
     lateral: true,
-    name: { zh: 'Millard–Gubler／Raymond 症候群（橋腦下部腹側）', en: 'Millard–Gubler / Raymond syndrome (ventral caudal pons)' },
+    name: { zh: 'Raymond 症候群（橋腦下部腹側）', en: 'Raymond syndrome (ventral caudal pons)' },
     desc: {
-      zh: '同側外展神經麻痺（眼睛無法向外轉）±同側周邊型顏面麻痺＋對側偏癱。',
-      en: 'Ipsilateral abducens palsy (eye cannot turn out) ± ipsilateral peripheral facial palsy + contralateral hemiplegia.',
+      zh: '同側外展神經麻痺（眼睛無法向外轉）＋對側偏癱。顏面神經纖維也受損、多了同側周邊型顏面麻痺時稱為 Millard–Gubler；本模型的橋腦下部腹側不含顏面神經纖維。這些「經典」交叉症候群在 MRI 時代並不常見：孤立橋腦梗塞的病人 36 位中只有 4 位有交叉性缺損，而且沒有一位符合經典症候群（Bassetti 1996）。',
+      en: 'Ipsilateral abducens palsy (the eye cannot turn out) + contralateral hemiplegia. With the facial fascicle also involved (an ipsilateral peripheral facial palsy) it is Millard–Gubler syndrome; the model\'s ventral caudal pons does not include the facial fascicle. Such classic crossed syndromes are uncommon on MRI: only 4 of 36 patients with isolated pontine infarcts had crossed deficits, and none matched a classic syndrome (Bassetti 1996).',
     },
-    test: (c, s) => c.has('pons_caudal_basis', s, 0.3) && !c.has('pons_caudal_basis', s === 'r' ? 'l' : 'r', 0.4),
-    supersedes: ['pontine_lacunar'],
+    test: (c, s) => c.has('pons_caudal_basis', s, 0.3) && otherBasesSpared(c, s),
+    supersedes: ['pontine_lacunar', 'pontine_anteromedial'],
   },
   {
     id: 'foville',
@@ -325,11 +408,11 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'Foville 症候群（橋腦下部）', en: 'Foville syndrome (caudal pons)' },
     desc: {
-      zh: '同側水平凝視麻痺（雙眼無法轉向病灶側）＋同側周邊型顏面麻痺＋對側偏癱：旁正中被蓋與腹側基底部同時受損。',
-      en: 'Ipsilateral horizontal gaze palsy (neither eye turns towards the lesion) + ipsilateral peripheral facial palsy + contralateral hemiparesis: paramedian tegmentum and ventral basis both involved.',
+      zh: '同側水平凝視麻痺（雙眼無法轉向病灶側）＋同側周邊型顏面麻痺＋對側偏癱：旁正中被蓋與腹側基底部同時受損。這些「經典」交叉症候群在 MRI 時代並不常見：孤立橋腦梗塞的病人 36 位中只有 4 位有交叉性缺損，而且沒有一位符合經典症候群（Bassetti 1996）。',
+      en: 'Ipsilateral horizontal gaze palsy (neither eye turns towards the lesion) + ipsilateral peripheral facial palsy + contralateral hemiparesis: paramedian tegmentum and ventral basis both involved. Such classic crossed syndromes are uncommon on MRI: only 4 of 36 patients with isolated pontine infarcts had crossed deficits, and none matched a classic syndrome (Bassetti 1996).',
     },
     test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && c.has('pons_caudal_basis', s, 0.3),
-    supersedes: ['pontine_ventral', 'one_and_half', 'pontine_lacunar'],
+    supersedes: ['pontine_ventral', 'pontine_anteromedial', 'one_and_half', 'pontine_lacunar'],
   },
   {
     id: 'one_and_half',
@@ -341,6 +424,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Abducens nucleus/PPRF plus MLF: neither eye looks towards the lesion, and looking away only the opposite eye abducts ("one-and-a-half"); add the ipsilateral facial genu and it becomes "eight-and-a-half" (1½ + 7). No limb weakness.',
     },
     test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && !c.has('pons_caudal_basis', s, 0.3),
+    supersedes: ['pontine_anteromedial'],
   },
   {
     id: 'pontine_lacunar',
@@ -355,6 +439,7 @@ export const SYNDROMES: SyndromeDef[] = [
       c.has('pons_rostral_basis', s, 0.3) &&
       !c.has('pons_rostral_tegmentum', s, 0.3) &&
       !c.has('pons_rostral_basis', s === 'r' ? 'l' : 'r', 0.3),
+    supersedes: ['pontine_anteromedial'],
   },
   {
     id: 'aica',
@@ -362,8 +447,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '小腦前下動脈症候群（外側橋腦下部）', en: 'AICA syndrome (lateral inferior pons)' },
     desc: {
-      zh: '眩暈、嘔吐、同側突發耳聾與耳鳴（迷路動脈）、同側周邊型顏面麻痺、同側臉部痛溫覺喪失、霍納氏症候群與肢體運動失調，對側身體痛溫覺喪失。突發單耳聽力喪失合併眩暈要想到它。',
-      en: 'Vertigo, vomiting, sudden ipsilateral deafness and tinnitus (labyrinthine artery), ipsilateral peripheral facial palsy, facial pain/temperature loss, Horner and limb ataxia, with contralateral body pain/temperature loss. Think of it with sudden one-sided deafness plus vertigo.',
+      zh: '眩暈、嘔吐、同側突發耳聾與耳鳴（迷路動脈）、同側周邊型顏面麻痺、同側臉部痛溫覺喪失、霍納氏症候群與肢體運動失調，對側身體痛溫覺喪失。突發單耳聽力喪失合併眩暈要想到它。內耳也缺血時，甩頭試驗可能像內耳炎一樣異常；這時 HINTS 的「S」——眼球垂直偏斜——可能是指向中風的線索（Kattah 2009 這樣的 3 例中有 2 例）。',
+      en: 'Vertigo, vomiting, sudden ipsilateral deafness and tinnitus (labyrinthine artery), ipsilateral peripheral facial palsy, facial pain/temperature loss, Horner and limb ataxia, with contralateral body pain/temperature loss. Think of it with sudden one-sided deafness plus vertigo. With the inner ear ischaemic too, the head impulse test can look peripheral; the "S" of HINTS, a skew deviation, can then be the clue to a stroke (2 of 3 such cases in Kattah 2009).',
     },
     test: (c, s) => c.has('pons_caudal_lateral', s, 0.3),
   },
@@ -386,8 +471,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '華倫堡氏症候群（延髓外側）', en: 'Wallenberg (lateral medullary) syndrome' },
     desc: {
-      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群、同側肢體運動失調、「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺），通常沒有明顯無力。最常見原因是椎動脈（而非單純 PICA）阻塞或剝離。',
-      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, and "crossed" sensory loss (pain/temperature on the same-side face and opposite body), usually without weakness. Most often due to vertebral (not isolated PICA) occlusion or dissection.',
+      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群、同側肢體運動失調、「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺），通常沒有明顯無力。病灶側眼睛可能較低（眼球垂直偏斜，HINTS 的「S」）：33 位病人中有 11 位有複視或視力模糊，這不一定代表梗塞超出延髓外側（Sacco 1993）。最常見原因是椎動脈（而非單純 PICA）阻塞或剝離。',
+      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, and "crossed" sensory loss (pain/temperature on the same-side face and opposite body), usually without weakness. The eye on the lesion side may sit lower (skew deviation, the "S" of HINTS): 11 of 33 patients had double or blurred vision, which does not necessarily mean the infarct extends beyond the lateral medulla (Sacco 1993). Most often due to vertebral (not isolated PICA) occlusion or dissection.',
     },
     test: (c, s) => c.has('medulla_lateral', s, 0.3),
   },

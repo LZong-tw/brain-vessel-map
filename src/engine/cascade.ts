@@ -11,7 +11,12 @@
  *     inflammation (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
  *   • crossed cerebellar diaschisis (Pantano, Baron et al., Brain 1986)
  *   • Wallerian degeneration on MRI (Kuhn et al., Radiology 1989; Thomalla et al., NeuroImage 2004)
- *   • hypertrophic olivary degeneration (Goto & Kaneko 1981; Kitajima et al., Radiology 1994)
+ *   • hypertrophic olivary degeneration (Goto & Kaneko 1981; Kitajima et al., Radiology 1994;
+ *     Goyal et al., AJNR 2000)
+ *   • locked-in syndrome and basilar coma (Bauer et al., J Neurol 1979; Laureys et al., Prog Brain
+ *     Res 2005; Patterson & Grabois, Stroke 1986)
+ *   • central hyperthermia as a risk after brainstem coma (Parvizi & Damasio, Brain 2003; Sung et
+ *     al., Eur Neurol 2009)
  * TODO(medical-review): thresholds and timings are educational approximations.
  */
 
@@ -94,6 +99,13 @@ export interface CascadeInput {
 
 /** mean arterial pressure from which the high-blood-pressure note is shown (≈ 170/95 mmHg) */
 export const HIGH_MAP = 120;
+
+/**
+ * when a palatal tremor may be listed after a clear trigger (h): weeks to months after the lesion
+ * (Tilikete C, Desestret V. Front Neurol 2017;8:302; 1 and 3 months in Chang YY et al. Gaoxiong
+ * Yi Xue Ke Xue Za Zhi 1993;9:371–376)
+ */
+const PALATAL_TREMOR_H = 2160;
 
 /** The treatment details the event texts need (times on the clinical clock, like reperfusionH). */
 export interface CascadeTreatment {
@@ -256,6 +268,11 @@ export interface CascadeOutput {
   /** when the acute obstructive episode is over (the 'hydrocephalus' event's endH) */
   hydrocephalusEndH: number | null;
   midlineShift: { side: Side; peakMm: number; onsetH: number } | null;
+  /**
+   * from when a palatal tremor may be listed (h), or null: only after a clear infarct of the
+   * dentate nucleus, the red nucleus region or the pontine tegmentum (C3-F11)
+   */
+  palatalTremorFromH: number | null;
 }
 
 /**
@@ -317,12 +334,24 @@ function pushEyeEvents(events: CascadeEvent[]): void {
  * 2013;369:11–19) and POINT (Johnston SC et al. N Engl J Med 2018;379:215–225).
  */
 function pushNoInfarctEvents(events: CascadeEvent[]): void {
+  events.push(...noInfarctEvents(0, Infinity));
+}
+
+/**
+ * The TIA story for brain ischaemia that began at `fromH` and left no infarct, cut off at `untilH`
+ * (when a later occlusion starts a new episode). simulate() also tells it for a reopened phase
+ * before the index event, such as the prodromal attack of a progressive basilar thrombosis (C3-F8).
+ */
+export function noInfarctEvents(fromH: number, untilH: number): CascadeEvent[] {
+  const at = (h: number) => fromH + h;
+  const until = (h: number) => Math.min(at(h), untilH);
+  const events: CascadeEvent[] = [];
   events.push({
     id: 'ischemia_no_infarct',
     kind: 'mechanism',
     severity: 'warn',
-    onsetH: 0,
-    endH: 6,
+    onsetH: at(0),
+    endH: until(6),
     title: { zh: '缺血但沒有梗塞', en: 'Ischaemia without infarction' },
     desc: {
       zh: '血流中斷約 10 秒內神經元停止放電而出現症狀。這次在組織壞死之前，血流就恢復了（或側枝循環撐住），所以症狀可以完全消失、沒有留下梗塞——這就是暫時性腦缺血（TIA）。',
@@ -334,8 +363,8 @@ function pushNoInfarctEvents(events: CascadeEvent[]): void {
     id: 'imaging_no_infarct',
     kind: 'imaging',
     severity: 'info',
-    onsetH: 0.1,
-    endH: 336,
+    onsetH: at(0.1),
+    endH: until(336),
     title: { zh: '影像：預期 DWI 沒有梗塞', en: 'Imaging: DWI expected to show no infarct' },
     desc: {
       zh: '模型裡沒有組織壞死，所以擴散加權 MRI 預期是陰性。真實世界裡，持續較久的 TIA 常在 DWI 上看得到小病灶——那時依定義就算輕微中風，而不是 TIA。',
@@ -347,8 +376,8 @@ function pushNoInfarctEvents(events: CascadeEvent[]): void {
     id: 'tia_urgent',
     kind: 'treatment',
     severity: 'warn',
-    onsetH: 0,
-    endH: 168,
+    onsetH: at(0),
+    endH: until(168),
     title: { zh: '症狀消失不代表沒事', en: 'Symptoms gone does not mean safe' },
     desc: {
       zh: 'TIA 後最初幾天發生真正中風的風險最高，應當天就醫、盡快完成腦與血管檢查。醫師通常會立即開始抗血小板藥物（高風險者短期併用兩種：CHANCE、POINT 試驗），並找出頸動脈狹窄、心房顫動等原因。反覆、越來越頻繁的發作（尤其後循環）可能是大血管即將完全阻塞的前兆。',
@@ -356,6 +385,7 @@ function pushNoInfarctEvents(events: CascadeEvent[]): void {
     },
     regions: [],
   });
+  return events;
 }
 
 /**
@@ -664,6 +694,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   let hydrocephalusOnsetH: number | null = null;
   let hydrocephalusEndH: number | null = null;
   let midlineShift: CascadeOutput['midlineShift'] = null;
+  let palatalTremorFromH: number | null = null;
   if (vol.total >= 3) {
     events.push({
       id: 'vasogenic_edema',
@@ -906,6 +937,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     ['medulla_lateral_r', 'medulla_lateral_l'],
     ['medulla_medial_r', 'medulla_medial_l'],
   ];
+  // the arousal network of the upper pontine and paramedian midbrain tegmentum (coma when both
+  // sides fail: Parvizi J, Damasio AR. Brain 2003;126:1524–1536)
+  const PONS_TEG_ROSTRAL: [string, string][] = [['pons_rostral_tegmentum_r', 'pons_rostral_tegmentum_l']];
+  const MIDBRAIN_PARAMEDIAN: [string, string][] = [['midbrain_paramedian_r', 'midbrain_paramedian_l']];
   // Both states come from the acute dysfunction. When blood returns before the tissue on both
   // sides dies, the state lasts only until then (the symptoms clear with reperfusion); without
   // that, it stays for as long as the dysfunction does.
@@ -919,21 +954,85 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           en: ` Blood returned ${formatHours(h, 'en')} after onset before both sides infarcted, so the state resolves then.`,
         };
   const lockedIn = bilateral(acute, PONS_BASIS);
-  if (lockedIn) {
+  // the tegmentum (arousal) fails on both sides as well: coma, not locked-in (C3-F1)
+  const tegmentalComa = bilateral(acute, PONS_TEG_ROSTRAL) || bilateral(acute, MIDBRAIN_PARAMEDIAN);
+  // locked-in once the ventral pons is infarcted on both sides; with less, an incomplete picture
+  const classicalRisk = bilateral((r) => infarcted(r, 0.4), PONS_BASIS);
+  // Locked-in syndrome: Bauer G et al. J Neurol 1979;221:77–91 (classical, incomplete, total);
+  // comatose first: Laureys S et al. Prog Brain Res 2005;150:495–511; prognosis and care: Patterson
+  // JR, Grabois M. Stroke 1986;17:758–764 (139 cases, mortality 60 %, lung care and a communication
+  // system); Casanova E et al. Arch Phys Med Rehabil 2003;84:862–867 (14 selected patients).
+  const LIS_CARE: L = {
+    zh: '早年 139 例文獻回顧的死亡率約 60%：要積極照護呼吸與肺部（吸入、肺炎），並及早建立溝通方式（眨眼或眼動字母表、眼控電腦）。恢復差異很大：一個早期密集復健的小型選擇性系列（14 人）中，42% 恢復吞嚥、28% 恢復說話；病情穩定後可存活數十年。',
+    en: ' Mortality was about 60% in an early review of 139 cases: breathing and lung care (aspiration, pneumonia) and an early communication system (an eye-coded or blink alphabet, eye-controlled computers) are essential. Recovery varies widely: in a small selected series of 14 patients after early intensive rehabilitation 42% regained swallowing and 28% speech; once medically stable, people can live for decades.',
+  };
+  if (lockedIn && tegmentalComa) {
     const until = transientUntil(PONS_BASIS);
     const note = clears(until);
+    events.push({
+      id: 'basilar_coma',
+      kind: 'secondary',
+      severity: 'danger',
+      onsetH: 0,
+      ...(until !== undefined ? { endH: until } : {}),
+      title: { zh: '雙側橋腦腹側與被蓋受損：昏迷合併四肢癱瘓', en: 'Bilateral ventral pons and tegmentum: coma with quadriplegia' },
+      desc: {
+        zh: `四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。${LIS_CARE.zh}${note.zh}`,
+        en: `Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation. Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.${LIS_CARE.en}${note.en}`,
+      },
+      regions: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => acute(r)),
+    });
+  } else if (lockedIn) {
+    const until = transientUntil(PONS_BASIS);
+    const note = clears(until);
+    const partial = until === undefined && !classicalRisk;
     events.push({
       id: 'locked_in',
       kind: 'secondary',
       severity: 'danger',
       onsetH: 0,
       ...(until !== undefined ? { endH: until } : {}),
-      title: { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' },
+      // reopened in time: a passing risk; infarcted on both sides: locked-in; less: incomplete
+      title:
+        until !== undefined
+          ? { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' }
+          : classicalRisk
+            ? { zh: '雙側橋腦腹側受損：閉鎖症候群', en: 'Bilateral ventral pons: locked-in syndrome' }
+            : { zh: '雙側橋腦腹側部分受損：不完全閉鎖（雙側橋腦症候群）', en: 'Bilateral ventral pons, partly: incomplete locked-in (bilateral pontine syndrome)' },
       desc: {
-        zh: `四肢與臉部完全癱瘓、無法說話吞嚥，但意識清楚，只能用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。${note.zh}`,
-        en: `Total paralysis of limbs and face with no speech or swallowing, yet fully conscious — communication is only by vertical eye movements and blinking (the midbrain gaze centres are spared).${note.en}`,
+        zh: `${partial ? '兩側都受損但不完全：' : '一開始常是'}四肢與臉部${partial ? '嚴重' : '完全'}癱瘓、無法說話吞嚥，但意識清楚，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}${note.zh}`,
+        en: `${partial ? 'Both sides, but not completely: severe' : 'Often at first total'} paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}${note.en}`,
       },
       regions: PONS_BASIS.flat().filter((r) => acute(r)),
+    });
+  }
+  // Central hyperthermia (S2, C3-F9): of 9 brainstem-coma patients, 4 developed hyperthermia and
+  // died without infection, the lesions centred on the core of the pontine tegmentum (Parvizi J,
+  // Damasio AR. Brain 2003;126:1524–1536; the stroke type is not given in the abstract); ischaemic
+  // case reports after bilateral paramedian midbrain–thalamic infarction (Alemdar M. J Stroke
+  // Cerebrovasc Dis 2012;21:907.e13–907.e15: 39.3 °C, no infection) and after basilar occlusion
+  // (Huang YS et al. Acta Neurol Taiwan 2009;18:118–122: "not uncommon in severe brainstem stroke",
+  // poor prognosis); of 74 patients with central hyperthermia in the first 24 h only 4 % had a large
+  // cortical infarct and 3 % a basilar occlusion, the rest haemorrhages, all with brainstem
+  // involvement; most peaked within 24 h and nearly 70 % died within a month (Sung CY et al. Eur
+  // Neurol 2009;62:86–92). A risk, not a symptom: fever after a stroke is mostly infection (Grau AJ
+  // et al. J Neurol Sci 1999;171:115–120).
+  const extensive = (r: string) => infarcted(r, 0.5);
+  const hyperthermiaRisk = tegmentalComa && (bilateral(extensive, PONS_TEG_ROSTRAL) || bilateral(extensive, MIDBRAIN_PARAMEDIAN));
+  if (hyperthermiaRisk) {
+    events.push({
+      id: 'central_hyperthermia',
+      kind: 'complication',
+      severity: 'warn',
+      onsetH: 0,
+      peakH: 24,
+      endH: 336,
+      title: { zh: '中樞性高熱的風險（腦幹被蓋兩側受損）', en: 'Risk of central hyperthermia (brainstem tegmentum on both sides)' },
+      desc: {
+        zh: '上橋腦（或中腦—視丘旁正中）被蓋兩側大範圍受損又昏迷時，體溫調節可能失控：發病頭一天內體溫急升到 39 °C 以上、劇烈起伏，退燒藥可能無效。缺血性中風後這很少見（74 位中樞性高熱病人中只有 4% 是大範圍皮質梗塞、3% 是基底動脈阻塞，其餘是出血），而且是排除診斷：中風後發燒要先找感染（肺炎、尿路感染），找過都沒有才考慮中樞性。預後很差：一項腦幹昏迷研究的 9 位中有 4 位出現高熱、在沒有感染下死亡；另一個系列近 70% 在一個月內死亡。',
+        en: 'When the upper pontine (or paramedian midbrain–thalamic) tegmentum is extensively damaged on both sides and the person is comatose, temperature control can fail: within the first day the temperature shoots above 39 °C and swings widely, and antipyretics may not help. This is rare after an ischaemic stroke (of 74 patients with central hyperthermia only 4% had a large cortical infarct and 3% a basilar occlusion, the rest haemorrhages), and it is a diagnosis of exclusion: fever after a stroke means looking for infection first (pneumonia, urinary tract), and only when none is found is a central cause considered. The prognosis is poor: in a study of brainstem coma 4 of 9 patients developed hyperthermia and died without infection; in another series nearly 70% died within a month.',
+      },
+      regions: [...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => extensive(r)),
     });
   }
   if (bilateral(acute, MEDULLA)) {
@@ -971,11 +1070,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       title: { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' },
       // fever early after an ischaemic stroke is mostly infection or aspiration (Grau AJ et al.,
       // J Neurol Sci 1999;171:115–120); central fever is described mostly with haemorrhage and
-      // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is not a symptom
-      // of this model (see the temperature section of anatomy/symptoms.ts)
+      // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is shown only as a
+      // risk after extensive bilateral tegmental infarction with coma ('central_hyperthermia'
+      // above; see the temperature section of anatomy/symptoms.ts)
       desc: {
-        zh: '中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見，只有排除感染後才考慮。',
-        en: 'One of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke and is considered only once infection has been ruled out.',
+        zh: '中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見（主要是兩側腦幹被蓋大範圍受損又昏迷時，見「中樞性高熱的風險」），只有排除感染後才考慮。',
+        en: 'One of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.',
       },
       regions: [],
     });
@@ -1069,6 +1169,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         BEDS.filter((b) => b.region === rid).forEach((b) => addEffect(b.id, { kind: 'degeneration', onsetH: 336, event: `wallerian_${s}` })),
       );
       if (down.length) {
+        // shrinkage of the brainstem over several years (Kuhn MJ et al. Radiology 1989;172:179–182)
         events.push({
           id: `wallerian_${s}`,
           kind: 'secondary',
@@ -1076,8 +1177,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           onsetH: 336,
           title: { zh: '皮質脊髓徑的沃勒氏退化', en: 'Wallerian degeneration of the corticospinal tract' },
           desc: {
-            zh: '運動神經元的細胞本體或纖維被切斷後，下游的軸突會一路往下退化：大腦腳 → 橋腦 → 延髓錐體（在延髓下端交叉到對側脊髓）。擴散張量影像約 1–2 週可見，傳統 MRI 約 4 週後出現訊號變化，數月後萎縮。',
-            en: 'Once motor neurons or their fibres are cut, the axons below degenerate all the way down: peduncle → pons → medullary pyramid (crossing to the opposite spinal cord at the bottom of the medulla). Diffusion-tensor imaging shows it after ~1–2 weeks, conventional MRI after ~4 weeks, with atrophy over months.',
+            zh: '運動神經元的細胞本體或纖維被切斷後，下游的軸突會一路往下退化：大腦腳 → 橋腦 → 延髓錐體（在延髓下端交叉到對側脊髓）。擴散張量影像約 1–2 週可見，傳統 MRI 約 4 週後出現訊號變化，腦幹在數年間逐漸萎縮。',
+            en: 'Once motor neurons or their fibres are cut, the axons below degenerate all the way down: peduncle → pons → medullary pyramid (crossing to the opposite spinal cord at the bottom of the medulla). Diffusion-tensor imaging shows it after ~1–2 weeks, conventional MRI after ~4 weeks, and the brainstem shrinks over years.',
           },
           regions: down,
         });
@@ -1106,20 +1207,32 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     if (infarcted(`midbrain_paramedian_${s}`, 0.3) || infarcted(`pons_rostral_tegmentum_${s}`, 0.3) || infarcted(`pons_caudal_tegmentum_${s}`, 0.3))
       hodTargets.push(`medulla_medial_${s}`);
     const hod = [...new Set(hodTargets)].filter((r) => !infarcted(r, 0.5));
+    // a palatal tremor is listed (as possible) only after a clear infarct of a trigger: the dentate
+    // nucleus, the red nucleus region or the central tegmental tract in the pontine tegmentum
+    const clearTrigger = ['dentate', 'midbrain_paramedian', 'pons_rostral_tegmentum', 'pons_caudal_tegmentum'].some((b) =>
+      infarcted(`${b}_${s}`, 0.5),
+    );
+    if (hod.length && clearTrigger) palatalTremorFromH = PALATAL_TREMOR_H;
     if (hod.length) {
       hod.forEach((rid) =>
         BEDS.filter((b) => b.region === rid).forEach((b) => addEffect(b.id, { kind: 'degeneration', onsetH: 720, event: `hod_${s}` })),
       );
+      // how often: unknown (Schaller-Paule MA et al. Front Neurol 2021;12:675123); 38–67 % of 15
+      // patients on MRI, by sequence and rater (Steidl E et al. Front Neurol 2022;13:950191). MRI
+      // course: T2 signal from 1 month for years, enlargement from 6 months resolving by 3–4 years
+      // (Goyal M et al. AJNR Am J Neuroradiol 2000;21:1073–1077; Kitajima et al. 1994: T2 from
+      // 3 weeks, enlargement at 5–15 months). Palatal or oculopalatal tremor weeks to months later,
+      // more often after haemorrhage (Tilikete C, Desestret V. Front Neurol 2017;8:302).
       events.push({
         id: `hod_${s}`,
         kind: 'secondary',
         severity: 'warn',
         onsetH: 720,
-        peakH: 3000,
-        title: { zh: '下橄欖核肥大性退化（遠隔的延髓變化）', en: 'Hypertrophic olivary degeneration (remote medullary change)' },
+        peakH: 4320,
+        title: { zh: '下橄欖核肥大性退化可能發生（遠隔的延髓變化）', en: 'Hypertrophic olivary degeneration may develop (remote medullary change)' },
         desc: {
-          zh: '齒狀核—紅核—下橄欖核組成 Guillain–Mollaret 三角。齒狀核（影響對側橄欖核）或紅核／中央被蓋徑（影響同側）受損後，下橄欖核失去抑制而肥大，約 1 個月開始、4–6 個月最明顯，可能出現軟顎顫抖。',
-          en: 'Dentate nucleus, red nucleus and inferior olive form the Guillain–Mollaret triangle. After damage to the dentate (affects the opposite olive) or red nucleus / central tegmental tract (same side), the deafferented olive enlarges — starting ~1 month, most visible at 4–6 months — and palatal tremor may appear.',
+          zh: '齒狀核—紅核—下橄欖核組成 Guillain–Mollaret 三角。齒狀核（影響對側橄欖核）或紅核／中央被蓋徑（影響同側）受損後，下橄欖核可能失去抑制而退化肥大——多少人會發生並不清楚：一個 15 人的前瞻性 MRI 研究依序列與判讀者不同，在 38–67% 看到它。MRI 上約 1 個月出現 T2 高訊號（持續數年），約 6 個月開始變大，3–4 年內消退，之後萎縮。少數人在數週到數月後出現軟顎顫抖（出血後比梗塞後常見）。',
+          en: 'Dentate nucleus, red nucleus and inferior olive form the Guillain–Mollaret triangle. After damage to the dentate (affects the opposite olive) or red nucleus / central tegmental tract (same side), the deafferented olive may degenerate and enlarge — how often is not known: a prospective MRI study of 15 patients saw it in 38–67%, depending on sequence and rater. On MRI the T2 signal rises from about 1 month (and stays for years), the olive enlarges from about 6 months and this resolves by 3–4 years, followed by shrinkage. A minority develop a palatal tremor weeks to months later (more often after haemorrhage than infarction).',
         },
         regions: hod,
       });
@@ -1306,6 +1419,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     hydrocephalusOnsetH,
     hydrocephalusEndH,
     midlineShift,
+    palatalTremorFromH,
   };
 }
 

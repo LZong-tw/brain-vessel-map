@@ -173,6 +173,11 @@ export interface DeficitRef {
   bilateralOnly?: boolean;
   /** a lacune in this structure usually spares this function (e.g. sensation in a capsular pure motor lacune) */
   spareInLacune?: boolean;
+  /**
+   * appears only when at least this fraction of the region is affected: a deficit that only an
+   * extensive lesion produces (e.g. drowsiness after a one-sided upper pontine tegmental infarct)
+   */
+  minLevel?: number;
 }
 
 export interface StructureInfo {

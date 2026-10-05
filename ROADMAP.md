@@ -18,8 +18,8 @@
   · Oedema and swelling (cytotoxic → ionic → vasogenic → resolution → atrophy), 3D deformation, midline shift
 - 連鎖反應：腦疝脫、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症
   · Cascade: herniation, hydrocephalus, haemorrhagic transformation, CCD, Wallerian and olivary degeneration, systemic complications
-- 症狀、39 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意）
-  · Symptoms, 39 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative)
+- 症狀、43 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意）
+  · Symptoms, 43 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative)
 - 病例介面：發病前條件／阻塞事件／治療三張卡片，範本可載入或疊加多條血管；右側「此刻／最終／詳細」，最終頁有治療與未治療對照
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
 - 31 個教學範本、單一穿通支阻塞（腔隙性中風）、栓子漂流模擬

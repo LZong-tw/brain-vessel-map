@@ -382,7 +382,13 @@ describe('transient occlusions (relative to the tissue parameters)', () => {
     expect(day3.schedule.onsetH).toBe(72);
     expect(day3.syndromes.map((s) => s.def.id)).toContain('locked_in');
     expect(at(120).volumes.core).toBeGreaterThan(1);
-    expect(at(120).cascade.events.every((e) => e.onsetH >= 72)).toBe(true);
+    // the index event's story starts on day 3; only the prodromal TIA's own story comes earlier,
+    // and it ends when the artery occludes (C3-F8)
+    const TIA = ['ischemia_no_infarct', 'imaging_no_infarct', 'tia_urgent'];
+    const events = at(120).cascade.events;
+    expect(events.filter((e) => !TIA.includes(e.id)).every((e) => e.onsetH >= 72)).toBe(true);
+    const tia = events.filter((e) => TIA.includes(e.id)).sort((a, b) => a.id.localeCompare(b.id));
+    expect(tia.map((e) => [e.id, e.onsetH < 1, (e.endH ?? Infinity) <= 72])).toEqual([...TIA].sort().map((id) => [id, true, true]));
   });
 });
 

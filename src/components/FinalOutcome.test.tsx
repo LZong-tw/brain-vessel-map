@@ -187,7 +187,8 @@ describe('最終 tab', () => {
   it('names the syndrome that remains at 6 months (locked-in after a mid-basilar occlusion)', () => {
     useApp.getState().loadScenario('basilar_mid');
     useApp.setState({ rightTab: 'final' });
-    const lockedIn = at6m().syndromes.find((s) => s.def.id === 'locked_in');
+    // incomplete by then: some limb movement has returned (C3-F1)
+    const lockedIn = at6m().syndromes.find((s) => s.def.id === 'locked_in_incomplete');
     expect(lockedIn).toBeDefined();
     const { container } = render(<RightPanel sim={simOf()} />);
     const line = container.querySelector('.outcome-syndromes') as HTMLElement;

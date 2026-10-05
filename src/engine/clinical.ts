@@ -49,6 +49,34 @@ const reaches = (x: number | undefined, thr = DYS_THR) => (x ?? 0) >= thr - 1e-6
 const DELAY_H = 336;
 /** a deficit compensated below this (continuous) severity is no longer noticeable */
 const COMPENSATED_OUT = 0.35;
+/** infarcted share of both sides from which tegmental damage counts as extensive (C3-F2) */
+const EXTENSIVE = 0.5;
+/** regions whose coma, after extensive damage on both sides, becomes a disorder of consciousness */
+const DOC_SOURCES = ['pons_rostral_tegmentum', 'midbrain_paramedian'];
+/** regions whose coma otherwise becomes persistent hypersomnia (the paramedian arousal system) */
+const HYPERSOMNIA_SOURCES = ['thalamus_paramedian', 'midbrain_paramedian'];
+
+/**
+ * What a region's coma becomes from two weeks on, or null when it simply resolves. Coma rarely
+ * lasts more than about two weeks: the person wakes into an unresponsive wakefulness or minimally
+ * conscious state (O'Donnell JC et al. Neurosci Biobehav Rev 2019;98:336–346, definitions) or,
+ * after ventral pontine damage, wakes up locked-in (Laureys S et al. Prog Brain Res
+ * 2005;150:495–511) — the lesion map cannot tell these apart, so extensive bilateral tegmental
+ * damage gives 'disorder_of_consciousness'. After paramedian thalamic and limited midbrain
+ * damage the lasting problem is hypersomnia, a "dearoused" state, not coma (Castaigne P et al.
+ * Ann Neurol 1981;10:127–148; Bassetti C et al. Ann Neurol 1996;39:471–480). The loss of
+ * consciousness of bilateral pontine infarcts is otherwise transient (Kumral E et al. J Neurol
+ * 2002;249:1659–1670).
+ */
+function comaBecomes(baseId: string, side: Side | 'm', regionInf: Record<string, number>): string | null {
+  const extensive =
+    side !== 'm' &&
+    DOC_SOURCES.includes(baseId) &&
+    reaches(regionInf[`${baseId}_r`], EXTENSIVE) &&
+    reaches(regionInf[`${baseId}_l`], EXTENSIVE);
+  if (extensive) return 'disorder_of_consciousness';
+  return HYPERSOMNIA_SOURCES.includes(baseId) ? 'hypersomnia' : null;
+}
 
 export function aggregateSymptoms(
   regionDys: Record<string, number>,
@@ -90,7 +118,12 @@ export function aggregateSymptoms(
       const byInfarct = delayed || !!sym.fromInfarct;
       const level = byInfarct ? inf : dys;
       if (!reaches(level)) continue;
+      // a deficit that only an extensive lesion produces
+      if (d.minLevel !== undefined && !reaches(level, d.minLevel)) continue;
       if (delayed && tH < DELAY_H) continue;
+      // drowsiness is the acute picture: a raised need for sleep that lasts beyond two weeks is
+      // listed as persistent hypersomnia (C3-F2)
+      if (d.s === 'somnolence' && tH >= DELAY_H) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
@@ -102,14 +135,26 @@ export function aggregateSymptoms(
         if (r.side === 'm' || d.lat === 'none') side = r.side === 'm' ? 'both' : null;
         else side = d.lat === 'contra' ? opp(r.side) : r.side;
       }
+      // from two weeks on a region's coma is listed as what follows it (C3-F2)
+      let id = d.s;
+      let shownDelayed = delayed;
+      if (d.s === 'coma' && tH >= DELAY_H) {
+        const next = comaBecomes(r.baseId, r.side, regionInf);
+        if (!next) continue;
+        id = next;
+        shownDelayed = !!SYMPTOM_BY_ID[next]?.delayed;
+      }
       let sevEff = (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, level / 0.8));
-      // weeks–months later, spared pathways take over part of what the dead tissue did
-      const rec = symptomCompensation(d.s, r, level, inf, lesions, tH);
+      // the hypersomnia that follows coma is a sleep disorder, never worse than moderate
+      if (id === 'hypersomnia' && d.s === 'coma') sevEff = Math.min(sevEff, 2);
+      // weeks–months later, spared pathways take over part of what the dead tissue did; a coma
+      // that became a disorder of consciousness keeps the arousal system's (coma's) redundancy
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, tH);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
       }
-      add(d.s, side, sevEff, r.id, delayed, rec);
+      add(id, side, sevEff, r.id, shownDelayed, rec);
     }
   }
   for (const e of extra) add(e.id, e.side, e.sev, e.sources[0] ?? '', e.delayed);
@@ -173,12 +218,21 @@ export function aggregateSymptoms(
     }
   }
   if (map.has('coma|')) del('somnolence', null);
-  // a sleep disorder cannot be told apart from unrousable coma
-  if ((get('coma', null)?.sev ?? 0) >= 3) del('hypersomnia', null);
+  // a sleep disorder cannot be told apart from coma or from a disorder of consciousness (C3-F2)
+  if (map.has('coma|') || map.has('disorder_of_consciousness|')) del('hypersomnia', null);
   // central sleep apnoea after a one-sided lateral medullary lesion is the mild end of what
   // `respiratory` (automatic breathing failing, including in sleep) describes: list it once
   if (map.has('respiratory|')) del('central_sleep_apnoea', null);
-  const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino'];
+  // the side of a skew deviation is that of the lower eye, known for one-sided lesions (Brandt &
+  // Dieterich 1993); lesions of both sides have no single lower eye, so none is listed (C3-F5)
+  if (get('skew_deviation', 'r') && get('skew_deviation', 'l')) {
+    del('skew_deviation', 'r');
+    del('skew_deviation', 'l');
+  }
+  // hallucinations are reported by a drowsy, not a comatose patient (C3-F10)
+  if (map.has('coma|') || map.has('disorder_of_consciousness|')) del('peduncular_hallucinosis', null);
+  // misaligned eyes see double; a skew deviation gives vertical double vision (C3-F5)
+  const eye =['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino', 'skew_deviation'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {
     add('diplopia', null, 2, [...map.values()].find((s) => eye.includes(s.id))!.sources[0], false);
   }

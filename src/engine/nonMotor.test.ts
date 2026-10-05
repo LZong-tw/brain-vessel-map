@@ -99,10 +99,12 @@ describe('sleep', () => {
     expect(m1[0].recovery?.bilateral).toBe(true);
   });
 
-  it('no separate hypersomnia in an unrousable patient', () => {
+  it('no separate hypersomnia while the patient is in coma, however deep (C3-F2)', () => {
     const inf = { thalamus_paramedian_r: 1, thalamus_paramedian_l: 1 };
     const coma = (sev: 1 | 2 | 3): SymptomItem => ({ id: 'coma', side: null, sev, sources: ['herniation'], delayed: false });
-    expect(find(aggregateSymptoms(inf, inf, 720, [coma(2)]), 'hypersomnia')).toHaveLength(1);
+    // without coma, the hypersomnia of both paramedian thalami is listed
+    expect(find(aggregateSymptoms(inf, inf, 720), 'hypersomnia')).toHaveLength(1);
+    expect(find(aggregateSymptoms(inf, inf, 720, [coma(2)]), 'hypersomnia')).toHaveLength(0);
     expect(find(aggregateSymptoms(inf, inf, 720, [coma(3)]), 'hypersomnia')).toHaveLength(0);
   });
 
@@ -232,6 +234,8 @@ describe('every new symptom can occur', () => {
  * computed at commit 54e06e5 — before any of these symptoms existed — and pinned here. The new
  * symptoms carry no NIHSS points and syndromes are detected from regions, so adding them must
  * leave every value as it was. [total, items > 0, syndromes (with lesion side)]
+ * Deliberate changes since then are marked at their rows with the audit finding that explains them
+ * (C3-F1: incomplete locked-in syndrome; C3-F2: the time course of coma).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_m1@24': [19, { '1b': 2, '1c': 1, 2: 1, 3: 1, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1 }, ['gerstmann_l', 'mca_complete_l']],
@@ -261,15 +265,18 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_thalamic@24': [3, { 7: 1, 8: 2 }, ['lacunar_pure_sensory_l', 'thalamic_sensory_l']],
   'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['lacunar_pure_sensory_l', 'thalamic_sensory_l']],
   'percheron@24': [5, { '1a': 2, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
-  'percheron@2160': [4, { '1a': 1, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
+  // C3-F2: the coma of the paramedian thalami has given way to persistent hypersomnia by 3 months (1a 1 → 0)
+  'percheron@2160': [3, { 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
   'l_pca@24': [4, { 3: 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
   'l_pca@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   'basilar_tip@24': [36, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 1, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
   'basilar_tip@2160': [21, { '1a': 2, '1b': 1, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']],
   'basilar_mid@24': [23, { 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
-  'basilar_mid@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
+  // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome
+  'basilar_mid@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
   'basilar_stuttering@24': [0, {}, []],
-  'basilar_stuttering@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
+  // C3-F1: as basilar_mid@2160
+  'basilar_stuttering@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
   'r_wallenberg@24': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
   'r_wallenberg@2160': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
   'r_pica@24': [3, { 2: 1, 7: 1, 8: 1 }, ['pica_cerebellar_r']],

@@ -198,8 +198,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: 'Percheron 動脈阻塞（雙側視丘）', en: 'Artery of Percheron occlusion (both thalami)' },
     summary: {
-      zh: '一條小動脈同時供應雙側視丘：嗜睡、記憶喪失、無法上下看。',
-      en: 'One small artery feeds both thalami: drowsiness, amnesia, vertical gaze palsy.',
+      zh: '一條小動脈同時供應雙側視丘：一開始嗜睡甚至昏迷，之後留下長期嗜睡（睡眠需求增加）；記憶喪失、無法上下看。',
+      en: 'One small artery feeds both thalami: drowsiness up to coma at first, then a lasting greater need for sleep (persistent hypersomnia); amnesia, vertical gaze palsy.',
     },
     occlusions: [{ vessel: 'thalamoperforator_r', severity: 1 }],
     variants: ['percheron_r'],
@@ -249,14 +249,20 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     // prodromes: Ferbert A, Brückmann H, Drummen R, Stroke 1990;21:1135–42 (vertigo, nausea and
-    // headache were the commonest, in the 2 weeks before); von Campe G, Regli F, Bogousslavsky J,
-    // J Neurol Neurosurg Psychiatry 2003;74:1621–6 (warning signs in 22 of 24 patients)
+    // headache were the commonest, in the 2 weeks before; onset progressive in 54 of 85, often with
+    // bilateral vertebral occlusion, sudden in 20 and sudden after prodromes in 11; acute onset
+    // mostly with mid or distal basilar occlusion); von Campe G, Regli F, Bogousslavsky J,
+    // J Neurol Neurosurg Psychiatry 2003;74:1621–6 (warning signs in 22 of 24 patients; headache
+    // and visual disturbances early, speech and motor deficits late). The model's flow responds to
+    // a basilar narrowing almost all-or-nothing (a 97 % one already gives the full picture), so the
+    // prodrome is a complete occlusion for 5 minutes, and the summary says how it differs from the
+    // milder warning attacks of real patients (C3-F8).
     id: 'basilar_stuttering',
     group: 'posterior',
     title: { zh: '進展性基底動脈血栓：前驅 TIA → 閉鎖症候群', en: 'Progressive basilar thrombosis: prodromal TIA → locked-in syndrome' },
     summary: {
-      zh: '基底動脈中段重度狹窄。第 0 天血栓暫時完全塞住約 5 分鐘：頭暈、複視、講話不清、肢體無力，隨後消失（前驅 TIA）；之後只剩 90% 狹窄，沒有症狀。第 3 天完全阻塞：雙側橋腦腹側梗塞 → 閉鎖症候群。後循環的短暫症狀常被當成「頭暈」忽略，卻可能是基底動脈閉塞的警訊：Ferbert 等（Stroke 1990）的病人最常見的前驅症狀是眩暈、噁心與頭痛，多在中風前 2 週內；von Campe 等（J Neurol Neurosurg Psychiatry 2003）的 24 位重度或致死的基底動脈閉塞病人中，只有 2 位事前沒有警訊。',
-      en: 'Severe stenosis of the mid basilar artery. On day 0 a thrombus blocks it completely for about 5 minutes: dizziness, double vision, slurred speech, limb weakness — then everything clears (a prodromal TIA), leaving a silent 90 % stenosis. On day 3 it occludes completely: bilateral ventral pontine infarction → locked-in syndrome. Transient posterior-circulation symptoms are easily dismissed as "dizziness" but can herald basilar occlusion: in Ferbert et al. (Stroke 1990) the commonest prodromes were vertigo, nausea and headache, mostly in the 2 weeks before the stroke; of 24 patients with severe or fatal basilar occlusion in von Campe et al. (J Neurol Neurosurg Psychiatry 2003), only 2 had no warning signs.',
+      zh: '基底動脈中段重度狹窄。第 0 天血栓暫時完全塞住約 5 分鐘，模型在這幾分鐘裡呈現完整的腦幹缺血：眩暈、眼振、複視、不能說話、四肢無力，隨後全部消失（前驅 TIA），之後只剩 90% 狹窄、沒有症狀——TIA 的警示會一直顯示到第 3 天。第 3 天完全阻塞：雙側橋腦腹側梗塞 → 閉鎖症候群。真實病人的警訊通常比這輕：Ferbert 等（Stroke 1990）的病人最常見的前驅症狀是眩暈、噁心與頭痛，多在中風前 2 週內；von Campe 等（J Neurol Neurosurg Psychiatry 2003）的 24 位重度或致死的基底動脈閉塞病人中只有 2 位事前沒有警訊，頭痛與視覺症狀出現得早，講話與肢體無力出現得晚。後循環的短暫症狀常被當成「頭暈」忽略。椎基底動脈粥狀硬化血栓的發作常是漸進的：Ferbert 的 85 位中有 54 位是漸進發作（常是兩側椎動脈阻塞），突然發作的多是栓子卡在基底動脈中段或頂端。',
+      en: 'Severe stenosis of the mid basilar artery. On day 0 a thrombus blocks it completely for about 5 minutes, and for those minutes the model shows the full brainstem picture — vertigo, nystagmus, double vision, no speech, weakness of all four limbs — then everything clears (a prodromal TIA), leaving a silent 90 % stenosis; the TIA warnings stay up until day 3. On day 3 it occludes completely: bilateral ventral pontine infarction → locked-in syndrome. Real warning attacks are usually milder: in Ferbert et al. (Stroke 1990) the commonest prodromes were vertigo, nausea and headache, mostly in the 2 weeks before the stroke; of 24 patients with severe or fatal basilar occlusion in von Campe et al. (J Neurol Neurosurg Psychiatry 2003) only 2 had no warning signs, with headache and visual symptoms early and speech and motor deficits late. Transient posterior-circulation symptoms are easily dismissed as "dizziness". Vertebrobasilar atherothrombosis often comes on progressively: onset was progressive in 54 of 85 of Ferbert\'s patients (often with bilateral vertebral occlusion), while sudden onset was mostly an embolus lodging in the middle or top of the basilar artery.',
     },
     occlusions: [
       { vessel: 'basilar_mid', severity: 1, fromH: 0, toH: 1 / 12 },
@@ -307,10 +313,10 @@ export const SCENARIOS: Scenario[] = [
   {
     id: 'r_sca',
     group: 'posterior',
-    title: { zh: '右 SCA 阻塞 → 數月後軟顎顫抖', en: 'Right SCA occlusion → palatal tremor months later' },
+    title: { zh: '右 SCA 阻塞 → 數月後可能軟顎顫抖', en: 'Right SCA occlusion → possible palatal tremor months later' },
     summary: {
-      zh: '右手腳協調障礙；齒狀核受損後，對側延髓的下橄欖核會在數月後肥大退化。',
-      en: 'Right limb ataxia; after dentate damage the opposite inferior olive in the medulla degenerates over months.',
+      zh: '右手腳協調障礙；齒狀核受損後，對側延髓的下橄欖核可能在數月後肥大退化，少數人出現軟顎顫抖。',
+      en: 'Right limb ataxia; after dentate damage the opposite inferior olive in the medulla may degenerate over months, and a minority develop a palatal tremor.',
     },
     occlusions: [{ vessel: 'sca_r', severity: 1 }],
     collateral: 'poor',
@@ -322,8 +328,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '左橋腦旁正中穿通支：交叉性癱瘓（Foville）', en: 'Left pontine perforator: crossed paralysis (Foville)' },
     summary: {
-      zh: '雙眼無法看向左邊（水平凝視麻痺）、左臉整側麻痺，右側手腳癱瘓——腦神經徵象在病灶側、肢體在對側。',
-      en: 'Neither eye can look to the left (horizontal gaze palsy), whole left face paralysed, right limbs weak — cranial-nerve signs on the lesion side, limbs on the other.',
+      zh: '雙眼無法看向左邊（水平凝視麻痺）、左臉整側麻痺，右側手腳癱瘓——腦神經徵象在病灶側、肢體在對側。這樣的「經典」交叉症候群在 MRI 上其實不常見：孤立橋腦梗塞最常見的是前內側型（對側無力、構音障礙、運動失調），交叉性缺損少見且多不符合經典描述（Bassetti 1996）。',
+      en: 'Neither eye can look to the left (horizontal gaze palsy), whole left face paralysed, right limbs weak — cranial-nerve signs on the lesion side, limbs on the other. Such classic crossed syndromes are actually uncommon on MRI: the commonest isolated pontine infarct is anteromedial (contralateral weakness, dysarthria, ataxia), and crossed deficits are rare and seldom match the classic descriptions (Bassetti 1996).',
     },
     occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1 }],
     tH: 24,

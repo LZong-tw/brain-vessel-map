@@ -660,6 +660,10 @@ export const REGION_DEFS: RegionDef[] = [
       // Neurol 1996; Hermann et al., Stroke 2008). TODO(medical-review): sev
       { s: 'hypersomnia', lat: 'none', sev: 1 },
       { s: 'hypersomnia', lat: 'none', sev: 2, bilateralOnly: true },
+      // vivid hallucinations after rostral brainstem / paramedian thalamic damage (Caplan,
+      // Neurology 1980; Benke, J Neurol 2006): uncommon, so only when both sides are hit.
+      // TODO(medical-review): sev
+      { s: 'peduncular_hallucinosis', lat: 'none', sev: 1, bilateralOnly: true },
     ],
     compartment: 'supra',
   }),
@@ -796,16 +800,22 @@ export const REGION_DEFS: RegionDef[] = [
     ],
     structures: [
       { name: { zh: '動眼神經核', en: 'Oculomotor nucleus' }, role: { zh: '眼球上下內轉、提眼瞼、縮瞳', en: 'Up/down/in eye movement, lid, pupil' } },
-      { name: { zh: '紅核', en: 'Red nucleus' }, role: { zh: '小腦訊號中繼，受損造成對側顫抖', en: 'Cerebellar relay; lesions cause opposite-side tremor' } },
+      { name: { zh: '紅核', en: 'Red nucleus' }, role: { zh: '小腦訊號中繼；受損數週到數月後對側可能出現顫抖', en: 'Cerebellar relay; weeks to months after a lesion the opposite arm may develop a tremor' } },
       { name: { zh: '內側縱束嘴側間質核（riMLF）', en: 'rostral interstitial nucleus of MLF' }, role: { zh: '垂直眼動', en: 'Vertical gaze' } },
       { name: { zh: '中腦網狀結構', en: 'Mesencephalic reticular formation' }, role: { zh: '維持清醒', en: 'Arousal' } },
+      { name: { zh: 'Cajal 間質核', en: 'Interstitial nucleus of Cajal' }, role: { zh: '垂直與旋轉眼動、頭眼的重力定向', en: 'Vertical and torsional eye movement, head and eye orientation to gravity' } },
       { name: { zh: '滑車神經核（下丘高度）', en: 'Trochlear nucleus (inferior-colliculus level)' }, role: { zh: '對側眼向下內看', en: 'Opposite eye looking down & in' } },
     ],
     deficits: [
       { s: 'cn3_palsy', lat: 'ipsi', sev: 3 },
       { s: 'cn4_palsy', lat: 'contra', sev: 1 },
-      { s: 'tremor', lat: 'contra', sev: 2 },
+      // the ataxia is acute; the rubral (Holmes) tremor comes weeks to months later (Raina et al.,
+      // Neurology 2016; Castaigne et al., Ann Neurol 1981)
+      { s: 'holmes_tremor', lat: 'contra', sev: 2 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
+      // a rostral (pontomesencephalic) lesion lowers the opposite eye (Brandt & Dieterich, Ann
+      // Neurol 1993). TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'contra', sev: 1 },
       { s: 'vertical_gaze_palsy', lat: 'none', sev: 2 },
       { s: 'somnolence', lat: 'none', sev: 2 },
       { s: 'diplopia', lat: 'none', sev: 2 },
@@ -813,6 +823,9 @@ export const REGION_DEFS: RegionDef[] = [
       // upper brainstem damage can leave a lasting sleep–wake disorder (Bassetti, Semin Neurol
       // 2005). TODO(medical-review): sev
       { s: 'hypersomnia', lat: 'none', sev: 1 },
+      // vivid hallucinations after rostral brainstem damage (Caplan, Neurology 1980; Benke,
+      // J Neurol 2006): uncommon, so only when both sides are hit. TODO(medical-review): sev
+      { s: 'peduncular_hallucinosis', lat: 'none', sev: 1, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -932,9 +945,17 @@ export const REGION_DEFS: RegionDef[] = [
     ],
     deficits: [
       { s: 'ino', lat: 'ipsi', sev: 2 },
+      // an upper pontine (MLF) lesion lowers the opposite eye (Brandt & Dieterich, Ann Neurol
+      // 1993). TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'contra', sev: 1 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 1 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
+      // coma lesions were bilateral in 7 of 9 and one-sided in 2, while 9 patients with a very
+      // small one-sided tegmental lesion were not comatose (Parvizi & Damasio, Brain 2003): an
+      // extensive one-sided lesion lowers arousal (drowsiness), a small one does not.
+      // TODO(medical-review): sev and minLevel
+      { s: 'somnolence', lat: 'none', sev: 1, minLevel: 0.5 },
       // REM-sleep atonia (next to the locus coeruleus; Odd et al., Neuroimage Clin 2025) and the
       // pontine micturition centre (Sakakibara et al., J Neurol Sci 1996). Severity 1: case
       // reports and small series. TODO(medical-review): sev
@@ -1046,6 +1067,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'face_weak_peripheral', lat: 'ipsi', sev: 2 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 2 },
+      // the medial vestibular nucleus and the MLF lie in the floor of the fourth ventricle next to
+      // the abducens nucleus: tegmental pontine infarcts present with vertigo and dizziness
+      // (Kumral et al., J Neurol 2002). TODO(medical-review): sev
+      { s: 'vertigo', lat: 'none', sev: 1 },
+      { s: 'nystagmus', lat: 'none', sev: 1 },
       // extending into the caudal pontine tegmentum on both sides can also disturb automatic
       // (non-volitional) breathing — apneustic or cluster patterns (Plum & Posner, The
       // Diagnosis of Stupor and Coma). TODO(medical-review): "moderate" (sev 2) is an
@@ -1087,6 +1113,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hearing_loss', lat: 'ipsi', sev: 2 },
       { s: 'vertigo', lat: 'none', sev: 2 },
       { s: 'nystagmus', lat: 'none', sev: 2 },
+      // vestibular nuclei: a caudal pontomedullary lesion lowers the eye on its own side (Brandt &
+      // Dieterich, Ann Neurol 1993). TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'ipsi', sev: 1 },
       { s: 'nausea_vomiting', lat: 'none', sev: 1 },
       { s: 'pain_temp_face', lat: 'ipsi', sev: 2 },
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
@@ -1160,6 +1189,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'vertigo', lat: 'none', sev: 2 },
       { s: 'nystagmus', lat: 'none', sev: 2 },
+      // vestibular nuclei: the eye on the lesion side is lower (Brandt & Dieterich, Ann Neurol
+      // 1993); diplopia or blurred vision in 11 of 33 (Sacco et al., Arch Neurol 1993).
+      // TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'ipsi', sev: 1 },
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
       { s: 'horner', lat: 'ipsi', sev: 2 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
