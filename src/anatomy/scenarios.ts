@@ -241,13 +241,14 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     // Lazzaro NA et al. AJNR 2010 (43% of Percheron infarcts include the midbrain, 14% more with the
-    // anterior thalami); Arauz A et al. J Stroke Cerebrovasc Dis 2014 (good outcome 25% vs 67%)
+    // anterior thalami); Arauz A et al. J Stroke Cerebrovasc Dis 2014 (15 patients: mRS ≤ 2 in 2 of 8
+    // with and 4 of 6 without midbrain involvement after a mean 55 months)
     id: 'percheron_midbrain',
     group: 'deep',
     title: { zh: 'Percheron 動脈阻塞（雙側視丘＋中腦）', en: 'Artery of Percheron occlusion (both thalami + midbrain)' },
     summary: {
-      zh: '最常見的型態：同一條主幹也供應中腦上部。除了嗜睡、記憶障礙，還有兩側動眼神經麻痺與更深的意識障礙。預後差很多：長期功能良好的只有約 25%，不含中腦時約 67%。',
-      en: 'The commonest pattern: the same trunk also feeds the upper midbrain. Besides drowsiness and amnesia there are oculomotor palsies on both sides and deeper impairment of consciousness. The outlook is much worse: only about 25% do well in the long term, against about 67% without the midbrain.',
+      zh: '最常見的型態：同一條主幹也供應中腦上部。除了嗜睡、記憶障礙，還有兩側動眼神經麻痺與更深的意識障礙。在一個小系列中預後較差：15 人中，含中腦者 8 人中 2 人（25%）、不含中腦者 6 人中 4 人（67%）在約 4.5 年後達 mRS ≤ 2。',
+      en: 'The commonest pattern: the same trunk also feeds the upper midbrain. Besides drowsiness and amnesia there are oculomotor palsies on both sides and deeper impairment of consciousness. The outlook was worse in one small series: of 15 patients, 2 of 8 (25%) with midbrain involvement and 4 of 6 (67%) without reached mRS ≤ 2 after about 4.5 years.',
     },
     occlusions: [{ vessel: 'thalamoperforator_r', severity: 1 }],
     variants: ['percheron_mid_r'],

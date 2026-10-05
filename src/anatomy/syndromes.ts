@@ -421,8 +421,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: false,
     name: { zh: '雙側視丘旁正中梗塞（Percheron 動脈）', en: 'Bilateral paramedian thalamic infarction (artery of Percheron)' },
     desc: {
-      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺，執行功能與行為改變常持續；昏迷之後留下的是長期嗜睡（睡眠需求增加），而不是昏迷。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。不含中腦時長期預後通常不錯（約 67% 功能良好）；中腦也梗塞時另列為「雙側旁正中視丘中腦梗塞」。視丘前部也梗塞時，記憶與執行功能受損更廣。',
-      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy, with executive and behavioural changes that often persist; what remains after the coma is persistent hypersomnia (a raised need for sleep), not coma. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides. Without the midbrain the long-term outcome is usually good (about 67% do well); with the midbrain infarcted too it is listed as bilateral paramedian thalamomesencephalic infarction. When the anterior thalami are infarcted as well, memory and executive function suffer more widely.',
+      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺，執行功能與行為改變常持續；昏迷之後留下的是長期嗜睡（睡眠需求增加），而不是昏迷。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。不含中腦時長期預後通常不錯（一個 15 人的系列中，不含中腦者 6 人中 4 人、含中腦者 8 人中 2 人在約 4.5 年後達 mRS ≤ 2）；中腦也梗塞時另列為「雙側旁正中視丘中腦梗塞」。視丘前部也梗塞時，記憶與執行功能受損更廣。',
+      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy, with executive and behavioural changes that often persist; what remains after the coma is persistent hypersomnia (a raised need for sleep), not coma. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides. Without the midbrain the long-term outcome is usually good (in one series of 15 patients, 4 of 6 without and 2 of 8 with midbrain involvement reached mRS ≤ 2 after about 4.5 years); with the midbrain infarcted too it is listed as bilateral paramedian thalamomesencephalic infarction. When the anterior thalami are infarcted as well, memory and executive function suffer more widely.',
     },
     test: (c) => c.both('thalamus_paramedian', 0.3),
     supersedes: ['claude', 'weber_benedikt', 'thalamic_paramedian_unilateral', 'thalamomesencephalic', 'thalamic_tuberothalamic'],
@@ -437,8 +437,8 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Bilateral paramedian thalamomesencephalic infarction (artery of Percheron with midbrain)',
     },
     desc: {
-      zh: '雙側視丘旁正中加上中腦上部，是 Percheron 動脈梗塞最常見的型態（43%，連同視丘前部再 14%）。以眼球運動障礙（兩側動眼神經麻痺、垂直凝視麻痺）與意識障礙為主，加上記憶障礙。預後比不含中腦時差很多：長期功能良好的只有約 25%，不含中腦時約 67%。',
-      en: 'Both paramedian thalami plus the upper midbrain, the commonest pattern of Percheron infarction (43%, another 14% with the anterior thalami). Eye-movement disorders (bilateral oculomotor palsies, vertical gaze palsy) and impaired consciousness dominate, with amnesia. The outlook is much worse than without the midbrain: about 25% do well in the long term, against about 67%.',
+      zh: '雙側視丘旁正中加上中腦上部，是 Percheron 動脈梗塞最常見的型態（43%，連同視丘前部再 14%）。以眼球運動障礙（兩側動眼神經麻痺、垂直凝視麻痺）與意識障礙為主，加上記憶障礙。在一個小系列中預後比不含中腦時差：15 人中，含中腦者 8 人中 2 人（25%）、不含中腦者 6 人中 4 人（67%）在約 4.5 年後達 mRS ≤ 2。',
+      en: 'Both paramedian thalami plus the upper midbrain, the commonest pattern of Percheron infarction (43%, another 14% with the anterior thalami). Eye-movement disorders (bilateral oculomotor palsies, vertical gaze palsy) and impaired consciousness dominate, with amnesia. The outlook was worse than without the midbrain in one small series: of 15 patients, 2 of 8 (25%) with midbrain involvement and 4 of 6 (67%) without reached mRS ≤ 2 after about 4.5 years.',
     },
     test: (c) => c.both('thalamus_paramedian', 0.3) && c.both('midbrain_paramedian', 0.3),
     supersedes: [

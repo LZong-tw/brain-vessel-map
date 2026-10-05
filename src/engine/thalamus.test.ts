@@ -311,3 +311,32 @@ describe('C9 references', () => {
       for (const r of ref(n)) expect(REFERENCES_MD).toContain(`- ${r}`);
   });
 });
+
+describe('R4-9: the Percheron outcome figures come from a series of 15', () => {
+  const texts = () => [
+    SCENARIO_BY_ID.percheron_midbrain.summary,
+    desc('thalamic_paramedian_bilateral'),
+    desc('thalamomesencephalic_bilateral'),
+  ];
+  it('every text gives the series size and the counts, not bare percentages', () => {
+    for (const t of texts()) {
+      expect(t.en).toMatch(/15 patients/);
+      expect(t.en).toMatch(/2 of 8/);
+      expect(t.en).toMatch(/4 of 6/);
+      expect(t.en).toMatch(/mRS ≤ 2/);
+      expect(t.en).not.toMatch(/about 67% do well/);
+      expect(t.en).not.toMatch(/much worse/);
+      expect(t.zh).toMatch(/15 人/);
+      expect(t.zh).toMatch(/8 人中 2 人/);
+      expect(t.zh).toMatch(/6 人中 4 人/);
+      expect(t.zh).not.toMatch(/差很多/);
+    }
+    expect(SCENARIO_BY_ID.percheron_midbrain.summary.en).toMatch(/small series/);
+    expect(SCENARIO_BY_ID.percheron_midbrain.summary.zh).toMatch(/小系列/);
+  });
+  it('the reference note gives the counts too', () => {
+    const a = ref('Arauz A');
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatch(/2 of 8.*4 of 6/);
+  });
+});
