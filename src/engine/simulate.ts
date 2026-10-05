@@ -77,6 +77,7 @@ import {
   DEFAULT_TREATMENT,
   GRADE_REPERFUSED,
   REPERFUSION_GRADES,
+  downstreamBranches,
   isDefaultTreatment,
   reperfusedFraction,
   type TreatmentOptions,
@@ -610,8 +611,11 @@ function modelFor(input: SimInput): Model {
           reocclusionH: plan.reocclusionH === null ? null : plan.reocclusionH - onsetH,
           distalEmbolus: plan.distalEmbolus,
           embolusRegions: plan.distalEmbolus === null ? [] : territoryRegions(plan.distalEmbolus, units),
+          embolusNewTerritory: plan.distalEmbolus !== null && !plan.reopened.some((o) => downstreamBranches(o.vessel).includes(plan.distalEmbolus!)),
         }
       : undefined;
+  // the core when treatment is decided: at the treatment, or 6 h after onset without one (text only)
+  const decisionH = onsetH + (reperf !== null && reperf >= onsetH ? reperf - onsetH : 6);
   const cascade = computeCascade({
     reperfusionH: reperf !== null && reperf >= onsetH ? reperf - onsetH : null,
     decompression: input.decompression,
@@ -625,6 +629,8 @@ function modelFor(input: SimInput): Model {
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
+    lacunes: [...course.lacunes].filter(([, list]) => list.some((o) => o.severity >= 1)).map(([rid]) => rid),
+    bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
   });
   const model: Model = {
     course,

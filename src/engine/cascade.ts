@@ -78,6 +78,16 @@ export interface CascadeInput {
    * treatment (complete, lasting reperfusion), which keeps the general event texts
    */
   treatment?: CascadeTreatment;
+  /**
+   * target regions of the lacunar (single-branch) occlusions; when nothing else is ischaemic the
+   * course is told as a lacunar stroke
+   */
+  lacunes?: string[];
+  /**
+   * infarcted fraction per bed when treatment is decided: at reperfusionH, or 6 h after onset
+   * without treatment (the large-core thrombectomy trials select on the core at that point)
+   */
+  bedAtDecision?: Record<string, number>;
 }
 
 /** The treatment details the event texts need (times on the clinical clock, like reperfusionH). */
@@ -96,6 +106,8 @@ export interface CascadeTreatment {
   distalEmbolus: string | null;
   /** regions supplied by that branch */
   embolusRegions: string[];
+  /** the branch lies outside the reopened artery's own tree (a new territory, e.g. the ACA for an M1) */
+  embolusNewTerritory?: boolean;
 }
 
 const METHOD_NAME: Record<TreatmentMethod, L> = {
@@ -132,7 +144,12 @@ function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume
   // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
   const ivtNote: L =
     t.method === 'ivt'
-      ? { zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例）', en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused)' }
+      ? {
+          // the window refers to drug start; recanalisation after alteplase accrues over 1–3 h
+          // (INTERRSeCT: Menon BK et al. JAMA 2018;320:1017–1026; Seners P et al. Stroke 2016;47:2409–2412)
+          zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例。這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以藥物大約早 1–3 小時就已開始）',
+          en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused. This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about 1–3 h earlier)',
+        }
       : { zh: '', en: '' };
   if (t.failed) {
     return {
@@ -191,6 +208,23 @@ function pushTreatmentComplications(events: CascadeEvent[], t: CascadeTreatment,
     const v = VESSEL_BY_ID[t.distalEmbolus];
     const zh = vesselName(v, 'zh-TW');
     const en = vesselName(v, 'en');
+    // a fragment reaching a previously unaffected territory (most often the ACA during MCA
+    // thrombectomy: Singh N et al. Stroke 2023;54:1477–1483; Beyeler M et al. J Neurointerv Surg 2022)
+    if (t.embolusNewTerritory) {
+      events.push({
+        id: 'distal_embolus',
+        kind: 'complication',
+        severity: 'warn',
+        onsetH: reperfusionH,
+        title: { zh: `新區域栓塞：${zh}`, en: `Embolus to a new territory: ${en}` },
+        desc: {
+          zh: `治療時一小塊血栓碎片跑到原本沒有受影響的區域，塞住了${zh}。這是另一條動脈的供血區，原本的阻塞打通了，這裡卻出現新的缺血，側枝循環補不上的部分會梗塞。取栓研究中這類新區域栓塞約 5–9%（最常見於前大腦動脈區），多半在血管攝影上看不到阻塞，並與較差的預後與較高的死亡率有關。`,
+          en: `During the treatment a fragment of the clot reached a previously unaffected territory and blocked the ${lowerFirst(en)}. This is another artery's territory: the original occlusion is open, but new ischaemia appears here, and what collaterals cannot make up for infarcts. In thrombectomy studies such new-territory emboli occur in about 5–9% (most often in the ACA territory); most show no visible occlusion on angiography, and they are associated with worse outcome and higher mortality.`,
+        },
+        regions: t.embolusRegions,
+      });
+      return;
+    }
     events.push({
       id: 'distal_embolus',
       kind: 'complication',
@@ -341,22 +375,134 @@ export function midlineShiftAt(ms: CascadeOutput['midlineShift'], tH: number, de
   return ms.peakMm * f * (decompression && tH >= 36 ? 0.3 : 1);
 }
 
-const LVO = [
-  'ica_cervical',
-  'ica_petrous_cavernous',
-  'ica_ophthalmic_seg',
-  'ica_terminal',
-  'mca_m1',
-  'basilar_lower',
-  'basilar_mid',
-  'basilar_upper',
-  'basilar_tip',
-  'va_v4_prox',
-  'va_v4_dist',
-];
+/**
+ * The occlusion sites each treatment-window story is for. The thrombectomy trials enrolled
+ * intracranial ICA and M1 (anterior) or basilar occlusions; an isolated cervical ICA occlusion
+ * and an intracranial vertebral (V4) occlusion were not randomised (Kargiotis O et al. Ther Adv
+ * Neurol Disord 2022;15:17562864221136335; de Bastos Maximiano ML et al. Neuroradiol J
+ * 2026;39:557–566).
+ */
+const ANTERIOR_LVO = ['ica_petrous_cavernous', 'ica_ophthalmic_seg', 'ica_terminal', 'mca_m1'];
+const BASILAR = ['basilar_lower', 'basilar_mid', 'basilar_upper', 'basilar_tip'];
+const VERTEBRAL_V4 = ['va_v4_prox', 'va_v4_dist'];
 
 /** medium / distal vessel occlusions (MeVO) */
 const MEVO = ['mca_m2_sup', 'mca_m2_inf', 'aca_a1', 'aca_a2', 'pca_p1', 'pca_p2'];
+
+/** an anterior large-vessel core from which the large-core thrombectomy trials apply (mL) */
+const LARGE_CORE_ML = 70;
+/** above this the core is larger than most of those trials enrolled (mL) */
+const BEYOND_TRIALS_ML = 100;
+
+interface WindowStory {
+  /** intracranial ICA or M1 occluded (with or without a cervical ICA occlusion: a tandem lesion) */
+  anterior: boolean;
+  basilar: boolean;
+  /** the top of the basilar: the distal location of the ESO guideline */
+  basilarTip: boolean;
+  /** a cervical ICA occlusion without an intracranial anterior occlusion on its side */
+  cervicalIsolated: boolean;
+  /** an intracranial vertebral occlusion without a basilar occlusion */
+  v4: boolean;
+  /** a medium/distal vessel occlusion without an anterior or basilar large-vessel occlusion */
+  mevo: boolean;
+  /** largest supratentorial core of one side when treatment is decided (mL), if known */
+  coreMl: number | null;
+}
+
+const IVT_INTRO: L = {
+  // alteplase within 4.5 h (ECASS III); tenecteplase as an alternative (AcT; ESO 2023); beyond
+  // 4.5 h only after imaging selection (WAKE-UP; EXTEND)
+  zh: '靜脈血栓溶解（alteplase，或以 tenecteplase 替代）：標準是發作 4.5 小時內開始用藥；更晚或醒來才發現時，只在 MRI 或灌流影像篩選後使用（WAKE-UP、EXTEND 試驗）。',
+  en: 'IV thrombolysis (alteplase, or tenecteplase as an alternative): standard when started within 4.5 h of onset; later, or on waking with symptoms, only after MRI or perfusion imaging selects the patient (WAKE-UP, EXTEND trials).',
+};
+const SAVER: L = {
+  zh: '每延遲一分鐘，典型大血管中風約多死亡 190 萬個神經元（Saver 2006）。',
+  en: 'Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006).',
+};
+
+/** what fits this occlusion site: thrombolysis, thrombectomy and the trials behind them */
+function treatmentWindowDesc(w: WindowStory): L {
+  const zh: string[] = [IVT_INTRO.zh];
+  const en: string[] = [IVT_INTRO.en];
+  const core = w.coreMl === null ? null : Math.round(w.coreMl);
+  if (w.anterior) {
+    // TRACE-III: Xiong Y et al. N Engl J Med 2024;391:203–212
+    zh.push(
+      '這是大血管阻塞，適合動脈取栓：6 小時內效果最明確，影像顯示仍有可救組織時可延長到 24 小時。無法取栓時，TRACE-III 試驗（中國病人、ICA／MCA 阻塞且灌流影像有可救組織）中發作 4.5–24 小時用 tenecteplase 改善了預後。',
+    );
+    en.push(
+      'This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue. Without access to thrombectomy, tenecteplase 4.5–24 h after onset improved outcome in TRACE-III (Chinese patients with ICA/MCA occlusion and salvageable tissue on perfusion imaging).',
+    );
+    // SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE (sources.ts): selected by ASPECTS
+    // 3–5, a core ≥ 50 mL (SELECT2) or 70–100 mL (ANGEL-ASPECT), or ASPECTS ≤ 5 of any size (LASTE)
+    if (core !== null && core >= LARGE_CORE_ML) {
+      zh.push(
+        `大核心（決定治療時約 ${core} mL）：五項前循環大血管阻塞大核心隨機試驗（SELECT2、ANGEL-ASPECT、RESCUE-Japan LIMIT、TENSION、LASTE）中取栓仍改善功能，TENSION 與 LASTE 也降低死亡率（SELECT2 沒有）；任何顱內出血與血管併發症較多，症狀性出血在部分試驗較高（ANGEL-ASPECT 6.1% vs 2.7%、LASTE 9.6% vs 5.7%），其他試驗則沒有（SELECT2、TENSION）。` +
+          (core > BEYOND_TRIALS_ML ? '這個核心比多數試驗的病人大（ASPECTS 3–5 或核心約 100 mL 以內；只有 LASTE 不設上限）。' : ''),
+      );
+      en.push(
+        `Large core (about ${core} mL when treatment is decided): in five randomised trials of anterior large-vessel occlusion with a large core (SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE) thrombectomy still improved function, with lower mortality in TENSION and LASTE (not in SELECT2); any intracranial haemorrhage and vascular complications were more frequent, and symptomatic haemorrhage was higher in some trials (ANGEL-ASPECT 6.1% vs 2.7%, LASTE 9.6% vs 5.7%) but not in others (SELECT2, TENSION).` +
+          (core > BEYOND_TRIALS_ML ? ' This core is larger than in most of these trials (ASPECTS 3–5 or cores up to about 100 mL; only LASTE set no upper limit).' : ''),
+      );
+    }
+  }
+  if (w.basilar) {
+    // ATTENTION (Tao C et al. 2022), BAOCHE (Jovin TG et al. 2022), ESO/ESMINT (Strbian D et al.
+    // 2024), Lindsberg PJ & Mattle HP 2006
+    zh.push(
+      `基底動脈阻塞：ATTENTION 試驗中發作 12 小時內取栓、BAOCHE 試驗中 6–24 小時取栓都改善了預後；效益見於 NIHSS ≥ 10（ESO/ESMINT 2024 指引：低於 10 分沒有證據），遠端（頂端）阻塞的效果比近端或中段弱${w.basilarTip ? '，這裡正是遠端（頂端）阻塞' : ''}。` +
+        '指引依專家共識（證據確定性非常低）建議靜脈血栓溶解可用到發作後 24 小時，並建議先打靜脈血栓溶解再取栓，而非直接取栓。' +
+        '試驗中（多為 NIHSS ≥ 10 的中國病人；對照組 34% 與 21% 也打了靜脈血栓溶解）90 天死亡率：ATTENTION 取栓 37% vs 內科 55%，BAOCHE 31% vs 42%（差異未達統計顯著）。沒有再通時，只有約 2% 預後良好（Lindsberg 與 Mattle 2006，病例系列）。',
+    );
+    en.push(
+      `Basilar-artery occlusion: in ATTENTION thrombectomy within 12 h of onset, and in BAOCHE thrombectomy 6–24 h after onset, improved outcome; the benefit was shown for NIHSS ≥ 10 (ESO/ESMINT 2024: no evidence below 10), and the effect was weaker for distal than for proximal or middle occlusions${w.basilarTip ? '; this is a distal (tip) occlusion' : ''}. ` +
+        'The guideline suggests IV thrombolysis up to 24 h after onset, by expert consensus at very low certainty, and IV thrombolysis plus thrombectomy over direct thrombectomy. ' +
+        'In the trials (mostly Chinese patients with NIHSS ≥ 10; IV thrombolysis in 34% and 21% of the control arms) 90-day mortality was 37% with thrombectomy vs 55% with medical care (ATTENTION) and 31% vs 42% (BAOCHE; not statistically significant). Without recanalisation only about 2% have a good outcome (Lindsberg & Mattle 2006, case series).',
+    );
+  }
+  if (w.cervicalIsolated) {
+    const large = core !== null && core >= LARGE_CORE_ML;
+    zh.push(
+      '單純頸部內頸動脈阻塞（同側沒有顱內阻塞）：取栓隨機試驗大多排除這類病人，沒有經過驗證；觀察性研究統合分析中血管內治療沒有明顯優於內科治療（調整後 OR 1.22，95% CI 0.82–1.82），因此是個別決定（例如嚴重缺損持續時）。若合併顱內阻塞（串聯病灶），則適用大血管阻塞試驗。' +
+        (large ? `已形成的大核心（約 ${core} mL）讓任何效益更不確定。` : ''),
+    );
+    en.push(
+      'Isolated cervical ICA occlusion (no intracranial occlusion on this side): not tested in the randomised thrombectomy trials, which largely excluded it; in an observational meta-analysis endovascular treatment was not clearly better than medical treatment (adjusted OR 1.22, 95% CI 0.82–1.82), so it is an individual decision (e.g. for persisting severe deficits). With a tandem lesion (cervical ICA plus an intracranial occlusion) the large-vessel trials apply.' +
+        (large ? ` With a large established core (about ${core} mL) any benefit is even less certain.` : ''),
+    );
+  }
+  if (w.v4) {
+    zh.push('顱內椎動脈（V4）阻塞：沒有隨機試驗測試過這裡的取栓；主要在血栓延伸進基底動脈時才考慮。');
+    en.push('Intracranial vertebral artery (V4) occlusion: no randomised trial has tested thrombectomy here; it is mainly considered when the clot extends into the basilar artery.');
+  }
+  if (w.mevo) {
+    // ESCAPE-MeVO (Goyal M et al. 2025), DISTAL (Psychogios M et al. 2025)
+    zh.push(
+      '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療。2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後，症狀性出血較多（5.4% vs 2.2%；5.9% vs 2.6%），ESCAPE-MeVO 的死亡率也較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
+    );
+    en.push(
+      'This is a medium/distal vessel occlusion: IV thrombolysis is standard. Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials, with more symptomatic haemorrhage (5.4% vs 2.2%; 5.9% vs 2.6%) and higher mortality in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
+    );
+  }
+  if (!w.anterior && !w.basilar && !w.cervicalIsolated && !w.v4 && !w.mevo) {
+    zh.push('此處不是大血管阻塞，一般不做取栓。');
+    en.push('This is not a large-vessel occlusion; thrombectomy is not usually done.');
+  }
+  zh.push(SAVER.zh);
+  en.push(SAVER.en);
+  return { zh: zh.join(''), en: en.join(' ') };
+}
+
+/**
+ * A lacunar (single-perforator) occlusion: IV thrombolysis applies as in other ischaemic strokes
+ * (Barow E et al. JAMA Neurol 2019;76:641–649, post hoc WAKE-UP: 59% vs 46%, aOR 1.67,
+ * 0.77–3.64); the model does not reopen lacunar occlusions (engine/schedule.ts isTreatable).
+ */
+const LACUNAR_WINDOW: L = {
+  zh: '小血管（腔隙性）阻塞：和其他缺血性中風一樣，發作 4.5 小時內開始的靜脈血栓溶解適用；WAKE-UP 試驗的事後分析中，alteplase 對腔隙性梗塞的效果與其他中風沒有差別（無失能 59% vs 46%，信賴區間跨過 1）。單一穿通支阻塞不做取栓。模型沒有模擬血栓溶解打通腔隙性阻塞。',
+  en: 'Small-vessel (lacunar) occlusion: IV thrombolysis started within 4.5 h of onset applies as in other ischaemic strokes; in a post hoc analysis of the WAKE-UP trial the effect of alteplase did not differ for lacunar infarcts (no disability 59% vs 46%, confidence interval crossing 1), and thrombectomy does not apply to a single perforator. The model does not simulate thrombolysis reopening a lacunar occlusion.',
+};
 
 const baseOf = (id: string) => id.replace(/_(r|l)$/, '');
 const sideOf = (id: string): Side | 'm' => (id.endsWith('_r') ? 'r' : id.endsWith('_l') ? 'l' : 'm');
@@ -409,9 +555,28 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     earlySupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedEarly[b.id] ?? 0) * b.volume;
   }
   const anyIschemia = Object.values(regionAcute).some((x) => x >= 0.05);
-  const occludedBases = new Set(input.occlusions.filter((o) => o.severity >= 1).map((o) => baseOf(o.vessel)));
-  const isLvo = LVO.some((b) => occludedBases.has(b));
-  const isMevo = !isLvo && MEVO.some((b) => occludedBases.has(b));
+  // lacunar (single-branch) occlusions do not enter regionAcute; alone they get their own story
+  const lacunarOnly = !anyIschemia && (input.lacunes?.length ?? 0) > 0;
+  const occluded = input.occlusions.filter((o) => o.severity >= 1);
+  const occludedBases = new Set(occluded.map((o) => baseOf(o.vessel)));
+  const anteriorSides = new Set(occluded.filter((o) => ANTERIOR_LVO.includes(baseOf(o.vessel))).map((o) => sideOf(o.vessel)));
+  const basilar = BASILAR.some((b) => occludedBases.has(b));
+  const anterior = anteriorSides.size > 0;
+  const decisionSupra: Record<Side, number> = { r: 0, l: 0 };
+  if (input.bedAtDecision)
+    for (const b of BEDS) {
+      const reg = REGION_BY_ID[b.region];
+      if (reg.compartment === 'supra') decisionSupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedAtDecision[b.id] ?? 0) * b.volume;
+    }
+  const story: WindowStory = {
+    anterior,
+    basilar,
+    basilarTip: occludedBases.has('basilar_tip'),
+    cervicalIsolated: occluded.some((o) => baseOf(o.vessel) === 'ica_cervical' && !anteriorSides.has(sideOf(o.vessel))),
+    v4: !basilar && VERTEBRAL_V4.some((b) => occludedBases.has(b)),
+    mevo: !anterior && !basilar && MEVO.some((b) => occludedBases.has(b)),
+    coreMl: input.bedAtDecision ? Math.max(decisionSupra.r, decisionSupra.l) : null,
+  };
 
   // ── 1–2. hyperacute mechanisms, imaging and treatment windows ──────
   // which story fits: only the retina is ischaemic (eye stroke), brain ischaemia that leaves no
@@ -421,7 +586,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const noInfarct = anyIschemia && !eyeOnly && vol.total < 0.05;
   if (eyeOnly) pushEyeEvents(events);
   else if (noInfarct) pushNoInfarctEvents(events);
-  else if (anyIschemia) {
+  else if (anyIschemia || lacunarOnly) {
     // energy failure → excitotoxicity → calcium, free radicals, inflammation
     // (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
     events.push({
@@ -435,7 +600,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         zh: '血流中斷約 10 秒內神經元停止放電而出現症狀；數分鐘內能量（ATP）耗盡 → 鈉鉀幫浦失效 → 細胞腫脹（細胞毒性水腫）→ 麩胺酸大量釋放造成興奮毒性 → 鈣離子湧入、自由基與發炎反應 → 細胞死亡。核心區在數分鐘內壞死；周邊的「缺血半影區」靠側枝循環勉強存活，是治療要搶救的目標。',
         en: 'Within ~10 s of lost flow neurons stop firing and symptoms begin. Within minutes ATP runs out → ion pumps fail → cells swell (cytotoxic oedema) → glutamate floods out (excitotoxicity) → calcium overload, free radicals and inflammation → cell death. The core dies within minutes; the surrounding penumbra survives on collateral flow and is what treatment tries to rescue.',
       },
-      regions: infarctedRegions,
+      regions: lacunarOnly ? [...input.lacunes!] : infarctedRegions,
     });
     events.push({
       id: 'imaging_dwi',
@@ -444,10 +609,15 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 0.1,
       endH: 336,
       title: { zh: '影像：MRI 擴散加權在數分鐘內就看得到', en: 'Imaging: diffusion MRI positive within minutes' },
-      desc: {
-        zh: 'DWI 可在數分鐘內顯示梗塞核心；CT 在最初幾小時常看不出來（約 6 小時後才逐漸變暗），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
-        en: 'DWI shows the core within minutes; CT is often normal for the first hours (hypodensity appears after ~6 h) but excludes haemorrhage, which is required before thrombolysis.',
-      },
+      desc: lacunarOnly
+        ? {
+            zh: 'DWI 很早就能顯示小小的腔隙性梗塞（直徑約 1.5 公分以下）；CT 常看不出來（腦幹尤其如此），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
+            en: 'DWI shows the small lacunar infarct (under about 1.5 cm across) early; CT is often normal (especially in the brainstem) but excludes haemorrhage, which is required before thrombolysis.',
+          }
+        : {
+            zh: 'DWI 可在數分鐘內顯示梗塞核心；CT 在最初幾小時常看不出來（約 6 小時後才逐漸變暗），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
+            en: 'DWI shows the core within minutes; CT is often normal for the first hours (hypodensity appears after ~6 h) but excludes haemorrhage, which is required before thrombolysis.',
+          },
       regions: [],
     });
     events.push({
@@ -457,22 +627,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 0,
       endH: 24,
       title: { zh: '治療時間窗', en: 'Treatment windows' },
-      desc: {
-        zh: `靜脈血栓溶解劑：一般在發作 4.5 小時內。${
-          isLvo
-            ? '這是大血管阻塞，適合動脈取栓：6 小時內效果最明確，影像顯示仍有可救組織時可延長到 24 小時。'
-            : isMevo
-              ? '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療；2025 年 ESCAPE-MeVO 與 DISTAL 試驗顯示常規取栓沒有額外好處，只在個別情況（例如近端、優勢側的 M2）考慮。'
-              : '此處不是大血管阻塞，一般不做取栓。'
-        }每延遲一分鐘，典型大血管中風約多死亡 190 萬個神經元（Saver 2006）。`,
-        en: `IV thrombolysis: generally within 4.5 h of onset. ${
-          isLvo
-            ? 'This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue.'
-            : isMevo
-              ? 'This is a medium/distal vessel occlusion: IV thrombolysis is standard; routine thrombectomy showed no benefit in the ESCAPE-MeVO and DISTAL trials (2025) and is considered case by case (e.g. a proximal, dominant M2).'
-              : 'This is not a large-vessel occlusion; thrombectomy is not usually done.'
-        } Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006).`,
-      },
+      desc: lacunarOnly ? LACUNAR_WINDOW : treatmentWindowDesc(story),
       regions: [],
     });
   }
@@ -667,15 +822,22 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   // ── 4. haemorrhagic transformation ─────────────────────────────
   if (vol.total >= 1) {
-    // A thrombolytic drug (IV thrombolysis alone, or before thrombectomy) raises the bleeding risk
-    // modestly compared with thrombectomy alone. In the trials of thrombectomy with or without
-    // IV thrombolysis first, intracranial haemorrhage was somewhat more frequent with the drug but
-    // symptomatic haemorrhage differed only slightly. Conservatively, the drug lowers the
-    // infarct-volume thresholds of the risk steps by a quarter: an infarct near a threshold moves
-    // up by one step, never more, and one under 22.5 mL does not move at all.
+    // A thrombolytic drug (IV thrombolysis alone, or before thrombectomy) raises the bleeding
+    // risk. Against no thrombolytic the rise is several-fold (NINDS 1995: 6.4% vs 0.6% within
+    // 36 h; ECASS III 2008: 2.4% vs 0.2%); against direct thrombectomy, IV thrombolysis first adds
+    // little (SWIFT DIRECT 2022: 3.5% vs 2.5%). Conservatively, the drug lowers the infarct-volume
+    // thresholds of the risk steps by a quarter: an infarct near a threshold moves up by one step,
+    // never more, and one under 22.5 mL does not move at all.
     // Published rates are shown next to the treatment options (anatomy/recanalisation.ts). An
     // attempt that reopened nothing (eTICI 0) brings no blood back into dead tissue, so late or
     // large reperfusion adds nothing then.
+    // Timing: bleeding after a thrombolytic comes early, at a median of 470 min after the drug is
+    // started (Yaghi S et al. JAMA Neurol 2015;72:1451–1457), and the trial rates are counted in
+    // the first 24–36 h, so with a lytic the window starts at the treatment (reperfusionH stands
+    // in for the drug start) and peaks within hours. Without a lytic, haemorrhagic transformation
+    // follows the 1–7 day course. Only a parenchymal haematoma type 2 clearly changes the course
+    // (Fiorelli M et al. Stroke 1999;30:2280–2284), so the event carries no symptom: a risk is not
+    // an occurrence.
     const lytic = !!treatment && treatment.method !== 'evt';
     const k = lytic ? 0.75 : 1;
     const reperfused = reperfusionH !== null && !treatment?.failed;
@@ -686,21 +848,40 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       { zh: '中等', en: 'moderate' },
       { zh: '高', en: 'high' },
     ][level];
+    const drugH = reperfusionH ?? 0;
+    const methodZh =
+      treatment?.method === 'ivt'
+        ? '這次只用了靜脈血栓溶解：和沒有用血栓溶解劑相比，症狀性出血多了數倍（NINDS 6.4% vs 0.6%；ECASS III 2.4% vs 0.2%）。'
+        : treatment?.method === 'bridging'
+          ? '這次在取栓前先打了靜脈血栓溶解：和直接取栓相比差距不大（SWIFT DIRECT 3.5% vs 2.5%）。'
+          : '';
+    const methodEn =
+      treatment?.method === 'ivt'
+        ? ' IV thrombolysis alone was given: compared with no thrombolytic it raises symptomatic haemorrhage several-fold (NINDS 6.4% vs 0.6%; ECASS III 2.4% vs 0.2%).'
+        : treatment?.method === 'bridging'
+          ? ' IV thrombolysis was given before thrombectomy: compared with direct thrombectomy the difference is small (SWIFT DIRECT 3.5% vs 2.5%).'
+          : '';
     events.push({
       id: 'hemorrhagic_transformation',
       kind: 'complication',
       severity: level === 2 ? 'danger' : 'warn',
-      onsetH: 24,
-      peakH: 72,
+      onsetH: lytic ? drugH : 24,
+      peakH: lytic ? drugH + 8 : 72,
       endH: 336,
       title: { zh: `出血轉化風險：${lv.zh}`, en: `Haemorrhagic transformation risk: ${lv.en}` },
       desc: {
-        zh: `壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內。梗塞越大、再通越晚、使用血栓溶解劑，風險越高；症狀性出血在靜脈血栓溶解後約 2–7%。${
-          lytic ? `這次用了血栓溶解劑（${METHOD_NAME[treatment.method].zh}），模型把風險略為調高；與單純取栓相比，差距不大。` : ''
-        }`,
-        en: `Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days. Larger infarcts, late recanalisation and thrombolytics raise the risk; symptomatic haemorrhage occurs in roughly 2–7% after IV thrombolysis.${
-          lytic ? ` A thrombolytic was given (${METHOD_NAME[treatment.method].en}), so the model raises the risk a little; the difference from thrombectomy alone is small.` : ''
-        }`,
+        zh:
+          `壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內（用了血栓溶解劑會更早）。梗塞越大、再通越晚、使用血栓溶解劑，風險越高。大多沒有症狀（ECASS III 任何顱內出血 27.0% vs 安慰劑 17.6%）；只有第 2 型實質血腫明顯改變病程（ECASS I：早期惡化 OR 32.3、3 個月死亡 OR 18.0）。` +
+          `靜脈血栓溶解後的症狀性出血約 2–7%，是在最初 24–36 小時內計算的（Cochrane 定義算到 7 天）。` +
+          (lytic
+            ? `${methodZh}血栓溶解後的症狀性出血來得早：從開始用藥算起中位數約 8 小時，症狀性出血的病人約一半死亡。模型把這段風險從治療時開始算，風險等級最多調高一級。`
+            : ''),
+        en:
+          'Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days (earlier after a thrombolytic). Larger infarcts, late recanalisation and thrombolytics raise the risk. Most of it causes no symptoms (any intracranial haemorrhage in ECASS III: 27.0% vs 17.6% with placebo); only a parenchymal haematoma type 2 clearly changes the course (ECASS I: odds ratio 32.3 for early deterioration, 18.0 for death at 3 months). ' +
+          'Symptomatic haemorrhage after IV thrombolysis is roughly 2–7%, counted in the first 24–36 h (up to 7 days with the Cochrane definition).' +
+          (lytic
+            ? `${methodEn} Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk at the treatment and raises its level by one step at most.`
+            : ''),
       },
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex' || REGION_BY_ID[r]?.category === 'deep'),
     });

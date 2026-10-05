@@ -127,3 +127,35 @@ describe('C11-F7: Minnerup 2016 is not cited for "a few per cent" of ionic uptak
     expect(h).toMatch(/ION_MAX/);
   });
 });
+
+describe('C2: treatment and evidence references', () => {
+  const chainB = (() => {
+    const at = REFERENCES_MD.indexOf('### 臨床細節審查（B）');
+    return REFERENCES_MD.slice(at, REFERENCES_MD.indexOf('\n### ', at + 5));
+  })();
+  it.each([
+    ['Kargiotis O', 'Ther Adv Neurol Disord 2022;15:17562864221136335'],
+    ['de Bastos Maximiano ML', 'Neuroradiol J 2026;39:557–566'],
+    ['Menon BK, Buck BH', 'Lancet 2022;400:161–169'],
+    ['Campbell BCV, Mitchell PJ', 'N Engl J Med 2018;378:1573–1582'],
+    ['Alamowitch S', 'Eur Stroke J 2023;8:8–54'],
+    ['Prabhakaran S', 'Stroke 2026;57:e316–e436'],
+    ['Ma H, Campbell BCV', 'N Engl J Med 2019;380:1795–1803'],
+    ['Thomalla G, Simonsen CZ', 'N Engl J Med 2018;379:611–622'],
+    ['Xiong Y', 'N Engl J Med 2024;391:203–212'],
+    ['Sarraj A', 'N Engl J Med 2023;388:1259–1271'],
+    ['Huo X', 'N Engl J Med 2023;388:1272–1283'],
+    ['Yoshimura S', 'N Engl J Med 2022;386:1303–1313'],
+    ['Bendszus M', 'Lancet 2023;402:1753–1763'],
+    ['Costalat V', 'N Engl J Med 2024;390:1677–1689'],
+    ['Yaghi S, Boehme AK', 'JAMA Neurol 2015;72:1451–1457'],
+    ['Yaghi S, Eisenberger A', 'JAMA Neurol 2014;71:1181–1185'],
+    ['Fiorelli M', 'Stroke 1999;30:2280–2284'],
+    ['Barow E', 'JAMA Neurol 2019;76:641–649'],
+  ])('%s is listed once, in the chain-B audit section of REFERENCES.md', (who, where) => {
+    const r = ref(who);
+    expect(r, who).toHaveLength(1);
+    expect(r[0]).toContain(where);
+    expect(chainB).toContain(`- ${r[0]}`);
+  });
+});

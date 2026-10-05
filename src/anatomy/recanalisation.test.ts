@@ -12,8 +12,14 @@ function allEntries(): [string, EvidenceRange][] {
   for (const [site, byMethod] of Object.entries(e.success))
     for (const [method, r] of Object.entries(byMethod ?? {})) if (r) out.push([`success.${site}.${method}`, r]);
   for (const [method, r] of Object.entries(e.sich)) if (r) out.push([`sich.${method}`, r]);
+  for (const [method, r] of Object.entries(e.sichMevo)) if (r) out.push([`sichMevo.${method}`, r]);
+  if (e.sichLargeCore) out.push(['sichLargeCore', e.sichLargeCore]);
+  if (e.tenecteplase.sich) out.push(['tenecteplase.sich', e.tenecteplase.sich]);
+  if (e.tenecteplase.reperfusionBeforeEvt) out.push(['tenecteplase.reperfusionBeforeEvt', e.tenecteplase.reperfusionBeforeEvt]);
+  if (e.lateIvt) out.push(['lateIvt', e.lateIvt]);
   for (const [method, r] of Object.entries(e.reocclusion)) if (r) out.push([`reocclusion.${method}`, r]);
   if (e.distalEmbolization) out.push(['distalEmbolization', e.distalEmbolization]);
+  if (e.newTerritoryEmbolization) out.push(['newTerritoryEmbolization', e.newTerritoryEmbolization]);
   if (e.noReflow) out.push(['noReflow', e.noReflow]);
   return out;
 }
@@ -119,5 +125,33 @@ describe('siteGroupOf', () => {
     // ids not in the anatomy fall back to 'other'
     expect(siteGroupOf('not_a_vessel')).toBe('other');
     expect(siteGroupOf('toString')).toBe('other');
+  });
+});
+
+describe('C2-F11: VERITAS figures', () => {
+  it('182 and 82 are the patients reaching mTICI ≥ 2b among those with angiographic data, not group sizes', () => {
+    const evt = RECANALISATION_EVIDENCE.success.basilar!.evt!.note;
+    const br = RECANALISATION_EVIDENCE.success.basilar!.bridging!.note;
+    expect(evt.en).toMatch(/73% \(182 of about 250 with angiographic data; data missing for 183 of the 556\)/);
+    expect(br.en).toMatch(/67% \(82 of about 122 with angiographic data\)/);
+    expect(evt.en).not.toMatch(/\(182 patients/);
+    expect(br.en).not.toMatch(/\(82 patients/);
+    expect(evt.zh).toMatch(/約 250 位有血管攝影資料者中的 182 位/);
+    expect(br.zh).toMatch(/約 122 位有資料者中的 82 位/);
+  });
+
+  it('the thrombectomy and bridging haemorrhage notes give the VERITAS basilar figures', () => {
+    for (const m of ['evt', 'bridging'] as const) {
+      const r = RECANALISATION_EVIDENCE.sich[m]!;
+      expect(r.note.en, m).toMatch(/VERITAS/);
+      expect(r.note.en, m).toMatch(/4\.9%.*6\.3%/);
+      expect(r.note.en, m).toMatch(/1\.87.*0\.77–4\.57/);
+      expect(r.note.zh, m).toMatch(/VERITAS/);
+      expect(r.source, m).toContain('Knapen RRMM');
+    }
+    // the ranges span the figures quoted
+    expect(RECANALISATION_EVIDENCE.sich.bridging!.high).toBeGreaterThanOrEqual(0.063);
+    expect(RECANALISATION_EVIDENCE.sich.evt!.low).toBeLessThanOrEqual(0.049);
+    expect(RECANALISATION_EVIDENCE.sich.evt!.high).toBeGreaterThanOrEqual(0.049);
   });
 });
