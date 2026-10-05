@@ -63,6 +63,8 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Wanklyn P, Forster A, Young J, Mulley G. Prevalence and associated features of the cold hemiplegic arm. Stroke 1995;26:1867–1870.
 - Xi Z, Luning W. REM sleep behavior disorder in a patient with pontine stroke. Sleep Med 2009;10:143–146. (Case report.)
 
+### 臨床細節審查（A）· Clinical-detail audit (A): cortex, deep structures, thalamus, late and non-motor, NIHSS
+
 ### 血流、組織與臨床模型 · Flow, tissue and clinical model
 
 - Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)
@@ -147,6 +149,8 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Wong GJ et al. Stroke 2021;52:2241–2249 (embolic evidence on MRI before and after thrombectomy).
 - Ng FC et al. Neurology 2022;98:e790–e801 (no-reflow after successful reperfusion).
 - ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).
+
+### 臨床細節審查（B）· Clinical-detail audit (B): treatment, haemodynamics, brainstem, medulla and cerebellum, acute course
 
 ### 中風後常見、但與病灶部位關聯有限的問題 · Common after stroke, weakly tied to the lesion site
 

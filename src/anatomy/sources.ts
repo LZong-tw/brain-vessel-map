@@ -136,6 +136,7 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Wanklyn P, Ilsley DW, Greenstein D, Hampton IF, Roper TA, Kester RC, Mulley GP. The cold hemiplegic arm. Stroke 1994;25:1765–1770.',
   'Wanklyn P, Forster A, Young J, Mulley G. Prevalence and associated features of the cold hemiplegic arm. Stroke 1995;26:1867–1870.',
   'Xi Z, Luning W. REM sleep behavior disorder in a patient with pontine stroke. Sleep Med 2009;10:143–146. (Case report.)',
+  // ── audit (chain A: cortex, deep, thalamus, late and non-motor, NIHSS rules) ──
   // ── flow, tissue and clinical model ──
   'Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)',
   'Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.',
@@ -234,6 +235,7 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Johnson KG, Johnson DC. Frequency of sleep apnea in stroke and TIA patients: a meta-analysis. J Clin Sleep Med 2010;6:131–137.',
   'Yaggi HK et al. Obstructive sleep apnea as a risk factor for stroke and death. N Engl J Med 2005;353:2034–2041.',
   'Pendlebury ST, Rothwell PM. Prevalence, incidence, and factors associated with pre-stroke and post-stroke dementia: a systematic review and meta-analysis. Lancet Neurol 2009;8:1006–1018.',
+  // ── audit (chain B: citations, treatment, haemodynamics, brainstem, medulla and cerebellum, acute course) ──
   // ── common problems after stroke that the lesion site does not determine (postStrokeRisks.ts) ──
 ];
 
