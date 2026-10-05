@@ -1183,6 +1183,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'horner', lat: 'ipsi', sev: 1 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
+      // the middle cerebellar peduncle: standing and walking were impaired in all of 7 AICA
+      // infarcts, 6 of them in the peduncle (Ogawa K et al. J Stroke Cerebrovasc Dis
+      // 2017;26:574–581, PMID 27989483). C7-F4. TODO(medical-review): sev
+      { s: 'ataxia_gait', lat: 'none', sev: 2 },
       // descending sympathetic fibres (Korpelainen et al., Stroke 1993); the taste pathway still
       // ascends on the same side (Landis et al., J Neurol Neurosurg Psychiatry 2006 — a case
       // report). TODO(medical-review): sev
@@ -1203,8 +1207,15 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'brainstem',
     cbf: BS_CBF,
     supply: [
-      { v: 'asa_root_{s}', share: 0.8, at: 'mid' },
-      { v: 'va_v4_dist_{s}', share: 0.2, at: 'mid' },
+      // the vertebral's own direct branches feed only a small part: kept below what, with the
+      // perilesional rim of oedema on days 2–7, would reach the symptom threshold (0.25), so a
+      // vertebral occlusion (Wallenberg) does not also give a transient contralateral hemiparesis —
+      // weakness is not part of the lateral medullary syndrome (Sacco RL et al. Arch Neurol
+      // 1993;50:609–614, PMID 8503798), and the hemiparesis reported with it is on the side of the
+      // infarct (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384). C7-F3.
+      // TODO(medical-review): share
+      { v: 'asa_root_{s}', share: 0.85, at: 'mid' },
+      { v: 'va_v4_dist_{s}', share: 0.15, at: 'mid' },
     ],
     structures: [
       { name: { zh: '錐體', en: 'Pyramid' }, role: { zh: '對側手腳運動（臉部已在上方分出）', en: 'Opposite arm & leg movement (face fibres already left)' } },
@@ -1218,6 +1229,18 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'proprio_loss', lat: 'contra', sev: 2 },
       { s: 'tongue_weak', lat: 'ipsi', sev: 2 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // 86 consecutive medial medullary infarcts: vertigo or dizziness in 59 %, with dorsal
+      // involvement; central post-stroke pain in 21, linked to a poor outcome (Kim JS, Han YS.
+      // Stroke 2009;40:3221–3225, PMID 19628797). C7-F9. TODO(medical-review): sev
+      { s: 'vertigo', lat: 'none', sev: 1 },
+      { s: 'central_pain', lat: 'contra', sev: 1 },
+      // both sides: weak tongue and dysarthria (dysarthria 48.6 %, hypoglossal palsy 40.5 % in 38
+      // bilateral cases: Pongmoragot J et al. J Stroke Cerebrovasc Dis 2013;22:775–780, PMID
+      // 22541608). No swallowing or breathing symptom: the review gives no figure for them, and
+      // case reports differ (respiratory failure in Kobayashi S et al. Brain Nerve 2020;72:901–905,
+      // PMID 32741771; none in Takano K, Takasugi K. No To Shinkei 2003;55:879–883, PMID 14635516),
+      // so breathing is left to the bilateral-medulla complication (cascade.ts). C7-F6
+      { s: 'dysarthria', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -1254,14 +1277,34 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
       { s: 'horner', lat: 'ipsi', sev: 2 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
+      // gait and truncal ataxia with the body pulled towards the lesion (ipsiversive
+      // lateropulsion: Cnyrim CD et al. J Neurol Neurosurg Psychiatry 2007;78:527–528, PMID
+      // 17435189); ataxia was the commonest onset symptom (70 %: Sacco RL et al. Arch Neurol
+      // 1993;50:609–614, PMID 8503798), and severe gait ataxia commoner with caudal lesions (Kim JS.
+      // Brain 2003;126:1864–1872, PMID 12805095). C7-F4
+      { s: 'ataxia_gait', lat: 'none', sev: 2 },
+      // facial weakness in 42 % (Sacco 1993), central and on the side of the infarct in 8 of 33
+      // (the corticobulbar fibres to the facial nucleus loop down into the medulla: Kanbayashi T,
+      // Sonoo M. BMC Neurol 2021;21:214, PMID 34058995); dysarthria in 56 % of those who did not
+      // die of respiratory failure (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384);
+      // both commoner with rostral lesions (Kim 2003). C7-F4. TODO(medical-review): sev
+      { s: 'face_weak', lat: 'ipsi', sev: 1 },
+      { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'hiccups', lat: 'none', sev: 1 },
       { s: 'central_pain', lat: 'contra', sev: 1 },
+      // one side can be enough to lose automatic breathing (Bogousslavsky J et al. Ann Neurol
+      // 1990;28:668–673, PMID 2260854): shown as a complication warning for the first 10 days
+      // (cascade.ts, C7-F1); this symptom is for lesions of both sides
       { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
+      // reduced cardiac vagal (parasympathetic) function on testing in 14 of 25, against 4 of 29
+      // controls, linked to ventral involvement (Hong JM et al. Neurol Sci 2013;34:1963–1969,
+      // PMID 23543393); the study gives no arrhythmia rate. C7-F1
+      { s: 'autonomic_cardiac', lat: 'none', sev: 1 },
       // TODO(medical-review): every sev below
       // whole-body ipsilateral hypohidrosis (Korpelainen et al., Stroke 1993)
       { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
-      // central apnoea in sleep after a one-sided infarct (Pavšič et al., Sleep Breath 2020); two
-      // sides → `respiratory` above, which replaces it (clinical.ts)
+      // central apnoea in sleep after a one-sided infarct, worst around day 7 (Pavšič et al., Sleep
+      // Breath 2020; symptoms.ts); two sides → `respiratory` above, which replaces it (clinical.ts)
       { s: 'central_sleep_apnoea', lat: 'none', sev: 1 },
       // the solitary tract nucleus: taste on the same side (Onoda et al., J Neurol 2012)
       { s: 'taste_loss', lat: 'ipsi', sev: 1 },
@@ -1336,6 +1379,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'nystagmus', lat: 'none', sev: 2 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
       { s: 'nausea_vomiting', lat: 'none', sev: 1 },
+      // standing and walking impaired in all of 7 AICA infarcts, 4 of them in the cerebellum
+      // (Ogawa K et al. J Stroke Cerebrovasc Dis 2017;26:574–581, PMID 27989483). C7-F4.
+      // TODO(medical-review): sev
+      { s: 'ataxia_gait', lat: 'none', sev: 2 },
     ],
     compartment: 'infra',
   }),
@@ -1352,6 +1399,14 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'vertigo', lat: 'none', sev: 2 },
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
       { s: 'nystagmus', lat: 'none', sev: 1 },
+      // the cerebellar cognitive affective syndrome: executive and visuospatial deficits with
+      // posterior-lobe lesions, only minor changes with anterior-lobe ones (20 patients with
+      // disease confined to the cerebellum: Schmahmann JD, Sherman JC. Brain 1998;121:561–579,
+      // PMID 9577385); MMSE and MoCA can be normal (Hoche F et al. Brain 2018;141:248–270, PMID
+      // 29206893). Series of mixed cerebellar disease, not stroke-specific frequencies: mild
+      // (sev 1). C7-F10. TODO(medical-review): sev
+      { s: 'executive', lat: 'none', sev: 1 },
+      { s: 'visuospatial', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1370,6 +1425,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'ataxia_gait', lat: 'none', sev: 3 },
       { s: 'nystagmus', lat: 'none', sev: 2 },
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
+      // the affective part of the cerebellar cognitive affective syndrome: blunted affect or
+      // disinhibited behaviour with vermis lesions (Schmahmann & Sherman 1998, as above). C7-F10.
+      // TODO(medical-review): sev
+      { s: 'emotional', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),

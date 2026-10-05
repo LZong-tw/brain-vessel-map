@@ -21,9 +21,10 @@
  *     horizontal gaze to that side, facial nucleus → peripheral facial palsy, hypoglossal …) or
  *     lower motor neurons. There is no other route to the muscle, so once the nucleus is dead
  *     the function does not come back.
- *   • none — the only route for that function (primary visual cortex, inner ear, retina, the
- *     descending sympathetic pathway): other areas cannot take it over, only strategies (turning
- *     the head, scanning) make up for it.
+ *   • none — the only route for that function (primary visual cortex, retina, the descending
+ *     sympathetic pathway): other areas cannot take it over, only strategies (turning the head,
+ *     scanning) make up for it. (Hearing lost to inner-ear ischaemia often does come back, a
+ *     profound loss less often: `partial` with a `profound` share.)
  *   • exempt — not a lost function but a late consequence or a descriptor (spasticity, central
  *     pain, palatal tremor, macular sparing, double vision that follows an eye palsy, the cold
  *     paretic limb); left as is.
@@ -51,6 +52,11 @@ export interface Redundancy {
   bi: number;
   /** most of the compensation happens within ~1–2 weeks rather than ~3 months */
   fast?: boolean;
+  /**
+   * a severe (profound, severity 3 before compensation) deficit is taken over less often: these
+   * shares replace `uni` / `bi` then
+   */
+  profound?: { uni: number; bi: number };
   /**
    * source regions (base ids) where this symptom comes from a nucleus or fascicle, i.e. the
    * final common pathway: no compensation from those sources
@@ -129,7 +135,11 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // jaw muscles are bilaterally innervated from the cortex, but the trigeminal motor nucleus is
   // the final common pathway
   jaw_weak: bilateral(0.75, 0.2, { fcpSources: ['pons_rostral_lateral'] }),
-  hearing_loss: NONE,
+  // hearing lost to vertebrobasilar ischaemia came back partly or completely in 81 % at ≥ 1 year
+  // — 40 % with a profound loss, 89 % with a lesser one (Lee H, Baloh RW. J Neurol Sci
+  // 2005;228:99–104, PMID 15607217) — and in 65 % of 62 (Kim HA et al. J Neurol Sci
+  // 2014;339:176–182, PMID 24581671). The inner-ear infarct is a profound loss. C7-F8
+  hearing_loss: partial(0.6, 0.3, { profound: { uni: 0.25, bi: 0.1 } }),
   palatal_tremor: EXEMPT,
   // TODO(medical-review): above the upper pons the taste pathway runs on both sides; 80 % of central taste disorders
   // improved by 24 weeks (Onoda et al., J Neurol 2012; 259:261–6)

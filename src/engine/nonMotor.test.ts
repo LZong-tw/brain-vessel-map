@@ -239,7 +239,8 @@ describe('every new symptom can occur', () => {
  * F2 the MCA hemianopia; F3 the PCA hemianopia; F5 where neglect comes from; F6 the border-zone
  * arm weakness) and C6 (lacunar and deep syndromes: F1 a single lacune is mild to moderate; F6 the
  * cortical signs of a striatocapsular infarct; the capsular warning and corona radiata scenarios
- * are new). [total, items > 0, syndromes (with lesion side)]
+ * are new) and C7 (medulla and cerebellum: F4 the lateral medulla's facial weakness and
+ * dysarthria). [total, items > 0, syndromes (with lesion side)]
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
@@ -312,10 +313,13 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'basilar_mid@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
   'basilar_stuttering@24': [0, {}, []],
   'basilar_stuttering@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']], // C5-F1 anarthria: 1b = 1
-  'r_wallenberg@24': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
-  'r_wallenberg@2160': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
-  // C5-F2: its lateral medullary signs (Horner, crossed pain/temperature loss) are named too
-  'r_pica@24': [3, { 2: 1, 7: 1, 8: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
+  // C7-F4: a mild facial weakness on the lesion side and dysarthria (4: 0 → 1, 10: 0 → 1; was 2)
+  'r_wallenberg@24': [4, { 4: 1, 7: 1, 8: 1, 10: 1 }, ['wallenberg_r']],
+  // C7-F4: the dysarthria is not yet fully compensated at 3 months (10: 0 → 1; was 2)
+  'r_wallenberg@2160': [3, { 7: 1, 8: 1, 10: 1 }, ['wallenberg_r']],
+  // C5-F2: its lateral medullary signs (Horner, crossed pain/temperature loss) are named too;
+  // C7-F4: the lateral medulla adds a mild facial weakness and dysarthria (4: 0 → 1, 10: 0 → 1; was 3)
+  'r_pica@24': [5, { 2: 1, 4: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
   'r_pica@2160': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
   'l_aica@24': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'l_aica@2160': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],

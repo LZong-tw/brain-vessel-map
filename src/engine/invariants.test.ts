@@ -126,6 +126,15 @@ describe('syndromes and events agree with the symptoms', () => {
     ['pontine_circumferential_l', [{ vessel: 'pontine_circumferential_l', severity: 1 }], 'good'],
     ['mesencephalic_perf_l', [{ vessel: 'mesencephalic_perf_l', severity: 1 }], 'good'],
     ['brachiocephalic moderate', [{ vessel: 'brachiocephalic', severity: 1 }], 'moderate'],
+    // C7-F6: both medial medullae
+    [
+      'both ASA roots',
+      [
+        { vessel: 'asa_root_r', severity: 1 },
+        { vessel: 'asa_root_l', severity: 1 },
+      ],
+      'good',
+    ],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -196,9 +205,10 @@ describe('syndromes and events agree with the symptoms', () => {
     });
   });
 
-  it.each(CASES)('%s: no bilateral lesion is named as two one-sided crossed pontine syndromes', (name) => {
+  it.each(CASES)('%s: no bilateral lesion is named as two one-sided crossed brainstem syndromes', (name) => {
     series(name).forEach((r, i) => {
-      for (const id of ['pontine_ventral', 'pontine_lacunar', 'foville']) {
+      // C7-F6: both medial medullae are one bilateral medial medullary infarction, not two Dejerine
+      for (const id of ['pontine_ventral', 'pontine_lacunar', 'foville', 'dejerine']) {
         const sides = r.syndromes.filter((m) => m.def.id === id).map((m) => m.side);
         expect(sides.length, `${name} ${STOPS[i]} h: ${id} ${sides.join('+')}`).toBeLessThan(2);
       }

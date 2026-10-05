@@ -176,10 +176,11 @@ export function aggregateSymptoms(
         if (r.side === 'm' || d.lat === 'none') side = r.side === 'm' ? 'both' : null;
         else side = d.lat === 'contra' ? opp(r.side) : r.side;
       }
-      const raw = (d.sev ?? 2) * (0.35 + 0.65 * Math.min(1, level / 0.8));
+      const peak = sym.peakH && tH >= sym.peakH[0] && tH < sym.peakH[1] ? 1 : 0;
+      const raw = ((d.sev ?? 2) + peak) * (0.35 + 0.65 * Math.min(1, level / 0.8));
       let sevEff = raw;
       // weeks–months later, spared pathways take over part of what the dead tissue did
-      const rec = symptomCompensation(d.s, r, level, inf, lesions, tH, d.fast);
+      const rec = symptomCompensation(d.s, r, level, inf, lesions, tH, d.fast, Math.round(raw) >= 3);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;

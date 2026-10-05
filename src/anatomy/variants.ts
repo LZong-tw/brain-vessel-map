@@ -96,8 +96,9 @@ export const VARIANTS: VariantDef[] = [
     vesselScale: { [`asa_root_${o(s)}`]: 0 },
     supplyOverride: {
       [`medulla_medial_${o(s)}`]: [
-        { v: 'asa', share: 0.8, at: 'mid' },
-        { v: `va_v4_dist_${o(s)}`, share: 0.2, at: 'mid' },
+        // the same shares as the region's own supply (regions.ts, C7-F3)
+        { v: 'asa', share: 0.85, at: 'mid' },
+        { v: `va_v4_dist_${o(s)}`, share: 0.15, at: 'mid' },
       ],
     },
     excludes: [`asa_unilateral_${o(s)}`],

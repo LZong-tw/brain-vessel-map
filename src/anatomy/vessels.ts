@@ -2080,7 +2080,15 @@ export const VESSEL_DEFS: VesselDef[] = [
       [-3, -80, -35],
     ],
     pathMode: 'surface',
-    collStrength: 0.08,
+    // weak: with 0.08 this and the vermian anastomosis to the SCA refilled a medial PICA branch
+    // completely, so its occlusion caused nothing under the default collaterals — yet the medial
+    // branch territory is the commonest PICA infarct (23 of 74: Kumral E et al. Cerebrovasc Dis
+    // 2005;20:370–380, PMID 16205055) and gives nearly all cerebellar infarcts that mimic
+    // vestibular neuritis (24 of 25: Lee H et al. Neurology 2006;67:1178–1183, PMID 17030749).
+    // Only this PICA-to-PICA link is weakened: the shared PICA–SCA anastomosis is left as it was,
+    // so an SCA occlusion behaves as before (that series had no such SCA presentation). C7-F2.
+    // TODO(medical-review): strength
+    collStrength: 0.01,
   }),
   mid({
     id: 'lepto_sca_crossed',

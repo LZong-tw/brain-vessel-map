@@ -314,4 +314,9 @@ export interface SymptomDef {
   fromInfarct?: boolean;
   /** appears only this many hours after onset (a latent period), not from the start */
   onsetH?: number;
+  /**
+   * worst between these hours after onset [from, to): one severity step more than the lesion
+   * alone gives, before compensation (e.g. central sleep apnoea, which peaks around day 7)
+   */
+  peakH?: [number, number];
 }

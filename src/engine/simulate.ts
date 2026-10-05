@@ -658,8 +658,11 @@ function modelFor(input: SimInput): Model {
     bedFinalUntreated,
     bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14, untreated, x), course, onsetH + 14),
     regionAcute: regionAgg(acute),
-    // a single branch changes no flow the model sees, yet its brain tissue is ischaemic (C6-F2)
-    lacuneIschaemia: [...course.lacunes.keys()].filter((rid) => BRAIN.has(REGION_BY_ID[rid].category) && lacuneActiveAt(course, rid, onsetH)),
+    // a single branch changes no flow the model sees, yet its brain tissue is ischaemic (C6-F2);
+    // so is the inner ear behind one labyrinthine branch, which gets the inner-ear story (C7-F7)
+    lacuneIschaemia: [...course.lacunes.keys()].filter(
+      (rid) => (BRAIN.has(REGION_BY_ID[rid].category) || REGION_BY_ID[rid].category === 'ear') && lacuneActiveAt(course, rid, onsetH),
+    ),
     // a reocclusion closes the artery again, so the flow does not stay back
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // left out for the default treatment, which keeps the former event texts exactly

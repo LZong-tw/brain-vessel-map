@@ -304,8 +304,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '右椎動脈阻塞：華倫堡氏症候群', en: 'Right vertebral occlusion: Wallenberg' },
     summary: {
-      zh: '眩暈、吞嚥困難、聲音沙啞、右側霍納、「右臉左身」痛溫覺喪失——NIHSS 可能只有 1–2 分。',
-      en: 'Vertigo, dysphagia, hoarseness, right Horner, pain/temperature loss on the right face and left body — NIHSS may be only 1–2.',
+      zh: '眩暈、吞嚥困難、聲音沙啞、右側霍納、走路時身體被拉向右側、「右臉左身」痛溫覺喪失，而手腳不會無力——NIHSS 可能只有 4 分。前 10 天要注意睡眠中的呼吸。',
+      en: 'Vertigo, dysphagia, hoarseness, right Horner, a gait pulled to the right, pain/temperature loss on the right face and left body, but no weak limbs — NIHSS may be only 4. Watch breathing in sleep for the first 10 days.',
     },
     occlusions: [{ vessel: 'va_v4_dist_r', severity: 1 }],
     tH: 24,
@@ -316,8 +316,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '右 PICA 小腦梗塞 → 水腦', en: 'Right PICA cerebellar infarct → hydrocephalus' },
     summary: {
-      zh: '一開始只有頭暈嘔吐，第 1–3 天小腦腫脹壓迫第四腦室與腦幹。',
-      en: 'Starts as dizziness and vomiting; over days 1–3 the swollen cerebellum compresses the 4th ventricle and brainstem.',
+      zh: '一開始像頭暈嘔吐；PICA 也供應部分延髓外側，所以同時有華倫堡氏症候群的表現（霍納氏症候群、交叉性痛溫覺喪失、吞嚥困難）。第 1–3 天小腦腫脹壓迫第四腦室與腦幹。',
+      en: 'Starts like dizziness and vomiting; the PICA also feeds part of the lateral medulla, so Wallenberg signs come too (Horner, crossed pain/temperature loss, dysphagia). Over days 1–3 the swollen cerebellum compresses the 4th ventricle and brainstem.',
     },
     occlusions: [{ vessel: 'pica_r', severity: 1 }],
     collateral: 'poor',

@@ -273,6 +273,61 @@ function pushEyeEvents(events: CascadeEvent[]): void {
 }
 
 /**
+ * Only the inner ear is infarcted (a labyrinthine artery occlusion): an end-organ infarct that
+ * brain DWI does not show, and a warning of AICA or basilar stroke — not a TIA, although no brain
+ * tissue dies (C7-F7). A vascular cause usually takes hearing and the vestibule together (49 of
+ * 82 AICA infarcts), and 13 of those 82 had transient vertigo or hearing episodes within the month
+ * before (Lee H et al. Stroke 2009;40:3745–3751, PMID 19797177); 9 of 29 people with sudden
+ * deafness from vertebrobasilar ischaemia first had only the ear symptoms, the brain signs coming
+ * later (Lee H, Baloh RW. J Neurol Sci 2005;228:99–104, PMID 15607217); a unilateral canal paresis
+ * on the deaf side in 56 of 62 (Kim HA et al. J Neurol Sci 2014;339:176–182, PMID 24581671); an
+ * abnormal head-impulse test wrongly suggested a peripheral cause in lateral pontine strokes, and
+ * the first DWI missed 12 % of strokes within 48 h (Kattah JC et al. Stroke 2009;40:3504–3510,
+ * PMID 19762709).
+ */
+function pushEarEvents(events: CascadeEvent[]): void {
+  events.push({
+    id: 'labyrinthine_infarction',
+    kind: 'mechanism',
+    severity: 'warn',
+    onsetH: 0,
+    endH: 6,
+    title: { zh: '內耳梗塞（數分鐘內失去聽覺與平衡）', en: 'Inner-ear infarction (hearing and balance lost within minutes)' },
+    desc: {
+      zh: '迷路動脈是供應耳蝸與前庭的終末動脈，通常由小腦前下動脈（AICA）分出。阻塞時，這一側的聽覺與平衡器官一起失去功能——血管性的原因通常兩者都受影響，和病毒性的不同（82 例 AICA 梗塞中 60% 聽覺與前庭功能一起喪失）。內耳不是腦組織：壞死的是器官本身，所以耳聾可能留下來，但常在幾個月內改善（見「突發性聽力喪失」）。這裡沒有腦組織缺血。',
+      en: 'The labyrinthine artery is an end artery to the cochlea and the vestibule, usually a branch of the AICA. When it closes, hearing and the balance organ on that side fail together — a vascular cause usually takes both, unlike a viral one (combined loss in 60 % of 82 AICA infarcts). The inner ear is not brain tissue: what dies is the organ itself, so the deafness can last, although it often improves over months (see sudden hearing loss). No brain tissue is ischaemic here.',
+    },
+    regions: [],
+  });
+  events.push({
+    id: 'ear_stroke_workup',
+    kind: 'treatment',
+    severity: 'warn',
+    onsetH: 0,
+    endH: 168,
+    title: { zh: '內耳中風是腦中風的警訊', en: 'An inner-ear stroke is a brain-stroke warning' },
+    desc: {
+      zh: '突發單側耳聾合併眩暈，可能是小腦前下動脈或基底動脈中風的第一個徵兆：82 例 AICA 梗塞中，有 13 例在之前一個月內出現過短暫的眩暈或聽覺症狀；另一系列 29 位椎基底動脈缺血造成突發耳聾的人中，9 位一開始只有耳朵的症狀，腦部的徵象之後才出現。要當成中風急症處理：盡快做腦部與血管影像，並開始中風預防。床邊的甩頭測試在這類中風也可能異常、看起來像內耳炎，所以不能只靠它排除中風。',
+      en: 'Sudden one-sided deafness with vertigo can be the first sign of an AICA or basilar stroke: 13 of 82 AICA infarcts were preceded by transient vertigo or hearing episodes within the month before, and of 29 people with sudden deafness from vertebrobasilar ischaemia, 9 first had only the ear symptoms and the brain signs came later. Treat it as a stroke emergency: urgent imaging of the brain and its arteries, and stroke prevention. The bedside head-impulse test can be abnormal in such strokes and look like vestibular neuritis, so it cannot rule a stroke out on its own.',
+    },
+    regions: [],
+  });
+  events.push({
+    id: 'imaging_labyrinth',
+    kind: 'imaging',
+    severity: 'info',
+    onsetH: 0.1,
+    endH: 336,
+    title: { zh: '檢查：聽力與前庭功能，腦部 DWI 看不到內耳', en: 'Examination: hearing and balance tests; brain DWI does not show the inner ear' },
+    desc: {
+      zh: '腦部擴散加權 MRI 看不到內耳本身；它用來找腦幹與小腦的梗塞，而早期掃描可能漏掉小病灶（發病 48 小時內約 12% 為假陰性）。聽力的喪失用純音聽力檢查記錄，前庭功能用溫差測試等檢查——血管性的突發耳聾，同側前庭功能也常變弱（62 人中 56 人）。',
+      en: 'Brain diffusion MRI does not show the inner ear itself; it is used to look for infarcts in the brainstem and cerebellum, and an early scan can miss small ones (about 12 % false negatives within 48 h). The hearing loss is documented with a pure-tone audiogram and the vestibule with caloric and similar tests — with sudden deafness of vascular cause the vestibule on the same side is usually weak too (56 of 62).',
+    },
+    regions: [],
+  });
+}
+
+/**
  * Brain ischaemia that leaves no infarct: the flow came back in time (a TIA) or collaterals held.
  * Tissue-based definition of TIA: Easton JD et al. Stroke 2009;40:2276–2293. Short-term dual
  * antiplatelet therapy after a high-risk TIA or minor stroke: CHANCE (Wang Y et al. N Engl J Med
@@ -423,8 +478,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // infarct (a TIA, or tissue held by collaterals), or a brain infarct
   const ischaemicRegions = [...new Set([...Object.keys(regionAcute).filter((rid) => regionAcute[rid] >= 0.05), ...lacuneIschaemia])];
   const eyeOnly = anyIschemia && ischaemicRegions.every((rid) => REGION_BY_ID[rid]?.category === 'eye');
-  const noInfarct = anyIschemia && !eyeOnly && vol.total < 0.05;
+  // only the inner ear, and it infarcts (C7-F7): an end-organ infarct that the brain volume does
+  // not count; a labyrinthine artery that reopens in time stays a TIA
+  const earInfarct =
+    anyIschemia && ischaemicRegions.every((rid) => REGION_BY_ID[rid]?.category === 'ear') && ischaemicRegions.some((rid) => infarcted(rid, 0.25));
+  const noInfarct = anyIschemia && !eyeOnly && !earInfarct && vol.total < 0.05;
   if (eyeOnly) pushEyeEvents(events);
+  else if (earInfarct) pushEarEvents(events);
   else if (noInfarct) pushNoInfarctEvents(events);
   else if (anyIschemia) {
     events.push({
@@ -483,10 +543,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const treatment = input.treatment;
   // only an occlusion that treatment can reopen: a single branch (lacune) or a stenosis stays
   const reopenable = input.occlusions.some(isTreatable);
-  if (reperfusionH !== null && anyIschemia && !eyeOnly && reopenable && treatment) {
+  // the brain-tissue reperfusion story (penumbra saved, in mL) does not fit an eye or inner-ear
+  // infarct, whose end organ the brain volumes do not count
+  if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable && treatment) {
     events.push(reperfusionEvent(treatment, reperfusionH, savedVolume));
     pushTreatmentComplications(events, treatment, reperfusionH);
-  } else if (reperfusionH !== null && anyIschemia && !eyeOnly && reopenable) {
+  } else if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
     events.push({
       id: 'reperfusion',
@@ -767,6 +829,40 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         en: `Medullary respiratory rhythm and airway reflexes fail; intubation and ventilation may be needed.${note.en}`,
       },
       regions: MEDULLA.flat().filter((r) => acute(r)),
+    });
+  }
+
+  // one lateral medulla (C7-F1): one side of the pontomedullary reticular formation and nucleus
+  // ambiguus is enough to lose automatic breathing (Bogousslavsky J et al. Ann Neurol
+  // 1990;28:668–673, PMID 2260854). Overt respiratory failure complicates 2–6 % of one-sided
+  // lateral medullary infarcts (Pavšič K et al. Sleep Breath 2020;24:1557–1563, PMID 32064553);
+  // 8 of 102 died of respiratory failure within 10 days, more often with severe dysphagia,
+  // dysarthria, ipsilateral hemiparesis, urinary retention, disability before the stroke or lung
+  // disease (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384); 5 of 43 died of
+  // respiratory or cardiovascular complications in the acute phase of a population series
+  // (Norrving B, Cronqvist S. Neurology 1991;41:244–248, PMID 1992369); the ipsilateral
+  // hemiparesis comes from the crossed pyramidal tract in the lowest medulla (Uemura M et al. J
+  // Neurol Sci 2016;365:40–45, PMID 27206871) and is not reproduced by this model (C7-F11);
+  // lost automatic breathing can recover (Mendoza M, Latorre JG. Neurology 2013;80:e13–e16,
+  // PMID 23296134). From the threshold at which the region's symptoms appear (or a single
+  // lateral medullary perforator closing), for tissue that infarcts (a vertebral TIA carries no
+  // such risk); when both medullae are involved the danger event above says it.
+  const lateralMedulla = (['r', 'l'] as Side[])
+    .map((s) => `medulla_lateral_${s}`)
+    .filter((rid) => (acute(rid, 0.25) || lacuneIschaemia.includes(rid)) && infarcted(rid, 0.25));
+  if (lateralMedulla.length > 0 && !bilateral(acute, MEDULLA)) {
+    events.push({
+      id: 'lateral_medullary_breathing',
+      kind: 'complication',
+      severity: 'warn',
+      onsetH: 0,
+      endH: 240,
+      title: { zh: '延髓外側梗塞：前 10 天呼吸可能衰竭', en: 'Lateral medullary infarct: breathing may fail in the first 10 days' },
+      desc: {
+        zh: '延髓外側有讓呼吸自動進行的神經網路，以及呼吸道、心跳與血壓的反射；只壞一側就可能失去自動呼吸（睡著就停，「Ondine 詛咒」）。前約 10 天呼吸可能變慢或停止，多半在睡眠中：單側延髓外側梗塞約 2–6% 出現明顯的呼吸衰竭；一個醫院的系列 102 人中有 8 人在 10 天內死於呼吸衰竭，一個較早的族群研究 43 人中有 5 人在急性期死於呼吸或心血管併發症。嚴重吞嚥困難、構音障礙、病灶同側的手腳無力、尿液滯留、中風前已失能或有肺病時風險較高——病灶同側的無力（Opalski 變異型，延髓最下段已交叉的錐體徑受損）本模型沒有重現。這段期間要密切觀察呼吸，包括睡眠中；失去的自動呼吸有時會恢復。',
+        en: 'The lateral medulla holds the network that keeps breathing going automatically, and the reflexes of the airway, heart rate and blood pressure; losing one side can be enough to lose automatic breathing (breathing stops in sleep: "Ondine\'s curse"). For about the first 10 days breathing can slow or stop, mostly in sleep: overt respiratory failure complicates about 2–6 % of one-sided lateral medullary infarcts; in one hospital series 8 of 102 died of respiratory failure within 10 days, and in an older population series 5 of 43 died of respiratory or cardiovascular complications in the acute phase. The risk is higher with severe dysphagia, dysarthria, weakness of the limbs on the same side as the infarct, urinary retention, disability before the stroke or lung disease — the same-side weakness (Opalski variant, from the crossed pyramidal tract in the lowest medulla) is not reproduced by this model. Breathing is watched closely during this time, including in sleep; lost automatic breathing sometimes recovers.',
+      },
+      regions: lateralMedulla,
     });
   }
 

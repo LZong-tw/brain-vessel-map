@@ -495,9 +495,13 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'brainstem',
     lateral: true,
     name: { zh: '小腦前下動脈症候群（外側橋腦下部）', en: 'AICA syndrome (lateral inferior pons)' },
+    // standing and gait impaired in all of 7 AICA infarcts (Ogawa K et al. J Stroke Cerebrovasc
+    // Dis 2017;26:574–581, PMID 27989483); an abnormal head-impulse test can wrongly point to a
+    // peripheral cause in a lateral pontine stroke (Kattah JC et al. Stroke 2009;40:3504–3510,
+    // PMID 19762709). C7-F4
     desc: {
-      zh: '眩暈、嘔吐、同側突發耳聾與耳鳴（迷路動脈）、同側周邊型顏面麻痺、同側臉部痛溫覺喪失、霍納氏症候群與肢體運動失調，對側身體痛溫覺喪失。突發單耳聽力喪失合併眩暈要想到它。',
-      en: 'Vertigo, vomiting, sudden ipsilateral deafness and tinnitus (labyrinthine artery), ipsilateral peripheral facial palsy, facial pain/temperature loss, Horner and limb ataxia, with contralateral body pain/temperature loss. Think of it with sudden one-sided deafness plus vertigo.',
+      zh: '眩暈、嘔吐、同側突發耳聾與耳鳴（迷路動脈）、同側周邊型顏面麻痺、同側臉部痛溫覺喪失、霍納氏症候群與肢體運動失調，對側身體痛溫覺喪失；站立與走路不穩（一系列 7 人全都有）。突發單耳聽力喪失合併眩暈要想到它；床邊的甩頭測試在這裡可能異常，讓人誤以為只是內耳的問題。',
+      en: 'Vertigo, vomiting, sudden ipsilateral deafness and tinnitus (labyrinthine artery), ipsilateral peripheral facial palsy, facial pain/temperature loss, Horner and limb ataxia, with contralateral body pain/temperature loss; standing and gait are unsteady (in all of 7 patients in one series). Think of it with sudden one-sided deafness plus vertigo; the bedside head-impulse test can be abnormal here and wrongly suggest a purely inner-ear cause.',
     },
     test: (c, s) => c.has('pons_caudal_lateral', s, 0.3),
   },
@@ -506,9 +510,12 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'cerebellar',
     lateral: true,
     name: { zh: '小腦上動脈症候群', en: 'Superior cerebellar artery syndrome' },
+    // Schmahmann JD, Sherman JC. Brain 1998;121:561–579 (PMID 9577385): the cerebellar cognitive
+    // affective syndrome after posterior-lobe and vermis lesions, only minor changes after
+    // anterior-lobe ones (C7-F10)
     desc: {
-      zh: '同側肢體運動失調與意向性顫抖、構音障礙、走路不穩；累及橋腦上部外側時再加上同側霍納氏症候群與對側痛溫覺喪失。',
-      en: 'Ipsilateral limb ataxia with intention tremor, dysarthria and gait ataxia; with lateral upper-pons involvement, ipsilateral Horner and contralateral pain/temperature loss.',
+      zh: '同側肢體運動失調與意向性顫抖、構音障礙、走路不穩；累及橋腦上部外側時再加上同側霍納氏症候群與對側痛溫覺喪失。小腦認知情感症候群（計畫、視覺空間與情緒的改變）主要來自小腦後葉與蚓部；小腦上表面的前葉受損只造成輕微的變化（資料來自各種小腦疾病，不只是中風）。',
+      en: 'Ipsilateral limb ataxia with intention tremor, dysarthria and gait ataxia; with lateral upper-pons involvement, ipsilateral Horner and contralateral pain/temperature loss. The cerebellar cognitive affective syndrome (planning, visuospatial and emotional changes) comes mainly from the posterior lobe and vermis; damage to the anterior lobe, on the upper surface, gives only minor changes (series of mixed cerebellar disease, not stroke alone).',
     },
     test: (c, s) => c.hasAny(['cerebellum_superior', 'dentate'], s, 0.3) || c.has('pons_rostral_lateral', s, 0.3),
   },
@@ -519,9 +526,17 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'brainstem',
     lateral: true,
     name: { zh: '華倫堡氏症候群（延髓外側）', en: 'Wallenberg (lateral medullary) syndrome' },
+    // the triad of Horner, ipsilateral ataxia and contralateral hypalgesia; facial weakness in 42 %
+    // (Sacco RL et al. Arch Neurol 1993;50:609–614, PMID 8503798); ipsiversive lateropulsion
+    // (Cnyrim CD et al. J Neurol Neurosurg Psychiatry 2007;78:527–528, PMID 17435189); the
+    // hemiparesis reported with it is ipsilateral, in 50 % of fatal respiratory failures against
+    // 5.3 % of the others (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384), from the
+    // crossed pyramidal tract in the lower medulla (Uemura M et al. J Neurol Sci 2016;365:40–45,
+    // PMID 27206871); vertebral disease in 67 %, PICA disease in 10 % (Kim JS. Brain
+    // 2003;126:1864–1872, PMID 12805095). C7-F3, C7-F4, C7-F11
     desc: {
-      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群、同側肢體運動失調、「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺），通常沒有明顯無力。最常見原因是椎動脈（而非單純 PICA）阻塞或剝離。',
-      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, and "crossed" sensory loss (pain/temperature on the same-side face and opposite body), usually without weakness. Most often due to vertebral (not isolated PICA) occlusion or dissection.',
+      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群與肢體運動失調、走路不穩且身體被拉向病灶側（同側側傾），以及「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺）；常有輕度臉部無力與構音障礙。霍納氏症候群、同側運動失調與對側痛覺減退三者並存即可辨認。手腳通常不會無力：對側手腳無力表示梗塞延伸到延髓內側（半側延髓，Babinski–Nageotte 症候群）；延髓外側梗塞報告中的偏癱在病灶同側（Opalski 變異型，延髓最下段已交叉的錐體徑受損）；一個系列中存活者約 5% 有，死於呼吸衰竭者則有一半，代表呼吸衰竭的風險較高——本模型沒有重現這一型。最常見原因是椎動脈（約 67%，而非單純 PICA，約 10%）阻塞或剝離。',
+      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, gait ataxia with the body pulled towards the lesion (ipsiversive lateropulsion), and "crossed" sensory loss (pain/temperature on the same-side face and opposite body); a mild facial weakness and dysarthria are common. The triad of Horner, ipsilateral ataxia and contralateral loss of pain sensation identifies it. Usually no weakness of the limbs: weakness of the opposite limbs means the infarct reaches the medial medulla (hemimedullary, Babinski–Nageotte syndrome); the hemiparesis reported with lateral medullary infarcts is on the same side (Opalski variant, from the crossed pyramidal tract in the lowest medulla); in one series 5 % of the survivors had it against half of those who died of respiratory failure, so it marks a higher risk — that variant is not reproduced by this model. Most often due to vertebral (about 67 %; not isolated PICA, about 10 %) occlusion or dissection.',
     },
     // the region threshold is the one the symptoms use (0.25), so that a lateral medulla whose
     // signs are listed (e.g. behind a PICA occlusion) is also named; the label needs the crossed
@@ -534,11 +549,29 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'brainstem',
     lateral: true,
     name: { zh: 'Dejerine 症候群（延髓內側）', en: 'Dejerine (medial medullary) syndrome' },
+    // Kim JS, Han YS. Stroke 2009;40:3221–3225 (PMID 19628797): 86 consecutive patients (C7-F9)
     desc: {
-      zh: '對側手腳無力（臉部通常不受影響）、對側本體覺喪失、伸舌偏向病灶側。',
-      en: 'Contralateral arm and leg weakness (face spared), contralateral loss of position sense, and tongue deviation towards the lesion.',
+      zh: '對側手腳無力（臉部通常不受影響）、對側本體覺喪失、伸舌偏向病灶側。59% 有眩暈或頭暈（梗塞延伸到延髓背側時）；之後約四分之一（86 人中 21 人）出現中樞性中風後疼痛，與較差的預後有關。',
+      en: 'Contralateral arm and leg weakness (face spared), contralateral loss of position sense, and tongue deviation towards the lesion. Vertigo or dizziness in 59 % (when the infarct reaches the dorsal medulla); central post-stroke pain later in about a quarter (21 of 86), linked to a poorer outcome.',
     },
     test: (c, s) => c.has('medulla_medial', s, 0.3) && !c.has('medulla_lateral', s, 0.3),
+  },
+  {
+    // Pongmoragot J et al. J Stroke Cerebrovasc Dis 2013;22:775–780 (PMID 22541608): systematic
+    // review of 38 cases; Kobayashi S et al. Brain Nerve 2020;72:901–905 (PMID 32741771): a case
+    // mimicking Guillain–Barré syndrome with a normal first MRI and respiratory failure. One
+    // bilateral picture, not two one-sided Dejerine syndromes (C7-F6).
+    id: 'bilateral_medial_medullary',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '雙側延髓內側梗塞', en: 'Bilateral medial medullary infarction' },
+    desc: {
+      zh: '兩側延髓內側都受損：四肢無力（臉部常不受影響）、兩側舌頭無力與構音障礙，常合併本體覺喪失。一篇 38 例的系統性回顧：肢體無力 78.4%、構音障礙 48.6%、舌下神經麻痺 40.5%；病灶多在延髓上段；預後差，住院死亡率 23.8%、需要他人照顧 61.9%。可能在幾天內逐漸惡化、看起來像格林–巴利症候群，第一次 MRI 可能正常；部分個案出現延髓麻痺與呼吸衰竭（呼吸的風險另列為併發症）。',
+      en: 'Both medial medullae: weakness of all four limbs (the face often spared), weak tongue on both sides and dysarthria, often with loss of position sense. In a systematic review of 38 cases: limb weakness 78.4 %, dysarthria 48.6 %, hypoglossal palsy 40.5 %; mostly rostral lesions; a poor outcome, with inpatient mortality 23.8 % and dependency 61.9 %. It can worsen over days and mimic Guillain–Barré syndrome, with a first MRI that is normal; bulbar palsy and respiratory failure occur in some cases (the breathing risk is listed as a complication).',
+    },
+    // both sides from the threshold at which the bilateral sign (dysarthria) appears
+    test: (c) => c.both('medulla_medial', 0.25),
+    supersedes: ['dejerine'],
   },
   {
     id: 'hemimedullary',
@@ -559,9 +592,20 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'cerebellar',
     lateral: true,
     name: { zh: 'PICA 小腦梗塞', en: 'PICA cerebellar infarction' },
+    // pseudo-vestibular neuritis: 25 of 240 isolated cerebellar infarcts, 24 of them in the medial
+    // PICA territory (Lee H et al. Neurology 2006;67:1178–1183, PMID 17030749); HINTS 100 %
+    // sensitive, first DWI falsely negative in 12 %, all within 48 h (Kattah JC et al. Stroke
+    // 2009;40:3504–3510, PMID 19762709); medial-branch infarcts reach the lateral and dorsal medulla
+    // when the branch supplies it (Amarenco P et al. J Neurol Neurosurg Psychiatry 1990;53:731–735,
+    // PMID 2246654; 5 of 9 at autopsy, 4 presenting as Wallenberg syndrome: Amarenco P et al. Rev
+    // Neurol (Paris) 1989;145:277–286, PMID 2660219); vertebral disease in 67 % and PICA disease in
+    // 10 % of lateral medullary infarcts (Kim JS. Brain 2003;126:1864–1872, PMID 12805095); the
+    // cerebellar cognitive affective syndrome (Schmahmann JD, Sherman JC. Brain 1998;121:561–579,
+    // PMID 9577385; MMSE and MoCA normal: Hoche F et al. Brain 2018;141:248–270, PMID 29206893).
+    // C7-F2, C7-F5, C7-F10
     desc: {
-      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。大範圍梗塞 1–3 天後可能腫脹壓迫腦幹。',
-      en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. Large infarcts can swell and compress the brainstem after 1–3 days.',
+      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。只有內側（蚓部）分支梗塞時，可以和前庭神經炎一模一樣（這類小腦中風 25 例中 24 例在此），NIHSS 為 0：床邊的 HINTS 檢查（甩頭測試、眼振型態、眼球偏斜測試）對中風的敏感度達 100%，而 48 小時內的第一次 DWI 有 12% 看不到梗塞。PICA 主幹阻塞常同時波及延髓外側（解剖研究中 9 例內側分支梗塞有 5 例，其中 4 例表現為華倫堡氏症候群）；不過延髓外側梗塞大多來自椎動脈（67%），單純 PICA 只占 10%。小腦後葉與蚓部受損可能出現小腦認知情感症候群（計畫、視覺空間與情緒的改變），因為 MMSE、MoCA 可能正常而容易被忽略（資料來自各種小腦疾病，不只是中風）。大範圍梗塞 1–3 天後可能腫脹壓迫腦幹。',
+      en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. An infarct of the medial (vermian) branch alone can look exactly like vestibular neuritis (24 of 25 such cerebellar strokes) with an NIHSS of 0: the bedside HINTS examination (head impulse, nystagmus, test of skew) was 100 % sensitive for stroke, while the first DWI within 48 h missed 12 %. A PICA trunk occlusion often reaches the lateral medulla too (5 of 9 medial-branch infarcts at autopsy, 4 of them presenting as Wallenberg syndrome), although most lateral medullary infarcts come from the vertebral artery (67 %) rather than the PICA (10 %). Damage to the posterior lobe and vermis can bring the cerebellar cognitive affective syndrome (planning, visuospatial and emotional changes), easily missed because MMSE and MoCA can be normal (series of mixed cerebellar disease, not stroke alone). Large infarcts can swell and compress the brainstem after 1–3 days.',
     },
     test: (c, s) => c.hasAny(['cerebellum_posterior_inferior', 'vermis_inferior'], s, 0.3),
   },
@@ -570,9 +614,11 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'cerebellar',
     lateral: true,
     name: { zh: '迷路動脈梗塞（內耳中風）', en: 'Labyrinthine artery infarction (inner-ear stroke)' },
+    // Lee H et al. Stroke 2009;40:3745–3751 (PMID 19797177): combined audiovestibular loss in 60 %
+    // of 82 AICA infarcts, 13 with transient episodes within the month before (C7-F7)
     desc: {
-      zh: '突發單側耳聾合併嚴重眩暈。可能是小腦前下動脈中風的前兆，數天內接著出現更大範圍梗塞。',
-      en: 'Sudden one-sided deafness with severe vertigo. It can herald a larger AICA infarct within days.',
+      zh: '突發單側耳聾合併嚴重眩暈；血管性的原因通常聽覺與前庭一起受損，和病毒性的不同。內耳是終末器官，腦部 DWI 看不到它的梗塞。可能是小腦前下動脈中風的前兆，數天到數週內接著出現更大範圍梗塞（82 例 AICA 梗塞中有 13 例在之前一個月內有過短暫發作）。',
+      en: 'Sudden one-sided deafness with severe vertigo; a vascular cause usually takes hearing and the vestibule together, unlike a viral one. The inner ear is an end organ whose infarct brain DWI does not show. It can herald a larger AICA infarct within days to weeks (13 of 82 AICA infarcts had transient episodes within the month before).',
     },
     test: (c, s) => c.has('inner_ear', s, 0.3),
   },

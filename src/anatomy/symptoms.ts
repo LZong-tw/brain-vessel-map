@@ -281,8 +281,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'ataxia_gait',
     name: { zh: '步態／軀幹不穩', en: 'Gait / truncal ataxia' },
     desc: {
-      zh: '坐不穩、走路像喝醉。NIHSS 幾乎不計分，因此容易被低估。',
-      en: 'Unsteady sitting and a drunken gait. NIHSS barely scores this, so it is easily underestimated.',
+      zh: '坐不穩、走路像喝醉。延髓外側梗塞時身體會被拉向病灶側、往那一側倒（同側側傾）。NIHSS 幾乎不計分，因此容易被低估。',
+      en: 'Unsteady sitting and a drunken gait. After a lateral medullary infarct the body is pulled towards the side of the lesion and falls that way (ipsiversive lateropulsion). NIHSS barely scores this, so it is easily underestimated.',
     },
     system: 'balance',
     lateralised: false,
@@ -722,9 +722,13 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'hearing_loss',
     name: { zh: '突發性聽力喪失', en: 'Sudden hearing loss' },
     desc: {
-      zh: '內耳或耳蝸神經核缺血。突發單耳聽力喪失合併眩暈，可能是小腦前下動脈中風的前兆。',
-      en: 'Ischaemia of the inner ear or cochlear nuclei. Sudden unilateral deafness with vertigo can herald AICA stroke.',
+      zh: '內耳或耳蝸神經核缺血。突發單耳聽力喪失合併眩暈，可能是小腦前下動脈中風的前兆。追蹤一年以上，約三分之二到五分之四的人聽力已部分或完全恢復；完全聽不見（極重度）時恢復的機會較低（約 40% 改善，較輕者約 89%）。',
+      en: 'Ischaemia of the inner ear or cochlear nuclei. Sudden unilateral deafness with vertigo can herald AICA stroke. Followed for a year or more, about two-thirds to four-fifths of people had got some or all of their hearing back; a profound loss improves less often (about 40 %, against about 89 % for a lesser loss).',
     },
+    // Lee H, Baloh RW. J Neurol Sci 2005;228:99–104 (PMID 15607217): 17 of 21 followed ≥ 1 year
+    // recovered partly or completely; improvement in 40 % with profound loss, 89 % with less.
+    // Kim HA et al. J Neurol Sci 2014;339:176–182 (PMID 24581671): 39 of 62 (65 %) recovered partly
+    // or completely; profound loss and ≥ 2 vascular risk factors predicted a poor recovery (C7-F8)
     system: 'cranial',
     lateralised: true,
     sideWord: 'body',
@@ -992,8 +996,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'emotional',
     name: { zh: '情緒改變', en: 'Emotional change' },
     desc: {
-      zh: '邊緣系統（扣帶迴、杏仁核、顳極）受損後的冷漠、焦慮等情緒變化。突然停不下來的哭或笑另列為「病理性哭笑」。',
-      en: 'Apathy, anxiety and similar changes in mood after damage to the limbic system (cingulate, amygdala, temporal pole). Sudden crying or laughing that cannot be stopped is listed separately as pathological crying or laughing.',
+      zh: '邊緣系統（扣帶迴、杏仁核、顳極）受損後的冷漠、焦慮等情緒變化；小腦蚓部受損也可能讓情感變得平淡，或言行失當（小腦認知情感症候群）。突然停不下來的哭或笑另列為「病理性哭笑」。',
+      en: 'Apathy, anxiety and similar changes in mood after damage to the limbic system (cingulate, amygdala, temporal pole); damage to the cerebellar vermis can also blunt the affect or make behaviour disinhibited (cerebellar cognitive affective syndrome). Sudden crying or laughing that cannot be stopped is listed separately as pathological crying or laughing.',
     },
     system: 'mood',
     lateralised: false,
@@ -1059,22 +1063,25 @@ export const SYMPTOMS: SymptomDef[] = [
   },
   {
     // Central sleep apnoea after a ONE-sided lateral medullary infarct. The severe form —
-    // automatic breathing failing outright (Ondine's curse) — is `respiratory` (autonomic), which
-    // the regions give for lesions of both sides; clinical.ts lists only that one when both apply.
+    // automatic breathing failing outright (Ondine's curse) — can follow one side too: the cascade
+    // shows that risk as a complication warning for the first 10 days (C7-F1); for lesions of both
+    // sides the regions give `respiratory` (autonomic), and clinical.ts lists only that one then.
     // Pavšič K et al. Sleep Breath 2020;24:1557–1563 (28 acute unilateral lateral medullary
-    // infarcts on polysomnography: central apnoea in 43 %, central events fewer at 3–6 months;
-    // respiratory failure complicates 2–6 %).
+    // infarcts on polysomnography: central apnoea in 43 %, the apnoea–hypopnoea index peaking at a
+    // median of day 7 (3–14), central events fewer at 3–6 months; respiratory failure complicates
+    // 2–6 %) — hence one step worse from day 3 to day 14 (`peakH`).
     // Bogousslavsky J et al. Ann Neurol 1990;28:668–673 (loss of automatic breathing from a
     // unilateral caudal brainstem infarct — 2 cases).
     // Mendoza M, Latorre JG. Neurology 2013;80:e13–e16 (reversible Ondine's curse — a case).
     id: 'central_sleep_apnoea',
     name: { zh: '睡眠中呼吸暫停（中樞型）', en: 'Central sleep apnoea (pauses in breathing during sleep)' },
     desc: {
-      zh: '延髓外側有讓呼吸自動進行的神經網路。單側梗塞的急性期，睡著時常出現呼吸停頓——不是呼吸道塞住，而是大腦沒有送出呼吸的指令；幾週到幾個月內通常會減少。少數人（約 2–6%）連自動呼吸都會失去：清醒時能呼吸，睡著就停（「Ondine 詛咒」），需要呼吸器。這種嚴重型另列為「呼吸節律異常」，本模型只在兩側受損時顯示。',
-      en: 'The lateral medulla holds the network that keeps breathing going automatically. In the acute phase of a one-sided infarct, breathing often pauses during sleep — not because the airway is blocked but because the brain stops sending the signal to breathe; these pauses usually become fewer over weeks to months. In a few (about 2–6 %) automatic breathing fails outright: the person breathes while awake but stops when asleep ("Ondine\'s curse") and needs a ventilator. That severe form is listed separately as abnormal breathing control, which this model shows only when both sides are damaged.',
+      zh: '延髓外側有讓呼吸自動進行的神經網路。單側梗塞的急性期，睡著時常出現呼吸停頓——不是呼吸道塞住，而是大腦沒有送出呼吸的指令；通常在第 3 到 14 天之間最頻繁（中位數約第 7 天），之後幾週到幾個月內逐漸減少。即使只有一側受損，少數人（約 2–6%）也會連自動呼吸都失去：清醒時能呼吸，睡著就停（「Ondine 詛咒」），需要呼吸器，有時之後會恢復。本模型把這個風險列為前 10 天的併發症警示；兩側都受損時則另列為「呼吸節律異常」。',
+      en: 'The lateral medulla holds the network that keeps breathing going automatically. In the acute phase of a one-sided infarct, breathing often pauses during sleep — not because the airway is blocked but because the brain stops sending the signal to breathe; the pauses are most frequent between days 3 and 14 (around day 7 at the median) and become fewer over the following weeks to months. Even when only one side is damaged, a few (about 2–6 %) lose automatic breathing outright: they breathe while awake but stop when asleep ("Ondine\'s curse") and need a ventilator, sometimes only for a while. This model shows that risk as a complication warning for the first 10 days; when both sides are damaged it lists abnormal breathing control instead.',
     },
     system: 'sleep',
     lateralised: false,
+    peakH: [72, 336],
   },
 
   // ── Autonomic ────────────────────────────────────────────────────
@@ -1082,9 +1089,11 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'autonomic_cardiac',
     name: { zh: '心律不整、自主神經失調', en: 'Arrhythmia / autonomic instability' },
     desc: {
-      zh: '島葉（尤其右側）與延髓參與心臟自主神經控制，中風後可能出現心律不整、血壓波動。',
-      en: 'The insula (especially right) and medulla regulate cardiac autonomic tone; arrhythmias and blood-pressure swings can follow.',
+      zh: '島葉（尤其右側）與延髓參與心臟自主神經控制，中風後可能出現心律不整、血壓波動。延髓外側梗塞後，檢查常發現調節心跳的迷走神經（副交感）功能變差（一項研究 25 人中 14 人，對照組 29 人中 4 人），與病灶偏向延髓腹側有關。',
+      en: 'The insula (especially right) and medulla regulate cardiac autonomic tone; arrhythmias and blood-pressure swings can follow. After a lateral medullary infarct, testing often shows reduced vagal (parasympathetic) control of the heart rate (14 of 25 patients against 4 of 29 controls in one study), linked to involvement of the ventral medulla.',
     },
+    // Hong JM et al. Neurol Sci 2013;34:1963–1969 (PMID 23543393): heart-rate-variability testing,
+    // no arrhythmia rate (C7-F1)
     system: 'autonomic',
     lateralised: false,
   },

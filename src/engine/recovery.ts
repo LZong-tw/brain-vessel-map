@@ -89,6 +89,12 @@ const smoothstep = (e0: number, e1: number, x: number) => {
   return u * u * (3 - 2 * u);
 };
 
+/**
+ * A deficit of nominal severity `sev` from a region affected to `level` is severe (profound)
+ * before compensation: as clinical.aggregateSymptoms grades it, it rounds to 3.
+ */
+export const isProfound = (sev: number, level: number) => Math.round(sev * (0.35 + 0.65 * Math.min(1, level / 0.8))) >= 3;
+
 /** Share of the eventual compensation reached `tH` hours after onset (0 until day 1). */
 export function compensationProgress(tH: number, fast = false): number {
   const a = tH - COMP_START_H;
@@ -149,13 +155,16 @@ export function symptomCompensation(
   tH: number,
   /** this source settles within ~1–2 weeks (DeficitRef.fast) */
   fast = false,
+  /** the deficit from this source is severe (profound) before compensation (Redundancy.profound) */
+  profound = false,
 ): SymptomRecovery {
   const red = redundancyFor(symptomId, region.baseId);
+  const share = profound && red.profound ? red.profound : red;
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
   const bottleneck = bilateral && (lesions.bottleneckBySymptom.get(symptomId)?.size ?? 0) >= 2;
   let compensated = 0;
   if (red.kind !== 'exempt' && !NO_BACKUP_KINDS.has(red.kind) && level > 0) {
-    const gain = bilateral ? red.bi * (bottleneck ? BOTTLENECK_FACTOR : 1) : red.uni;
+    const gain = bilateral ? share.bi * (bottleneck ? BOTTLENECK_FACTOR : 1) : share.uni;
     compensated = gain * compensationProgress(tH, red.fast || fast) * clamp01(inf / level);
   }
   return { kind: red.kind, compensated, bilateral, bottleneck };
@@ -221,7 +230,7 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
         if (d.only && r.side !== d.only) continue;
         if (d.bilateralOnly && (lesions.bySymptom.get(d.s)?.size ?? 0) < 2) continue;
         if (d.minLevel && inf < d.minLevel) continue;
-        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH, d.fast);
+        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH, d.fast, isProfound(d.sev ?? 2, inf));
         if (c.kind === 'exempt') continue;
         const w = d.sev ?? 2;
         sum += c.compensated * w;
