@@ -9,7 +9,7 @@
  * range mixes populations, eras and definitions; each `note` says which value comes from where.
  * Where a paper gives n/N, the bound is n/N (it may differ from the paper's rounded percentage,
  * e.g. SWIFT DIRECT's "5 (2%) of 201" is entered as 0.025). Combinations with no source found
- * (for example any vertebral-artery figure, or bridging therapy for M2/distal occlusions) are
+ * (for example any vertebral-artery figure, or the reperfusion rate of bridging therapy for M2/distal occlusions) are
  * left out on purpose.
  */
 
@@ -34,16 +34,39 @@ export type SiteGroup = 'ica' | 'm1' | 'm2' | 'distal' | 'basilar' | 'vertebral'
 export interface RecanalisationEvidence {
   /** chance of successful reperfusion (recanalisation after IVT; eTICI/mTICI ≥ 2b after EVT) */
   success: Partial<Record<SiteGroup, Partial<Record<TreatmentMethod, EvidenceRange>>>>;
-  /** symptomatic intracranial haemorrhage */
+  /** symptomatic intracranial haemorrhage (large-vessel trials) */
   sich: Partial<Record<TreatmentMethod, EvidenceRange>>;
+  /**
+   * symptomatic intracranial haemorrhage in the medium/distal-vessel trials, shown instead of
+   * `sich` for the 'm2' and 'distal' site groups
+   */
+  sichMevo: Partial<Record<TreatmentMethod, EvidenceRange>>;
+  /** symptomatic haemorrhage with thrombectomy for a large ischaemic core (anterior LVO trials) */
+  sichLargeCore: EvidenceRange | null;
+  /** IV thrombolysis with tenecteplase instead of alteplase */
+  tenecteplase: {
+    /** symptomatic haemorrhage */
+    sich: EvidenceRange | null;
+    /** reperfusion at the first angiogram before thrombectomy (large-vessel occlusion) */
+    reperfusionBeforeEvt: EvidenceRange | null;
+  };
+  /** IV thrombolysis started beyond `ivtWindowH` after imaging selection: outcome trials */
+  lateIvt: EvidenceRange | null;
   /** early reocclusion after successful recanalisation */
   reocclusion: Partial<Record<TreatmentMethod, EvidenceRange>>;
-  /** emboli to new territories or distal branches during thrombectomy */
+  /** emboli to distal branches of the treated artery during thrombectomy */
   distalEmbolization: EvidenceRange | null;
+  /** emboli or infarcts in a new (previously unaffected) territory after thrombectomy */
+  newTerritoryEmbolization: EvidenceRange | null;
   /** incomplete microvascular reperfusion despite a reopened artery ("no-reflow") */
   noReflow: EvidenceRange | null;
-  /** usual time limit for IV thrombolysis after onset (h) */
+  /** usual time limit for starting IV thrombolysis after onset (h) */
   ivtWindowH: number;
+  /**
+   * sites where a guideline suggests IV thrombolysis beyond `ivtWindowH` by expert consensus
+   * only (h after onset); outside `ivtWindowH` the warning stays, worded as consensus
+   */
+  ivtConsensusWindowH: Partial<Record<SiteGroup, number>>;
   /** usual time limit for thrombectomy after onset with favourable imaging (h) */
   evtWindowH: number;
 }
@@ -109,6 +132,36 @@ export function siteGroupOf(vesselBaseId: string): SiteGroup {
 }
 
 // ─── shared entries ───────────────────────────────────────────────────────────────────────
+
+/**
+ * What the two 2025 medium/distal-vessel thrombectomy trials found besides reperfusion: no better
+ * outcome, more symptomatic haemorrhage, and higher mortality in ESCAPE-MeVO only (DISTAL's was
+ * similar). Goyal M et al. N Engl J Med 2025;392:1385–1395 (ESCAPE-MeVO); Psychogios M et al.
+ * N Engl J Med 2025;392:1374–1384 (DISTAL).
+ */
+const MEVO_OUTCOME: L = {
+  zh:
+    '兩項 2025 年試驗都沒有改善 90 天預後：ESCAPE-MeVO mRS 0–1 為 41.6% vs 43.1%，取栓組死亡率反而較高（13.3% vs 8.4%），症狀性出血 5.4% vs 2.2%；' +
+    'DISTAL（排除優勢側 M2）mRS 分布沒有差別（common OR 0.90），死亡率相近（15.5% vs 14.0%），症狀性出血 5.9% vs 2.6%。',
+  en:
+    'Neither 2025 trial improved 90-day outcome: ESCAPE-MeVO mRS 0–1 41.6% vs 43.1%, with higher mortality after thrombectomy (13.3% vs 8.4%) and symptomatic haemorrhage 5.4% vs 2.2%; ' +
+    'DISTAL (dominant M2 excluded) showed no shift in mRS (common OR 0.90), similar mortality (15.5% vs 14.0%) and symptomatic haemorrhage 5.9% vs 2.6%.',
+};
+
+/** symptomatic haemorrhage in the medium/distal-vessel trials (both arms partly had IV thrombolysis) */
+const SICH_MEVO: EvidenceRange = {
+  low: 0.054,
+  high: 0.059,
+  note: {
+    zh:
+      '中型／遠端血管阻塞取栓後的症狀性顱內出血（取栓組 vs 內科治療組）：ESCAPE-MeVO 5.4% vs 2.2%（14/257 vs 6/272）；DISTAL 5.9% vs 2.6%。' +
+      '兩試驗的取栓組都有不少人也打了靜脈血栓溶解（ESCAPE-MeVO 56.5%；DISTAL 全體 65.4%）。大血管阻塞試驗的出血數字不適用於這些部位。',
+    en:
+      'Symptomatic intracranial haemorrhage after thrombectomy for medium/distal vessel occlusion (thrombectomy vs medical care): ESCAPE-MeVO 5.4% vs 2.2% (14/257 vs 6/272); DISTAL 5.9% vs 2.6%. ' +
+      'Many in both thrombectomy arms also had IV thrombolysis (ESCAPE-MeVO 56.5%; DISTAL 65.4% overall). The large-vessel trial figures do not apply to these sites.',
+  },
+  source: 'Goyal M et al. N Engl J Med 2025;392:1385–1395 (ESCAPE-MeVO); Psychogios M et al. N Engl J Med 2025;392:1374–1384 (DISTAL)',
+};
 
 /** thrombectomy for anterior-circulation large-vessel occlusion (ICA/M1), not reported by site */
 const EVT_ANTERIOR_LVO: EvidenceRange = {
@@ -204,13 +257,15 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
         note: {
           zh:
             '取栓後成功再灌流的比例。HERMES 中 130 位 M2 阻塞者，取栓組 mTICI 2b–3 為 59.2%；' +
-            'ESCAPE-MeVO（中型血管阻塞：約一半為 M2，其餘 M3、ACA、PCA）MeVO-eTICI 2b–3 為 75.1%（190/253），該組 56.5% 也接受靜脈血栓溶解。',
+            'ESCAPE-MeVO（中型血管阻塞：約一半為 M2，其餘 M3、ACA、PCA）MeVO-eTICI 2b–3 為 75.1%（190/253），該組 56.5% 也接受靜脈血栓溶解。' +
+            MEVO_OUTCOME.zh,
           en:
             'Successful reperfusion after thrombectomy. HERMES, 130 patients with M2 occlusion: mTICI 2b–3 in 59.2% of the thrombectomy arm; ' +
-            'ESCAPE-MeVO (medium-vessel occlusions: about half M2, the rest M3, ACA, PCA): MeVO-eTICI 2b–3 in 75.1% (190/253); 56.5% of that arm also received IV thrombolysis.',
+            'ESCAPE-MeVO (medium-vessel occlusions: about half M2, the rest M3, ACA, PCA): MeVO-eTICI 2b–3 in 75.1% (190/253); 56.5% of that arm also received IV thrombolysis. ' +
+            MEVO_OUTCOME.en,
         },
         source:
-          'Menon BK et al. J Neurointerv Surg 2019;11:1065–1069 (HERMES M2); Goyal M et al. N Engl J Med 2025;392:1385–1395 (ESCAPE-MeVO)',
+          'Menon BK et al. J Neurointerv Surg 2019;11:1065–1069 (HERMES M2); Goyal M et al. N Engl J Med 2025;392:1385–1395 (ESCAPE-MeVO); Psychogios M et al. N Engl J Med 2025;392:1374–1384 (DISTAL)',
       },
     },
     distal: {
@@ -231,10 +286,10 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
         note: {
           zh:
             'ESCAPE-MeVO 取栓組最終 MeVO-eTICI 2b–3 為 75.1%（190/253）；阻塞部位約一半為 M2、36% 為 M3、其餘為 ACA／PCA；56.5% 也接受靜脈血栓溶解。' +
-            '該試驗與 DISTAL 試驗都未顯示取栓比內科治療改善 90 天功能。',
+            MEVO_OUTCOME.zh,
           en:
             'ESCAPE-MeVO thrombectomy arm: final MeVO-eTICI 2b–3 in 75.1% (190/253); occlusions about half M2, 36% M3, the rest ACA/PCA; 56.5% also received IV thrombolysis. ' +
-            'Neither this trial nor DISTAL showed better 90-day function with thrombectomy than with medical care.',
+            MEVO_OUTCOME.en,
         },
         source:
           'Goyal M et al. N Engl J Med 2025;392:1385–1395 (ESCAPE-MeVO); Psychogios M et al. N Engl J Med 2025;392:1374–1384 (DISTAL)',
@@ -245,36 +300,42 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
         low: 0.04,
         high: 0.13,
         note: {
-          zh: '僅靜脈血栓溶解後基底動脈再通的比例：Calgary 世代 1/25（4%）；統合分析部分或完全早期再通 13%（95% CI 0–35%，完全 4%）。資料很少。',
-          en: 'Recanalisation of the basilar artery after IV thrombolysis alone: Calgary cohort 1 of 25 (4%); meta-analysis, partial or complete early recanalisation 13% (95% CI 0–35%; complete 4%). Few data.',
+          zh:
+            '僅靜脈血栓溶解後基底動脈「早期」再通的比例（開始用藥後約 3 小時內，或取栓前第一張血管攝影）：Calgary 世代 1/25（4%）；統合分析部分或完全早期再通 13%（95% CI 0–35%，完全 4%）。資料很少。' +
+            '較晚判定的數字高得多：一項基底動脈阻塞病例系列的系統性分析中，靜脈血栓溶解後再通 53%（40/76），動脈內溶栓 65%；判定時間不一、多半較晚，不能與早期數字直接比較；兩種治療的死亡或依賴相近（78% vs 76%）。',
+          en:
+            'Early recanalisation of the basilar artery after IV thrombolysis alone (within about 3 h of starting the drug, or on the first angiogram before thrombectomy): Calgary cohort 1 of 25 (4%); meta-analysis, partial or complete early recanalisation 13% (95% CI 0–35%; complete 4%). Few data. ' +
+            'Later assessments give much higher figures: a systematic analysis of basilar-occlusion case series found recanalisation in 53% (40/76) after IV thrombolysis (65% after intra-arterial thrombolysis), assessed at variable, mostly later times, so not comparable with the early figure; death or dependency was similar with the two treatments (78% vs 76%).',
         },
-        source: 'Bhatia R et al. Stroke 2010;41:2254–2258; Seners P et al. Stroke 2016;47:2409–2412',
+        source: 'Bhatia R et al. Stroke 2010;41:2254–2258; Seners P et al. Stroke 2016;47:2409–2412; Lindsberg PJ, Mattle HP. Stroke 2006;37:922–928',
       },
       evt: {
         low: 0.73,
         high: 0.93,
         note: {
           zh:
-            '基底動脈阻塞取栓後成功再灌流（mTICI ≥ 2b）。ATTENTION 試驗 93.0%（該組 31% 也接受靜脈血栓溶解；數值引自 ATTENTION 研究者的事後分析）；' +
-            'VERITAS 四項隨機試驗（ATTENTION、BEST、BAOCHE、BASICS）匯總中直接取栓者 73%（182 位，部分血管攝影資料缺漏）；' +
+            '基底動脈阻塞取栓後成功再灌流（mTICI ≥ 2b）。ATTENTION 試驗 93.0%（該組 31% 也接受靜脈血栓溶解）；同一試驗的事後分析自行計數為 92.0%（208/226）。' +
+            '再灌流不等於預後良好：病前沒有失能、且成功再灌流的病人中，48.1% 在 90 天仍未達 mRS 0–3（「無效再通」；整個取栓組達 mRS 0–3 的是 46%）。' +
+            'VERITAS 四項隨機試驗（ATTENTION、BEST、BAOCHE、BASICS）匯總中直接取栓者 73%（約 250 位有血管攝影資料者中的 182 位；556 位中 183 位缺這項資料）；' +
             'ESO 指引統合觀察性研究中直接取栓 80.1%（604/754）。',
           en:
-            'Successful reperfusion (mTICI ≥ 2b) after thrombectomy for basilar-artery occlusion. ATTENTION trial 93.0% (31% of that arm also had IV thrombolysis; figure as restated by the ATTENTION investigators); ' +
-            'VERITAS pooled 4 RCTs (ATTENTION, BEST, BAOCHE, BASICS): 73% (182 patients) with thrombectomy alone, with angiographic data missing for some; ' +
+            'Successful reperfusion (mTICI ≥ 2b) after thrombectomy for basilar-artery occlusion. ATTENTION trial 93.0% (31% of that arm also had IV thrombolysis); a post hoc analysis of the same trial counted 92.0% (208/226). ' +
+            'Reperfusion is not the same as a good outcome: of the reperfused patients with no disability before the stroke, 48.1% still did not reach mRS 0–3 at 90 days ("futile recanalisation"; in the whole thrombectomy arm 46% reached mRS 0–3). ' +
+            'VERITAS pooled 4 RCTs (ATTENTION, BEST, BAOCHE, BASICS): 73% (182 of about 250 with angiographic data; data missing for 183 of the 556) with thrombectomy alone; ' +
             'ESO guideline pooling of observational studies: direct thrombectomy 80.1% (604/754).',
         },
         source:
-          'Tao C et al. N Engl J Med 2022;387:1361–1372 (ATTENTION), as restated in Yi T et al. Front Neurol 2023;14:1308036; Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS); Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT)',
+          'Tao C et al. N Engl J Med 2022;387:1361–1372 (ATTENTION: 31% IV thrombolysis and 46% mRS 0–3 from its abstract; 93.0% as restated in the introduction of Yi et al.); Yi T et al. Front Neurol 2023;14:1308036 (post hoc ATTENTION analysis: 92.0% reperfused, 48.1% futile recanalisation); Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS); Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT)',
       },
       bridging: {
         low: 0.67,
         high: 0.83,
         note: {
           zh:
-            '基底動脈阻塞先靜脈血栓溶解再取栓的成功再灌流（mTICI ≥ 2b）：VERITAS 四項隨機試驗匯總 67%（82 位，部分資料缺漏；與直接取栓無顯著差異）；' +
+            '基底動脈阻塞先靜脈血栓溶解再取栓的成功再灌流（mTICI ≥ 2b）：VERITAS 四項隨機試驗匯總 67%（約 122 位有資料者中的 82 位），與直接取栓無顯著差異；' +
             'ESO 指引統合觀察性研究 83.0%（308/371）。',
           en:
-            'Successful reperfusion (mTICI ≥ 2b) with IV thrombolysis before thrombectomy for basilar-artery occlusion: VERITAS pooled 4 RCTs 67% (82 patients, some data missing; no significant difference from direct thrombectomy); ' +
+            'Successful reperfusion (mTICI ≥ 2b) with IV thrombolysis before thrombectomy for basilar-artery occlusion: VERITAS pooled 4 RCTs 67% (82 of about 122 with angiographic data), not significantly different from direct thrombectomy; ' +
             'ESO guideline pooling of observational studies 83.0% (308/371).',
         },
         source:
@@ -305,23 +366,98 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
       note: {
         zh:
           'HERMES 取栓組 4.4%（28/634），對照組 4.3%（28/653），各試驗自身定義；取栓組 83% 也打了 alteplase。' +
-          '直接取栓組：SWIFT DIRECT 2.5%（5/201）、MR CLEAN-NO IV 5.9%。基底動脈試驗：ATTENTION 5%（12/226）、BAOCHE 6%（6/102）。',
+          '直接取栓組：SWIFT DIRECT 2.5%（5/201）、MR CLEAN-NO IV 5.9%。基底動脈試驗：ATTENTION 5%（12/226）、BAOCHE 6%（6/102）；' +
+          'VERITAS 四項基底動脈試驗匯總中直接取栓 4.9%、先打靜脈血栓溶解再取栓 6.3%（調整後 OR 1.87，95% CI 0.77–4.57，無顯著差異）。',
         en:
           'HERMES thrombectomy arm 4.4% (28/634) vs control 4.3% (28/653), each trial\'s own definition; 83% of the thrombectomy arm also received alteplase. ' +
-          'Thrombectomy without prior thrombolysis: SWIFT DIRECT 2.5% (5/201), MR CLEAN-NO IV 5.9%. Basilar trials: ATTENTION 5% (12/226), BAOCHE 6% (6/102).',
+          'Thrombectomy without prior thrombolysis: SWIFT DIRECT 2.5% (5/201), MR CLEAN-NO IV 5.9%. Basilar trials: ATTENTION 5% (12/226), BAOCHE 6% (6/102); ' +
+          'VERITAS pooled 4 basilar trials: direct thrombectomy 4.9% vs IV thrombolysis first 6.3% (adjusted OR 1.87, 95% CI 0.77–4.57, not significant).',
       },
       source:
-        'Goyal M et al. Lancet 2016;387:1723–1731 (HERMES); Fischer U et al. Lancet 2022;400:104–115 (SWIFT DIRECT); LeCouffe NE et al. N Engl J Med 2021;385:1833–1844 (MR CLEAN-NO IV); Tao C et al. N Engl J Med 2022;387:1361–1372 (ATTENTION); Jovin TG et al. N Engl J Med 2022;387:1373–1384 (BAOCHE)',
+        'Goyal M et al. Lancet 2016;387:1723–1731 (HERMES); Fischer U et al. Lancet 2022;400:104–115 (SWIFT DIRECT); LeCouffe NE et al. N Engl J Med 2021;385:1833–1844 (MR CLEAN-NO IV); Tao C et al. N Engl J Med 2022;387:1361–1372 (ATTENTION); Jovin TG et al. N Engl J Med 2022;387:1373–1384 (BAOCHE); Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS)',
     },
     bridging: {
       low: 0.035,
-      high: 0.053,
+      high: 0.063,
       note: {
-        zh: '先靜脈 alteplase 再取栓的症狀性顱內出血（各試驗自身定義）：SWIFT DIRECT 3.5%（7/202）、MR CLEAN-NO IV 5.3%；兩試驗中與直接取栓無顯著差異。',
-        en: 'Symptomatic intracranial haemorrhage with IV alteplase before thrombectomy (each trial\'s definition): SWIFT DIRECT 3.5% (7/202), MR CLEAN-NO IV 5.3%; not significantly different from direct thrombectomy in either trial.',
+        zh:
+          '先靜脈 alteplase 再取栓的症狀性顱內出血（各試驗自身定義）：SWIFT DIRECT 3.5%（7/202）、MR CLEAN-NO IV 5.3%；兩試驗中與直接取栓無顯著差異。' +
+          '基底動脈：VERITAS 四項試驗匯總，直接取栓 4.9% vs 先打靜脈血栓溶解 6.3%（調整後 OR 1.87，95% CI 0.77–4.57，無顯著差異）。',
+        en:
+          'Symptomatic intracranial haemorrhage with IV alteplase before thrombectomy (each trial\'s definition): SWIFT DIRECT 3.5% (7/202), MR CLEAN-NO IV 5.3%; not significantly different from direct thrombectomy in either trial. ' +
+          'Basilar artery: VERITAS pooled 4 trials, direct thrombectomy 4.9% vs IV thrombolysis first 6.3% (adjusted OR 1.87, 95% CI 0.77–4.57, not significant).',
       },
-      source: 'Fischer U et al. Lancet 2022;400:104–115 (SWIFT DIRECT); LeCouffe NE et al. N Engl J Med 2021;385:1833–1844 (MR CLEAN-NO IV)',
+      source:
+        'Fischer U et al. Lancet 2022;400:104–115 (SWIFT DIRECT); LeCouffe NE et al. N Engl J Med 2021;385:1833–1844 (MR CLEAN-NO IV); Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS)',
     },
+  },
+
+  sichMevo: { evt: SICH_MEVO, bridging: SICH_MEVO },
+
+  sichLargeCore: {
+    low: 0.0056,
+    high: 0.096,
+    note: {
+      zh:
+        '大核心（ASPECTS 3–5，或核心 ≥ 50 mL；LASTE 為 ASPECTS ≤ 5 不限大小）的前循環大血管阻塞取栓後症狀性出血（取栓 vs 內科）：' +
+        'ANGEL-ASPECT 6.1% vs 2.7%（任何顱內出血 49.1% vs 17.3%）；LASTE 9.6% vs 5.7%（調整後差異不顯著）；TENSION 6% vs 5%；SELECT2 只有 1 位 vs 2 位；' +
+        'RESCUE-Japan LIMIT 任何顱內出血 58.0% vs 31.4%。這五項試驗中取栓仍改善功能，TENSION 與 LASTE 也降低死亡率（SELECT2 死亡率相近）。',
+      en:
+        'Symptomatic haemorrhage after thrombectomy for anterior large-vessel occlusion with a large core (ASPECTS 3–5 or core ≥ 50 mL; LASTE: ASPECTS ≤ 5 of any size), thrombectomy vs medical care: ' +
+        'ANGEL-ASPECT 6.1% vs 2.7% (any intracranial haemorrhage 49.1% vs 17.3%); LASTE 9.6% vs 5.7% (adjusted difference not significant); TENSION 6% vs 5%; SELECT2 1 patient vs 2; ' +
+        'RESCUE-Japan LIMIT any intracranial haemorrhage 58.0% vs 31.4%. In all five trials thrombectomy still improved function, and TENSION and LASTE also showed lower mortality (similar in SELECT2).',
+    },
+    source:
+      'Sarraj A et al. N Engl J Med 2023;388:1259–1271 (SELECT2); Huo X et al. N Engl J Med 2023;388:1272–1283 (ANGEL-ASPECT); Yoshimura S et al. N Engl J Med 2022;386:1303–1313 (RESCUE-Japan LIMIT); Bendszus M et al. Lancet 2023;402:1753–1763 (TENSION); Costalat V et al. N Engl J Med 2024;390:1677–1689 (LASTE)',
+  },
+
+  tenecteplase: {
+    sich: {
+      low: 0.034,
+      high: 0.034,
+      note: {
+        zh:
+          'Tenecteplase（0.25 mg/kg，單次推注）取代 alteplase：AcT 試驗（發病 4.5 小時內）24 小時內症狀性腦出血 3.4%（27/800），alteplase 3.2%；功能結果不劣於 alteplase。' +
+          'ESO 2023 建議把它當作 alteplase 的替代，大血管阻塞時優先使用。模擬中兩種藥的結果相同（結果由你選）。',
+        en:
+          'Tenecteplase (0.25 mg/kg, single bolus) instead of alteplase: in the AcT trial (within 4.5 h of onset) symptomatic intracerebral haemorrhage within 24 h was 3.4% (27/800) vs 3.2% with alteplase; function was non-inferior. ' +
+          'The ESO (2023) recommends it as an alternative to alteplase, and over alteplase for large-vessel occlusion. The simulation does not distinguish the two drugs (you choose the result).',
+      },
+      source:
+        'Menon BK et al. Lancet 2022;400:161–169 (AcT); Alamowitch S et al. Eur Stroke J 2023;8:8–54 (ESO tenecteplase recommendation)',
+    },
+    reperfusionBeforeEvt: {
+      low: 0.22,
+      high: 0.22,
+      note: {
+        zh:
+          '準備取栓的 ICA、M1 或基底動脈阻塞，在第一張血管攝影時已有 > 50% 再灌流或已無可取血栓：tenecteplase 22%，alteplase 10%（EXTEND-IA TNK，4.5 小時內）；症狀性出血兩組都是 1%。',
+        en:
+          'Reperfusion of > 50% of the territory, or no retrievable clot, at the first angiogram in ICA, M1 or basilar occlusions due for thrombectomy: tenecteplase 22% vs alteplase 10% (EXTEND-IA TNK, within 4.5 h); symptomatic haemorrhage 1% in each group.',
+      },
+      source: 'Campbell BCV et al. N Engl J Med 2018;378:1573–1582 (EXTEND-IA TNK)',
+    },
+  },
+
+  lateIvt: {
+    low: 0.33,
+    high: 0.533,
+    note: {
+      zh:
+        '發病超過 4.5 小時（或醒來才發現）的靜脈血栓溶解，只在影像篩選後有試驗支持；90 天沒有失能（mRS 0–1）的比例：' +
+        'WAKE-UP（發病時間不明，MRI DWI–FLAIR 不吻合，alteplase）53.3% vs 41.8%，症狀性出血 2.0% vs 0.4%；' +
+        'EXTEND（4.5–9 小時或醒來發現，灌流影像有可救組織，alteplase）35.4% vs 29.5%，症狀性出血 6.2% vs 0.9%；' +
+        'TRACE-III（4.5–24 小時、ICA／MCA 大血管阻塞且無法取栓，tenecteplase，中國病人）33.0% vs 24.2%，36 小時內症狀性出血 3.0% vs 0.8%。' +
+        'ESO 建議不要只用非顯影 CT 篩選醒來才發現的中風就打 tenecteplase。',
+      en:
+        'IV thrombolysis started more than 4.5 h after onset (or on waking with symptoms) has trial support only after imaging selection; no disability (mRS 0–1) at 90 days: ' +
+        'WAKE-UP (unknown onset, MRI DWI–FLAIR mismatch, alteplase) 53.3% vs 41.8%, symptomatic haemorrhage 2.0% vs 0.4%; ' +
+        'EXTEND (4.5–9 h or on waking, salvageable tissue on perfusion imaging, alteplase) 35.4% vs 29.5%, symptomatic haemorrhage 6.2% vs 0.9%; ' +
+        'TRACE-III (4.5–24 h, ICA/MCA large-vessel occlusion without access to thrombectomy, tenecteplase, Chinese patients) 33.0% vs 24.2%, symptomatic haemorrhage within 36 h 3.0% vs 0.8%. ' +
+        'The ESO recommends against tenecteplase for stroke on waking selected with non-contrast CT alone.',
+    },
+    source:
+      'Thomalla G et al. N Engl J Med 2018;379:611–622 (WAKE-UP); Ma H et al. N Engl J Med 2019;380:1795–1803 (EXTEND); Xiong Y et al. N Engl J Med 2024;391:203–212 (TRACE-III); Alamowitch S et al. Eur Stroke J 2023;8:8–54 (ESO)',
   },
 
   reocclusion: {
@@ -351,17 +487,31 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
   },
 
   distalEmbolization: {
-    low: 0.05,
-    high: 0.42,
+    low: 0.22,
+    high: 0.22,
     note: {
       zh:
-        '取栓時血栓碎片造成新區域或遠端栓塞，數值依偵測方式差很多：核心實驗室判讀血管攝影上的新區域栓塞 5%（瑞士 1264 位取栓病人）；' +
-        'ESCAPE-NA1 試驗追蹤影像上新血管區域梗塞 9.3%（103/1092，最常見於 ACA 區）；' +
-        '取栓前後都做 MRI 的小型研究（50 位）有 42% 出現任何術中栓塞證據（遠端區域 SWI 新血栓約 22%、新區域 DWI 梗塞約 22%）。',
+        '取栓後在原阻塞處更遠端的分支出現新血栓：取栓前後都做 MRI 的小型研究（50 位），磁化率加權影像上 11 位（22%；其中 1 位同時有新區域梗塞）。' +
+        '這類遠端栓塞與影像或功能結果無關。事先打 alteplase 與它有關聯，但不顯著（OR 5.54，95% CI 0.94–32.49）。',
       en:
-        'Clot fragments lodging in a new territory or distal branches during thrombectomy; the figure depends on how it is detected. Core-lab angiographic emboli to a new territory: 5% (1264 thrombectomy patients in Switzerland); ' +
-        'infarcts in a new vascular territory on follow-up imaging in the ESCAPE-NA1 trial: 9.3% (103/1092; ACA territory most often); ' +
-        'a small study with MRI before and after thrombectomy (50 patients): any periprocedural embolic evidence in 42% (new distal-territory clot on susceptibility imaging about 22%, new-territory DWI infarcts about 22%).',
+        'New clot in branches beyond the treated occlusion after thrombectomy: in a small study with MRI before and after thrombectomy (50 patients), 11 (22%) on susceptibility-weighted imaging (1 of them also with new-territory infarcts). ' +
+        'These downstream emboli were not associated with imaging or functional outcome. Alteplase before thrombectomy was associated with them, but not statistically significantly (OR 5.54, 95% CI 0.94–32.49).',
+    },
+    source: 'Wong GJ et al. Stroke 2021;52:2241–2249',
+  },
+
+  newTerritoryEmbolization: {
+    low: 0.05,
+    high: 0.22,
+    note: {
+      zh:
+        '取栓時血栓碎片跑到原本沒有受影響的血管區域，數值依偵測方式差很多：核心實驗室判讀血管攝影上的新區域栓塞 5%（瑞士 1264 位取栓病人；與較高的長期死亡率有關，aHR 2.3）；' +
+        'ESCAPE-NA1 試驗追蹤影像上新區域梗塞 9.3%（103/1092），最常見於 ACA 區（27.8%），88.3% 在血管攝影上看不到阻塞，43.5% 為多發，與較差的預後有關；' +
+        'MRI 研究（50 位）新區域 DWI 梗塞約 22%，依原阻塞部位：ICA 5%、MCA 25%、椎基底動脈 57%。',
+      en:
+        'Clot fragments reaching a previously unaffected territory during thrombectomy; the figure depends on how it is detected. Core-lab angiographic emboli to a new territory: 5% (1264 thrombectomy patients in Switzerland; associated with higher long-term mortality, aHR 2.3); ' +
+        'infarcts in a new territory on follow-up imaging in the ESCAPE-NA1 trial: 9.3% (103/1092), most often in the ACA territory (27.8%), 88.3% without a visible occlusion on angiography, 43.5% multiple, and associated with worse outcome; ' +
+        'MRI study (50 patients): new-territory DWI infarcts in about 22%, by target occlusion ICA 5%, MCA 25%, vertebrobasilar 57%.',
     },
     source:
       'Beyeler M et al. J Neurointerv Surg 2022;14:326–332; Singh N et al. Stroke 2023;54:1477–1483 (ESCAPE-NA1); Wong GJ et al. Stroke 2021;52:2241–2249',
@@ -384,8 +534,16 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
       'Ng FC et al. Neurology 2022;98:e790–e801; ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266',
   },
 
-  /** alteplase benefit shown up to 4.5 h after onset: ECASS III, Hacke W et al. N Engl J Med 2008;359:1317–1329 */
+  /**
+   * alteplase benefit shown when started up to 4.5 h after onset (the window refers to drug start;
+   * median start in ECASS III 3 h 59 min): Hacke W et al. N Engl J Med 2008;359:1317–1329
+   */
   ivtWindowH: 4.5,
+  /**
+   * basilar artery: IV thrombolysis up to 24 h by expert consensus at very low certainty of
+   * evidence (ESO/ESMINT, Strbian D et al. Eur Stroke J 2024;9:835–884)
+   */
+  ivtConsensusWindowH: { basilar: 24 },
   /** thrombectomy benefit shown 6–24 h after onset with clinical–imaging mismatch: DAWN, Nogueira RG et al. N Engl J Med 2018;378:11–21 */
   evtWindowH: 24,
 };

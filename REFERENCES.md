@@ -35,9 +35,9 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Bassetti C, Mathis J, Gugger M, Lovblad KO, Hess CW. Hypersomnia following paramedian thalamic stroke: a report of 12 patients. Ann Neurol 1996;39:471–480. (Persistent hypersomnia.)
 - Bassetti CL. Sleep and stroke. Semin Neurol 2005;25:19–32. (Lasting sleep–wake disorders from thalamic or brainstem damage.)
 - Bogousslavsky J, Khurana R, Deruaz JP, Hornung JP, Regli F, Janzer R, Perret C. Respiratory failure and unilateral caudal brainstem infarction. Ann Neurol 1990;28:668–673. (Loss of automatic breathing — 2 cases.)
-- Grau AJ, Buggle F, Schnitzler P, Spiel M, Lichy C, Hacke W. Fever and infection early after ischemic stroke. J Neurol Sci 1999;171:115–120. (Why central fever is not modelled.)
+- Grau AJ, Buggle F, Schnitzler P, Spiel M, Lichy C, Hacke W. Fever and infection early after ischemic stroke. J Neurol Sci 1999;171:115–120. (Early fever is mostly infection: why central fever is shown only as a risk warning.)
 - Heckmann JG, Stössel C, Lang CJ, Neundörfer B, Tomandl B, Hummel T. Taste disorders in acute stroke: a prospective observational study on taste disorders in 102 stroke patients. Stroke 2005;36:1690–1694.
-- Hermann DM, Siccoli M, Brugger P, Wachter K, Mathis J, Achermann P, Bassetti CL. Evolution of neurological, neuropsychological and sleep-wake disturbances after paramedian thalamic stroke. Stroke 2008;39:62–68. (Course of hypersomnia, one- vs two-sided.)
+- Hermann DM, Siccoli M, Brugger P, Wachter K, Mathis J, Achermann P, Bassetti CL. Evolution of neurological, neuropsychological and sleep-wake disturbances after paramedian thalamic stroke. Stroke 2008;39:62–68. (Course of hypersomnia, one- vs two-sided; persistent frontal and cognitive deficits after all bilateral, 90% of left- and 33% of right-sided strokes.)
 - House A, Dennis M, Molyneux A, Warlow C, Hawton K. Emotionalism after stroke. BMJ 1989;298:991–994.
 - Kim BS, Kim YI, Lee KS. Contralateral hyperhidrosis after cerebral infarction. Clinicoanatomic correlations in five cases. Stroke 1995;26:896–899.
 - Kim JS. Post-stroke emotional incontinence after small lenticulocapsular stroke: correlation with lesion location. J Neurol 2002;249:805–810.
@@ -56,7 +56,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Rousseaux M, Hurtevent JF, Benaim C, Cassim F. Late contralateral hyperhidrosis in lateral medullary infarcts. Stroke 1996;27:991–995. (Not modelled.)
 - Sacco S, Sarà M, Pistoia F, Conson M, Albertini G, Carolei A. Management of pathologic laughter and crying in patients with locked-in syndrome: a report of 4 cases. Arch Phys Med Rehabil 2008;89:775–778.
 - Sakakibara R, Hattori T, Yasuda K, Yamanishi T. Micturitional disturbance and the pontine tegmental lesion: urodynamic and MRI analyses of vascular cases. J Neurol Sci 1996;141:105–110.
-- Sung CY, Lee TH, Chu NS. Central hyperthermia in acute stroke. Eur Neurol 2009;62:86–92. (Why central fever is not modelled.)
+- Sung CY, Lee TH, Chu NS. Central hyperthermia in acute stroke. Eur Neurol 2009;62:86–92. (Mostly after haemorrhage, all with brainstem involvement: why central fever is shown only as a risk warning.)
 - Tang WK, Hermann DM, Chen YK, Liang HJ, Liu XX, Chu WC, Ahuja AT, Abrigo J, Mok V, Ungvari GS, Wong KS. Brainstem infarcts predict REM sleep behavior disorder in acute ischemic stroke. BMC Neurol 2014;14:88.
 - Tellenbach N, Schmidt MH, Alexiev F, Blondiaux E, Cavalloni F, Bassetti CL, Heydrich L, Bargiotas P. REM sleep and muscle atonia in brainstem stroke: a quantitative polysomnographic and lesion analysis study. J Sleep Res 2023;32:e13640. (Evidence against: no excess REM muscle activity.)
 - Wanklyn P, Ilsley DW, Greenstein D, Hampton IF, Roper TA, Kester RC, Mulley GP. The cold hemiplegic arm. Stroke 1994;25:1765–1770.
@@ -87,7 +87,6 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Feinberg TE, Schindler RJ, Flanagan NG, Haber LD. Two alien hand syndromes. Neurology 1992;42:19–24.
 - Fisher CM. Ataxic hemiparesis. A pathologic study. Arch Neurol 1978;35:126–128.
 - Forster A, Young J. Incidence and consequences of falls due to stroke: a systematic inquiry. BMJ 1995;311:83–86.
-- Galovic M et al. Prediction of late seizures after ischaemic stroke with a novel prognostic model (the SeLECT score): a multivariable prediction model development and validation study. Lancet Neurol 2018;17:143–152.
 - Garcia-Larrea L, Perchet C, Creac'h C, Convers P, Peyron R, Laurent B, Mauguière F, Magnin M. Operculo-insular pain (parasylvian pain): a distinct central pain syndrome. Brain 2010;133:2528–2539. (5 of 270; text only.)
 - Ghika-Schmid F, Ghika J, Regli F, Bogousslavsky J. Hyperkinetic movement disorders during and after acute stroke: the Lausanne Stroke Registry. J Neurol Sci 1997;146:109–116.
 - Gordon C, Hewer RL, Wade DT. Dysphagia in acute stroke. Br Med J (Clin Res Ed) 1987;295:411–414.
@@ -103,7 +102,6 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Kanbayashi T, Sonoo M. The course of facial corticobulbar tract fibers in the dorsolateral medulla oblongata. BMC Neurol 2021;21:214.
 - Karnath HO, Ferber S, Himmelbach M. Spatial awareness is a function of the temporal not the posterior parietal lobe. Nature 2001;411:950–953.
 - Karnath HO, Himmelbach M, Rorden C. The subcortical anatomy of human spatial neglect: putamen, caudate nucleus and pulvinar. Brain 2002;125:350–360.
-- Kattah JC, Talkad AV, Wang DZ, Hsieh YH, Newman-Toker DE. HINTS to diagnose stroke in the acute vestibular syndrome: three-step bedside oculomotor examination more sensitive than early MRI diffusion-weighted imaging. Stroke 2009;40:3504–3510.
 - Kertesz A, McCabe P. Recovery patterns and prognosis in aphasia. Brain 1977;100:1–18.
 - Kertesz A, Nicholson I, Cancelliere A, Kassa K, Black SE. Motor impersistence: a right-hemisphere syndrome. Neurology 1985;35:662–666.
 - Kertesz A, Poole E. The aphasia quotient: the taxonomic approach to measurement of aphasic disability. Can J Neurol Sci 2004;31:175–184. (Reprint of the 1974 paper; one aphasia type per patient.)
@@ -143,7 +141,6 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Postuma RB, Lang AE. Hemiballism: revisiting a classic disorder. Lancet Neurol 2003;2:661–668.
 - Prosser J, MacGregor L, Lees KR, Diener HC, Hacke W, Davis S; VISTA Investigators. Predictors of early cardiac morbidity and mortality after ischemic stroke. Stroke 2007;38:2295–2302.
 - Ringman JM, Saver JL, Woolson RF, Clarke WR, Adams HP. Frequency, risk factors, anatomy, and course of unilateral neglect in an acute stroke cohort. Neurology 2004;63:468–474.
-- Sacco RL, Freddo L, Bello JA, Odel JG, Onesti ST, Mohr JP. Wallenberg's lateral medullary syndrome. Clinical-magnetic resonance imaging correlations. Arch Neurol 1993;50:609–614.
 - Sage JI, Van Uitert RL. Man-in-the-barrel syndrome. Neurology 1986;36:1102–1103.
 - Saito T, Itabashi R, Kawabata Y, Yazawa Y. Clinical characteristics of patients with lateral medullary infarction who had fatal respiratory failure. J Neurol Sci 2022;434:120167.
 - Saposnik G, Noel de Tilly L, Caplan LR. Pontine warning syndrome. Arch Neurol 2008;65:1375–1377.
@@ -166,7 +163,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 ### 血流、組織與臨床模型 · Flow, tissue and clinical model
 
 - Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)
-- Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.
+- Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725. (The penumbra concept.)
 - Campbell BCV et al. Cerebral blood flow is the optimal CT perfusion parameter for assessing infarct core. Stroke 2011;42:3435–3440.
 - Saver JL. Time is brain—quantified. Stroke 2006;37:263–266.
 - Albers GW et al. Magnetic resonance imaging profiles predict clinical response to early reperfusion: the DEFUSE study. Ann Neurol 2006;60:508–517.
@@ -185,16 +182,16 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Krabbe-Hartkamp MJ et al. Circle of Willis: morphologic variation on three-dimensional time-of-flight MR angiograms. Radiology 1998;207:103–111.
 - Hindenes LB et al. Variations in the circle of Willis in a large population sample using 3D TOF angiography: the Tromsø Study. PLoS One 2020;15:e0241373.
 - Dirnagl U, Iadecola C, Moskowitz MA. Pathobiology of ischaemic stroke: an integrated view. Trends Neurosci 1999;22:391–397.
-- Pantano P, Baron JC et al. Crossed cerebellar diaschisis. Brain 1986;109:677–694.
+- Pantano P, Baron JC, Samson Y, Bousser MG, Derouesne C, Comar D. Crossed cerebellar diaschisis. Further studies. Brain 1986;109(Pt 4):677–694.
 - Kuhn MJ et al. Wallerian degeneration after cerebral infarction: evaluation with sequential MR imaging. Radiology 1989;172:179–182.
 - Thomalla G et al. DTI detects early Wallerian degeneration of the pyramidal tract after ischemic stroke. NeuroImage 2004;22:1767–1774.
 - Goto N, Kaneko M. Olivary enlargement: chronological and morphometric analyses. Acta Neuropathol 1981;54:275–282.
 - Kitajima M et al. Hypertrophic olivary degeneration: MR imaging and pathologic findings. Radiology 1994;192:539–543.
-- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of the human brain. Neurology 1998;50:1699–1708 (and brainstem & cerebellum, Neurology 1996;47:1125–1135).
+- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of the human brain: cerebral hemispheres. Neurology 1998;50:1699–1708.
+- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of human brain: brainstem and cerebellum. Neurology 1996;47:1125–1135.
 - Schmahmann JD. Vascular syndromes of the thalamus. Stroke 2003;34:2264–2278.
-- Fiester P, Rao D, Soule E et al. Anatomic, functional, and radiographic review of the brainstem. RadioGraphics 2019 (brainstem syndrome framing, also used by neuroaxis-atlas, MIT).
-- Brott T et al. Measurements of acute cerebral infarction: a clinical examination scale (NIHSS). Stroke 1989;20:864–870.
-- Donnan GA et al. Striatocapsular infarction: clinical and radiological features. Brain 1991;114:51–70.
+- Brott T et al. Measurements of acute cerebral infarction: a clinical examination scale. Stroke 1989;20:864–870. (The original 15-item scale.)
+- Donnan GA, Bladin PF, Berkovic SF, Longley WA, Saling MM. The stroke syndrome of striatocapsular infarction. Brain 1991;114(Pt 1A):51–70.
 - Fisher CM. Lacunar strokes and infarcts: a review. Neurology 1982;32:871–876.
 - Bamford J et al. Classification and natural history of clinically identifiable subtypes of cerebral infarction. Lancet 1991;337:1521–1526.
 - Parvizi J, Damasio AR. Neuroanatomical correlates of brainstem coma. Brain 2003;126:1524–1536.
@@ -208,7 +205,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Alemseged F et al. The basilar artery on computed tomography angiography prognostic score (BATMAN). Stroke 2017;48:631–637.
 - Ferbert A, Brückmann H, Drummen R. Clinical features of proven basilar artery occlusion. Stroke 1990;21:1135–1142.
 - von Campe G, Regli F, Bogousslavsky J. Heralding manifestations of basilar artery occlusion with lethal or severe stroke. J Neurol Neurosurg Psychiatry 2003;74:1621–1626.
-- Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol 1979;220:191–198.
+- Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol 1979;221:77–91.
 - Patterson JR, Grabois M. Locked-in syndrome: a review of 139 cases. Stroke 1986;17:758–764.
 - Casanova E et al. Locked-in syndrome: improvement in the prognosis after an early intensive multidisciplinary rehabilitation. Arch Phys Med Rehabil 2003;84:862–867.
 - Plum F, Posner JB. The Diagnosis of Stupor and Coma (breathing patterns in brainstem lesions).
@@ -231,7 +228,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - LeCouffe NE et al. A randomized trial of intravenous alteplase before endovascular treatment for stroke (MR CLEAN-NO IV). N Engl J Med 2021;385:1833–1844.
 - Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS pooled analysis of basilar artery occlusion trials).
 - Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT guideline on basilar artery occlusion).
-- Yi T et al. Front Neurol 2023;14:1308036 (ATTENTION reperfusion figures).
+- Yi T et al. Predictors of futile recanalization in basilar artery occlusion patients undergoing endovascular treatment: a post hoc analysis of the ATTENTION trial. Front Neurol 2023;14:1308036.
 - Bhatia R et al. Low rates of acute recanalization with intravenous recombinant tissue plasminogen activator in ischemic stroke: real-world experience and a call for action. Stroke 2010;41:2254–2258.
 - Menon BK et al. JAMA 2018;320:1017–1026 (INTERRSeCT: recanalisation after intravenous thrombolysis by occlusion site).
 - Seners P et al. Stroke 2016;47:2409–2412 (early recanalisation after intravenous thrombolysis by occlusion site).
@@ -249,6 +246,74 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).
 
 ### 臨床細節審查（B）· Clinical-detail audit (B): treatment, haemodynamics, brainstem and thalamus, acute course
+
+- Alamowitch S, Turc G, Palaiodimou L, et al. European Stroke Organisation (ESO) expedited recommendation on tenecteplase for acute ischaemic stroke. Eur Stroke J 2023;8:8–54. (Tenecteplase 0.25 mg/kg as an alternative to alteplase, preferred for large-vessel occlusion; not for stroke on waking selected with non-contrast CT alone.)
+- Alemdar M. Hyperthermia associated with bilateral mesencephalothalamic infarction. J Stroke Cerebrovasc Dis 2012;21:907.e13–907.e15. (Ischaemic, bilateral paramedian midbrain–thalamus; 39.3 °C without infection.)
+- Alemseged F, Van der Hoeven E, Di Giuliano F, et al. Response to late-window endovascular revascularization is associated with collateral status in basilar artery occlusion. Stroke 2019;50:1415–1422. (With unfavourable BATMAN or PC-CS, revascularisation within 6 h but not later was associated with good outcome.)
+- Amarenco P, Hauw JJ. Cerebellar infarction in the territory of the superior cerebellar artery: a clinicopathologic study of 33 cases. Neurology 1990;40:1383–1390. (Autopsy series: delayed coma from cerebellar swelling in 6 of the 9 with cerebellar and vestibular signs; PICA infarcts often accompanied SCA infarcts.)
+- Arauz A, Patiño-Rodríguez HM, Vargas-González JC, Arguelles-Morales N, Silos H, Ruiz-Franco A, Ochoa MA. Clinical spectrum of artery of Percheron infarct: clinical-radiological correlations. J Stroke Cerebrovasc Dis 2014;23:1083–1088. (Good long-term outcome in 25% with midbrain involvement, 67% without.)
+- Ayling OGS, Alotaibi NM, Wang JZ, Fatehi M, Ibrahim GM, Benavente O, Field TS, Gooderham PA, Macdonald RL. Suboccipital decompressive craniectomy for cerebellar infarction: a systematic review and meta-analysis. World Neurosurg 2018;110:450–459.e5. (11 studies, 283 patients: pooled mortality 20% after suboccipital decompression.)
+- Baki E, Baumgart L, Kehl V, et al. Predictors of malignant swelling in space-occupying cerebellar infarction. Stroke Vasc Neurol 2025;10:323–329. (33 of 93, 35.5%; above 38 cm³ more than half; brainstem infarction associated in univariate analysis only; 13 of 33 after more than 3 days.)
+- Bang OY, Chung JW, Kim SK, et al. Therapeutic-induced hypertension in patients with noncardioembolic acute stroke. Neurology 2019;93:e1955–e1963. (Randomised, n = 153, Class III; not eligible for reperfusion therapy.)
+- Barow E, Boutitie F, Cheng B, et al. Functional outcome of intravenous thrombolysis in patients with lacunar infarcts in the WAKE-UP trial. JAMA Neurol 2019;76:641–649. (Lacunar strokes: alteplase effect not different from other strokes.)
+- Bassetti C, Bogousslavsky J, Barth A, Regli F. Isolated infarcts of the pons. Neurology 1996;46:165–175. (21 of 36 ventral; only 4 with crossed deficits, none matching a classic pontine syndrome.)
+- Beghi E, D'Alessandro R, Beretta S, et al. Incidence and predictors of acute symptomatic seizures after stroke. Neurology 2011;77:1785–1793. (Seizures within 7 days in 4.2% of infarcts and 12.5% of 32 with haemorrhagic transformation, OR 2.7, 0.8–9.6; cortical involvement OR 3.1.)
+- Bendszus M, Fiehler J, Subtil F, et al. Endovascular thrombectomy for acute ischaemic stroke with established large infarct: multicentre, open-label, randomised trial (TENSION). Lancet 2023;402:1753–1763.
+- Benke T. Peduncular hallucinosis: a syndrome of impaired reality monitoring. J Neurol 2006;253:1561–1571. (5 patients; otherwise single case reports; hallucinations recurring over months.)
+- Bladin CF, Alexandrov AV, Bellavance A, et al. Seizures after stroke: a prospective multicenter study. Arch Neurol 2000;57:1617–1622. (8.6% after ischaemic stroke over a mean 9 months; epilepsy in 2.5% of all 1897; late first seizure HR 12.37 for epilepsy.)
+- Brandt T, Dieterich M. Skew deviation with ocular torsion: a vestibular brainstem sign of topographic diagnostic value. Ann Neurol 1993;33:528–534. (Lesion-side eye lower with caudal pontomedullary lesions, opposite eye lower with rostral pontomesencephalic ones.)
+- Campbell BCV, Mitchell PJ, Churilov L, et al. Tenecteplase versus alteplase before thrombectomy for ischemic stroke (EXTEND-IA TNK). N Engl J Med 2018;378:1573–1582.
+- Caplan LR. "Top of the basilar" syndrome. Neurology 1980;30:72–79. (Somnolence, vivid hallucinations and dreamlike behaviour with rostral brainstem infarction.)
+- Carrera E, Bogousslavsky J. The thalamus and behavior: effects of anatomically distinct strokes. Neurology 2006;66:1817–1823. (Anterior pattern: perseveration, apathy, amnesia; paramedian: disinhibition, personality change, loss of self-activation, amnesia, thalamic "dementia" when extensive.)
+- Castaigne P, Lhermitte F, Buge A, Escourolle R, Hauw JJ, Lyon-Caen O. Paramedian thalamic and midbrain infarct: clinical and neuropathological study. Ann Neurol 1981;10:127–148. (Hypersomnia, deep coma or akinetic mutism; abnormal movements always delayed.)
+- Chang YY, Tsai TC, Shih PY, Liu JS. Unilateral symptomatic palatal myoclonus: MRI evidence of contralateral inferior olivary lesion. Gaoxiong Yi Xue Ke Xue Za Zhi 1993;9:371–376. (Oculopalatal myoclonus 1 and 3 months after the lesion.)
+- Costalat V, Jovin TG, Albucher JF, et al. Trial of thrombectomy for stroke with a large infarct of unrestricted size (LASTE). N Engl J Med 2024;390:1677–1689.
+- de Bastos Maximiano ML, Gonçalves OR, Falcão L, et al. Endovascular treatment in patients with cervical or intracranial isolated internal carotid artery occlusion: a systematic review and meta-analysis. Neuroradiol J 2026;39:557–566.
+- Deuschl G, Bain P, Brin M. Consensus statement of the Movement Disorder Society on Tremor. Ad Hoc Scientific Committee. Mov Disord 1998;13 Suppl 3:2–23. (Holmes tremor as a tremor syndrome of its own.)
+- Deuschl G, Toro C, Hallett M. Symptomatic and essential palatal tremor. 2. Differences of palatal movements. Mov Disord 1994;9:676–678. (Ear clicks belong to essential, not symptomatic, palatal tremor.)
+- Fiorelli M, Bastianello S, von Kummer R, et al. Hemorrhagic transformation within 36 hours of a cerebral infarct: relationships with early clinical deterioration and 3-month outcome in the European Cooperative Acute Stroke Study I (ECASS I) cohort. Stroke 1999;30:2280–2284.
+- Galovic M, Döhler N, Erdélyi-Canavese B, et al. Prediction of late seizures after ischaemic stroke with a novel prognostic model (the SeLECT score): a multivariable prediction model development and validation study. Lancet Neurol 2018;17:143–152. (Late seizures 4% at 1 year and 8% at 5 years; SeLECT 0.7–63% at 1 year.)
+- Ghika-Schmid F, Bogousslavsky J. The acute behavioral syndrome of anterior thalamic infarction: a prospective study of 12 cases. Ann Neurol 2000;48:220–227. (Word-finding difficulty in all, dysarthria 8, hypophonia 5, comprehension and repetition preserved; memory loss verbal after left, visuospatial after right infarcts; memory loss and apathy persisted.)
+- Goyal M, Versnick E, Tuite P, Cyr JS, Kucharczyk W, Montanera W, Willinsky R, Mikulis D. Hypertrophic olivary degeneration: metaanalysis of the temporal evolution of MR findings. AJNR Am J Neuroradiol 2000;21:1073–1077. (T2 signal from 1 month for years; enlargement from 6 months, resolving by 3–4 years.)
+- Harper C, Cardullo PA, Weyman AK, Patterson RB. Transcranial Doppler ultrasonography of the basilar artery in patients with retrograde vertebral artery flow. J Vasc Surg 2008;48:859–864. (Antegrade basilar flow at rest in 19 of 25.)
+- Huang W, Zhang Y, Zhuang Y, Shi Y, Feng Y. An anatomical study of persistent trigeminal artery detected by computed tomography angiography and magnetic resonance angiography: proposal for a modified classification and a novel basilar artery grading system. Surg Radiol Anat 2023;45:947–957. (57 of 94,487, 0.06%.)
+- Huang YS, Hsiao MC, Lee M, Huang YC, Lee JD. Baclofen successfully abolished prolonged central hyperthermia in a patient with basilar artery occlusion. Acta Neurol Taiwan 2009;18:118–122. (Ischaemic; hyperthermia in severe brainstem stroke carries a poor prognosis.)
+- Huo X, Ma G, Tong X, et al. Trial of endovascular therapy for acute ischemic stroke with large infarct (ANGEL-ASPECT). N Engl J Med 2023;388:1272–1283.
+- Jauss M, Krieger D, Hornig C, Schramm J, Busse O. Surgical and medical management of patients with massive cerebellar infarctions: results of the German-Austrian Cerebellar Infarction Study. J Neurol 1999;246:257–264. (84 patients: level of consciousness the strongest predictor; surgery no better in awake/drowsy or somnolent/stuporous patients; deterioration days 2–4, most on day 3.)
+- Kargiotis O, Psychogios K, Safouris A, et al. Diagnosis and treatment of acute isolated proximal internal carotid artery occlusions: a narrative review. Ther Adv Neurol Disord 2022;15:17562864221136335.
+- Kattah JC, Talkad AV, Wang DZ, Hsieh YH, Newman-Toker DE. HINTS to diagnose stroke in the acute vestibular syndrome: three-step bedside oculomotor examination more sensitive than early MRI diffusion-weighted imaging. Stroke 2009;40:3504–3510. (Skew in 30% with brainstem involvement, 4% peripheral.)
+- Kilpatrick CJ, Davis SM, Tress BM, Rossiter SC, Hopper JL, Vandendriesen ML. Epileptic seizures in acute stroke. Arch Neurol 1990;47:157–160. (6.5% with cortical infarction, generally within 48 h; none with lacunar infarcts.)
+- Kumral E, Bayülkem G, Evyapan D. Clinical spectrum of pontine infarction. Clinical-MRI correlations. J Neurol 2002;249:1659–1670. (150 isolated pontine infarcts: anteromedial 58%, bilateral 11% with transient loss of consciousness.)
+- Labovitz DL, Hauser WA, Sacco RL. Prevalence and predictors of early seizure and status epilepticus after first stroke. Neurology 2001;57:200–206. (Early seizures 4.1%: lobar infarct 5.9%, deep infarct 0.6%; status epilepticus in 27% of them; NIHSS not an independent predictor.)
+- Labropoulos N, Nandivada P, Bekelis K. Prevalence and impact of the subclavian steal syndrome. Ann Surg 2010;252:166–170. (Mostly asymptomatic; symptoms more frequent with arm pressure differences above 40–50 mmHg.)
+- Laureys S, Pellas F, Van Eeckhout P, et al. The locked-in syndrome: what is it like to be conscious but paralyzed and voiceless? Prog Brain Res 2005;150:495–511. (Often comatose for days to weeks before waking up locked-in; diagnosis took 2.5 months on average.)
+- Lazzaro NA, Wright B, Castillo M, Fischbein NJ, Glastonbury CM, Hildenbrand PG, Wiggins RH, Quigley EP, Osborn AG. Artery of Percheron infarction: imaging patterns and clinical spectrum. AJNR Am J Neuroradiol 2010;31:1283–1289. (37 patients: with midbrain 43%, without 38%, with anterior thalamus and midbrain 14%, anterior thalamus without midbrain 5%.)
+- Leonardi-Bee J, Bath PM, Phillips SJ, Sandercock PA; IST Collaborative Group. Blood pressure and clinical outcomes in the International Stroke Trial. Stroke 2002;33:1315–1320. (U-shaped relation of systolic pressure to outcome; high pressure associated with early recurrence and oedema deaths, not with symptomatic haemorrhage.)
+- Lyden P, Brott T, Tilley B, Welch KM, Mascha EJ, Levine S, Haley EC, Grotta J, Marler J. Improved reliability of the NIH Stroke Scale using video training. NINDS TPA Stroke Study Group. Stroke 1994;25:2220–2226. (The NIHSS as used in the NINDS t-PA trial, with video certification.)
+- Ma H, Campbell BCV, Parsons MW, et al. Thrombolysis guided by perfusion imaging up to 9 hours after onset of stroke (EXTEND). N Engl J Med 2019;380:1795–1803.
+- Menon BK, Buck BH, Singh N, et al. Intravenous tenecteplase compared with alteplase for acute ischaemic stroke in Canada (AcT): a pragmatic, multicentre, open-label, registry-linked, randomised, controlled, non-inferiority trial. Lancet 2022;400:161–169.
+- Neau JP, Bogousslavsky J. The syndrome of posterior choroidal artery territory infarction. Ann Neurol 1996;39:779–788. (10 of 2,925 stroke patients; lateral: quadrantanopia ± hemisensory loss, transcortical aphasia, memory; horizontal sectoranopia exceptional; late pain and abnormal movements.)
+- O'Donnell JC, Browne KD, Kilbaugh TJ, Chen HI, Whyte J, Cullen DK. Challenges and demand for modeling disorders of consciousness following traumatic brain injury. Neurosci Biobehav Rev 2019;98:336–346. (Definitions only: coma rarely beyond two weeks, then unresponsive wakefulness or a minimally conscious state.)
+- Prabhakaran S, Gonzalez NR, Zachrison KS, et al. 2026 Guideline for the early management of patients with acute ischemic stroke: a guideline from the American Heart Association/American Stroke Association. Stroke 2026;57:e316–e436. (Key updates include thrombolytic choice and eligibility; cited at abstract level only.)
+- Qureshi AI, Suarez JI, Yahia AM, et al. Timing of neurologic deterioration in massive middle cerebral artery infarction: a multicenter review. Crit Care Med 2003;31:272–277. (53 patients: 36% deteriorated within 24 h, 68% by 48 h; deaths peaked on day 3.)
+- Raina GB, Cersosimo MG, Folgar SS, et al. Holmes tremor: clinical description, lesion localization, and treatment in a series of 29 cases. Neurology 2016;86:931–938. (Median 2 months from lesion to tremor; levodopa helped 13 of 24.)
+- Regenhardt RW, Das AS, Stapleton CJ, Chandra RV, Rabinov JD, Patel AB, Hirsch JA, Leslie-Mazwi TM. Blood pressure and penumbral sustenance in stroke from large vessel occlusion. Front Neurol 2017;8:317. (Astrup's penumbra: infarction below about 10, viable for hours between 10 and 20 mL/100 g/min.)
+- Sacco RL, Freddo L, Bello JA, Odel JG, Onesti ST, Mohr JP. Wallenberg's lateral medullary syndrome. Clinical-magnetic resonance imaging correlations. Arch Neurol 1993;50:609–614. (Diplopia or blurred vision in 11 of 33, not necessarily beyond the lateral medulla.)
+- Sandset EC, Palaiodimou L, Jahr SH, et al. 2025 update to European Stroke Organisation (ESO) guideline on blood pressure management in acute ischaemic stroke and intracerebral haemorrhage. Eur Stroke J 2026;11:aakag004. (Below 185/110 mmHg before thrombolysis and 180/105 mmHg for 24 h after; routine vasopressors discouraged without reperfusion therapy.)
+- Sarraj A, Hassan AE, Abraham MG, et al. Trial of endovascular thrombectomy for large ischemic strokes (SELECT2). N Engl J Med 2023;388:1259–1271.
+- Schaller-Paule MA, Steidl E, Shrestha M, et al. Multicenter prospective analysis of hypertrophic olivary degeneration following infratentorial stroke (HOD-IS): evaluation of disease epidemiology, clinical presentation, and MR-imaging aspects. Front Neurol 2021;12:675123. (Study protocol: how often it follows stroke is unknown.)
+- Sciacca S, Lynch J, Davagnanam I, Barker R. Midbrain, pons, and medulla: anatomy and syndromes. Radiographics 2019;39:1110–1125. (General review of brainstem anatomy and syndromes.)
+- Steidl E, Rauch M, Hattingen E, et al. Qualitative and quantitative detectability of hypertrophic olivary degeneration in T2, FLAIR, PD, and DTI: a prospective MRI study. Front Neurol 2022;13:950191. (Seen in 38–67% of 15 patients, by sequence and rater.)
+- Szaflarski JP, Rackley AY, Kleindorfer DO, et al. Incidence of seizures in the acute phase of stroke: a population-based study. Epilepsia 2008;49:974–981. (3.1% of 6044 strokes, haemorrhages included, within 24 h.)
+- Thomalla G, Simonsen CZ, Boutitie F, et al. MRI-guided thrombolysis for stroke with unknown time of onset (WAKE-UP). N Engl J Med 2018;379:611–622.
+- Tilikete C, Desestret V. Hypertrophic olivary degeneration and palatal or oculopalatal tremor. Front Neurol 2017;8:302. (Weeks to months after the lesion; after haemorrhage more often than infarction.)
+- Tobalem S, Schutz JS, Chronopoulos A. Central retinal artery occlusion – rethinking retinal survival time. BMC Ophthalmol 2018;18:101. (Inner-retinal infarction probably after 12–15 min of complete occlusion; many occlusions are incomplete.)
+- Triantafyllou G, Paschopoulos I, Papadopoulos-Manolarakis P, et al. Prevalence of basilar artery variants: a systematic review with meta-analysis of radiological studies. Neuroradiology 2026;68:1607–1617. (Persistent trigeminal artery 0.20%.)
+- Xiong Y, Campbell BCV, Schwamm LH, et al. Tenecteplase for ischemic stroke at 4.5 to 24 hours without thrombectomy (TRACE-III). N Engl J Med 2024;391:203–212.
+- Yaghi S, Boehme AK, Dibu J, et al. Treatment and outcome of thrombolysis-related hemorrhage: a multicenter retrospective study. JAMA Neurol 2015;72:1451–1457. (Median 470 min from alteplase start to symptomatic haemorrhage; in-hospital mortality 52%.)
+- Yaghi S, Eisenberger A, Willey JZ. Symptomatic intracerebral hemorrhage in acute ischemic stroke after thrombolysis with intravenous recombinant tissue plasminogen activator: a review of natural history and treatment. JAMA Neurol 2014;71:1181–1185.
+- Yang P, Song L, Zhang Y, et al. Intensive blood pressure control after endovascular thrombectomy for acute ischaemic stroke (ENCHANTED2/MT): a multicentre, open-label, blinded-endpoint, randomised controlled trial. Lancet 2022;400:1585–1596. (A systolic target below 120 mmHg after successful thrombectomy led to worse functional outcome.)
+- Yoshimura S, Sakai N, Yamagami H, et al. Endovascular therapy for acute stroke with a large ischemic region (RESCUE-Japan LIMIT). N Engl J Med 2022;386:1303–1313.
 
 ### 中風後常見、但與病灶部位關聯有限的問題 · Common after stroke, weakly tied to the lesion site
 

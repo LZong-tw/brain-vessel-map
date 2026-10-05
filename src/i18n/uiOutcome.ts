@@ -5,6 +5,7 @@
  */
 
 import type { Lang } from '../anatomy/types';
+import type { FatalRisk } from '../engine/cascade';
 import type { DeficitGroup } from '../ui/finalOutcome';
 
 export interface OutcomeStrings {
@@ -32,6 +33,10 @@ export interface OutcomeStrings {
   rowNihss3: string;
   rowNihss6: string;
   rowLasting: string;
+  /** a row of the comparison: the course usually ends in death (C4-F1) */
+  rowFatal: string;
+  fatalYes: string;
+  fatalNo: string;
   items: (n: number) => string;
   compareNote: string;
   treatmentLabel: string;
@@ -41,6 +46,11 @@ export interface OutcomeStrings {
   nihssTitle: string;
   at3m: string;
   at6m: string;
+  /** the NIHSS lines when the course usually ends in death (C4-F1) */
+  at3mIfSurvives: string;
+  at6mIfSurvives: string;
+  /** shown next to the NIHSS: what usually happens instead, and that the figures assume survival */
+  fatal: Record<FatalRisk, string>;
   // ── deficits ──
   deficitsTitle: string;
   deficitsAt: string;
@@ -82,6 +92,9 @@ const zh: OutcomeStrings = {
   rowNihss3: 'NIHSS（3 個月）',
   rowNihss6: 'NIHSS（6 個月）',
   rowLasting: '6 個月時的缺損',
+  rowFatal: '可能死亡（疝脫）',
+  fatalYes: '很可能',
+  fatalNo: '—',
   items: (n) => `${n} 項`,
   compareNote: '「未治療」是同樣的阻塞、但沒有打通血管的模擬。',
   treatmentLabel: '治療',
@@ -90,6 +103,14 @@ const zh: OutcomeStrings = {
   nihssTitle: 'NIHSS 估計',
   at3m: '3 個月',
   at6m: '6 個月',
+  at3mIfSurvives: '3 個月（假如存活）',
+  at6mIfSurvives: '6 個月（假如存活）',
+  fatal: {
+    herniation:
+      '未減壓的天幕切跡疝脫通常致命：完整中大腦動脈區梗塞的 55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）；三個隨機試驗的合併分析中，沒有手術的一年存活率只有 29%（手術 78%；Vahedi 2007）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是假如病人存活（少數）的結果；存活者多數仍可達 mRS 0–4。',
+    posterior_fossa:
+      '小腦腫脹壓迫腦幹而昏迷、又沒有枕下減壓，會危及生命；AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除。不手術的死亡率沒有可靠的數字（研究沒有未手術的昏迷對照組）。模型不模擬死亡：下面的 NIHSS 是假如病人存活的結果。',
+  },
   deficitsTitle: '留下的缺損',
   deficitsAt: '時間點',
   groups: { marked: '仍明顯', partial: '部分代償', largely: '大致代償' },
@@ -133,6 +154,9 @@ const en: OutcomeStrings = {
   rowNihss3: 'NIHSS (3 months)',
   rowNihss6: 'NIHSS (6 months)',
   rowLasting: 'Deficits at 6 months',
+  rowFatal: 'Death likely (herniation)',
+  fatalYes: 'likely',
+  fatalNo: '—',
   items: (n) => `${n}`,
   compareNote: '"Untreated" is the same occlusion simulated without reopening the artery.',
   treatmentLabel: 'Treatment',
@@ -141,6 +165,14 @@ const en: OutcomeStrings = {
   nihssTitle: 'NIHSS estimate',
   at3m: '3 months',
   at6m: '6 months',
+  at3mIfSurvives: '3 months (if the patient survives)',
+  at6mIfSurvives: '6 months (if the patient survives)',
+  fatal: {
+    herniation:
+      'Transtentorial herniation without decompression is usually fatal: of 55 patients with complete MCA-territory infarction 78% died of herniation and brain death (Hacke 1996); in the pooled analysis of three randomised trials 1-year survival without surgery was only 29% (78% with it; Vahedi 2007). The model does not represent death: the 3- and 6-month NIHSS below are those of a patient who survives (a minority); most survivors still reach mRS 0–4.',
+    posterior_fossa:
+      'Coma from a swollen cerebellum compressing the brainstem, without suboccipital decompression, is life-threatening; the AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate. There is no reliable figure for mortality without surgery (the studies had no untreated comatose control group). The model does not represent death: the NIHSS below is that of a patient who survives.',
+  },
   deficitsTitle: 'Lasting deficits',
   deficitsAt: 'Time point',
   groups: { marked: 'Still marked', partial: 'Partly compensated', largely: 'Largely compensated' },

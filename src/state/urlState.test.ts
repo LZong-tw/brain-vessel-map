@@ -149,6 +149,16 @@ describe('treatment details in the link', () => {
     expect(encodeState(useApp.getState())).toBe(enc);
   });
 
+  it('C2-F9: keeps an embolus to a new territory (ipsilateral ACA for an M1) and one far down the branch list', () => {
+    applyHash('#o=mca_m1_l&t=24&r=3&de=aca_callosomarginal_l');
+    expect(useApp.getState().treatment.distalEmbolus).toBe('aca_callosomarginal_l');
+    applyHash('#o=ica_terminal_r&t=24&r=3&de=aca_paracentral_r');
+    expect(useApp.getState().treatment.distalEmbolus).toBe('aca_paracentral_r');
+    // the other side is not a new territory of this target
+    applyHash('#o=mca_m1_l&t=24&r=3&de=aca_callosomarginal_r');
+    expect(useApp.getState().treatment.distalEmbolus).toBeNull();
+  });
+
   it('round-trips single details set from the store', () => {
     for (const patch of [{ method: 'ivt' as const }, { grade: '0' as const }, { grade: '2b50' as const }, { reocclusionAfterH: 24 }, { noReflow: 0.3 }]) {
       applyHash('#o=basilar_mid&t=24&r=3');

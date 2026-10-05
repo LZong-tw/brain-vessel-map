@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { REGIONS, VESSELS, regionName, tr, vesselName } from '../anatomy';
 import type { VesselGroup } from '../anatomy';
 import { SCENARIOS, type CameraView } from '../anatomy/scenarios';
+import { absentVessels } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
 import { useT } from '../state/hooks';
 import { EDEMA_UI } from '../i18n/uiEdema';
@@ -90,6 +91,9 @@ const GROUP_ORDER: VesselGroup[] = ['anterior', 'willis', 'posterior', 'extracra
 function VesselsTab({ sim }: { sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
+  const variants = useApp((s) => s.variants);
+  // vessels this anatomy does not have are not listed
+  const absent = useMemo(() => absentVessels(variants), [variants]);
   const selected = useApp((s) => s.selected);
   const select = useApp((s) => s.select);
   const hover = useApp((s) => s.hover);
@@ -102,9 +106,12 @@ function VesselsTab({ sim }: { sim: SimResult }) {
     [query],
   );
   const anyVesselHit = useMemo(
-    () => VESSELS.some((v) => !v.visualOnly && (match(vesselName(v, 'zh-TW')) || match(vesselName(v, 'en')) || match(v.abbr ?? '') || match(v.id))),
+    () =>
+      VESSELS.some(
+        (v) => !v.visualOnly && !absent.has(v.id) && (match(vesselName(v, 'zh-TW')) || match(vesselName(v, 'en')) || match(v.abbr ?? '') || match(v.id)),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query],
+    [query, absent],
   );
   const noMatches = query !== '' && regionHits.length === 0 && !anyVesselHit;
   return (
@@ -151,7 +158,11 @@ function VesselsTab({ sim }: { sim: SimResult }) {
       )}
       {GROUP_ORDER.map((g) => {
         const vs = VESSELS.filter(
-          (v) => v.group === g && !v.visualOnly && (match(vesselName(v, 'zh-TW')) || match(vesselName(v, 'en')) || match(v.abbr ?? '') || match(v.id)),
+          (v) =>
+            v.group === g &&
+            !v.visualOnly &&
+            !absent.has(v.id) &&
+            (match(vesselName(v, 'zh-TW')) || match(vesselName(v, 'en')) || match(v.abbr ?? '') || match(v.id)),
         );
         if (!vs.length) return null;
         return (

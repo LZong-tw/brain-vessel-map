@@ -31,10 +31,13 @@
  *
  * Bottleneck: in the ventral pons (and the cerebral peduncles) both corticospinal tracts, both
  * corticobulbar tracts and many cortico-reticular fibres run together, so a lesion of both sides
- * there removes the main pathway and its backup at once — why locked-in syndrome of vascular
- * origin recovers far less than a hemispheric stroke with a similar deficit (review of 139 cases:
- * Patterson & Grabois, Stroke 1986; 17:758–64; some functional gains with early intensive
- * rehabilitation: Casanova et al., Arch Phys Med Rehabil 2003; 84:862–7).
+ * there removes the main pathway and its backup at once. BOTTLENECK_FACTOR is a model assumption
+ * built on that anatomy, not a measured figure. The review of 139 locked-in cases compared
+ * vascular with non-vascular causes, not with hemispheric strokes: vascular cases recovered later
+ * and less completely, and survivors beyond 4 months generally recovered well (Patterson &
+ * Grabois, Stroke 1986; 17:758–64). In a selected series of 14 patients after early intensive
+ * rehabilitation a minority regained swallowing (42 %) or speech (28 %) (Casanova et al., Arch
+ * Phys Med Rehabil 2003; 84:862–7).
  *
  * `uni` / `bi` are the share of the deficit caused by dead tissue that is typically taken over
  * at the plateau (months) after a one-sided / two-sided lesion. They describe an average group
@@ -62,6 +65,12 @@ export interface Redundancy {
    * final common pathway: no compensation from those sources
    */
   fcpSources?: string[];
+  /**
+   * a different redundancy when the symptom comes from this source region (base id), for a
+   * lesion on one side ('r' / 'l') or on either ('any'); e.g. the cognitive deficits of a
+   * right-sided paramedian thalamic stroke recover much better than those of a left-sided one
+   */
+  bySource?: Record<string, Partial<Record<'r' | 'l' | 'any', Redundancy>>>;
 }
 
 /** functions that cannot be taken over by other pathways once their tissue is dead */
@@ -81,13 +90,33 @@ const partial = (uni: number, bi: number, extra: Partial<Redundancy> = {}): Redu
 const FCP: Redundancy = { kind: 'fcp', uni: 0, bi: 0 };
 const NONE: Redundancy = { kind: 'none', uni: 0, bi: 0 };
 const EXEMPT: Redundancy = { kind: 'exempt', uni: 0, bi: 0 };
+/** the same kind of deficit, but one that passes within days to weeks */
+const transient = (r: Redundancy): Redundancy => ({ ...r, uni: 0.95, bi: 0.6, fast: true });
+/**
+ * Paramedian thalamic stroke: outcome excellent after right-sided infarcts; persistent frontal
+ * and cognitive deficits in 100% of bilateral, 90% of left-sided and 33% of right-sided strokes
+ * (46 patients, Hermann DM et al. Stroke 2008;39:62–68). A right-sided lesion compensates almost
+ * fully; a bilateral one keeps the symptom's own `bi`. TODO(medical-review): 0.9
+ */
+const RIGHT_PARAMEDIAN = (bi: number) => ({ r: partial(0.9, bi) });
+/**
+ * Anterior thalamic infarcts: "spectacular improvement within a few months, with the only
+ * significant persisting abnormalities being memory dysfunction and apathy" (12 patients,
+ * Ghika-Schmid F, Bogousslavsky J. Ann Neurol 2000;48:220–227). TODO(medical-review): 0.9
+ */
+const ANTERIOR_THALAMUS = (bi: number) => ({ any: partial(0.9, bi) });
 
 // TODO(medical-review): all `uni` / `bi` values below
 export const REDUNDANCY: Record<string, Redundancy> = {
   // ── consciousness: the arousal system is a bilateral network; arousal often returns over
-  //    days–weeks, attention and drive less completely ──
+  //    days–weeks, attention and drive less completely. Coma and drowsiness are acute states:
+  //    from two weeks on clinical.ts lists what follows them instead (hypersomnia, or a disorder
+  //    of consciousness after extensive bilateral tegmental damage) ──
   coma: partial(0.5, 0.3),
   somnolence: partial(0.7, 0.4),
+  // awareness after coma: recovery is unpredictable (O'Donnell et al., Neurosci Biobehav Rev 2019).
+  // TODO(medical-review): uni / bi
+  disorder_of_consciousness: partial(0.5, 0.3),
 
   // ── sleep ── TODO(medical-review): uni / bi
   // persistent hypersomnia after paramedian thalamic stroke: sleep needs almost normal by a year
@@ -106,11 +135,12 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // ── motor ──
   // corticobulbar: the upper face is bilaterally innervated and central facial weakness
   // usually improves a lot
-  face_weak: bilateral(0.75, 0.2),
+  face_weak: bilateral(0.75, 0.2, { bySource: { thalamus_ventrolateral: { any: transient(bilateral(0.75, 0.2)) } } }),
   // facial nucleus / fascicle
   face_weak_peripheral: FCP,
-  // corticospinal loss: reticulospinal takeover of gross and proximal movement
-  arm_weak: parallel(0.5, 0.12),
+  // corticospinal loss: reticulospinal takeover of gross and proximal movement; the mild weakness
+  // of an inferolateral thalamic infarct (from the neighbouring capsule) passes within weeks
+  arm_weak: { ...parallel(0.5, 0.12), bySource: { thalamus_ventrolateral: { any: transient(parallel(0.5, 0.12)) } } },
   arm_weak_proximal: parallel(0.65, 0.2),
   // proximal and axial control, walking: typically better than the arm
   leg_weak: parallel(0.65, 0.15),
@@ -119,6 +149,10 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // articulation is partly bilaterally controlled
   dysarthria: bilateral(0.7, 0.15),
   alien_hand: partial(0.5, 0.2),
+  // usually regresses (Ghika-Schmid et al., J Neurol Sci 1997). TODO(medical-review): uni / bi
+  jerky_dystonic_hand: partial(0.6, 0.3),
+  // TODO(medical-review): uni / bi; no data on its course
+  emotional_facial_paresis: partial(0.6, 0.3),
   // a result of the lesion and of the recovery process itself
   spasticity: EXEMPT,
 
@@ -148,7 +182,7 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   callosal_apraxia: partial(0.5, 0.2),
   // TODO(medical-review): no data on its course after stroke
   motor_impersistence: partial(0.5, 0.2),
-  abulia: partial(0.5, 0.3),
+  abulia: partial(0.5, 0.3, { bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.3) } }),
   akinetic_mutism: partial(0.5, 0.3),
   // bladder control is represented on both sides
   incontinence: bilateral(0.7, 0.2),
@@ -160,20 +194,29 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   optic_ataxia: partial(0.4, 0.15),
   acalculia: partial(0.5, 0.2),
   finger_agnosia: partial(0.5, 0.2),
-  neglect: partial(0.6, 0.2),
+  neglect: partial(0.6, 0.2, { bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.2) } }),
   anosognosia: partial(0.6, 0.3),
   visuospatial: partial(0.45, 0.15),
   // one hippocampus / thalamus: partly; both: dense amnesia persists
-  amnesia: partial(0.5, 0.1),
-  executive: partial(0.45, 0.2),
-  disinhibition: partial(0.4, 0.15),
+  amnesia: partial(0.5, 0.1, { bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.1) } }),
+  executive: partial(0.45, 0.2, {
+    bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.2), thalamus_anterior: ANTERIOR_THALAMUS(0.2) },
+  }),
+  disinhibition: partial(0.4, 0.15, { bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.15) } }),
   emotional: partial(0.5, 0.3),
   topographic: partial(0.5, 0.2),
+  // recurring over months (Benke, J Neurol 2006). TODO(medical-review): uni / bi
+  peduncular_hallucinosis: partial(0.5, 0.3),
 
   // ── balance & coordination: cerebellar and vestibular compensation ──
   ataxia_limb: partial(0.6, 0.3),
-  ataxia_gait: partial(0.55, 0.3),
+  // the mild gait ataxia of paramedian thalamic strokes (67% acutely) is among the neurological
+  // deficits that recover to a large extent (Hermann et al., Stroke 2008)
+  ataxia_gait: partial(0.55, 0.3, { bySource: { thalamus_paramedian: { any: partial(0.9, 0.8) } } }),
   tremor: partial(0.3, 0.1),
+  // Holmes tremor once it has appeared: little spontaneous settling is an assumption (levodopa
+  // helped 13 of 24 treated: Raina et al., Neurology 2016). TODO(medical-review): uni / bi
+  holmes_tremor: partial(0.2, 0.1),
   // central vestibular compensation recalibrates a one-sided imbalance
   vertigo: bilateral(0.85, 0.3, { fast: true }),
   nystagmus: bilateral(0.8, 0.3),
@@ -219,9 +262,16 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   cn6_palsy: FCP,
   vertical_gaze_palsy: partial(0.4, 0.25),
   upgaze_palsy: partial(0.4, 0.25),
+  // a vestibular tone imbalance in the roll plane, recalibrated like the other vestibular signs
+  // (Brandt & Dieterich, Ann Neurol 1993). TODO(medical-review): uni / bi
+  skew_deviation: bilateral(0.8, 0.3),
   // follows the eye-movement deficit that causes it
   diplopia: EXEMPT,
   horner: NONE,
+  // signs of brainstem compression by a swollen cerebellum: they last as long as the compression
+  // (the cascade event), so nothing compensates them (C4-F3)
+  miosis: EXEMPT,
+  corneal_reflex_loss: EXEMPT,
 
   // ── temperature regulation & sweating ── TODO(medical-review): uni / bi
   // the descending sympathetic pathway, as for Horner: hypohidrosis still in 76 % at 6 months
@@ -244,6 +294,8 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   aphasia_tc_motor: partial(0.6, 0.2),
   aphasia_tc_sensory: partial(0.6, 0.2),
   aphasia_mixed_tc: partial(0.6, 0.2),
+  // left anterior thalamus: improves markedly within months (Ghika-Schmid & Bogousslavsky 2000)
+  aphasia_thalamic: partial(0.6, 0.2, { bySource: { thalamus_anterior: ANTERIOR_THALAMUS(0.2) } }),
   apraxia_of_speech: partial(0.45, 0.15),
   aprosodia: partial(0.45, 0.15),
   alexia: partial(0.4, 0.15),
@@ -259,11 +311,13 @@ export const REDUNDANCY: Record<string, Redundancy> = {
 
 /**
  * Redundancy of `symptomId` when it is caused by a lesion of `sourceBase` (a region base id,
- * e.g. 'pons_rostral_lateral'). A nucleus / fascicle source turns it into the final common
- * pathway.
+ * e.g. 'pons_rostral_lateral') on `sourceSide`. A nucleus / fascicle source turns it into the final
+ * common pathway; some sources have a redundancy of their own (`bySource`).
  */
-export function redundancyFor(symptomId: string, sourceBase?: string): Redundancy {
+export function redundancyFor(symptomId: string, sourceBase?: string, sourceSide?: 'r' | 'l' | 'm'): Redundancy {
   const r = REDUNDANCY[symptomId] ?? DEFAULT_REDUNDANCY;
   if (sourceBase && r.fcpSources?.includes(sourceBase)) return FCP;
-  return r;
+  const by = sourceBase ? r.bySource?.[sourceBase] : undefined;
+  const special = by && ((sourceSide === 'r' || sourceSide === 'l' ? by[sourceSide] : undefined) ?? by.any);
+  return special ?? r;
 }

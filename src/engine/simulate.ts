@@ -50,7 +50,16 @@
 
 import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import type { DeficitRef, Side } from '../anatomy';
-import { computeCascade, type BedEffectKind, type CascadeOutput, type CascadeTreatment } from './cascade';
+import {
+  computeCascade,
+  consciousnessFromShift,
+  eventAddsSymptoms,
+  noInfarctEvents,
+  type BedEffectKind,
+  type CascadeEvent,
+  type CascadeOutput,
+  type CascadeTreatment,
+} from './cascade';
 import {
   aggregateSymptoms,
   detectSyndromes,
@@ -85,6 +94,7 @@ import {
   DEFAULT_TREATMENT,
   GRADE_REPERFUSED,
   REPERFUSION_GRADES,
+  downstreamBranches,
   isDefaultTreatment,
   reperfusedFraction,
   type TreatmentOptions,
@@ -405,6 +415,25 @@ function addLacunes(bedInfarct: Record<string, number>, course: Course, tH: numb
 function indexOnset(input: SimInput, course: Course, finalH: number, other: Course | null = null, x = 1): number {
   const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
   if (starts.length <= 1) return starts[0] ?? 0;
+  const credit = startCredits(input, course, finalH, other, x);
+  let best = starts[0];
+  for (const s of starts) if (credit.get(s)! > credit.get(best)! + 1e-9) best = s;
+  if (credit.get(best)! >= ONSET_MIN_ML) return best;
+  for (const s of starts) if (ischaemicAt(course, s)) return s;
+  return starts[0];
+}
+
+/** some brain tissue is ischaemic (below the penumbra threshold) in the piece that starts at `h` */
+function ischaemicAt(course: Course, h: number): boolean {
+  const hemo = course.pieces[pieceIndex(course.pieces, h)].hemo;
+  return course.units.some(
+    (u) => BRAIN.has(REGION_BY_ID[BED_BY_ID[u.bed].region].category) && (hemo.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel,
+  );
+}
+
+/** brain tissue lost (mL) by `finalH`, credited to the occlusion start that caused it (see indexOnset) */
+function startCredits(input: SimInput, course: Course, finalH: number, other: Course | null = null, x = 1): Map<number, number> {
+  const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
   const credit = new Map<number, number>(starts.map((s) => [s, 0]));
   const add = (h: number, ml: number) => {
     let s = starts[0];
@@ -426,17 +455,28 @@ function indexOnset(input: SimInput, course: Course, finalH: number, other: Cour
   }
   for (const [rid, list] of course.lacunes)
     for (const o of list) add(startOf(o), lacuneFraction(rid) * REGION_BY_ID[rid].volume * infarctFractionOf(branchHistory(o), finalH));
-  let best = starts[0];
-  for (const s of starts) if (credit.get(s)! > credit.get(best)! + 1e-9) best = s;
-  if (credit.get(best)! >= ONSET_MIN_ML) return best;
-  for (const s of starts) {
-    const hemo = course.pieces[pieceIndex(course.pieces, s)].hemo;
-    const ischaemic = course.units.some(
-      (u) => BRAIN.has(REGION_BY_ID[BED_BY_ID[u.bed].region].category) && (hemo.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel,
-    );
-    if (ischaemic) return s;
+  return credit;
+}
+
+/**
+ * The TIA story for each complete occlusion that began before the index onset, reopened by
+ * itself and left no infarct while it made brain tissue ischaemic (such as the prodromal attack of
+ * a progressive basilar thrombosis: Ferbert A et al. Stroke 1990;21:1135–1142; von Campe G et al.
+ * J Neurol Neurosurg Psychiatry 2003;74:1621–1626). Each story is cut off where the next complete
+ * occlusion begins. Simulation clock (C3-F8).
+ */
+function prodromalEvents(input: SimInput, course: Course, finalH: number, onsetH: number, other: Course | null, x: number): CascadeEvent[] {
+  const credit = startCredits(input, course, finalH, other, x);
+  const completeStarts = [...new Set(input.occlusions.filter(isTreatable).map(startOf))].sort((a, b) => a - b);
+  const out: CascadeEvent[] = [];
+  for (const s of completeStarts) {
+    if (s >= onsetH) break;
+    const reopens = input.occlusions.some((o) => isTreatable(o) && startOf(o) === s && endOf(o) !== null);
+    if (!reopens || (credit.get(s) ?? 0) >= ONSET_MIN_ML || !ischaemicAt(course, s)) continue;
+    const next = completeStarts.find((h) => h > s) ?? onsetH;
+    out.push(...noInfarctEvents(s, next));
   }
-  return starts[0];
+  return out;
 }
 
 /**
@@ -666,8 +706,11 @@ function modelFor(input: SimInput): Model {
           reocclusionH: plan.reocclusionH === null ? null : plan.reocclusionH - onsetH,
           distalEmbolus: plan.distalEmbolus,
           embolusRegions: plan.distalEmbolus === null ? [] : territoryRegions(plan.distalEmbolus, units),
+          embolusNewTerritory: plan.distalEmbolus !== null && !plan.reopened.some((o) => downstreamBranches(o.vessel).includes(plan.distalEmbolus!)),
         }
       : undefined;
+  // the core when treatment is decided: at the treatment, or 6 h after onset without one (text only)
+  const decisionH = onsetH + (reperf !== null && reperf >= onsetH ? reperf - onsetH : 6);
   const cascade = computeCascade({
     reperfusionH: reperf !== null && reperf >= onsetH ? reperf - onsetH : null,
     decompression: input.decompression,
@@ -687,6 +730,8 @@ function modelFor(input: SimInput): Model {
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
+    bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
+    map: input.map,
   });
   const model: Model = {
     course,
@@ -701,13 +746,20 @@ function modelFor(input: SimInput): Model {
     edemaReperfusionH: episodeEndH === null ? null : episodeEndH - onsetH,
     cascade,
     unitSaved,
-    shownCascade: onsetH === 0 ? cascade : shiftTimes(cascade, onsetH),
+    shownCascade: shownCascadeOf(cascade, onsetH, onsetH > 0 ? prodromalEvents(input, course, finalH, onsetH, untreated, x) : []),
     hemoAt: hemoAtT,
     regionAcute: acuteDys,
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
   return model;
+}
+
+/** the cascade on the simulation clock, with the TIA stories of earlier, reopened attacks */
+function shownCascadeOf(cascade: CascadeOutput, onsetH: number, earlier: CascadeEvent[]): CascadeOutput {
+  const shown = onsetH === 0 ? cascade : shiftTimes(cascade, onsetH);
+  if (!earlier.length) return shown;
+  return { ...shown, events: [...earlier, ...shown.events].sort((a, b) => a.onsetH - b.onsetH) };
 }
 
 /** piece in which the latest occlusion start at or before t began (the episode in progress) */
@@ -907,16 +959,23 @@ export function simulate(input: SimInput): SimResult {
 
   // ── symptoms, NIHSS, syndromes ──
   const extra: SymptomItem[] = [];
-  if (cascade.events.some((e) => e.id.startsWith('hod_')) && t >= 2160) {
+  // only after a clear trigger, and only as possible (C3-F11)
+  if (cascade.palatalTremorFromH !== null && t >= cascade.palatalTremorFromH) {
     extra.push({ id: 'palatal_tremor', side: null, sev: 1, sources: [], delayed: true });
   }
   for (const e of cascade.events) {
-    if (!e.symptoms || e.onsetH > t || t >= (e.endH ?? Infinity)) continue;
-    for (const sy of e.symptoms) {
+    // a herniation coma lasts, after the oedema peak, only while the midline is still shifted
+    // into the coma range: a survivor wakes as the swelling subsides (C4-F1)
+    if (!eventAddsSymptoms(e, t, edema.midlineShiftMm)) continue;
+    for (const sy of e.symptoms!) {
       const sides: (Side | null)[] = sy.side === 'both' ? ['r', 'l'] : [sy.side];
       for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
     }
   }
+  // the level of consciousness follows the horizontal midline shift of a swollen hemisphere
+  // (Ropper 1986; cascade.consciousnessFromShift), whatever event caused the swelling (C4-F2)
+  const byShift = consciousnessFromShift(edema.midlineShiftMm);
+  if (byShift) extra.push({ id: byShift.id, side: null, sev: byShift.sev, sources: [], delayed: false });
   // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern)
   const borderOf = (side: Side) => {
     let border = 0;
@@ -985,6 +1044,10 @@ export function simulate(input: SimInput): SimResult {
         .map((o) => ({ fromH: startOf(o), toH: endOf(o) }))
         .sort((a, b) => a.fromH - b.fromH),
     tH: tAbs,
+    sym: (id, side) =>
+      symptoms
+        .filter((x) => x.id === id && !x.delayed && (side === undefined || x.side === side || x.side === 'both'))
+        .reduce((m, x) => Math.max(m, x.sev), 0),
   }, symptoms);
 
   // ── volumes ──

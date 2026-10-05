@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BEDS, BED_BY_ID, REGION_BY_ID } from '../anatomy';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { midlineShiftAt } from './cascade';
+import { consciousnessFromShift } from './cascade';
 import { NO_EDEMA } from './edemaTypes';
 import type { Occlusion } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
@@ -26,7 +26,8 @@ const max = (xs: number[]) => xs.reduce((a, x) => Math.max(a, x), 0);
 
 const L_M1 = { occlusions: occl('mca_m1_l'), collateral: 'good' as const };
 const R_M1_POOR = { occlusions: occl('mca_m1_r'), collateral: 'poor' as const };
-const PICA_POOR = { occlusions: occl('pica_r'), collateral: 'poor' as const };
+// a cerebellar infarct large enough (≥ 38 mL) to swell malignantly (C4-F3)
+const PICA_POOR = { occlusions: occl('pica_r', 'sca_r'), collateral: 'poor' as const };
 
 describe('oedema model — basics', () => {
   it('no occlusion → no oedema', () => {
@@ -163,16 +164,12 @@ describe('oedema model — malignant MCA infarction (right M1, poor collaterals)
     expect(shift(720)).toBe(0);
   });
 
-  it('stays consistent with the cascade estimate of midline shift', () => {
-    for (const [over, tH] of [
-      [R_M1_POOR, 72],
-      [{ occlusions: occl('mca_m1_l'), collateral: 'moderate' as const }, 72],
-      [R_M1_POOR, 168],
-    ] as const) {
-      const s = sim({ ...over, tH });
-      const ref = midlineShiftAt(s.cascade.midlineShift, tH, false);
-      expect(s.edema.midlineShiftMm).toBeGreaterThan(ref * 0.75);
-      expect(s.edema.midlineShiftMm).toBeLessThan(ref * 1.35);
+  it('sets the level of consciousness through its midline shift (C4-F2)', () => {
+    for (const tH of [24, 36, 48, 72, 168, 335, 400]) {
+      const s = sim({ ...R_M1_POOR, tH });
+      const want = consciousnessFromShift(s.edema.midlineShiftMm);
+      const got = s.symptoms.filter((x) => x.id === 'coma' || x.id === 'somnolence');
+      if (want) expect(got.some((x) => x.id === want.id && x.sev >= want.sev), `${tH} h`).toBe(true);
     }
   });
 
@@ -206,8 +203,9 @@ describe('oedema model — treatment and other territories', () => {
   });
 
   it('cerebellar infarct swells in the posterior fossa and causes hydrocephalus', () => {
-    const before = sim({ ...PICA_POOR, tH: 24 });
-    const s = sim({ ...PICA_POOR, tH: 48 });
+    // the swelling turns malignant on day 3 (from 48 h, C4-F3); the ventricles take ~12 h to balloon
+    const before = sim({ ...PICA_POOR, tH: 36 });
+    const s = sim({ ...PICA_POOR, tH: 60 });
     const e = s.edema;
     expect(e.extraVolume.infra).toBeGreaterThan(2);
     expect(Math.abs(e.extraVolume.supra.r) + Math.abs(e.extraVolume.supra.l)).toBeLessThan(0.5);
@@ -217,6 +215,6 @@ describe('oedema model — treatment and other territories', () => {
     expect(before.hydrocephalus).toBe(false);
     expect(before.edema.ventricleChange).toBeLessThanOrEqual(0);
     // suboccipital decompression: no obstructive hydrocephalus
-    expect(edemaAt({ ...PICA_POOR, tH: 48, decompression: true }).ventricleChange).toBeCloseTo(0, 6);
+    expect(edemaAt({ ...PICA_POOR, tH: 60, decompression: true }).ventricleChange).toBeCloseTo(0, 6);
   });
 });

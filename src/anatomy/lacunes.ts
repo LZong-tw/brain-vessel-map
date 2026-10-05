@@ -207,7 +207,7 @@ export const LACUNE_SITES: Record<string, LacuneSite[]> = {
     site('ataxic', 'pons_rostral_basis', { zh: '橋腦基底部：運動失調性偏癱', en: 'Basis pontis: ataxic hemiparesis' }, PONTINE_ATAXIC_HEMIPARESIS),
     site('dch', 'pons_rostral_basis', { zh: '橋腦基底部：構音障礙—笨拙手', en: 'Basis pontis: dysarthria–clumsy hand' }, PONTINE_DYSARTHRIA_CLUMSY_HAND),
   ],
-  // + CN VI fascicle: Millard–Gubler / Raymond
+  // + CN VI fascicle: Raymond (Millard–Gubler only with the facial fascicle)
   pontine_paramedian_caudal: [site('basis', 'pons_caudal_basis', { zh: '橋腦下部基底部', en: 'Lower basis pontis' })],
   pontine_paramedian_inferior: [site('basis', 'pons_caudal_basis', { zh: '橋腦下部基底部', en: 'Lower basis pontis' })],
   pontine_circumferential: [site('tegmentum', 'pons_caudal_tegmentum', { zh: '橋腦下部被蓋', en: 'Lower pontine tegmentum' })],

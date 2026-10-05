@@ -8,13 +8,23 @@
  *   • cytotoxic oedema — failing ion pumps move water from the extracellular space INTO cells
  *     within minutes where flow is below the core threshold (less so in the penumbra). Diffusion
  *     is restricted (DWI-bright) but net tissue volume hardly changes. ADC falls further over the
- *     first days, then pseudonormalises at ~1–2 weeks (Schlaug et al., Neurology 1997; Lansberg
- *     et al., AJNR 2001).
+ *     first days, then pseudonormalises at ~1–2 weeks and is raised afterwards (Schlaug G et al.
+ *     Neurology 1997;49:113–119; Lansberg MG et al. AJNR Am J Neuroradiol 2001;22:637–644).
+ *   • what MRI shows is not the same as the oedema (C4-F5): the DWI image stays bright after the
+ *     ADC has pseudonormalised (T2 shine-through) and fades only over weeks, and T2/FLAIR stays
+ *     bright for good once the oedema gives way to gliosis — in Lansberg's series all signal
+ *     intensities remained high throughout follow-up, SI(DWI) falling after week 1, SI(T2) dipping
+ *     slightly in week 2 and rising again after day 14, SI(FLAIR) stable. The `dwi` and `flair`
+ *     maps carry the image; `cytotoxic` and `vasogenic` stay the oedema itself (recovery.ts reads
+ *     the vasogenic oedema for perilesional dysfunction).
  *   • ionic oedema — while some blood still reaches the ischaemic tissue, sodium and water are
- *     drawn in FROM THE BLOOD across an intact barrier: a net gain of a few per cent over the
- *     first hours (CT hypodensity, sulcal effacement; Simard et al., Lancet Neurol 2007; CT net
- *     water uptake: Minnerup et al., Ann Neurol 2016). Restoring flow to already-dead tissue
- *     supplies more water and can transiently worsen oedema.
+ *     drawn in FROM THE BLOOD across an intact barrier over the first hours (CT hypodensity,
+ *     sulcal effacement; Simard et al., Lancet Neurol 2007). On CT the lesion's net water uptake
+ *     rises with time: 11.5 % separated scans within 4.5 h of onset from later ones (Minnerup et
+ *     al., Ann Neurol 2016). The model's ionic term (ION_MAX, at most 4 % of the infarct's volume)
+ *     is deliberately smaller than that density-based measure, because here it only adds volume
+ *     and so drives mass effect; raising it would break the midline-shift calibration below.
+ *     Restoring flow to already-dead tissue supplies more water and can transiently worsen oedema.
  *   • vasogenic oedema — the blood–brain barrier breaks down from ~6–12 h and plasma leaks into
  *     the infarct; mass effect peaks around days 2–5 and resorbs over ~2–3 weeks (cytotoxic vs
  *     vasogenic: Klatzo, J Neuropathol Exp Neurol 1967; review: Ayata & Ropper, J Clin Neurosci
@@ -29,9 +39,9 @@
  *     4th ventricle → obstructive hydrocephalus (Wijdicks et al., Stroke 2014).
  *
  * Calibration: a malignant right M1 infarct with poor collaterals (~300 mL) swells by ~30 %
- * (~90 mL, ~15 % of the hemisphere) and shifts the midline ~12–13 mm around day 3, in line with
- * cascade.midlineShift / midlineShiftAt; an untreated left M1 with good collaterals (~150 mL)
- * only a few mm.
+ * (~90 mL, ~15 % of the hemisphere) and shifts the midline ~12–13 mm around day 3; an untreated
+ * left M1 with good collaterals (~150 mL) only a few mm. This is the model's only midline shift:
+ * simulate() reads the level of consciousness from it (cascade.consciousnessFromShift, C4-F2).
  * TODO(medical-review): all magnitudes and time constants are educational approximations.
  */
 
@@ -75,6 +85,14 @@ const DWI_DEEPEN_H = 12;
 /** ADC pseudonormalisation: midpoint and width (h) */
 const DWI_PSEUDONORMAL_H = 240;
 const DWI_PSEUDONORMAL_W = 30;
+/** T2 shine-through on the DWI image once the ADC has pseudonormalised (share of full brightness) … */
+const DWI_SHINE = 0.5;
+/** … fading with this time constant (h) after the pseudonormalisation midpoint */
+const DWI_SHINE_TAU_H = 720;
+/** T2/FLAIR brightness of the gliotic scar of infarcted tissue, and when it builds up (h) */
+const GLIOSIS_FLAIR = 0.6;
+const GLIOSIS_FROM_H = 120;
+const GLIOSIS_FULL_H = 400;
 /** relative DWI restriction of penumbra / salvaged tissue */
 const PENUMBRA_DWI = 0.3;
 /** DWI of rescued tissue reverses after reperfusion (time constant, h) */
@@ -113,7 +131,7 @@ const ATROPHY_TAU_H = 700;
 const SHIFT_MM_PER_ML = 0.15;
 const SHIFT_RESERVE_ML = 5;
 const SHIFT_MAX_MM = 20;
-/** decompressive craniectomy (as in cascade.midlineShiftAt) */
+/** decompressive craniectomy */
 const DECOMPRESSION_H = 36;
 const DECOMPRESSION_SHIFT = 0.3;
 const DECOMPRESSION_VENTRICLE = 0.4;
@@ -147,6 +165,21 @@ export function dwiCurve(a: number): number {
   const appear = 1 - Math.exp(-a / DWI_APPEAR_H);
   const deepen = 0.65 + 0.35 * (1 - Math.exp(-a / DWI_DEEPEN_H));
   return appear * deepen * (1 - logistic(a, DWI_PSEUDONORMAL_H, DWI_PSEUDONORMAL_W));
+}
+
+/**
+ * Brightness (0–1) of the DWI image of tissue infarcted `a` hours ago: the restriction, then T2
+ * shine-through that takes over as the ADC pseudonormalises and fades over weeks (C4-F5).
+ */
+export function dwiTraceCurve(a: number): number {
+  if (a <= 0) return 0;
+  const shine = DWI_SHINE * logistic(a, DWI_PSEUDONORMAL_H, DWI_PSEUDONORMAL_W) * Math.exp(-Math.max(0, a - DWI_PSEUDONORMAL_H) / DWI_SHINE_TAU_H);
+  return Math.min(1, dwiCurve(a) + shine);
+}
+
+/** T2/FLAIR brightness (0–1) of the gliotic scar of tissue infarcted `a` hours ago (C4-F5) */
+export function gliosisCurve(a: number): number {
+  return GLIOSIS_FLAIR * smoothstep(GLIOSIS_FROM_H, GLIOSIS_FULL_H, a);
 }
 
 const VASO_0 = logistic(0, VASO_MID_H, VASO_W_H);
@@ -219,6 +252,10 @@ export function computeEdema(input: EdemaInput): EdemaState {
   const swelling: Record<string, number> = {};
   const cytotoxic: Record<string, number> = {};
   const vasogenic: Record<string, number> = {};
+  const dwiImg: Record<string, number> = {};
+  const flairImg: Record<string, number> = {};
+  const dwiTrace = dwiTraceCurve(t);
+  const gliosis = gliosisCurve(t);
   const extra: Record<Compartment, number> = { r: 0, l: 0, infra: 0 };
   let cytoMl = 0;
   let ionMl = 0;
@@ -246,6 +283,9 @@ export function computeEdema(input: EdemaInput): EdemaState {
     let sw = inf * (ion + vaso - atrophy);
     let cy = inf * dwi;
     let vg = inf * (rise * resolve + REPERF_FLAIR * pulse);
+    // the image: DWI with its T2 shine-through, T2/FLAIR with the scar (C4-F5)
+    let dImg = inf * dwiTrace;
+    let fImg = inf * Math.max(rise * resolve + REPERF_FLAIR * pulse, gliosis);
     let ionV = inf * ion;
     let vasoV = inf * vaso;
     let atroV = inf * atrophy;
@@ -261,6 +301,8 @@ export function computeEdema(input: EdemaInput): EdemaState {
       sw += rest * (ion2 + vaso2 - atro2);
       cy += rest * dwiCurve(a);
       vg += rest * SECONDARY_VASO * vasoRise(a) * r2;
+      dImg += rest * dwiTraceCurve(a);
+      fImg += rest * Math.max(SECONDARY_VASO * vasoRise(a) * r2, gliosisCurve(a));
       ionV += rest * ion2;
       vasoV += rest * vaso2;
       atroV += rest * atro2;
@@ -271,28 +313,35 @@ export function computeEdema(input: EdemaInput): EdemaState {
       sw += penIon;
       ionV += penIon;
       cy += pen * PENUMBRA_DWI * appear;
+      dImg += pen * PENUMBRA_DWI * appear;
       const salv = clamp(st.salvaged, 0, 1);
       if (salv > 0 && recanalized) {
         const ionAtReopen = 1 - Math.exp(-(d0 * (tr as number)) / ION_TAU_H);
         const back = salv * PENUMBRA_ION * ION_MAX * ionAtReopen * Math.exp(-since / SALVAGED_ION_DECAY_H);
         sw += back;
         ionV += back;
-        cy += salv * PENUMBRA_DWI * (1 - Math.exp(-(tr as number) / DWI_APPEAR_H)) * Math.exp(-since / SALVAGED_DWI_DECAY_H);
+        const back2 = salv * PENUMBRA_DWI * (1 - Math.exp(-(tr as number) / DWI_APPEAR_H)) * Math.exp(-since / SALVAGED_DWI_DECAY_H);
+        cy += back2;
+        dImg += back2;
       }
     }
 
     cy = clamp(cy, 0, 1);
     vg = clamp(vg, 0, 1);
+    dImg = clamp(dImg, 0, 1);
+    fImg = clamp(fImg, 0, 1);
     const v = b.volume;
     extra[comp] += sw * v;
     cytoMl += cy * v;
     ionMl += ionV * v;
     vasoMl += vasoV * v;
     atrophyMl += atroV * v;
-    if (Math.abs(sw) > NEGLIGIBLE || cy > NEGLIGIBLE || vg > NEGLIGIBLE) {
+    if (Math.abs(sw) > NEGLIGIBLE || cy > NEGLIGIBLE || vg > NEGLIGIBLE || dImg > NEGLIGIBLE || fImg > NEGLIGIBLE) {
       swelling[b.id] = sw;
       cytotoxic[b.id] = cy;
       vasogenic[b.id] = vg;
+      dwiImg[b.id] = dImg;
+      flairImg[b.id] = fImg;
     }
   }
 
@@ -336,6 +385,8 @@ export function computeEdema(input: EdemaInput): EdemaState {
     swelling,
     cytotoxic,
     vasogenic,
+    dwi: dwiImg,
+    flair: flairImg,
     extraVolume: { supra: { r: extra.r, l: extra.l }, infra: extra.infra },
     midlineShiftMm,
     shiftFrom,

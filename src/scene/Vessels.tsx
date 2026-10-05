@@ -3,6 +3,7 @@ import { Html } from '@react-three/drei';
 import { TubeGeometry, type CatmullRomCurve3, type Plane, type Vector3 } from 'three';
 import { VESSELS, tr, vesselName } from '../anatomy';
 import type { Vessel } from '../anatomy';
+import { absentVessels } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { VESSEL_COLORS } from '../ui/colors';
@@ -54,13 +55,17 @@ export function Vessels({ sim, clipPlanes }: { sim: SimResult; clipPlanes: Plane
   const lang = useApp((s) => s.lang);
   const hover = useApp((s) => s.hover);
   const select = useApp((s) => s.select);
+  const variants = useApp((s) => s.variants);
   const built = useMemo(allBuilt, []);
+  // vessels this anatomy does not have (an absent AComm, a persistent trigeminal artery that was not chosen)
+  const absent = useMemo(() => absentVessels(variants), [variants]);
 
   if (!layers.vessels) return null;
   return (
     <group>
       {built.map((b) => {
         const { v } = b;
+        if (absent.has(v.id)) return null;
         const vis = vesselVisual(v.id, sim);
         if (v.group === 'extracranial' && !layers.neck) return null;
         if (v.kind === 'collateral' && !layers.collaterals && vis.state !== 'collateral_active') return null;

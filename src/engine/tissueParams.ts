@@ -11,7 +11,7 @@ import type { Bed } from '../anatomy';
 export interface TissueParams {
   /** relative flow below which tissue is ischaemic core */
   coreRel: number;
-  /** relative flow below which tissue is penumbra (electrically silent, at risk) */
+  /** relative flow below which tissue is penumbra (functionally impaired, at risk; a model calibration) */
   penumbraRel: number;
   /** relative flow below which tissue is oligaemic (functioning, not at risk) */
   oligemiaRel: number;
@@ -91,6 +91,28 @@ const BASILAR_BRAINSTEM_TISSUE: TissueParams = {
   penumbraSurvivalMax: 0.4,
 };
 
+/**
+ * Inner retina (central retinal artery, a branch of the ophthalmic artery).
+ *
+ * TODO(medical-review): how long the inner retina survives a complete central retinal artery
+ * occlusion is uncertain. In old, atherosclerotic, hypertensive rhesus monkeys 97 min of clamping
+ * left practically no detectable damage and about 240 min massive irreversible damage (Hayreh SS
+ * et al. Central retinal artery occlusion. Retinal survival time. Exp Eye Res 2004;78:723–736);
+ * a review argues that these experiments are flawed in important ways, that in people the inner
+ * retina probably infarcts after about 12–15 min of complete occlusion, and that many occlusions
+ * are incomplete, which would explain benefit after longer intervals (Tobalem S et al. Central
+ * retinal artery occlusion – rethinking retinal survival time. BMC Ophthalmol 2018;18:101). The
+ * model follows the shorter estimate and only lengthens the lag before loss begins from 6 to
+ * 12 min, so that amaurosis fugax lasting minutes leaves no infarct (retinal ischaemia without
+ * infarction is a TIA: Easton JD et al. Stroke 2009;40:2276–2293); after that the retina is lost
+ * as fast as brain core. Not calibrated to the 97-min primate figure. An incomplete occlusion
+ * (severity < 1) leaves residual flow and lasts longer, as in the brain.
+ */
+const RETINA_TISSUE: TissueParams = {
+  ...DEFAULT_TISSUE,
+  lagH: 0.2,
+};
+
 /** arterial families of the basilar artery and its branches */
 const BASILAR_FAMILIES = new Set<string>(['BA', 'SCA', 'AICA', 'PCA', 'THAL']);
 
@@ -98,11 +120,9 @@ const basilarOnly = (supply: Bed['supply']) =>
   supply.length > 0 && supply.every((s) => BASILAR_FAMILIES.has(VESSEL_BY_ID[s.v]?.family ?? ''));
 
 /** beds whose parameters differ from the defaults */
-const BED_TISSUE: Record<string, TissueParams> = Object.fromEntries(
-  BEDS.filter((b) => REGION_BY_ID[b.region]?.category === 'brainstem' && basilarOnly(b.supply)).map((b) => [
-    b.id,
-    BASILAR_BRAINSTEM_TISSUE,
-  ]),
-);
+const BED_TISSUE: Record<string, TissueParams> = Object.fromEntries([
+  ...BEDS.filter((b) => REGION_BY_ID[b.region]?.category === 'brainstem' && basilarOnly(b.supply)).map((b) => [b.id, BASILAR_BRAINSTEM_TISSUE]),
+  ...BEDS.filter((b) => REGION_BY_ID[b.region]?.category === 'eye').map((b) => [b.id, RETINA_TISSUE]),
+]);
 
 export const tissueParamsForBed = (bedId: string): TissueParams => BED_TISSUE[bedId] ?? DEFAULT_TISSUE;

@@ -79,7 +79,9 @@ describe('C1-F1: one aphasia type at a time (Kertesz & Poole taxonomy)', () => {
   });
 
   it('transcortical motor + transcortical sensory alone is a mixed transcortical (isolation) aphasia', () => {
-    const lvl = { prefrontal_dorsolateral_l: 0.9, thalamus_anterior_l: 0.9 };
+    // (the left anterior thalamus served as the sensory component here before; it now gives a
+    // thalamic aphasia, C9-F4, so the angular gyrus does)
+    const lvl = { prefrontal_dorsolateral_l: 0.9, angular_l: 0.9 };
     const got = aggregateSymptoms(lvl, lvl, 24);
     expect(aphasias(got)).toEqual(['aphasia_mixed_tc']);
     const def = SYMPTOM_BY_ID.aphasia_mixed_tc;

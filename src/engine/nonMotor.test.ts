@@ -104,10 +104,12 @@ describe('sleep', () => {
     expect(m1[0].recovery?.bilateral).toBe(true);
   });
 
-  it('no separate hypersomnia in an unrousable patient', () => {
+  it('no separate hypersomnia while the patient is in coma, however deep (C3-F2)', () => {
     const inf = { thalamus_paramedian_r: 1, thalamus_paramedian_l: 1 };
     const coma = (sev: 1 | 2 | 3): SymptomItem => ({ id: 'coma', side: null, sev, sources: ['herniation'], delayed: false });
-    expect(find(aggregateSymptoms(inf, inf, 720, [coma(2)]), 'hypersomnia')).toHaveLength(1);
+    // without coma, the hypersomnia of both paramedian thalami is listed
+    expect(find(aggregateSymptoms(inf, inf, 720), 'hypersomnia')).toHaveLength(1);
+    expect(find(aggregateSymptoms(inf, inf, 720, [coma(2)]), 'hypersomnia')).toHaveLength(0);
     expect(find(aggregateSymptoms(inf, inf, 720, [coma(3)]), 'hypersomnia')).toHaveLength(0);
   });
 
@@ -236,15 +238,18 @@ describe('every new symptom can occur', () => {
  * computed at commit 54e06e5 — before any of these symptoms existed — and pinned here. The new
  * symptoms carry no NIHSS points, and no syndrome rule reads them (rules read regions, and the
  * signs a sign-named syndrome requires are not among them), so adding them must leave every value
- * as it was. Re-baselined on purpose for the clinical-detail audit, each changed row commented
- * with the finding that explains it: C5-F1 (the NIHSS item rules: mild weakness is drift = 1;
- * stupor scores 1b = 2 and no ataxia; anarthria scores 1b = 1), C5-F2 (a syndrome named for
- * its signs is shown only with them) and C1 (hemispheric syndromes: F1 one aphasia type, graded;
- * F2 the MCA hemianopia; F3 the PCA hemianopia; F5 where neglect comes from; F6 the border-zone
- * arm weakness) and C6 (lacunar and deep syndromes: F1 a single lacune is mild to moderate; F6 the
+ * as it was. [total, items > 0, syndromes (with lesion side)]
+ * Re-baselined on purpose for the clinical-detail audit, each changed row commented with the
+ * finding that explains it: C5-F1 (the NIHSS item rules: mild weakness is drift = 1; stupor
+ * scores 1b = 2 and no ataxia; anarthria scores 1b = 1), C5-F2 (a syndrome named for its signs is
+ * shown only with them), C1 (hemispheric syndromes: F1 one aphasia type, graded; F2 the MCA
+ * hemianopia; F3 the PCA hemianopia; F5 where neglect comes from; F6 the border-zone arm
+ * weakness), C6 (lacunar and deep syndromes: F1 a single lacune is mild to moderate; F6 the
  * cortical signs of a striatocapsular infarct; the capsular warning and corona radiata scenarios
- * are new) and C7 (medulla and cerebellum: F4 the lateral medulla's facial weakness and
- * dysarthria). [total, items > 0, syndromes (with lesion side)]
+ * are new), C7 (medulla and cerebellum: F4 the lateral medulla's facial weakness and
+ * dysarthria), C3 (F1 incomplete locked-in syndrome; F2 the time course of coma), C9 (F1 to F4:
+ * the thalamus), C4 (F2 consciousness from the midline shift; F3 graded cerebellar swelling) and
+ * MERGE (where findings of the two audit chains meet, as explained at the row).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
@@ -257,14 +262,16 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
   // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 10)
   'l_m1_thrombectomy@2160': [7, { '1b': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_inferior_l']],
-  // C1-F2: hemianopia (3: 1 → 2; was 17)
-  'r_m1_malignant@24': [18, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C1-F2: hemianopia (3: 1 → 2); C4-F2: consciousness follows the midline shift, 3.4 mm at 24 h
+  // (alert), not a fixed drowsiness (1a: 1 → 0); was 17
+  'r_m1_malignant@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_m1_malignant@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
-  // C1-F2: hemianopia (3: 1 → 2; was 17)
-  'r_m1_decompression@24': [18, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C1-F2: hemianopia (3: 1 → 2); C4-F2: as r_m1_malignant@24 (1a: 1 → 0); was 17
+  'r_m1_decompression@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9)
   'r_m1_decompression@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
-  'r_ica_t@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // C4-F2: 3.5 mm of midline shift at 24 h, alert (1a: 1 → 0; was 19)
+  'r_ica_t@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   'r_ica_t@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
   // C1-F5: right neglect from the left supramarginal gyrus (11: 0 → 1; was 13)
   'l_m2_sup@24': [14, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1, 11: 1 }, ['mca_superior_l']],
@@ -297,34 +304,54 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C6-F2: three 5-minute attacks of one branch, then a lasting occlusion from 6 h (new scenario)
   'capsular_warning@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['capsular_warning_l', 'lacunar_pure_motor_l']],
   'capsular_warning@2160': [2, { '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
-  // C5-F2: with limb ataxia and involuntary movements it is not a pure sensory stroke
-  'l_thalamic@24': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
+  // C5-F2, C6-F7: with limb ataxia it is not a pure sensory stroke; C9-F2: the inferolateral
+  // thalamus also gives a mild, passing weakness (4: 1, 5r: 1 — drift, C5-F1); was 3
+  'l_thalamic@24': [5, { 4: 1, '5r': 1, 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
-  // C5-F1: stuporous (1a = 2), so the questions score 2 and the ataxia is not scored (was 7: 2)
-  'percheron@24': [5, { '1a': 2, '1b': 2, 2: 1 }, ['thalamic_paramedian_bilateral']],
-  'percheron@2160': [4, { '1a': 1, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
+  // C5-F1: stuporous (1a = 2), so the questions score 2 and the ataxia is not scored; C9-F1: the
+  // default Percheron pattern spares the midbrain (no CN III/IV palsy, item 2); C9-F3/F4: thalamic
+  // aphasia from the left (9) and neglect from the right (11) paramedian thalamus (was 5)
+  'percheron@24': [6, { '1a': 2, '1b': 2, 9: 1, 11: 1 }, ['thalamic_paramedian_bilateral']],
+  // C3-F2: the coma of the paramedian thalami has given way to persistent hypersomnia by 3 months
+  // (1a 1 → 0); C9-F1, C9-F3/F4: as at 24 h, the neglect has recovered (was 4)
+  'percheron@2160': [1, { 9: 1 }, ['thalamic_paramedian_bilateral']],
+  // C9-F1: the Percheron pattern with the midbrain (a scenario of its own). MERGE: stuporous
+  // (1a = 2), so C5-F1 scores the questions 2 and not the ataxia (1b: 2 in place of 7: 2)
+  'percheron_midbrain@24': [7, { '1a': 2, '1b': 2, 2: 1, 9: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
+  'percheron_midbrain@2160': [4, { 2: 1, 7: 2, 9: 1 }, ['thalamomesencephalic_bilateral']],
   // C1-F3: the untreated P2 occlusion infarcts the calcarine cortex: a hemianopia (3: 1 → 2; was 4),
-  // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l'])
-  'l_pca@24': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
+  // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l']);
+  // C9-F2: a mild, passing weakness from the inferolateral thalamus (4: 1, 5r: 1, drift)
+  'l_pca@24': [7, { 3: 2, 4: 1, '5r': 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
   'l_pca@2160': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
   // C1-F3: the calcarine artery also feeds the cuneus, so the left PCA's both banks fail: a
   // hemianopia (3: 1 → 2; was 36)
   'basilar_tip@24': [37, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
-  // C5-F1 stupor: 1b 1 → 2; C1-F3: an upper quadrantanopia stays (3: 0 → 1; was 22)
-  'basilar_tip@2160': [23, { '1a': 2, '1b': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']],
+  // C3-F2: the coma has become a disorder of consciousness (1a 2); C5-F1 stupor: 1b 1 → 2; C1-F3:
+  // an upper quadrantanopia stays (3: 0 → 1); C9-F4: the left anterior thalamus gives a thalamic
+  // aphasia and dysarthria (10: 0 → 1); was 22
+  'basilar_tip@2160': [24, { '1a': 2, '1b': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1, 10: 1 }, ['top_of_basilar']],
   // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
   'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
-  'basilar_mid@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
+  // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome
+  'basilar_mid@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
   'basilar_stuttering@24': [0, {}, []],
-  'basilar_stuttering@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']], // C5-F1 anarthria: 1b = 1
+  // C5-F1 anarthria: 1b = 1; C3-F1: as basilar_mid@2160
+  'basilar_stuttering@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
   // C7-F4: a mild facial weakness on the lesion side and dysarthria (4: 0 → 1, 10: 0 → 1; was 2)
   'r_wallenberg@24': [4, { 4: 1, 7: 1, 8: 1, 10: 1 }, ['wallenberg_r']],
   // C7-F4: the dysarthria is not yet fully compensated at 3 months (10: 0 → 1; was 2)
   'r_wallenberg@2160': [3, { 7: 1, 8: 1, 10: 1 }, ['wallenberg_r']],
   // C5-F2: its lateral medullary signs (Horner, crossed pain/temperature loss) are named too;
-  // C7-F4: the lateral medulla adds a mild facial weakness and dysarthria (4: 0 → 1, 10: 0 → 1; was 3)
-  'r_pica@24': [5, { 2: 1, 4: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
+  // C7-F4: the lateral medulla adds a mild facial weakness and dysarthria (4: 0 → 1, 10: 0 → 1);
+  // C4-F3: a 34 mL cerebellar infarct is a warning to monitor, with no brainstem compression
+  // (gaze palsy, 2: 1 → 0); was 3
+  'r_pica@24': [4, { 4: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
   'r_pica@2160': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
+  // C4-F3: new template, PICA + SCA (58 mL) swells on day 2–3. MERGE: its lateral medulla gives
+  // the mild facial weakness of C7-F4 (4: 1 at 24 h) and the Wallenberg signs that name it (C5-F2)
+  'cerebellar_swelling@24': [6, { 2: 1, 4: 1, 7: 2, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'sca_r', 'wallenberg_r']],
+  'cerebellar_swelling@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'sca_r', 'wallenberg_r']],
   'l_aica@24': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'l_aica@2160': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'r_sca@24': [5, { 2: 1, 7: 2, 8: 1, 10: 1 }, ['sca_r']],
@@ -341,8 +368,11 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'ica_silent@2160': [0, {}, ['carotid_compensated_r']],
   'ica_isolated@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['ica_territory_r', 'neglect_r']],
   'ica_isolated@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
-  'fetal_pca@24': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
-  'fetal_pca@2160': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
+  // C9-F2: the PComm feeds the tuberothalamic artery, so the anterior thalamus is infarcted too and
+  // has its own label; C9-F4: its dysarthria (10); C9-F2: mild, passing weakness from the
+  // inferolateral thalamus (4, 5l: drift, C5-F1); was 6
+  'fetal_pca@24': [9, { 3: 2, 4: 1, '5l': 1, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
+  'fetal_pca@2160': [7, { 3: 2, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
   'watershed@24': [5, { 4: 1, '5l': 1, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']], // C5-F1 drift: was 7
   // C1-F6: the anterior border zone of the motor strip leaves a mild proximal arm weakness, so
   // the label is no longer clinically silent (was 0, {}; the silent case is now at 65 mmHg,

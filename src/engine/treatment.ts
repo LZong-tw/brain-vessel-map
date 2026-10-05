@@ -69,7 +69,7 @@ export const isDefaultTreatment = (t: TreatmentOptions | undefined): boolean =>
  * mid-basilar clot can embolise to the SCA and PCA); the walk stops at communicating arteries
  * and collaterals so that it never crosses into another circulation.
  */
-export function downstreamBranches(vesselId: string, limit = 16): string[] {
+export function downstreamBranches(vesselId: string, limit = Infinity): string[] {
   const start = VESSEL_BY_ID[vesselId];
   if (!start) return [];
   const next = (v: Vessel) => [...v.children, ...(CONTINUATIONS.get(v.to) ?? [])];
@@ -87,6 +87,33 @@ export function downstreamBranches(vesselId: string, limit = 16): string[] {
   }
   return out;
 }
+
+/**
+ * Ipsilateral ACA branches: the commonest new territory for emboli during thrombectomy of an
+ * MCA occlusion (ACA 27.8% of new-territory infarcts in ESCAPE-NA1: Singh N et al. Stroke
+ * 2023;54:1477–1483). An ICA-terminus clot reaches the ACA downstream anyway.
+ */
+const NEW_TERRITORY_BY_BASE: Record<string, string[]> = {
+  mca_m1: ['aca_a2', 'aca_frontopolar', 'aca_callosomarginal', 'aca_pericallosal', 'aca_paracentral'],
+  mca_m2_sup: ['aca_a2', 'aca_frontopolar', 'aca_callosomarginal', 'aca_pericallosal', 'aca_paracentral'],
+  mca_m2_inf: ['aca_a2', 'aca_frontopolar', 'aca_callosomarginal', 'aca_pericallosal', 'aca_paracentral'],
+};
+
+/**
+ * Branches of a previously unaffected territory that a clot fragment could reach while this
+ * artery is treated (outside its own downstream tree, which downstreamBranches does not leave).
+ */
+export function newTerritoryBranches(vesselId: string): string[] {
+  const v = VESSEL_BY_ID[vesselId];
+  if (!v || v.side === 'm') return [];
+  const down = new Set(downstreamBranches(vesselId));
+  return (NEW_TERRITORY_BY_BASE[v.baseId] ?? [])
+    .map((b) => `${b}_${v.side}`)
+    .filter((id) => VESSEL_BY_ID[id] && !VESSEL_BY_ID[id].visualOnly && !VESSEL_BY_ID[id].notOccludable && !down.has(id));
+}
+
+/** every branch a fragment of this clot could block: downstream, then a new territory */
+export const embolusTargets = (vesselId: string): string[] => [...downstreamBranches(vesselId), ...newTerritoryBranches(vesselId)];
 
 /** vessels by the node they start from (a segment's end node → the segments that continue it) */
 const CONTINUATIONS = new Map<string, string[]>();

@@ -94,10 +94,13 @@ export function stateColor(bed: Bed, st: BedTimeState | undefined, tH: number): 
 }
 
 /**
- * "Oedema / imaging" mode: what MRI would show at this time. DWI-bright only (cytotoxic, the
- * first hours) is cyan, T2/FLAIR-bright only (vasogenic, after DWI has faded) orange, both at
- * once yellow, shrunken chronic tissue near-black. Cyan vs. yellow/orange stays apart with
- * red–green colour-vision deficiency; orange vs. yellow vs. grey differ in lightness.
+ * "Oedema / imaging" mode: what MRI would show at this time (engine/edema.ts `dwi` and `flair`).
+ * DWI-bright only (cytotoxic, the first hours) is cyan, T2/FLAIR-bright only orange (vasogenic
+ * oedema, later the gliotic scar, which stays bright), both at once yellow; shrunken chronic
+ * tissue darkens towards near-black as the cavity fills with CSF, which is dark on FLAIR (bright
+ * on T2), while the T2/FLAIR-bright scar keeps part of it orange (C4-F5). Cyan vs. yellow/orange
+ * stays apart with red–green colour-vision deficiency; orange vs. yellow vs. grey differ in
+ * lightness.
  */
 export const EDEMA_COLORS = {
   normal: '#9aa0a8',
@@ -111,12 +114,12 @@ export const EDEMA_COLORS = {
 /** swelling (volume fraction) at which shrunk tissue is drawn fully dark */
 const CHRONIC_FULL = -0.25;
 
-export function edemaColor(bed: Bed, cytotoxic = 0, vasogenic = 0, swelling = 0): RGB {
+export function edemaColor(bed: Bed, dwi = 0, flair = 0, swelling = 0): RGB {
   const cat = REGION_BY_ID[bed.region].category;
   const normal = hex(cat === 'deep' || cat === 'brainstem' ? EDEMA_COLORS.normalDeep : EDEMA_COLORS.normal);
   // a gentle curve so that moderate signal is already visible
-  const d = Math.pow(Math.max(0, Math.min(1, cytotoxic)), 0.7);
-  const f = Math.pow(Math.max(0, Math.min(1, vasogenic)), 0.7);
+  const d = Math.pow(Math.max(0, Math.min(1, dwi)), 0.7);
+  const f = Math.pow(Math.max(0, Math.min(1, flair)), 0.7);
   const cyto = hex(EDEMA_COLORS.cytotoxic);
   const vaso = hex(EDEMA_COLORS.vasogenic);
   const both = hex(EDEMA_COLORS.both);

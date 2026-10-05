@@ -44,16 +44,24 @@ describe('default treatment = the model before treatment details', () => {
   // was implemented): the default treatment must keep them exactly. The l_m1 and basilar values
   // moved in the 7th significant digit when the two inferior pontine paramedian arteries got their
   // refined centrelines (the generated paths had been missing them; their length enters the flow
-  // model). They moved again (l_m1 core 59.006 → 59.161 mL, the basilar cores by 0.002 mL) when
-  // the cuneus was given its calcarine supply (clinical-detail audit C1-F3): the new perfusion
-  // units shift the PCA branch flows and, through the circle of Willis, the rest of the network.
-  // And by about 1e-5 mL (C7-F2, C7-F3) when the PICA-to-PICA anastomosis was weakened and the
-  // medial medulla took less of its supply from the vertebral itself: the same shared network.
+  // model), and in the 4th–5th when the subclavian arteries got their chest-wall and neck
+  // collaterals (C8-F5): they carry a trickle at baseline, which shifts the vertebral and
+  // communicating flows of the calibration slightly. They moved again in the 3rd–4th significant
+  // digit when the cuneus was given its calcarine supply (C1-F3: the new perfusion units shift the
+  // PCA branch flows and, through the circle of Willis, the rest of the network) and when half of
+  // the posterior thalamus was attached to the posterior choroidal artery before its choroidal
+  // anastomosis with the AChA (C9-F5: the posterior choroidal artery now carries more of its own
+  // territory at baseline, 0.13 → 0.33 mL/min, and the AChA less); the smaller paramedian midbrain
+  // share of the thalamoperforating arteries (C9-F1) moves the basilar values in the 5th, and so,
+  // by about 1e-5 mL, do the weaker PICA-to-PICA anastomosis and the smaller vertebral share of the
+  // medial medulla (C7-F2, C7-F3). The values below are those of all of these together (l_m1 core
+  // 59.006 → 59.258 mL: about +0.156 from C1-F3 and +0.097 from C8-F5 and C9-F5, which add up).
+  // NIHSS and event texts did not change.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
-    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 59.16137207939189, finalInfarct: 59.16137207939189, saved: 90.47296926474164, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5470389940322398, finalInfarct: 0.5470389940322398, saved: 2.289069942073795, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 59.25827204101433, finalInfarct: 59.25827204101433, saved: 90.61120611242276, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5477215045723183, finalInfarct: 0.5477215045723183, saved: 2.289048796585571, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
     ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 485.13835470147296, finalInfarct: 485.13835470147296, saved: 3.0127011996228248e-12, nihss: 37, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5539330558008877, finalInfarct: 0.5539330558008877, saved: 2.282175880305147, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5546231640841062, finalInfarct: 0.5546231640841062, saved: 2.282147137073783, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {
     const id = label.split(' ')[0];

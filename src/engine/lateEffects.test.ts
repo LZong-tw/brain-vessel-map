@@ -193,9 +193,10 @@ describe('C10-F4: the commonest complications after stroke are in the outcome li
   });
 
   it('late seizures: the figures and the SeLECT factors are in the seizure event (Galovic 2018)', () => {
-    const e = event(scenario('l_m1', 2160), 'seizure')!;
-    expect(e.desc.en).toMatch(/4 %/);
-    expect(e.desc.en).toMatch(/8 %/);
+    // the late-seizure event of C4-F4 (seizure_early / seizure_late) carries them
+    const e = event(scenario('l_m1', 2160), 'seizure_late')!;
+    expect(e.desc.en).toMatch(/4 ?%/);
+    expect(e.desc.en).toMatch(/8 ?%/);
     expect(e.desc.en).toMatch(/SeLECT/);
     expect(e.desc.zh).toMatch(/SeLECT/);
   });

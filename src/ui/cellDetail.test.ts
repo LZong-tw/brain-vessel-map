@@ -44,11 +44,25 @@ describe('function heat-map cell detail', () => {
   });
 
   it('names the course event behind a symptom that no region explains', () => {
-    // untreated cerebellar infarct: obstructive hydrocephalus makes the patient drowsy on day 3
-    const pica = seriesOf({ occlusions: [{ vessel: 'pica_r', severity: 1 }], collateral: 'poor' });
+    // untreated large cerebellar infarct (PICA + SCA, C4-F3): obstructive hydrocephalus makes the patient drowsy on day 3
+    const pica = seriesOf({ occlusions: [{ vessel: 'pica_r', severity: 1 }, { vessel: 'sca_r', severity: 1 }], collateral: 'poor' });
     const d = systemCellDetail(pica, at(72), 'consciousness');
     const coma = d.items.find((s) => s.id === 'coma');
     expect(coma).toBeDefined();
     expect(coma!.events).toContain('hydrocephalus');
+  });
+
+  it('traces reduced consciousness to the swelling that shifts the midline, and drops a herniation coma once it has lifted (C4-F1, C4-F2)', () => {
+    const malignant = seriesOf({ occlusions: [{ vessel: 'mca_m1_r', severity: 1 }], collateral: 'poor' });
+    // 48 h: comatose from a ~10 mm shift, a day before the uncal herniation
+    const coma48 = systemCellDetail(malignant, at(48), 'consciousness').items.find((s) => s.id === 'coma');
+    expect(coma48).toBeDefined();
+    expect(coma48!.events).toContain('malignant_edema_r');
+    expect(coma48!.events).not.toContain('uncal_r');
+    // 2 weeks: the survivor is drowsy from the remaining shift; the herniation no longer explains it
+    const drowsy = systemCellDetail(malignant, at(336), 'consciousness').items.find((s) => s.id === 'somnolence');
+    expect(drowsy).toBeDefined();
+    expect(drowsy!.events).toContain('vasogenic_edema');
+    expect(drowsy!.events).not.toContain('uncal_r');
   });
 });

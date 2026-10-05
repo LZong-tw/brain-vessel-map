@@ -1015,8 +1015,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     name: { zh: '後交通動脈', en: 'Posterior communicating artery' },
     abbr: 'PComm',
     desc: {
-      zh: '連接前（內頸動脈）與後（椎基底）循環。粗細個體差異很大；約 1/4 的人一側缺如或極細，影響阻塞後的代償能力。',
-      en: 'Joins the anterior (carotid) and posterior (vertebrobasilar) circulations. Its size varies greatly — absent or hypoplastic on at least one side in a large share of people — which changes how well a blockage is compensated.',
+      zh: '連接前（內頸動脈）與後（椎基底）循環。粗細個體差異很大；MRA 研究中每一側都有一半以上的人缺如或極細（< 1 mm），影響阻塞後的代償能力。',
+      en: 'Joins the anterior (carotid) and posterior (vertebrobasilar) circulations. Its size varies greatly — on MRA it is missing or under 1 mm on each side in more than half of people — which changes how well a blockage is compensated.',
     },
     kind: 'communicating',
     group: 'willis',
@@ -1032,6 +1032,35 @@ export const VESSEL_DEFS: VesselDef[] = [
       [10, -14, -18.5],
     ],
     pathMode: 'cistern',
+  }),
+  bi({
+    // persistent trigeminal artery: Huang W et al. Surg Radiol Anat 2023;45:947–957 (57 of 94,487
+    // on CTA/MRA, 0.06 %; lateral course in 89.5 %; basilar artery non-dominant in most);
+    // Triantafyllou G et al. Neuroradiology 2026;68:1607–1617 (pooled prevalence 0.20 %)
+    id: 'trigeminal_persistent',
+    name: { zh: '永存三叉動脈', en: 'Persistent trigeminal artery' },
+    abbr: 'PTA',
+    desc: {
+      zh: '胚胎時期連接內頸動脈與基底動脈的血管，通常在出生前消失，少數人（約 0.06–0.2%）一直保留。它從海綿竇段內頸動脈發出，在小腦上動脈與小腦前下動脈之間接上基底動脈；這時接點以下的基底動脈多半較細。頸動脈的栓子可經由它到達腦幹與小腦。只有在選了這個變異時才存在。',
+      en: 'An embryonic connection between the internal carotid and basilar arteries that normally disappears before birth and persists in about 0.06–0.2% of people. It leaves the cavernous ICA and joins the basilar artery between the superior and anterior inferior cerebellar arteries; the basilar artery below the junction is then usually small. Carotid emboli can reach the brainstem and cerebellum through it. Present only when this variant is chosen.',
+    },
+    kind: 'communicating',
+    group: 'willis',
+    family: 'ICA',
+    from: 'ica_petrous_cavernous_{s}@mid',
+    to: 'ba_rostral',
+    parent: 'ica_petrous_cavernous_{s}',
+    r: 1.3,
+    path: [
+      [16.69, 2.87, -41.61],
+      [15, -1.5, -41.5],
+      [12, -6, -40],
+      [8, -9, -38],
+      [4, -10.8, -36.2],
+      [1.2, -11.4, -35.2],
+    ],
+    pathMode: 'free',
+    variantOnly: true,
   }),
   bi({
     id: 'tuberothalamic',
@@ -1585,8 +1614,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'thalamoperforator',
     name: { zh: '視丘穿通動脈（旁正中）', en: 'Thalamoperforating (paramedian) arteries' },
     desc: {
-      zh: '由 P1 發出，供應視丘旁正中（內背核、板內核）與中腦上部。部分人只有一條共同主幹（Percheron 動脈）同時供應兩側。',
-      en: 'From P1 to the paramedian thalamus (mediodorsal, intralaminar nuclei) and upper midbrain. Some people have a single trunk (artery of Percheron) feeding both sides.',
+      zh: '由 P1 發出，供應視丘旁正中（內背核、板內核），部分人也供應中腦上部。部分人只有一條共同主幹（Percheron 動脈）同時供應兩側。',
+      en: 'From P1 to the paramedian thalamus (mediodorsal, intralaminar nuclei) and, in some people, the upper midbrain. Some people have a single trunk (artery of Percheron) feeding both sides.',
     },
     kind: 'perforator',
     group: 'posterior',
@@ -1686,8 +1715,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'posterior_choroidal',
     name: { zh: '後脈絡叢動脈', en: 'Posterior choroidal arteries' },
     desc: {
-      zh: '供應視丘枕、外側膝狀體與脈絡叢；與前脈絡叢動脈相吻合。',
-      en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; anastomose with the anterior choroidal artery.',
+      zh: '供應視丘枕、外側膝狀體與脈絡叢；在脈絡叢處與前脈絡叢動脈相吻合，但供應視丘的分支在吻合處之前就已分出。',
+      en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; they meet the anterior choroidal artery at the choroid plexus, but their thalamic branches leave before that anastomosis.',
     },
     kind: 'perforator',
     group: 'posterior',

@@ -4,7 +4,7 @@ import { RECANALISATION_EVIDENCE, siteGroupOf as defaultSiteGroupOf, type Recana
 import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { Occlusion } from '../engine/hemodynamics';
-import { isTreatable, startOf } from '../engine/schedule';
+import { inWindow, isTreatable, startOf } from '../engine/schedule';
 import type { ReperfusionGrade, TreatmentMethod } from '../engine/treatment';
 import { SCHEDULE_UI } from '../i18n/uiSchedule';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
@@ -80,8 +80,12 @@ export function TreatmentDetails({
   const distal = useMemo(() => distalOptions(reopened), [reopened]);
   if (reperfusionH === null) return null;
   const sites = sitesOf(reopened, siteGroupOf);
-  const warnings = treatmentWarnings(tx, treatmentDelayH(occlusions, reperfusionH, reopened), sites, evidence, lang);
-  const distalList = tx.distalEmbolus && !distal.includes(tx.distalEmbolus) ? [tx.distalEmbolus, ...distal] : distal;
+  const delayH = treatmentDelayH(occlusions, reperfusionH, reopened);
+  const warnings = treatmentWarnings(tx, delayH, sites, evidence, lang);
+  // a lacunar (single-branch) occlusion in effect then: thrombolysis applies, the model does not reopen it
+  const lacunar = occlusions.some((o) => o.branch && o.severity >= 1 && inWindow(o, reperfusionH));
+  const listed = [...distal.downstream, ...distal.newTerritory];
+  const kept = tx.distalEmbolus && !listed.includes(tx.distalEmbolus) ? [tx.distalEmbolus] : [];
   const name = (id: string) => (VESSEL_BY_ID[id] ? vesselName(VESSEL_BY_ID[id], lang) : id);
   const gradeOption = (g: ReperfusionGrade) => (
     <option key={g} value={g}>
@@ -92,6 +96,7 @@ export function TreatmentDetails({
     <div className="tx-details" role="group" aria-label={s.title}>
       <div className="tx-title">{s.title}</div>
       {!reopened.length && <p className="muted small">{s.nothingReopened}</p>}
+      {lacunar && <p className="muted small">{s.lacunarNote}</p>}
       <div className="tx-label" id="tx-method">
         {s.method}
       </div>
@@ -136,13 +141,38 @@ export function TreatmentDetails({
         <span>{s.distal}</span>
         <select value={tx.distalEmbolus ?? ''} onChange={(e) => setTreatment({ distalEmbolus: e.target.value || null })}>
           <option value="">{s.distalNone}</option>
-          {distalList.map((id) => (
+          {kept.map((id) => (
             <option key={id} value={id}>
               {name(id)}
             </option>
           ))}
+          {distal.newTerritory.length ? (
+            <>
+              <optgroup label={s.distalDownstream}>
+                {distal.downstream.map((id) => (
+                  <option key={id} value={id}>
+                    {name(id)}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label={s.distalNewTerritory}>
+                {distal.newTerritory.map((id) => (
+                  <option key={id} value={id}>
+                    {name(id)}
+                  </option>
+                ))}
+              </optgroup>
+            </>
+          ) : (
+            distal.downstream.map((id) => (
+              <option key={id} value={id}>
+                {name(id)}
+              </option>
+            ))
+          )}
         </select>
       </label>
+      <p className="muted small">{tx.method === 'ivt' ? s.distalHintIvt : s.distalHint}</p>
       <div className="tx-label" id="tx-noreflow">
         {s.noReflow} <span className="badge tx-limited">{s.limitedEvidence}</span>
       </div>
@@ -159,16 +189,27 @@ export function TreatmentDetails({
           {w.text}
         </p>
       ))}
-      <EvidenceBox sites={sites} method={tx.method} evidence={evidence} />
+      <EvidenceBox sites={sites} method={tx.method} evidence={evidence} delayH={delayH} />
     </div>
   );
 }
 
 /** published figures for the reopened site(s) and the chosen method, in small print */
-export function EvidenceBox({ sites, method, evidence }: { sites: SiteGroup[]; method: TreatmentMethod; evidence: RecanalisationEvidence }) {
+export function EvidenceBox({
+  sites,
+  method,
+  evidence,
+  delayH,
+}: {
+  sites: SiteGroup[];
+  method: TreatmentMethod;
+  evidence: RecanalisationEvidence;
+  /** hours from onset to the treatment (adds the late-thrombolysis trials beyond the window) */
+  delayH?: number;
+}) {
   const lang = useApp((s) => s.lang);
   const s = TREATMENT_UI[lang];
-  const rows = evidenceRows(evidence, sites, method, lang);
+  const rows = evidenceRows(evidence, sites, method, lang, { delayH });
   const colon = lang === 'en' ? ': ' : '：';
   return (
     <section className="tx-evidence" aria-label={s.evidenceTitle}>

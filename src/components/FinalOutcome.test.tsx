@@ -187,7 +187,8 @@ describe('最終 tab', () => {
   it('names the syndrome that remains at 6 months (locked-in after a mid-basilar occlusion)', () => {
     useApp.getState().loadScenario('basilar_mid');
     useApp.setState({ rightTab: 'final' });
-    const lockedIn = at6m().syndromes.find((s) => s.def.id === 'locked_in');
+    // incomplete by then: some limb movement has returned (C3-F1)
+    const lockedIn = at6m().syndromes.find((s) => s.def.id === 'locked_in_incomplete');
     expect(lockedIn).toBeDefined();
     const { container } = render(<RightPanel sim={simOf()} />);
     const line = container.querySelector('.outcome-syndromes') as HTMLElement;
@@ -256,6 +257,58 @@ describe('最終 tab', () => {
     // and the deficit itself is listed as lasting
     const marked = container.querySelector('.og-marked') as HTMLElement;
     within(marked).getByText(/單眼/);
+  });
+});
+
+describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
+  it('shows the mortality next to the NIHSS, and labels the NIHSS as if the patient survives', () => {
+    useApp.getState().loadScenario('r_m1_malignant');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const callout = within(nihss).getByText(/78%/);
+    expect(callout.className).toContain('callout');
+    expect(callout.textContent).toContain('29%');
+    within(nihss).getByText('3 個月（假如存活）');
+    within(nihss).getByText('6 個月（假如存活）');
+    cleanup();
+
+    useApp.setState({ lang: 'en' });
+    const en = render(<RightPanel sim={simOf()} />);
+    const n2 = en.container.querySelector('.outcome-nihss') as HTMLElement;
+    within(n2).getByText(/78%/);
+    within(n2).getByText('3 months (if the patient survives)');
+  });
+
+  it('says nothing of the kind after decompression or for an ordinary infarct', () => {
+    for (const id of ['r_m1_decompression', 'l_m1']) {
+      useApp.getState().loadScenario(id);
+      useApp.setState({ rightTab: 'final' });
+      const { container } = render(<RightPanel sim={simOf()} />);
+      const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+      expect(within(nihss).queryByText(/78%/), id).toBeNull();
+      within(nihss).getByText('3 個月');
+      cleanup();
+    }
+  });
+
+  it('a swollen cerebellum in coma: life-threatening, with no invented mortality figure', () => {
+    useApp.getState().loadScenario('cerebellar_swelling');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const callout = within(nihss).getByText(/枕下減壓/);
+    expect(callout.textContent).not.toMatch(/78%/);
+  });
+
+  it('adds a row to the treated / untreated comparison', () => {
+    // left M1 with moderate collaterals: herniates untreated, not when reopened at 1 h
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final', collateral: 'moderate', reperfusionH: 1 });
+    render(<RightPanel sim={simOf()} />);
+    const table = screen.getByRole('table');
+    const cells = within(within(table).getByRole('rowheader', { name: '可能死亡（疝脫）' }).closest('tr')!).getAllByRole('cell').map((c) => c.textContent);
+    expect(cells).toEqual(['—', '很可能']);
   });
 });
 

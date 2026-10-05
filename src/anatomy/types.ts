@@ -108,6 +108,11 @@ export interface VesselDef {
   notOccludable?: boolean;
   /** an occluding clot here also covers the distal bifurcation (e.g. carotid-T, basilar tip) */
   occludesDistalJunction?: boolean;
+  /**
+   * absent from the default anatomy: the vessel exists only when a chosen variant gives it a
+   * scale above 0 (e.g. a persistent trigeminal artery); see variantOverrides in hemodynamics.ts
+   */
+  variantOnly?: boolean;
 }
 
 /** Fully expanded vessel (after bilateral expansion). */
@@ -170,7 +175,8 @@ export interface DeficitRef {
   spareInLacune?: boolean;
   /**
    * needs at least this much of the region affected (default: the symptom threshold, 0.25): for
-   * a function that only a large lesion reaches, e.g. a tract running deep to part of the region
+   * a function that only a large lesion reaches, e.g. a tract running deep to part of the region,
+   * or drowsiness after an extensive one-sided upper pontine tegmental infarct
    */
   minLevel?: number;
   /** the compensation of this source settles within ~1–2 weeks (overrides the symptom's own pace) */

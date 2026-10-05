@@ -86,8 +86,11 @@ const MERGED_INTO: Record<string, string[]> = {
   // one aphasia type at a time: a type that is no longer listed has changed into another one
   // (e.g. global → Broca) rather than gone, as long as some aphasia is still listed (C1-F1)
   ...Object.fromEntries(APHASIA_TYPES.map((id) => [id, APHASIA_TYPES.filter((o) => o !== id)])),
-  somnolence: ['coma'],
-  hypersomnia: ['coma'],
+  // drowsiness gives way to persistent hypersomnia after two weeks; coma after extensive
+  // tegmental damage continues as a disorder of consciousness (C3-F2)
+  somnolence: ['coma', 'hypersomnia', 'disorder_of_consciousness'],
+  hypersomnia: ['coma', 'disorder_of_consciousness'],
+  coma: ['disorder_of_consciousness'],
   // when both lateral medullas fail, the breathing problem is no longer only one of sleep
   central_sleep_apnoea: ['respiratory'],
 };

@@ -158,7 +158,7 @@ export function symptomCompensation(
   /** the deficit from this source is severe (profound) before compensation (Redundancy.profound) */
   profound = false,
 ): SymptomRecovery {
-  const red = redundancyFor(symptomId, region.baseId);
+  const red = redundancyFor(symptomId, region.baseId, region.side);
   const share = profound && red.profound ? red.profound : red;
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
   const bottleneck = bilateral && (lesions.bottleneckBySymptom.get(symptomId)?.size ?? 0) >= 2;

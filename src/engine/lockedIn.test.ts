@@ -6,7 +6,8 @@ import { DEFAULT_TREATMENT } from './treatment';
 /**
  * The mid-basilar scenario teaches the classic locked-in syndrome: its symptom list must agree
  * with the syndrome description (awake, quadriplegic, anarthric, vertical gaze and blinking
- * preserved, horizontal gaze usually lost, lateral pons spared while AICA and SCA are open).
+ * preserved, horizontal gaze usually lost, lateral pons spared while AICA and SCA are open). Once
+ * some limb movement returns it is incomplete locked-in syndrome (Bauer et al. 1979; C3-F1).
  */
 const sim = (over: Partial<SimInput>) =>
   simulate({ occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false, ...over });
@@ -21,7 +22,10 @@ describe('mid-basilar occlusion: classic locked-in syndrome', () => {
     for (const tH of [24, 2160]) {
       it(`${collateral} collaterals, ${tH} h: the symptoms match the locked-in description`, () => {
         const r = sim({ occlusions: BASILAR_MID, collateral, tH });
-        expect(r.syndromes.map((m) => m.def.id)).toContain('locked_in');
+        // classical while no limb moves, incomplete once some movement has returned (C3-F1)
+        const limbsParalysed = r.symptoms.filter((s) => s.id === 'arm_weak' || s.id === 'leg_weak').every((s) => s.sev === 3);
+        expect(r.syndromes.map((m) => m.def.id)).toContain(limbsParalysed ? 'locked_in' : 'locked_in_incomplete');
+        if (tH === 24) expect(limbsParalysed).toBe(true);
         const got = ids(r);
         // awake: no coma or drowsiness from the pons itself
         expect(got.some((x) => x.startsWith('coma') || x.startsWith('somnolence'))).toBe(false);

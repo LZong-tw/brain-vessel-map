@@ -24,7 +24,7 @@ import { VARIANT_BY_ID } from '../anatomy/variants';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, isTreatable, overlap, startOf, tidy } from '../engine/schedule';
-import { DEFAULT_TREATMENT, REPERFUSION_GRADES, downstreamBranches, type ReperfusionGrade, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
+import { DEFAULT_TREATMENT, REPERFUSION_GRADES, embolusTargets, type ReperfusionGrade, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
 import { isOccludable } from '../engine/simulate';
 import { NO_REFLOW_OPTIONS, REOCCLUSION_OPTIONS } from '../ui/treatment';
 import { useApp, type AppState } from './store';
@@ -105,9 +105,10 @@ function parseTreatment(q: URLSearchParams, occlusions: readonly Occlusion[]): T
   if (q.get('ro') !== null && REOCCLUSION_OPTIONS.includes(ro)) out.reocclusionAfterH = ro;
   const nr = Number(q.get('nr'));
   if (q.get('nr') !== null && nr > 0 && NO_REFLOW_OPTIONS.includes(nr)) out.noReflow = nr;
-  // a distal embolus only in a branch downstream of an occlusion that treatment can reopen
+  // a distal embolus only in a branch downstream of an occlusion that treatment can reopen, or
+  // in the new territory its clot can reach (engine/treatment.ts embolusTargets)
   const de = q.get('de');
-  if (de && isOccludable(de) && occlusions.some((o) => isTreatable(o) && downstreamBranches(o.vessel).includes(de))) out.distalEmbolus = de;
+  if (de && isOccludable(de) && occlusions.some((o) => isTreatable(o) && embolusTargets(o.vessel).includes(de))) out.distalEmbolus = de;
   return out;
 }
 

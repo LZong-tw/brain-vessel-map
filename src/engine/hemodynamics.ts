@@ -162,10 +162,30 @@ const BRAINSTEM_PIAL: { perforator: string; from: string; share: number }[] = [
   { perforator: 'mesencephalic_perf_{s}', from: 'quad_end_{s}', share: 0.5 },
 ];
 /** TODO(medical-review): anastomotic conductance per mL/min of territory flow at grade factor 1
- * (tuned so that a mid-basilar occlusion leaves the paramedian pons at about 50 % / 40 % / 15 %
+ * (tuned so that a mid-basilar occlusion leaves the paramedian pons at about 50 % / 40 % / 33 %
  * of normal flow with good / moderate / poor collaterals, i.e. slowly dying penumbra, faster
- * dying penumbra and core — a qualitative target, not a measurement) */
+ * dying penumbra and penumbra close to the core threshold that is lost within hours — a
+ * qualitative target, not a measurement; see PIAL_GRADE) */
 const PIAL_ANAST = 0.02;
+/**
+ * Grade factor of the brainstem pial collaterals: as for the other collaterals, except 'poor'.
+ *
+ * TODO(medical-review): with the leptomeningeal factor (0.15) a mid-basilar occlusion with poor
+ * collaterals left the paramedian pons at about 15 % of normal flow, i.e. core within minutes,
+ * so reopening the artery even after 1 h changed nothing. The evidence describes a graded
+ * disadvantage, not futility: in the BASILAR registry (n = 828) thrombectomy was associated with
+ * better outcomes in every BATMAN stratum (interaction p = 0.52), and the ESO/ESMINT guideline
+ * suggests reperfusion therapy irrespective of the collateral score (Strbian D et al. Eur Stroke J
+ * 2024;9:835–884); with unfavourable BATMAN or PC-CS, revascularisation within 6 h, but not
+ * later, was associated with good outcome, whereas favourable collaterals benefited even after
+ * 6 h (Alemseged F et al. Response to late-window endovascular revascularization is associated
+ * with collateral status in basilar artery occlusion. Stroke 2019;50:1415–1422). BATMAN combines
+ * thrombus burden with collaterals, so it is not a pure collateral grade. With 0.5 the
+ * paramedian pons sits at about a third of normal flow (low penumbra): reopening within a few
+ * hours saves part of it, the benefit fades towards 12 h and is gone at 24 h. Good and moderate
+ * keep the common factors, so their calibration is unchanged.
+ */
+const PIAL_GRADE: Record<CollateralGrade, number> = { ...COLL_GRADE, poor: 0.5 };
 /** TODO(medical-review): fixed series limit of the surface-to-perforator entry (same units) */
 const PIAL_ENTRY = 0.015;
 /**
@@ -180,6 +200,37 @@ const PIAL_ENTRY = 0.015;
  */
 const PIAL_PRESSURE_EXP = 1.4;
 export const pialPressureFactor = (map: number) => (map <= MAP_REF ? 1 : Math.pow(MAP_REF / map, PIAL_PRESSURE_EXP));
+
+/**
+ * Chest-wall and neck collaterals of the subclavian artery (not drawn as vessels).
+ *
+ * When the subclavian artery is blocked proximal to the vertebral origin, the arm is fed not
+ * only by the reversed vertebral artery but also through the branches of the first part of the
+ * subclavian artery, which reverse too: the internal thoracic artery from the intercostal
+ * arteries of the descending aorta, and the thyrocervical trunk from the superior thyroid branch
+ * of the external carotid artery. Each link joins a donor (the aorta, here the arch node, or the
+ * carotid bifurcation) to the vertebral origin of the subclavian artery, with a fixed
+ * conductance (mL/min/mmHg) that does not depend on the leptomeningeal collateral grade. At
+ * baseline the pressures at both ends are almost equal and they carry next to nothing.
+ *
+ * TODO(medical-review): the conductances are a qualitative calibration, not measurements.
+ * Without them the whole arm was fed by the reversed vertebral artery, which drained the
+ * vertebrobasilar junction so much that the basilar tip and both P1 segments reversed and the
+ * carotids fed the upper basilar artery through the PComms in every steal. In patients with
+ * retrograde vertebral flow, 76 % (19/25) had antegrade basilar flow at rest, unchanged by arm
+ * ischaemia, and fewer than 25 % reversed (Harper C et al. Transcranial Doppler ultrasonography of
+ * the basilar artery in patients with retrograde vertebral artery flow. J Vasc Surg
+ * 2008;48:859–864). Tuned so that with a normal opposite vertebral artery the basilar artery and
+ * the P1 segments stay antegrade at rest and the arm's mean pressure is about 25 mmHg below the
+ * other arm (steal is found with arm pressure differences above 20 mmHg and is mostly silent;
+ * symptoms are more frequent above 40–50 mmHg: Labropoulos N et al. Prevalence and impact of the
+ * subclavian steal syndrome. Ann Surg 2010;252:166–170). With a hypoplastic or occluded opposite
+ * vertebral artery the carotids still have to feed the basilar artery, which then reverses.
+ */
+const ARM_COLLATERALS: { from: string; g: number }[] = [
+  { from: 'arch', g: 1.8 },
+  { from: 'cca_bif_{s}', g: 1.2 },
+];
 
 const BRAIN_CATEGORIES = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
 
@@ -234,7 +285,8 @@ function buildUnits(overrides: Map<string, SupplyDef[]>): Unit[] {
         prev.baseFlow += frac * bed.baseFlow;
       } else {
         merged.set(node, {
-          id: `${bed.id}#${s.v}`,
+          // one artery can feed a bed at two points (its middle and its end): one unit for each
+          id: `${bed.id}#${s.v}${s.at === 'mid' && supply.some((x) => x.v === s.v && x.at !== 'mid') ? '@mid' : ''}`,
           bed: bed.id,
           node,
           vessel: s.v,
@@ -276,15 +328,23 @@ function ownerFlow(node: string, sub: Map<string, number>): number {
 // ── configuration (variants + collateral grade) ───────────────────
 const configCache = new Map<string, Config>();
 
-export function variantOverrides(variants: string[]): { scale: Map<string, number>; overrides: Map<string, SupplyDef[]> } {
+/** vessels only some people have (absent unless a chosen variant adds them) */
+const VARIANT_ONLY = VESSELS.filter((v) => v.variantOnly).map((v) => v.id);
+
+export function variantOverrides(variants: readonly string[]): { scale: Map<string, number>; overrides: Map<string, SupplyDef[]> } {
   const scale = new Map<string, number>();
   const overrides = new Map<string, SupplyDef[]>();
   for (const id of variants) {
     const v = VARIANT_BY_ID[id];
     if (!v) continue;
-    for (const [vid, f] of Object.entries(v.vesselScale ?? {})) scale.set(vid, (scale.get(vid) ?? 1) * f);
+    for (const [vid, f] of Object.entries(v.vesselScale ?? {})) {
+      // a vessel a variant adds starts from 0, so its scale is set rather than multiplied
+      if (VESSEL_BY_ID[vid]?.variantOnly) scale.set(vid, Math.max(scale.get(vid) ?? 0, f));
+      else scale.set(vid, (scale.get(vid) ?? 1) * f);
+    }
     for (const [rid, sup] of Object.entries(v.supplyOverride ?? {})) overrides.set(rid, sup);
   }
+  for (const vid of VARIANT_ONLY) if (!scale.has(vid)) scale.set(vid, 0);
   // absent PComm: the polar (tuberothalamic) artery then arises from the P1 perforators
   for (const s of ['r', 'l']) {
     if ((scale.get(`pcomm_${s}`) ?? 1) === 0 && !overrides.has(`thalamus_anterior_${s}`)) {
@@ -292,6 +352,16 @@ export function variantOverrides(variants: string[]): { scale: Map<string, numbe
     }
   }
   return { scale, overrides };
+}
+
+/**
+ * Vessels that do not exist in this anatomy: removed by a chosen variant (scale 0, e.g. an
+ * absent AComm) or only present with a variant that is not chosen (e.g. a persistent trigeminal
+ * artery). They carry no flow, and the views do not draw or list them.
+ */
+export function absentVessels(variants: readonly string[]): Set<string> {
+  const { scale } = variantOverrides(variants);
+  return new Set([...scale].filter(([, f]) => f === 0).map(([id]) => id));
 }
 
 function buildConfig(variants: string[], collateral: CollateralGrade): Config {
@@ -304,6 +374,8 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
 
   const midNeeded = new Set<string>();
   for (const v of FLOW_VESSELS) {
+    // a vessel only some people have does not split its parent when it is absent
+    if (v.variantOnly && scale.get(v.id) === 0) continue;
     for (const end of [v.from, v.to]) if (end.endsWith('@mid')) midNeeded.add(end.slice(0, -4));
   }
   for (const u of units) if (u.node.endsWith('@mid')) midNeeded.add(u.node.slice(0, -4));
@@ -325,7 +397,7 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
     }
   }
 
-  const hiddenLinks = brainstemPialLinks(units, vesselG, midNeeded, collateral);
+  const hiddenLinks = [...brainstemPialLinks(units, vesselG, midNeeded, collateral), ...armCollateralLinks()];
   const cfg: Config = {
     key,
     vesselG,
@@ -340,6 +412,18 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
   calibrate(cfg);
   configCache.set(key, cfg);
   return cfg;
+}
+
+/** the undrawn chest-wall and neck collaterals of each subclavian artery (see ARM_COLLATERALS) */
+function armCollateralLinks(): CollateralLink[] {
+  const links: CollateralLink[] = [];
+  for (const s of ['r', 'l']) {
+    for (const l of ARM_COLLATERALS) {
+      const a = l.from.replace('{s}', s);
+      links.push({ id: `arm:${a}>sub_va_${s}`, a, b: `sub_va_${s}`, g: l.g });
+    }
+  }
+  return links;
 }
 
 /**
@@ -365,7 +449,7 @@ function brainstemPialLinks(
       // both arteries must exist in this anatomy, and a donor's mid-course node must be in the network
       if (!perf || !(q > 0) || !((vesselG.get(perf.id) ?? 0) > 0)) continue;
       if (!donor || (mid && !midNeeded.has(donor)) || !((vesselG.get(donor) ?? 0) > 0)) continue;
-      const gAnast = COLL_GRADE[collateral] * PIAL_ANAST * q;
+      const gAnast = PIAL_GRADE[collateral] * PIAL_ANAST * q;
       const gEntry = PIAL_ENTRY * q;
       const g = (l.share * gAnast * gEntry) / (gAnast + gEntry);
       links.push({ id: `pial:${a}>${perf.id}`, a, b: `${perf.id}@mid`, g });

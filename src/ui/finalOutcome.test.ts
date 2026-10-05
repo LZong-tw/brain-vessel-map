@@ -193,9 +193,10 @@ describe('late course', () => {
     // … nothing is left at 6 months, and it is not part of the late course
     expect(early.course.m6.symptoms).toEqual([]);
     expect(ids(early.late)).not.toContain('locked_in');
-    // untreated, the locked-in state itself is what remains at 6 months
+    // untreated, the locked-in state itself is what remains at 6 months (incomplete by then: some
+    // limb movement has returned, C3-F1)
     const untreated = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }]));
-    expect(untreated.course.m6.syndromes.map((s) => s.def.id)).toContain('locked_in');
+    expect(untreated.course.m6.syndromes.map((s) => s.def.id)).toContain('locked_in_incomplete');
   });
 
   it('leaves out treatment events such as the reperfusion itself', () => {
@@ -243,3 +244,27 @@ describe('final regions', () => {
     expect(out.regions.map((r) => r.id)).toContain('insula_l');
   });
 });
+
+describe('a course that usually ends in death (C4-F1)', () => {
+  it('flags herniation without decompression, and not the decompressed course', () => {
+    const untreated = finalOutcome(scenarioInput('r_m1_malignant'));
+    expect(untreated.fatal).toEqual(['herniation']);
+    expect(untreated.course.fatal).toEqual(['herniation']);
+    expect(finalOutcome(scenarioInput('r_m1_decompression')).fatal).toEqual([]);
+    expect(finalOutcome(scenarioInput('l_m1')).fatal).toEqual([]);
+  });
+
+  it('flags a swollen cerebellum in coma without decompression', () => {
+    expect(finalOutcome(scenarioInput('cerebellar_swelling')).fatal).toEqual(['posterior_fossa']);
+    expect(finalOutcome({ ...scenarioInput('cerebellar_swelling'), decompression: true }).fatal).toEqual([]);
+    expect(finalOutcome(scenarioInput('r_pica')).fatal).toEqual([]);
+  });
+
+  it('compares it with the untreated course when a treatment is set', () => {
+    // left M1 with moderate collaterals: herniates untreated, not when reopened at 1 h
+    const o = finalOutcome({ ...plain([{ vessel: 'mca_m1_l', severity: 1 }], 1), collateral: 'moderate' });
+    expect(o.untreated!.fatal).toEqual(['herniation']);
+    expect(o.course.fatal).toEqual([]);
+  });
+});
+
