@@ -2498,4 +2498,75 @@ select.sched-sev {
   color: var(--text-2);
 }
 
+/* 最終: common problems after stroke (population figures, not the case's symptoms) */
+.outcome-risks > p {
+  margin: 0 0 6px;
+}
+.risk-group {
+  margin: 8px 0;
+}
+.risk-group h4 {
+  margin: 6px 0 2px;
+}
+.risk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.risk-item {
+  padding: 6px 0 6px 8px;
+  border-left: 3px solid var(--line-2);
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.risk-item:first-child {
+  border-top: 0;
+}
+.risk-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.risk-prev {
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.risk-prev strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.risk-desc,
+.risk-note,
+.risk-factors p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.risk-desc {
+  color: var(--text-2);
+}
+.risk-note {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(240, 161, 50, 0.1);
+  color: var(--text);
+}
+.risk-factors {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.risk-factors summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.risk-source {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
 /* (end of outcome panel section) */

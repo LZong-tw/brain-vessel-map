@@ -4,14 +4,17 @@ import { REGION_BY_ID, regionName, tr } from '../anatomy';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { formatHours } from '../anatomy/timeline';
 import type { NihssResult, SymptomItem } from '../engine/clinical';
+import type { SimResult } from '../engine/simulate';
 import { OUTCOME_UI } from '../i18n/uiOutcome';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
+import { RISKS_UI } from '../i18n/uiRisks';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
 import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutcome';
 import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
 import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, symptomBackup } from '../ui/recoveryFormat';
+import { formatPrevalence, postStrokeRisksFor } from '../ui/postStrokeRisks';
 import { formatClock } from '../ui/scheduleFormat';
 import { treatmentLine } from '../ui/caseSummary';
 import { EventItem } from './EventItem';
@@ -198,6 +201,8 @@ export function FinalOutcome() {
         <p className="muted small">{RECOVERY_UI[lang].caveat}</p>
       </section>
 
+      <PostStrokeRisks m6={m6} />
+
       <section>
         <h3>{o.lateTitle}</h3>
         <p className="muted small">{o.lateNote}</p>
@@ -239,6 +244,58 @@ export function FinalOutcome() {
 
       <p className="callout outcome-caveat">{o.caveat}</p>
     </div>
+  );
+}
+
+/**
+ * Common problems after stroke that the lesion site does not determine: population figures from
+ * systematic reviews, shown only when the case leaves a brain infarct (ui/postStrokeRisks.ts).
+ * Not symptoms of the case, never in the NIHSS or the deficit counts above.
+ */
+function PostStrokeRisks({ m6 }: { m6: SimResult }) {
+  const lang = useApp((s) => s.lang);
+  const r = RISKS_UI[lang];
+  const groups = useMemo(() => postStrokeRisksFor(m6), [m6]);
+  if (!groups.length) return null;
+  const en = lang === 'en';
+  return (
+    <section className="outcome-risks" aria-label={r.title}>
+      <h3>{r.title}</h3>
+      <p className="muted small">{r.intro}</p>
+      {groups.map((g) => (
+        <div key={g.system} className={`risk-group rg-${g.system}`}>
+          <h4>{r.groups[g.system] ?? tr(SYSTEM_LABEL[g.system], lang)}</h4>
+          <ul className="risk-list">
+            {g.items.map(({ risk, notes }) => (
+              <li key={risk.id} className="risk-item" data-risk={risk.id}>
+                <div className="risk-name">{tr(risk.name, lang)}</div>
+                <div className="risk-prev">
+                  <strong className="num">{formatPrevalence(risk.prevalence, lang)}</strong>
+                  {en ? ' ' : ''}
+                  {r.ofSurvivors}
+                  <span className="muted"> · {tr(risk.window, lang)}</span>
+                </div>
+                <p className="risk-desc">{tr(risk.desc, lang)}</p>
+                {notes.map((n) => (
+                  <p key={n.en} className="risk-note">
+                    {tr(n, lang)}
+                  </p>
+                ))}
+                <details className="risk-factors">
+                  <summary>{r.factors}</summary>
+                  <p>{tr(risk.factors, lang)}</p>
+                </details>
+                <cite className="risk-source">
+                  {r.sources}
+                  {en ? ': ' : '：'}
+                  {risk.sources.join(' · ')}
+                </cite>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
   );
 }
 
