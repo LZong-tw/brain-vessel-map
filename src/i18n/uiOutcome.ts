@@ -33,9 +33,13 @@ export interface OutcomeStrings {
   rowNihss3: string;
   rowNihss6: string;
   rowLasting: string;
-  /** a row of the comparison: the course usually ends in death (C4-F1) */
-  rowFatal: string;
-  fatalYes: string;
+  /**
+   * a row of the comparison per risk (C4-F1): herniation without decompression usually ends in
+   * death; a swollen cerebellum in coma without surgery is life-threatening, with no reliable
+   * mortality figure (R6-8, R6-13)
+   */
+  rowFatal: Record<FatalRisk, string>;
+  fatalYes: Record<FatalRisk, string>;
   fatalNo: string;
   items: (n: number) => string;
   compareNote: string;
@@ -92,8 +96,8 @@ const zh: OutcomeStrings = {
   rowNihss3: 'NIHSS（3 個月）',
   rowNihss6: 'NIHSS（6 個月）',
   rowLasting: '6 個月時的缺損',
-  rowFatal: '可能死亡（疝脫）',
-  fatalYes: '很可能',
+  rowFatal: { herniation: '很可能死亡（疝脫）', posterior_fossa: '危及生命（腦幹受壓、未手術）' },
+  fatalYes: { herniation: '很可能', posterior_fossa: '是' },
   fatalNo: '—',
   items: (n) => `${n} 項`,
   compareNote: '「未治療」是同樣的阻塞、但沒有打通血管的模擬。',
@@ -154,8 +158,8 @@ const en: OutcomeStrings = {
   rowNihss3: 'NIHSS (3 months)',
   rowNihss6: 'NIHSS (6 months)',
   rowLasting: 'Deficits at 6 months',
-  rowFatal: 'Death likely (herniation)',
-  fatalYes: 'likely',
+  rowFatal: { herniation: 'Death likely (herniation)', posterior_fossa: 'Life-threatening (brainstem compression, no surgery)' },
+  fatalYes: { herniation: 'likely', posterior_fossa: 'yes' },
   fatalNo: '—',
   items: (n) => `${n}`,
   compareNote: '"Untreated" is the same occlusion simulated without reopening the artery.',

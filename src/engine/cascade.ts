@@ -16,7 +16,8 @@
  *     2008; Beghi et al. 2011; Bladin et al. 2000; Galovic et al., Lancet Neurol 2018)
  *   • ischaemic cascade: energy failure, excitotoxicity, peri-infarct depolarisations,
  *     inflammation (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
- *   • crossed cerebellar diaschisis (Pantano, Baron et al., Brain 1986)
+ *   • crossed cerebellar diaschisis (Pantano, Baron et al., Brain 1986; after thalamic infarcts:
+ *     Förster et al., PLoS One 2014)
  *   • Wallerian degeneration on MRI (Kuhn et al., Radiology 1989; Thomalla et al., NeuroImage 2004);
  *     the infarct on MRI after the oedema (Lansberg et al., AJNR 2001; Schlaug et al., Neurology 1997)
  *   • hypertrophic olivary degeneration (Goto & Kaneko 1981; Kitajima et al., Radiology 1994;
@@ -30,11 +31,13 @@
 
 import { BEDS, REGIONS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { Bed, DeficitRef, Family, L, Region, Side } from '../anatomy';
-import { SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
+import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
+import { LOCKED_IN_BASES_FLOOR } from '../anatomy/syndromes';
 import { formatHours } from '../anatomy/timeline';
+import { resolveCurve, vasoRise } from './edema';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
-import { isTreatable } from './schedule';
+import { isTreatable, reopenedByTreatment, startOf } from './schedule';
 
 export type EventKind = 'mechanism' | 'imaging' | 'treatment' | 'secondary' | 'complication' | 'recovery';
 export type EventSeverity = 'info' | 'warn' | 'danger' | 'good';
@@ -51,10 +54,11 @@ export interface CascadeEvent {
   /** regions involved (ids) */
   regions: string[];
   /** symptoms produced by this event while active (e.g. coma from brainstem compression) */
-  symptoms?: { id: string; side: Side | 'both' | null; sev: 1 | 2 | 3 }[];
+  symptoms?: EventSymptom[];
   /**
-   * after peakH, the symptoms last only while the midline shift (engine/edema.ts) is at least this
-   * many mm: the coma of a transtentorial herniation lifts as the swelling subsides (C4-F1)
+   * the symptoms apply only while the midline shift (engine/edema.ts) is at least this many mm:
+   * the coma of a transtentorial herniation lifts as the swelling subsides (C4-F1), and none comes
+   * with a smaller shift, before the oedema peak either (R6-5)
    */
   symptomsWhileShiftMm?: number;
   /**
@@ -62,6 +66,18 @@ export interface CascadeEvent {
    * shift (consciousnessFromShift; C4-F2): the event that explains a shift-derived drowsiness or coma
    */
   shiftSymptoms?: boolean;
+}
+
+/**
+ * A symptom an event produces; with `fromH`/`untilH` only for that part of the event (clinical
+ * clock), e.g. the level of consciousness that follows a swelling as it grows and subsides (R6-1).
+ */
+export interface EventSymptom {
+  id: string;
+  side: Side | 'both' | null;
+  sev: 1 | 2 | 3;
+  fromH?: number;
+  untilH?: number;
 }
 
 export type FatalRisk = 'herniation' | 'posterior_fossa';
@@ -131,6 +147,14 @@ export interface CascadeInput {
    * pass), there is no aspiration warning and "severe" rests on the volume and locked-in state.
    */
   listed?: ListedCourse;
+  /**
+   * the midline shift the oedema model (engine/edema.ts) gives a malignant hemispheric oedema
+   * without decompression, per side of the swelling, worked out by simulate(): an uncal
+   * herniation follows only a shift into the coma range, from when it gets there until it falls
+   * below it again (R6-5, R6-2). Left out, the herniation follows the volume rule with its
+   * default timing (day 3 to two weeks).
+   */
+  shift?: Partial<Record<Side, HerniationShift>>;
 }
 
 /** when (h after onset) the symptom list first shows what makes swallowing unsafe, or null */
@@ -145,15 +169,32 @@ export interface ListedCourse {
   dysphagiaRegions: string[];
 }
 
+/** what the oedema model's midline shift does on one side (clinical clock; see CascadeInput.shift) */
+export interface HerniationShift {
+  /** the largest shift (mm) */
+  peakMm: number;
+  /** when the shift first reaches the coma range (COMA_SHIFT_MM), or null if it never does */
+  comaFromH: number | null;
+  /** when, after the herniation began, it falls below the coma range again (null: not within the horizon) */
+  comaUntilH: number | null;
+}
+
 /**
  * Whether an event adds its symptoms at `tH` (on the event's own clock), given the midline shift
- * then: from its onset until its end, and for a herniation coma after the oedema peak only while
- * the midline is still shifted into the coma range (C4-F1). simulate() and the checks that the
- * symptom list carries what the active events add use this one rule.
+ * then: from its onset until its end, and for a herniation coma only while the midline is shifted
+ * into the coma range, at any time (C4-F1, R6-5). simulate(), the function heat-map's cell detail
+ * (ui/cellDetail.ts) and the checks that the symptom list carries what the active events add use
+ * this one rule (R6-9).
  */
 export function eventAddsSymptoms(e: CascadeEvent, tH: number, shiftMm: number): boolean {
   if (!e.symptoms || e.onsetH > tH || tH >= (e.endH ?? Infinity)) return false;
-  return !(e.symptomsWhileShiftMm !== undefined && tH >= (e.peakH ?? e.onsetH) && shiftMm < e.symptomsWhileShiftMm);
+  return !(e.symptomsWhileShiftMm !== undefined && shiftMm < e.symptomsWhileShiftMm);
+}
+
+/** the symptoms an event adds at `tH` (see eventAddsSymptoms), each within its own part of the event */
+export function symptomsAddedAt(e: CascadeEvent, tH: number, shiftMm: number): EventSymptom[] {
+  if (!eventAddsSymptoms(e, tH, shiftMm)) return [];
+  return e.symptoms!.filter((x) => (x.fromH ?? -Infinity) <= tH && tH < (x.untilH ?? Infinity));
 }
 
 /** mean arterial pressure from which the high-blood-pressure note is shown (≈ 170/95 mmHg) */
@@ -169,6 +210,18 @@ export const DROWSY_SHIFT_MM = 4;
 export const STUPOR_SHIFT_MM = 6;
 export const COMA_SHIFT_MM = 8;
 
+/**
+ * The uncal herniation of a malignant hemispheric oedema without decompression begins on day 3
+ * (deaths peak then: Qureshi AI et al. Crit Care Med 2003;31:272–277), or later when the midline
+ * shift reaches the coma range only later (R6-5); the subfalcine herniation comes half a day
+ * before it and the compression of the rostral pons half a day after.
+ */
+export const UNCAL_ONSET_H = 72;
+const SUBFALCINE_LEAD_H = 12;
+const PONS_COMPRESSION_LAG_H = 12;
+/** the herniation's end when the oedema model's shift is not known */
+const HERNIATION_END_H = 336;
+
 /** what the shift does to consciousness: drowsy (NIHSS 1a = 1), stupor (2) or coma (3), or nothing (C4-F2) */
 export function consciousnessFromShift(mm: number): { id: 'somnolence' | 'coma'; sev: 1 | 2 | 3 } | null {
   if (mm >= COMA_SHIFT_MM) return { id: 'coma', sev: 3 };
@@ -177,13 +230,53 @@ export function consciousnessFromShift(mm: number): { id: 'somnolence' | 'coma';
   return null;
 }
 
-/** cerebellar infarct volume (mL) from which it counts as space-occupying */
-const CEREBELLAR_SPACE_ML = 25;
+/**
+ * cerebellar infarct volume (mL) from which it counts as space-occupying and gets the warning to
+ * watch for swelling: illustrative, set so that a complete SCA-territory infarct (about 24 mL of
+ * cerebellum here) qualifies — SCA infarcts swell too, with delayed coma in 6 of 9 with cerebellar
+ * and vestibular signs in an autopsy series (Amarenco & Hauw 1990; R6-3)
+ */
+export const CEREBELLAR_SPACE_ML = 20;
 /** … and from which malignant swelling is more likely than not (Baki 2025: 38 cm³, > 50%) */
-const CEREBELLAR_MALIGNANT_ML = 38;
+export const CEREBELLAR_MALIGNANT_ML = 38;
 /** when a malignant cerebellar swelling brings hydrocephalus and brainstem compression (h): the
  * start of day 3, the day deterioration is most frequent (Jauss 1999: days 2–4, most on day 3) */
 const CEREBELLAR_DETERIORATION_H = 48;
+
+/**
+ * Consciousness under a malignant cerebellar swelling without surgery follows the swelling (R6-1):
+ * it falls on day 3, deepens to coma around the swelling peak — delayed coma from cerebellar
+ * swelling: 6 of 9 SCA infarcts with cerebellar and vestibular signs in an autopsy series
+ * (Amarenco P, Hauw JJ. Neurology 1990;40:1383–1390); patients deteriorating to coma in Jauss
+ * 1999 — and, if the patient survives, lightens as the swelling subsides. The swelling's course
+ * is the oedema model's (edema.vasoRise × resolveCurve, as a share of its peak). The level at each
+ * share is a model choice with no measured equivalent in the posterior fossa: coma from 90% of
+ * the peak, and stupor and drowsiness at the same ratios as the midline-shift bands of a swollen
+ * hemisphere (8 : 6 : 4 mm, Ropper 1986).
+ */
+const CB_COMA_SHARE = 0.9;
+const CB_STUPOR_SHARE = (CB_COMA_SHARE * STUPOR_SHIFT_MM) / COMA_SHIFT_MM;
+const CB_DROWSY_SHARE = (CB_COMA_SHARE * DROWSY_SHIFT_MM) / COMA_SHIFT_MM;
+/** when (h after onset) the untreated malignant cerebellar course becomes comatose, and when it is lighter again */
+export const CEREBELLAR_COURSE = (() => {
+  const raw = (t: number) => vasoRise(t) * resolveCurve(t);
+  let peakT = 0;
+  let peak = 0;
+  for (let t = 0; t <= 400; t += 0.25) if (raw(t) > peak) [peak, peakT] = [raw(t), t];
+  const share = (t: number) => raw(t) / peak;
+  /** the first time from `from` (in 0.25 h steps) at which `cond` holds */
+  const first = (from: number, cond: (t: number) => boolean) => {
+    let t = from;
+    while (t < 2000 && !cond(t)) t += 0.25;
+    return t;
+  };
+  return {
+    comaFromH: first(CEREBELLAR_DETERIORATION_H, (t) => share(t) >= CB_COMA_SHARE),
+    comaUntilH: first(peakT, (t) => share(t) < CB_COMA_SHARE),
+    stuporUntilH: first(peakT, (t) => share(t) < CB_STUPOR_SHARE),
+    drowsyUntilH: first(peakT, (t) => share(t) < CB_DROWSY_SHARE),
+  };
+})();
 
 /**
  * when a palatal tremor may be listed after a clear trigger (h): weeks to months after the lesion
@@ -236,23 +329,48 @@ const hoursEn = (h: number) => `${+h.toFixed(1)} h`;
 const lowerFirst = (n: string) => (/^[A-Z][a-z]/.test(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n);
 
 /**
+ * What the chosen time means after IV thrombolysis alone: it is when flow returns, and the artery
+ * usually reopens gradually over 1–3 h after the drug is started (INTERRSeCT: recanalisation
+ * assessed a median of 132.5 min after alteplase was started, Menon BK et al. JAMA
+ * 2018;320:1017–1026; Seners P et al. Stroke 2016;47:2409–2412). So the drug was started about
+ * t − 3 to t − 1 h after onset; flow back within 1 h of onset would put the drug start at or
+ * before the onset, which thrombolysis does not achieve (R4-2).
+ */
+function ivtTimingNote(t: number): L {
+  // t: hours from the onset of the reopened occlusion to the return of flow
+  const head = {
+    zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例。',
+    en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused. ',
+  };
+  const latest = t - 1;
+  if (latest <= 1e-6)
+    return {
+      zh: `${head.zh}這個時間是血流恢復的時間，發作後才 ${t < 1 ? `${Math.round(t * 60)} 分鐘` : hoursZh(t)}：比靜脈血栓溶解通常能做到的更快，因為用藥後動脈通常在 1–3 小時內才逐漸打通；一個大型世代研究中，從開始用藥到評估再通的中位數約 2 小時）`,
+      en: `${head.en}This is when flow returns, only ${t < 1 ? `${Math.round(t * 60)} min` : hoursEn(t)} after onset: faster than IV thrombolysis usually achieves, since after the drug the artery usually reopens gradually over 1–3 h; in one large cohort recanalisation was assessed a median of about 2 h after the drug was started)`,
+    };
+  const earliest = Math.max(0, t - 3);
+  const n = (h: number) => `${+h.toFixed(1)}`;
+  return earliest <= 1e-6
+    ? {
+        zh: `${head.zh}這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以是在發作後約 ${n(latest)} 小時內就開始用藥）`,
+        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started within about ${n(latest)} h of onset)`,
+      }
+    : {
+        zh: `${head.zh}這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以是在發作後約 ${n(earliest)}–${n(latest)} 小時開始用藥）`,
+        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about ${n(earliest)}–${n(latest)} h after onset)`,
+      };
+}
+
+/**
  * The recanalisation event when the treatment details differ from the default: it names the
  * method and the eTICI grade, says how much of the territory got its flow back, and says so when
  * the attempt failed.
  */
-function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number): CascadeEvent {
+function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number, delayH: number): CascadeEvent {
   const m = METHOD_NAME[t.method];
   const g = GRADE_MEANING[t.grade];
   // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
-  const ivtNote: L =
-    t.method === 'ivt'
-      ? {
-          // the window refers to drug start; recanalisation after alteplase accrues over 1–3 h
-          // (INTERRSeCT: Menon BK et al. JAMA 2018;320:1017–1026; Seners P et al. Stroke 2016;47:2409–2412)
-          zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例。這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以藥物大約早 1–3 小時就已開始）',
-          en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused. This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about 1–3 h earlier)',
-        }
-      : { zh: '', en: '' };
+  const ivtNote: L = t.method === 'ivt' ? ivtTimingNote(delayH) : { zh: '', en: '' };
   if (t.failed) {
     return {
       id: 'reperfusion',
@@ -647,10 +765,10 @@ function treatmentWindowDesc(w: WindowStory): L {
   if (w.mevo) {
     // ESCAPE-MeVO (Goyal M et al. 2025), DISTAL (Psychogios M et al. 2025)
     zh.push(
-      '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療。2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後，症狀性出血較多（5.4% vs 2.2%；5.9% vs 2.6%），ESCAPE-MeVO 的死亡率也較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
+      '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療。2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後；症狀性出血 ESCAPE-MeVO 5.4% vs 2.2%、DISTAL 5.9% vs 2.6%（作者認為相近），只有 ESCAPE-MeVO 的死亡率較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
     );
     en.push(
-      'This is a medium/distal vessel occlusion: IV thrombolysis is standard. Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials, with more symptomatic haemorrhage (5.4% vs 2.2%; 5.9% vs 2.6%) and higher mortality in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
+      'This is a medium/distal vessel occlusion: IV thrombolysis is standard. Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), and mortality higher only in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
     );
   }
   if (!w.anterior && !w.basilar && !w.cervicalIsolated && !w.v4 && !w.mevo) {
@@ -853,7 +971,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // the brain-tissue reperfusion story (penumbra saved, in mL) does not fit an eye or inner-ear
   // infarct, whose end organ the brain volumes do not count
   if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable && treatment) {
-    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume));
+    // hours from the onset of the (most recent) reopened occlusion, as in the settings panel
+    const starts = input.occlusions.filter((o) => reopenedByTreatment(o, reperfusionH)).map(startOf);
+    const delayH = starts.length ? reperfusionH - Math.max(...starts) : reperfusionH;
+    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume, delayH));
     pushTreatmentComplications(events, treatment, reperfusionH);
   } else if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
@@ -904,6 +1025,28 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // 24 h and 68% by 48 h, and deaths peaked on day 3 (Qureshi AI et al. Crit Care Med
     // 2003;31:272–277); deterioration over days 2–5 (Hacke W et al. Arch Neurol 1996;53:309–315).
     if (earlySupra[s] >= 145 || v >= 250) {
+      // Without decompression the swelling herniates when the oedema model's midline shift
+      // reaches the coma range (≥ 8 mm, Ropper 1986): from day 3, or later when the shift gets
+      // there later, until it falls below it again; a shift that stays below it brings
+      // drowsiness or stupor, not a herniation (R6-5, R6-2). A large early lesion still carries
+      // the risk, which the event names.
+      const sh = input.shift?.[s];
+      const uncalH = Math.max(UNCAL_ONSET_H, sh?.comaFromH ?? UNCAL_ONSET_H);
+      const herniationEndH = sh ? sh.comaUntilH : HERNIATION_END_H;
+      const herniates = !decompression && (!sh || (sh.comaFromH !== null && (herniationEndH === null || herniationEndH > uncalH)));
+      const peakMm = sh ? +sh.peakMm.toFixed(1) : null;
+      const outlook: L = decompression
+        ? { zh: '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。', en: 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' }
+        : herniates
+          ? { zh: '若未減壓，大多數會因疝脫死亡（見「疝脫後很可能死亡」）。', en: 'Without decompression most patients die of herniation (see "Death likely after herniation").' }
+          : {
+              zh: `這裡模型算出的腫脹讓中線偏移最多約 ${peakMm} mm，未達昏迷的範圍（8 mm）${
+                (peakMm ?? 0) >= STUPOR_SHIFT_MM ? '：病人變得木僵' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? '：病人變得嗜睡' : '，不足以讓意識下降'
+              }，也沒有疝脫。這麼大的梗塞仍是高風險，實務上要密切觀察，並考慮減壓手術（試驗在 48 小時內手術）。`,
+              en: `Here the swelling the model computes peaks at about ${peakMm} mm of midline shift, short of the coma range (8 mm)${
+                (peakMm ?? 0) >= STUPOR_SHIFT_MM ? ': the patient becomes stuporous' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? ': the patient becomes drowsy' : ', too little to lower consciousness'
+              }, and does not herniate. A lesion this size is still at high risk; in practice it is watched closely and decompression is considered (the trials operated within 48 h).`,
+            };
       events.push({
         id: `malignant_edema_${s}`,
         kind: 'secondary',
@@ -912,10 +1055,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         peakH: 72,
         endH: 336,
         shiftSymptoms: true,
-        title: { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` },
+        title:
+          decompression || herniates
+            ? { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` }
+            : { zh: `${sideZh}大腦半球：惡性腦水腫高風險`, en: `${sideEn === 'right' ? 'Right' : 'Left'} hemisphere: high risk of malignant oedema` },
         desc: {
-          zh: `發病 14 小時內的梗塞已約 ${earlySupra[s].toFixed(0)} mL（> 145 mL 為惡性水腫高風險），最終約 ${v.toFixed(0)} mL。腫脹的半球把中線推向對側，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡）。惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${decompression ? '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。' : '若未減壓，大多數會因疝脫死亡（見「疝脫後可能死亡」）。'}`,
-          en: `Infarct ≈ ${earlySupra[s].toFixed(0)} mL within 14 h (> 145 mL carries high risk), ≈ ${v.toFixed(0)} mL in the end. The swollen hemisphere pushes the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm). Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${decompression ? 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' : 'Without decompression most patients die of herniation (see "Death likely after herniation").'}`,
+          zh: `發病 14 小時內的梗塞已約 ${earlySupra[s].toFixed(0)} mL（> 145 mL 為惡性水腫高風險），最終約 ${v.toFixed(0)} mL。腫脹的半球把中線推向對側，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
+          en: `Infarct ≈ ${earlySupra[s].toFixed(0)} mL within 14 h (> 145 mL carries high risk), ≈ ${v.toFixed(0)} mL in the end. The swollen hemisphere pushes the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm). Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
         },
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
       });
@@ -932,16 +1078,19 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           },
           regions: [],
         });
-      } else {
+      } else if (herniates) {
+        const subfalcineH = uncalH - SUBFALCINE_LEAD_H;
+        // the midbrain and the rostral pons are compressed while the herniation lasts (R6-7)
+        const compressionEndH = herniationEndH ?? undefined;
         const aca = BEDS.filter(
           (b) => b.region.endsWith(`_${s}`) && b.supply.some((x) => /^aca_(callosomarginal|pericallosal|paracentral|frontopolar)/.test(x.v)) && stillAlive(bedFinalUntreated[b.id]),
         );
-        aca.forEach((b) => addEffect(b.id, { kind: 'secondary', onsetH: 60, event: `subfalcine_${s}` }));
+        aca.forEach((b) => addEffect(b.id, { kind: 'secondary', onsetH: subfalcineH, event: `subfalcine_${s}` }));
         events.push({
           id: `subfalcine_${s}`,
           kind: 'secondary',
           severity: 'danger',
-          onsetH: 60,
+          onsetH: subfalcineH,
           title: { zh: '大腦鐮下疝脫 → 同側前大腦動脈被壓迫', en: 'Subfalcine herniation → ipsilateral ACA compressed' },
           desc: {
             zh: '扣帶迴被擠到大腦鐮下方，夾住胼胝體周／胼胝體緣動脈，原本沒有阻塞的前大腦動脈區也發生「續發性梗塞」（腿無力加重、意志缺失）。',
@@ -952,24 +1101,28 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         const pca = BEDS.filter(
           (b) => b.region.endsWith(`_${s}`) && b.supply.some((x) => /^pca_(temporal|calcarine|parietooccipital|splenial|p2)/.test(x.v)) && stillAlive(bedFinalUntreated[b.id]),
         );
-        pca.forEach((b) => addEffect(b.id, { kind: 'secondary', onsetH: 72, event: `uncal_${s}` }));
+        pca.forEach((b) => addEffect(b.id, { kind: 'secondary', onsetH: uncalH, event: `uncal_${s}` }));
         const mid = BEDS.filter((b) => /^midbrain_/.test(b.region));
-        mid.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: 72, endH: 336, event: `uncal_${s}` }));
+        mid.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: uncalH, endH: compressionEndH, event: `uncal_${s}` }));
+        const ponsH = uncalH + PONS_COMPRESSION_LAG_H;
         const pons = BEDS.filter((b) => /^pons_rostral_(tegmentum|basis)/.test(b.region));
-        pons.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: 84, endH: 336, event: `uncal_${s}` }));
-        // No fixed end: the coma, the third-nerve palsy and the Kernohan weakness last while the
-        // midline shift stays in the coma range (≥ 8 mm, Ropper 1986) after the oedema peak, so a
-        // survivor wakes as the swelling subsides instead of at a fixed two weeks (C4-F1).
+        if (compressionEndH === undefined || compressionEndH > ponsH)
+          pons.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: ponsH, endH: compressionEndH, event: `uncal_${s}` }));
+        // The coma, the third-nerve palsy and the Kernohan weakness last while the midline shift
+        // is in the coma range (≥ 8 mm, Ropper 1986), so a survivor wakes as the swelling subsides
+        // instead of at a fixed two weeks (C4-F1); the event itself ends then too, while the
+        // secondary occipital infarct stays (R6-2, R6-7).
         events.push({
           id: `uncal_${s}`,
           kind: 'secondary',
           severity: 'danger',
-          onsetH: 72,
-          peakH: 120,
+          onsetH: uncalH,
+          peakH: Math.max(120, uncalH),
+          ...(herniationEndH === null ? {} : { endH: herniationEndH }),
           title: { zh: '顳葉鉤迴疝脫 → 壓迫中腦與後大腦動脈', en: 'Uncal (transtentorial) herniation → midbrain & PCA compressed' },
           desc: {
-            zh: `內側顳葉從小腦天幕切跡擠下去：壓迫同側動眼神經（${sideZh}側瞳孔放大）、壓扁中腦（昏迷、去大腦姿勢）、夾住${sideZh}側後大腦動脈造成枕葉續發梗塞；對側大腦腳被頂到天幕邊緣（Kernohan 切跡）會讓「同側」肢體也無力。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。若病人存活，昏迷要等水腫消退、中線偏移減少後才逐漸解除。`,
-            en: `The medial temporal lobe slides through the tentorial notch: it compresses the ${sideEn} oculomotor nerve (dilated ${sideEn} pupil), squeezes the midbrain (coma, posturing) and kinks the ${sideEn} PCA causing a secondary occipital infarct; the opposite peduncle pressed on the tentorium (Kernohan notch) weakens the SAME-side limbs. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal. If the patient survives, the coma lifts only gradually as the oedema subsides and the midline shift falls.`,
+            zh: `內側顳葉從小腦天幕切跡擠下去：壓迫同側動眼神經（${sideZh}側瞳孔放大）、壓扁中腦（昏迷、去大腦姿勢）、夾住${sideZh}側後大腦動脈造成枕葉續發梗塞；對側大腦腳被頂到天幕邊緣（Kernohan 切跡）會讓「同側」肢體也無力。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。若病人存活，昏迷要等水腫消退、中線偏移降到 8 mm 以下${herniationEndH === null ? '' : `（這裡約在發病後 ${Math.round(herniationEndH)} 小時）`}才逐漸解除；枕葉的續發梗塞會留下來。`,
+            en: `The medial temporal lobe slides through the tentorial notch: it compresses the ${sideEn} oculomotor nerve (dilated ${sideEn} pupil), squeezes the midbrain (coma, posturing) and kinks the ${sideEn} PCA causing a secondary occipital infarct; the opposite peduncle pressed on the tentorium (Kernohan notch) weakens the SAME-side limbs. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal. If the patient survives, the coma lifts only gradually as the oedema subsides and the midline shift falls below 8 mm${herniationEndH === null ? '' : ` (here about ${Math.round(herniationEndH)} h after onset)`}; the secondary occipital infarct remains.`,
           },
           regions: [...new Set([...pca.map((b) => b.region), ...mid.map((b) => b.region)])],
           symptoms: [
@@ -990,8 +1143,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           id: `herniation_fatal_${s}`,
           kind: 'secondary',
           severity: 'danger',
-          onsetH: 72,
-          title: { zh: '疝脫後可能死亡（未減壓）', en: 'Death likely after herniation (no decompression)' },
+          onsetH: uncalH,
+          title: { zh: '疝脫後很可能死亡（未減壓）', en: 'Death likely after herniation (no decompression)' },
           desc: {
             zh: '完整中大腦動脈區梗塞的 55 位病人中，43 位（78%）因天幕切跡疝脫與腦死而死亡，多在第 2–5 天；存活者的平均 Barthel 指數為 60（Hacke 1996）。三個隨機試驗的合併分析（60 歲以下、48 小時內隨機分組）中，沒有手術的一年存活率只有 29%（手術 78%），mRS 0–4 為 24% vs 75%——兩組的主要差別在於能否存活，未手術的存活者多數仍是 mRS 0–4（Vahedi 2007）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是「假如病人存活（少數）」的情況。',
             en: 'Of 55 patients with complete MCA-territory infarction, 43 (78%) died of transtentorial herniation and brain death, mostly on days 2–5; the survivors had a mean Barthel index of 60 (Hacke 1996). In the pooled analysis of three randomised trials (age ≤ 60, randomised within 48 h) 1-year survival without surgery was only 29% (78% with it), and mRS 0–4 24% vs 75% — the main difference between the arms is survival, and most untreated survivors were still mRS 0–4 (Vahedi 2007). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show what happens if the patient survives (a minority).',
@@ -1068,27 +1221,33 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       regions: [...new Set(bs.map((b) => b.region))],
     });
     if (malignant && !decompression) {
+      // consciousness follows the swelling (R6-1): stupor from day 3, coma around the peak, then
+      // stupor and drowsiness again as it subsides, if the patient survives
+      const { comaFromH, comaUntilH, stuporUntilH, drowsyUntilH } = CEREBELLAR_COURSE;
+      const h = (x: number) => Math.round(x);
       hydrocephalusOnsetH = CEREBELLAR_DETERIORATION_H;
-      hydrocephalusEndH = 336;
-      bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: CEREBELLAR_DETERIORATION_H, endH: 336, event: 'brainstem_compression' }));
+      hydrocephalusEndH = stuporUntilH;
+      bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: CEREBELLAR_DETERIORATION_H, endH: drowsyUntilH, event: 'brainstem_compression' }));
+      const compressed = { fromH: CEREBELLAR_DETERIORATION_H, untilH: stuporUntilH };
       events.push({
         id: 'brainstem_compression',
         kind: 'secondary',
         severity: 'danger',
         onsetH: CEREBELLAR_DETERIORATION_H,
-        endH: 336,
+        endH: drowsyUntilH,
         title: { zh: '小腦腫脹壓迫腦幹', en: 'Swollen cerebellum compresses the brainstem' },
         desc: {
-          zh: '腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。',
-          en: 'The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists.',
+          zh: `腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。未手術時意識隨腫脹變化：第 3 天木僵，腫脹高峰前後（這裡約發病後 ${h(comaFromH)}–${h(comaUntilH)} 小時）昏迷，之後隨腫脹消退回到木僵、嗜睡，約 ${h(drowsyUntilH)} 小時後清醒（假如病人存活）。小腦腫脹讓病人延遲陷入昏迷是有記載的（一個上小腦動脈梗塞的解剖病理系列中，有小腦與前庭症狀的 9 位中有 6 位）；每個腫脹程度對應哪一種意識程度是模型的選擇，比照大腦半球腫脹時中線偏移的分級。`,
+          en: `The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists. Without surgery consciousness follows the swelling: stupor from day 3, coma around its peak (here about ${h(comaFromH)}–${h(comaUntilH)} h after onset), then stupor and drowsiness again as it subsides, alert from about ${h(drowsyUntilH)} h if the patient survives. Delayed coma from cerebellar swelling is described (6 of the 9 with cerebellar and vestibular signs in an autopsy series of SCA infarcts); which level goes with how much swelling is a model choice, following the midline-shift bands of a swollen hemisphere.`,
         },
         regions: [...new Set(bs.map((b) => b.region))],
         symptoms: [
-          { id: 'coma', side: null, sev: 2 },
-          { id: 'miosis', side: null, sev: 1 },
-          { id: 'corneal_reflex_loss', side: null, sev: 1 },
-          { id: 'gaze_palsy_horizontal', side: sideCb, sev: 1 },
-          { id: 'nausea_vomiting', side: null, sev: 2 },
+          { id: 'coma', side: null, sev: 2, ...compressed },
+          { id: 'somnolence', side: null, sev: 1, fromH: stuporUntilH, untilH: drowsyUntilH },
+          { id: 'miosis', side: null, sev: 1, ...compressed },
+          { id: 'corneal_reflex_loss', side: null, sev: 1, ...compressed },
+          { id: 'gaze_palsy_horizontal', side: sideCb, sev: 1, ...compressed },
+          { id: 'nausea_vomiting', side: null, sev: 2, ...compressed },
         ],
       });
       events.push({
@@ -1104,24 +1263,27 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         ],
         title: { zh: '阻塞性水腦症', en: 'Obstructive hydrocephalus' },
         desc: {
-          zh: '腦脊髓液出不去，側腦室與第三腦室脹大，顱內壓上升——遠離小腦的大腦也因此受影響（頭痛、嘔吐、嗜睡）。',
-          en: 'CSF cannot drain, the lateral and third ventricles balloon and intracranial pressure rises — affecting the cerebrum far from the cerebellar infarct (headache, vomiting, drowsiness).',
+          zh: '腦脊髓液出不去，側腦室與第三腦室脹大，顱內壓上升——遠離小腦的大腦也因此受影響（頭痛、嘔吐、嗜睡）。小腦腫脹消退後第四腦室重新通暢。',
+          en: 'CSF cannot drain, the lateral and third ventricles balloon and intracranial pressure rises — affecting the cerebrum far from the cerebellar infarct (headache, vomiting, drowsiness). The 4th ventricle opens again as the cerebellar swelling subsides.',
         },
         regions: [],
       });
-      // coma without decompression: life-threatening; no untreated mortality figure is established
+      // coma without decompression: life-threatening; no untreated mortality figure is
+      // established, and the flag is set only for a course that reaches coma (R6-1)
       fatalRisk.add('posterior_fossa');
       events.push({
         id: 'posterior_fossa_fatal',
         kind: 'secondary',
         severity: 'danger',
-        onsetH: CEREBELLAR_DETERIORATION_H,
+        onsetH: comaFromH,
+        endH: comaUntilH,
         title: { zh: '危及生命：腦幹受壓合併昏迷，未減壓', en: 'Life-threatening: brainstem compression with coma, no decompression' },
         desc: {
-          zh: '小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況。',
-          en: 'Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives.',
+          zh: `小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況，昏迷隨腫脹消退而解除（這裡約在發病後 ${h(comaUntilH)} 小時）。`,
+          en: `Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives, the coma lifting as the swelling subsides (here about ${h(comaUntilH)} h after onset).`,
         },
         regions: [],
+        symptoms: [{ id: 'coma', side: null, sev: 3 }],
       });
     }
   }
@@ -1180,13 +1342,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           `壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內（用了血栓溶解劑會更早）。梗塞越大、再通越晚、使用血栓溶解劑，風險越高。大多沒有症狀（ECASS III 任何顱內出血 27.0% vs 安慰劑 17.6%）；只有第 2 型實質血腫明顯改變病程（ECASS I：早期惡化 OR 32.3、3 個月死亡 OR 18.0）。` +
           `靜脈血栓溶解後的症狀性出血約 2–7%，是在最初 24–36 小時內計算的（Cochrane 定義算到 7 天）。` +
           (lytic
-            ? `${methodZh}血栓溶解後的症狀性出血來得早：從開始用藥算起中位數約 8 小時，症狀性出血的病人約一半死亡。模型把這段風險從治療時開始算，風險等級最多調高一級。`
+            ? `${methodZh}血栓溶解後的症狀性出血來得早：從開始用藥算起中位數約 8 小時，症狀性出血的病人約一半死亡。模型把這段風險從血流恢復時（選擇的治療時間）開始算，而不是從開始用藥算，風險等級最多調高一級。`
             : ''),
         en:
           'Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days (earlier after a thrombolytic). Larger infarcts, late recanalisation and thrombolytics raise the risk. Most of it causes no symptoms (any intracranial haemorrhage in ECASS III: 27.0% vs 17.6% with placebo); only a parenchymal haematoma type 2 clearly changes the course (ECASS I: odds ratio 32.3 for early deterioration, 18.0 for death at 3 months). ' +
           'Symptomatic haemorrhage after IV thrombolysis is roughly 2–7%, counted in the first 24–36 h (up to 7 days with the Cochrane definition).' +
           (lytic
-            ? `${methodEn} Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk at the treatment and raises its level by one step at most.`
+            ? `${methodEn} Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk when flow returns (the time chosen for the treatment), not when the drug is started, and raises its level by one step at most.`
             : ''),
       },
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex' || REGION_BY_ID[r]?.category === 'deep'),
@@ -1210,9 +1372,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const MIDBRAIN_PARAMEDIAN: [string, string][] = [['midbrain_paramedian_r', 'midbrain_paramedian_l']];
   // Both states come from the acute dysfunction. When blood returns before the tissue on both
   // sides dies, the state lasts only until then (the symptoms clear with reperfusion); without
-  // that, it stays for as long as the dysfunction does.
-  const transientUntil = (pairs: [string, string][]) =>
-    input.flowReturnsH != null && !bilateral(infarcted, pairs) ? input.flowReturnsH : undefined;
+  // that, it stays for as long as the dysfunction does. `thr`: the infarcted share from which the
+  // tissue counts as dead.
+  const transientUntil = (pairs: [string, string][], thr = 0.3) =>
+    input.flowReturnsH != null && !bilateral((r) => infarcted(r, thr), pairs) ? input.flowReturnsH : undefined;
   const clears = (h: number | undefined) =>
     h === undefined
       ? { zh: '', en: '' }
@@ -1225,6 +1388,25 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const tegmentalComa = bilateral(acute, PONS_TEG_ROSTRAL) || bilateral(acute, MIDBRAIN_PARAMEDIAN);
   // locked-in once the ventral pons is infarcted on both sides; with less, an incomplete picture
   const classicalRisk = bilateral((r) => infarcted(r, 0.4), PONS_BASIS);
+  // extensive damage to the tegmentum of both sides: a disorder of consciousness follows the coma
+  // from two weeks on (clinical.ts comaBecomes, the same threshold; C3-F2)
+  const persistentDoc = bilateral((r) => infarcted(r, 0.5), PONS_TEG_ROSTRAL) || bilateral((r) => infarcted(r, 0.5), MIDBRAIN_PARAMEDIAN);
+  // The ventral pons counts as dead on both sides from the level at which its lasting signs, and the
+  // locked-in labels, appear (the symptom threshold, 0.25): an infarct that leaves an incomplete
+  // locked-in syndrome does not "resolve" with the reopening (R5-4)
+  const SIGNS_THR = 0.25 - 1e-6;
+  const basesInfarcted = bilateral((r) => infarcted(r, SIGNS_THR), PONS_BASIS);
+  const baseUntil = transientUntil(PONS_BASIS, SIGNS_THR);
+  // smaller infarcts of both halves: the perilesional swelling of the first days can bring their
+  // bilateral signs (and the incomplete locked-in label) back for a while (R5-3)
+  const swellingNote: L =
+    baseUntil !== undefined && bilateral((r) => infarcted(r, LOCKED_IN_BASES_FLOOR - 1e-6), PONS_BASIS)
+      ? {
+          zh: '兩側仍留下小梗塞：頭幾天梗塞周圍的水腫可能讓四肢無力與無法說話暫時回來，水腫在 1–3 週內消退後再減輕。',
+          en: ' Small infarcts are left on both sides: in the first days the swelling around them can bring the weakness of all four limbs and the loss of speech back for a while, easing as it subsides over 1–3 weeks.',
+        }
+      : { zh: '', en: '' };
+  const baseNote: L = { zh: clears(baseUntil).zh + swellingNote.zh, en: clears(baseUntil).en + swellingNote.en };
   // Locked-in syndrome: Bauer G et al. J Neurol 1979;221:77–91 (classical, incomplete, total);
   // comatose first: Laureys S et al. Prog Brain Res 2005;150:495–511; prognosis and care: Patterson
   // JR, Grabois M. Stroke 1986;17:758–764 (139 cases, mortality 60 %, lung care and a communication
@@ -1233,42 +1415,69 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     zh: '早年 139 例文獻回顧的死亡率約 60%：要積極照護呼吸與肺部（吸入、肺炎），並及早建立溝通方式（眨眼或眼動字母表、眼控電腦）。恢復差異很大：一個早期密集復健的小型選擇性系列（14 人）中，42% 恢復吞嚥、28% 恢復說話；病情穩定後可存活數十年。',
     en: ' Mortality was about 60% in an early review of 139 cases: breathing and lung care (aspiration, pneumonia) and an early communication system (an eye-coded or blink alphabet, eye-controlled computers) are essential. Recovery varies widely: in a small selected series of 14 patients after early intensive rehabilitation 42% regained swallowing and 28% speech; once medically stable, people can live for decades.',
   };
+  const LOCKED_IN_TITLE = {
+    risk: { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' },
+    classical: { zh: '雙側橋腦腹側受損：閉鎖症候群', en: 'Bilateral ventral pons: locked-in syndrome' },
+    incomplete: { zh: '雙側橋腦腹側部分受損：不完全閉鎖（雙側橋腦症候群）', en: 'Bilateral ventral pons, partly: incomplete locked-in (bilateral pontine syndrome)' },
+  };
   if (lockedIn && tegmentalComa) {
-    const until = transientUntil(PONS_BASIS);
-    const note = clears(until);
+    // the coma lasts until the reopening clears it, or until two weeks, when the region's coma is
+    // listed as what follows it (clinical.ts, C3-F2); that state has its own event (R5-5)
     events.push({
       id: 'basilar_coma',
       kind: 'secondary',
       severity: 'danger',
       onsetH: 0,
-      ...(until !== undefined ? { endH: until } : {}),
+      endH: baseUntil ?? DELAYED_ONSET_H,
       title: { zh: '雙側橋腦腹側與被蓋受損：昏迷合併四肢癱瘓', en: 'Bilateral ventral pons and tegmentum: coma with quadriplegia' },
       desc: {
-        zh: `四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。${LIS_CARE.zh}${note.zh}`,
-        en: `Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation. Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.${LIS_CARE.en}${note.en}`,
+        zh: `四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。${baseNote.zh}`,
+        en: `Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation. Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.${baseNote.en}`,
       },
       regions: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => acute(r)),
     });
+    if (baseUntil === undefined && persistentDoc) {
+      events.push({
+        id: 'pontine_doc',
+        kind: 'secondary',
+        severity: 'danger',
+        onsetH: DELAYED_ONSET_H,
+        title: { zh: '基底動脈昏迷之後：意識障礙或閉鎖', en: 'After basilar coma: disorder of consciousness or locked-in' },
+        desc: {
+          zh: `昏迷之後眼睛會睜開、恢復睡醒週期，但可能沒有覺察（無反應覺醒症候群）、時有時無（最小意識狀態），也可能其實完全清醒、只是被癱瘓閉鎖住（閉鎖症候群）。這幾種狀態外觀相近、常被誤判；閉鎖症候群平均要 2.5 個月以上才被診斷，常是家屬先發現病人是清醒的：要反覆請病人用上下看或眨眼回答問題。${LIS_CARE.zh}`,
+          en: `The coma has given way to eye opening and sleep–wake cycles, but awareness may be absent (unresponsive wakefulness syndrome), may come and go (minimally conscious state), or may be fully present behind the paralysis (locked-in syndrome). The states look alike and are often confused; locked-in syndrome took over 2.5 months to diagnose on average, and it is often the family who first notices that the person is aware: ask repeatedly for answers by looking up or blinking.${LIS_CARE.en}`,
+        },
+        regions: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => infarcted(r, SIGNS_THR)),
+      });
+    } else if (baseUntil === undefined && basesInfarcted) {
+      // the person wakes from the coma locked-in
+      const partial = !classicalRisk;
+      events.push({
+        id: 'locked_in',
+        kind: 'secondary',
+        severity: 'danger',
+        onsetH: DELAYED_ONSET_H,
+        title: partial ? LOCKED_IN_TITLE.incomplete : LOCKED_IN_TITLE.classical,
+        desc: {
+          zh: `昏迷已經過去：病人醒著、有意識，但四肢與臉部${partial ? '嚴重無力' : '完全癱瘓'}、無法說話吞嚥，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。因為接在昏迷之後、外觀又像昏迷，很容易被忽略：要反覆請病人用上下看或眨眼回答問題。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}`,
+          en: `The coma has lifted: the person is awake and aware, but with ${partial ? 'severe weakness' : 'total paralysis'} of limbs and face and no speech or swallowing, communicating by vertical eye movements and blinking (the midbrain gaze centres are spared). Because it follows a coma and looks like one, it is easily missed: ask repeatedly for answers by looking up or blinking. With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}`,
+        },
+        regions: PONS_BASIS.flat().filter((r) => infarcted(r, SIGNS_THR)),
+      });
+    }
   } else if (lockedIn) {
-    const until = transientUntil(PONS_BASIS);
-    const note = clears(until);
-    const partial = until === undefined && !classicalRisk;
+    const partial = baseUntil === undefined && !classicalRisk;
     events.push({
       id: 'locked_in',
       kind: 'secondary',
       severity: 'danger',
       onsetH: 0,
-      ...(until !== undefined ? { endH: until } : {}),
+      ...(baseUntil !== undefined ? { endH: baseUntil } : {}),
       // reopened in time: a passing risk; infarcted on both sides: locked-in; less: incomplete
-      title:
-        until !== undefined
-          ? { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' }
-          : classicalRisk
-            ? { zh: '雙側橋腦腹側受損：閉鎖症候群', en: 'Bilateral ventral pons: locked-in syndrome' }
-            : { zh: '雙側橋腦腹側部分受損：不完全閉鎖（雙側橋腦症候群）', en: 'Bilateral ventral pons, partly: incomplete locked-in (bilateral pontine syndrome)' },
+      title: baseUntil !== undefined ? LOCKED_IN_TITLE.risk : classicalRisk ? LOCKED_IN_TITLE.classical : LOCKED_IN_TITLE.incomplete,
       desc: {
-        zh: `${partial ? '兩側都受損但不完全：' : '一開始常是'}四肢與臉部${partial ? '嚴重' : '完全'}癱瘓、無法說話吞嚥，但意識清楚，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}${note.zh}`,
-        en: `${partial ? 'Both sides, but not completely: severe' : 'Often at first total'} paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}${note.en}`,
+        zh: `${partial ? '兩側都受損但不完全：' : '一開始常是'}四肢與臉部${partial ? '嚴重' : '完全'}癱瘓、無法說話吞嚥，但意識清楚，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}${baseNote.zh}`,
+        en: `${partial ? 'Both sides, but not completely: severe' : 'Often at first total'} paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}${baseNote.en}`,
       },
       regions: PONS_BASIS.flat().filter((r) => acute(r)),
     });
@@ -1578,8 +1787,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // pyramidal-tract damage neither necessary nor sufficient; seen within hours, it tended to
     // persist but sometimes disappeared within days (Pantano P et al. Brain 1986;109:677–694).
     // Triggers: fronto-motor or capsular involvement, or an extensive carotid-territory cortical
-    // infarct in any lobe (illustrative ≥ 30 mL). Not extended to posterior-territory cortex,
-    // which that study did not include.
+    // infarct in any of its lobes (illustrative ≥ 30 mL); and the ventrolateral thalamus, for which
+    // there is thalamic evidence (below). Not extended to posterior-territory cortex, which that
+    // study did not include.
     const drivers = FRONTO_MOTOR.map((b) => `${b}_${s}`).filter((r) => infarcted(r, 0.3));
     // infarcted cortex weighted by the carotid share of its supply (a border-zone bed counts by half)
     const carotidCortex = BEDS.filter((b) => b.region.endsWith(`_${s}`) && REGION_BY_ID[b.region].category === 'cortex').reduce(
@@ -1589,16 +1799,31 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     if ((drivers.length && vol.supra[s] >= 8) || carotidCortex >= CCD_CORTEX_ML) {
       const cb = BEDS.filter((b) => /^cerebellum_(superior|posterior_inferior|anterior_inferior)_/.test(b.region) && b.region.endsWith(`_${opp(s)}`));
       cb.forEach((b) => addEffect(b.id, { kind: 'diaschisis', onsetH: CCD_ONSET_H, event: `ccd_${s}` }));
+      // the text names the trigger (R6-4): the carotid-territory evidence for the capsule, the
+      // motor and frontal pathways or extensive carotid-territory cortex; the thalamic evidence when
+      // only the ventrolateral thalamus (the relay of the cerebellar output to the motor cortex) is
+      // hit, as in a PCA infarct (Förster A et al. PLoS One 2014;9:e88044: on perfusion MRI in 9 of
+      // 39 acute isolated thalamic infarcts, more often with larger lesions and with dysarthria)
+      const carotid = drivers.some((r) => !r.startsWith('thalamus_ventrolateral_')) || carotidCortex >= CCD_CORTEX_ML;
+      const sz = s === 'r' ? '右' : '左';
+      const oz = s === 'r' ? '左' : '右';
+      const se = s === 'r' ? 'right' : 'left';
+      const oe = s === 'r' ? 'left' : 'right';
       events.push({
         id: `ccd_${s}`,
         kind: 'secondary',
         severity: 'info',
         onsetH: CCD_ONSET_H,
         title: { zh: '交叉性小腦功能抑制（遠隔效應）', en: 'Crossed cerebellar diaschisis (remote effect)' },
-        desc: {
-          zh: `${s === 'r' ? '右' : '左'}側大腦的梗塞（內囊，或大範圍的皮質，任何腦葉都可以）切斷皮質—橋腦—小腦路徑的輸入，對側（${s === 'r' ? '左' : '右'}側）小腦半球的血流與代謝跟著下降。一個頸動脈區中風的 PET 研究中，58% 的檢查看得到；有沒有偏癱都可能出現。小腦本身沒有梗塞、通常沒有症狀。發作後數小時內就可能出現，多半持續數月，有時數天內就消失。`,
-          en: `The ${s === 'r' ? 'right' : 'left'} cerebral infarct (the internal capsule, or an extensive stretch of cortex in any lobe) removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (${s === 'r' ? 'left' : 'right'}) cerebellar hemisphere. In a PET study of carotid-territory strokes it was present in 58% of studies, with or without hemiparesis. The cerebellum is not infarcted and it is usually silent. It can appear within hours of onset and usually persists for months, though sometimes it disappears within days.`,
-        },
+        desc: carotid
+          ? {
+              zh: `${sz}側大腦的梗塞（內囊，或大範圍的頸動脈供應區的皮質）切斷皮質—橋腦—小腦路徑的輸入，對側（${oz}側）小腦半球的血流與代謝跟著下降。一個頸動脈區中風的 PET 研究中，58% 的檢查看得到；有沒有偏癱都可能出現。小腦本身沒有梗塞、通常沒有症狀。發作後數小時內就可能出現，多半持續數月，有時數天內就消失。`,
+              en: `The ${se} cerebral infarct (the internal capsule, or an extensive stretch of carotid-territory cortex) removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (${oe}) cerebellar hemisphere. In a PET study of carotid-territory strokes it was present in 58% of studies, with or without hemiparesis. The cerebellum is not infarcted and it is usually silent. It can appear within hours of onset and usually persists for months, though sometimes it disappears within days.`,
+            }
+          : {
+              zh: `${sz}側視丘的梗塞（腹外側核，小腦輸出到運動皮質的中繼站）切斷小腦—視丘—皮質的迴路，對側（${oz}側）小腦半球的血流與代謝跟著下降。灌流 MRI 上，急性單純視丘梗塞約五分之一看得到（39 位中 9 位），病灶較大、有構音障礙時較常見。小腦本身沒有梗塞、通常沒有症狀；這個研究在急性期就看到了它。`,
+              en: `The ${se} thalamic infarct (the ventrolateral nucleus, which relays the cerebellar output to the motor cortex) interrupts the cerebello-thalamo-cortical loop, so blood flow and metabolism fall in the opposite (${oe}) cerebellar hemisphere. On perfusion MRI it was seen in about a fifth of acute isolated thalamic infarcts (9 of 39), more often with larger lesions and with dysarthria. The cerebellum is not infarcted and it is usually silent; that study found it in the acute phase.`,
+            },
         regions: [...new Set(cb.map((b) => b.region))],
       });
     }
@@ -1863,7 +2088,6 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // consciousness from two weeks on (C3-F2, the same threshold): acting out dreams, and telling of
   // them, needs a person who is awake between them.
   const rbd = REGIONS.filter((r) => /^(pons|medulla)_/.test(r.baseId) && finalLevel(r.id) >= 0.25 - 1e-6);
-  const persistentDoc = bilateral((r) => infarcted(r, 0.5), PONS_TEG_ROSTRAL) || bilateral((r) => infarcted(r, 0.5), MIDBRAIN_PARAMEDIAN);
   if (rbd.length && !persistentDoc) {
     events.push({
       id: 'rbd',

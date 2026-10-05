@@ -5,7 +5,7 @@ import type { SymptomSystem } from '../anatomy/types';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
 import { REGION_DEFS } from '../anatomy/regions';
-import type { CascadeEvent } from '../engine/cascade';
+import { DROWSY_SHIFT_MM, type CascadeEvent } from '../engine/cascade';
 import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
 import { progressed } from '../engine/schedule';
 import { isOccludable, simulate, type SimResult } from '../engine/simulate';
@@ -606,7 +606,7 @@ function Results({ sim }: { sim: SimResult }) {
         {shift >= 0.5 && (
           <div className="stat" title={t.midlineShiftNote}>
             <div className="stat-label">{t.midlineShift}</div>
-            <div className="stat-value small" style={{ color: shift >= 5 ? STATE_COLORS.core : undefined }}>
+            <div className="stat-value small" style={{ color: shift >= DROWSY_SHIFT_MM ? STATE_COLORS.core : undefined }}>
               {shift.toFixed(1)} mm{sim.input.decompression && tH >= 36 ? ` · ${t.decompressed}` : ''}
             </div>
           </div>

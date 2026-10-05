@@ -121,13 +121,17 @@ export function infarctFractionOf(history: readonly FlowPhase[], tH: number, p: 
  * surviving remainder, for a piecewise-constant flow history (see lossSteps):
  *   • "penumbra" while the current flow is below the penumbra threshold and less than the resolve
  *     window has passed since the current phase began (after that it has stabilised: hypoperfused
- *     but functioning, i.e. "oligemia");
+ *     but functioning, i.e. "oligemia", with `stabilisedH` the hours since it stabilised);
  *   • "salvaged" when the flow was below the penumbra threshold in an earlier phase and is above
  *     it now;
  *   • otherwise "oligemia" or "normal" by the current flow.
  * The current phase is the last one with fromH ≤ t; before the first phase, flow is normal.
  */
-export function tissueCourse(history: readonly FlowPhase[], tH: number, p: TissueParams = DEFAULT_TISSUE): { f: number; rest: TissueState } {
+export function tissueCourse(
+  history: readonly FlowPhase[],
+  tH: number,
+  p: TissueParams = DEFAULT_TISSUE,
+): { f: number; rest: TissueState; stabilisedH?: number } {
   const f = infarctFractionOf(history, tH, p);
   let c = -1;
   while (c + 1 < history.length && history[c + 1].fromH <= tH) c++;
@@ -141,8 +145,11 @@ export function tissueCourse(history: readonly FlowPhase[], tH: number, p: Tissu
     rest = 'penumbra';
   } else if (cur < p.penumbraRel) {
     // penumbra that outlived its time window has stabilised (collaterals held or the vessel
-    // partly reopened): hypoperfused but functioning
-    rest = since < penumbraResolveH(cur, p) ? 'penumbra' : 'oligemia';
+    // partly reopened): hypoperfused but functioning — regaining function from then on, which
+    // `stabilisedH` (the hours since) lets the caller spread out (R6-11)
+    const resolveH = penumbraResolveH(cur, p);
+    if (since < resolveH) rest = 'penumbra';
+    else return { f, rest: 'oligemia', stabilisedH: since - resolveH };
   } else if (wasIschaemic(history, c, p)) rest = 'salvaged';
   else rest = cur < p.oligemiaRel ? 'oligemia' : 'normal';
   return { f, rest };
@@ -190,7 +197,8 @@ export function unitState(
   relAfter = 1,
   p: TissueParams = DEFAULT_TISSUE,
 ): { f: number; rest: TissueState } {
-  return tissueCourse(twoPhase(rel, reperfusionH, relAfter), tH, p);
+  const { f, rest } = tissueCourse(twoPhase(rel, reperfusionH, relAfter), tH, p);
+  return { f, rest };
 }
 
 /** Neurons lost per mL of infarcted tissue (Saver 2006: ~1.2 billion in a typical 54 mL infarct). */

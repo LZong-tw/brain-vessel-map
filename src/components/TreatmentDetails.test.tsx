@@ -172,8 +172,26 @@ describe('warnings', () => {
     // the window refers to drug start; the time chosen is when flow returns (C2-F5)
     screen.getByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥.*這裡選的是血流恢復的時間：發作後 6 小時；用藥後動脈通常在接下來 1–3 小時內才逐漸打通/);
 
+    // bridging: thrombectomy sets the time, so a neutral note instead of the warning (R4-8)
     fireEvent.click(screen.getByRole('radio', { name: '兩者（橋接）' }));
-    screen.getByText(/靜脈血栓溶解須在發作後 4.5 小時內開始用藥/);
+    expect(screen.queryByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥/)).toBeNull();
+    const note = screen.getByText(/^橋接治療的靜脈血栓溶解也須在發作後 4.5 小時內開始用藥.*取栓恢復血流的時間/);
+    expect(note.className).toBe('callout note');
+  });
+
+  it('IV thrombolysis with flow back at 5 h gets a neutral note, not the window warning (R4-8)', () => {
+    useApp.setState({ reperfusionH: 5 });
+    useApp.getState().setTreatment({ method: 'ivt' });
+    render(<TreatmentDetails evidence={EMPTY} />);
+    expect(screen.queryByText(/^靜脈血栓溶解須在發作後/)).toBeNull();
+    expect(screen.getByText(/和 4.5 小時內開始用藥相符/).className).toBe('callout note');
+  });
+
+  it('thrombectomy for a lenticulostriate occlusion is said not to apply (R4-5)', () => {
+    useApp.setState({ occlusions: [{ vessel: 'lenticulostriate_l', severity: 1 }], reperfusionH: 3 });
+    render(<TreatmentDetails />);
+    expect(screen.getByText(/^取栓不處理這類動脈/).className).toBe('callout warn');
+    expect(screen.queryByText(/只能個別決定/)).toBeNull();
   });
 
   it('IV thrombolysis within the window gets no time warning', () => {

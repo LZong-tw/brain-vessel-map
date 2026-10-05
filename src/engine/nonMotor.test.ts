@@ -318,14 +318,16 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   // C5-F1: stuporous (1a = 2), so the questions score 2 and the ataxia is not scored; C9-F1: the
   // default Percheron pattern spares the midbrain (no CN III/IV palsy, item 2); C9-F3/F4: thalamic
-  // aphasia from the left (9) and neglect from the right (11) paramedian thalamus (was 5)
-  'percheron@24': [6, { '1a': 2, '1b': 2, 9: 1, 11: 1 }, ['thalamic_paramedian_bilateral']],
+  // aphasia from the left (9) and neglect from the right (11) paramedian thalamus (was 5); R5-7: the
+  // thalamic word-finding difficulty cannot be examined in a stuporous patient (9: 1 → 0; was 6)
+  'percheron@24': [5, { '1a': 2, '1b': 2, 11: 1 }, ['thalamic_paramedian_bilateral']],
   // C3-F2: the coma of the paramedian thalami has given way to persistent hypersomnia by 3 months
   // (1a 1 → 0); C9-F1, C9-F3/F4: as at 24 h, the neglect has recovered (was 4)
   'percheron@2160': [1, { 9: 1 }, ['thalamic_paramedian_bilateral']],
   // C9-F1: the Percheron pattern with the midbrain (a scenario of its own). MERGE: stuporous
-  // (1a = 2), so C5-F1 scores the questions 2 and not the ataxia (1b: 2 in place of 7: 2)
-  'percheron_midbrain@24': [7, { '1a': 2, '1b': 2, 2: 1, 9: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
+  // (1a = 2), so C5-F1 scores the questions 2 and not the ataxia (1b: 2 in place of 7: 2); R5-7:
+  // stuporous, so no thalamic word-finding difficulty is listed (9: 1 → 0; was 7)
+  'percheron_midbrain@24': [6, { '1a': 2, '1b': 2, 2: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
   'percheron_midbrain@2160': [4, { 2: 1, 7: 2, 9: 1 }, ['thalamomesencephalic_bilateral']],
   // C1-F3: the untreated P2 occlusion infarcts the calcarine cortex: a hemianopia (3: 1 → 2; was 4),
   // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l']);
@@ -335,10 +337,12 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F3: the calcarine artery also feeds the cuneus, so the left PCA's both banks fail: a
   // hemianopia (3: 1 → 2; was 36)
   'basilar_tip@24': [37, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
-  // C3-F2: the coma has become a disorder of consciousness (1a 2); C5-F1 stupor: 1b 1 → 2; C1-F3:
-  // an upper quadrantanopia stays (3: 0 → 1); C9-F4: the left anterior thalamus gives a thalamic
-  // aphasia and dysarthria (10: 0 → 1); was 22
-  'basilar_tip@2160': [24, { '1a': 2, '1b': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1, 10: 1 }, ['top_of_basilar']],
+  // C3-F2: the coma has become a disorder of consciousness (1a stays 2); C5-F1 stupor: 1b 1 → 2;
+  // C1-F3: an upper quadrantanopia stays (3: 0 → 1); C9-F4: the left anterior thalamus gives a
+  // thalamic aphasia and dysarthria (10: 0 → 1); was 21 (R6-12: not 22). R5-7: in a disorder of
+  // consciousness the thalamic aphasia is not listed (9: 1 → 0); R5-9: the soft speech of the
+  // anterior thalamic infarct has improved by 3 months (10: 1 → 0); was 24
+  'basilar_tip@2160': [22, { '1a': 2, '1b': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2 }, ['top_of_basilar']],
   // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
   'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
   // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome
@@ -380,7 +384,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // has its own label; C9-F4: its dysarthria (10); C9-F2: mild, passing weakness from the
   // inferolateral thalamus (4, 5l: drift, C5-F1); was 6
   'fetal_pca@24': [9, { 3: 2, 4: 1, '5l': 1, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
-  'fetal_pca@2160': [7, { 3: 2, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
+  // R5-9: the dysarthria and neglect of the anterior thalamic infarct have improved by 3 months
+  // with its other deficits (10: 1 → 0, 11: 1 → 0; was 7)
+  'fetal_pca@2160': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
   // C5-F1 drift: was 7; R1-3: a moderate proximal (shoulder) weakness is some effort against
   // gravity, not drift (5l: 1 → 2; was 5)
   'watershed@24': [6, { 4: 1, '5l': 2, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']],

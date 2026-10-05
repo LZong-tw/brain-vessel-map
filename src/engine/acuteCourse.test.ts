@@ -12,9 +12,11 @@ import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { REDUNDANCY } from '../anatomy/redundancy';
 import { EDEMA_UI } from '../i18n/uiEdema';
+import { UI } from '../i18n/ui';
 import { edemaColor, hex, EDEMA_COLORS } from '../ui/colors';
 import type { Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
+import { lateEvents } from '../ui/finalOutcome';
 
 const inputOf = (id: string, over: Partial<SimInput> = {}): SimInput => {
   const sc = SCENARIOS.find((s) => s.id === id);
@@ -102,6 +104,9 @@ describe('C4-F1: herniation without decompression is usually fatal', () => {
     expect(e!.desc.en).toMatch(/78%/);
     expect(e!.desc.en).toMatch(/29%/);
     expect(e!.desc.zh).toMatch(/78%/);
+    // R6-14: 'likely' in Chinese too (很可能), not 'possible' (可能)
+    expect(e!.title.zh).toBe('疝脫後很可能死亡（未減壓）');
+    expect(event(r, 'malignant_edema_r')!.desc.zh).toContain('見「疝脫後很可能死亡」');
     // the decompressed course does not carry it
     const d = scenario('r_m1_decompression', 72);
     expect(d.cascade.fatalRisk).toEqual([]);
@@ -128,10 +133,11 @@ describe('C4-F1: herniation without decompression is usually fatal', () => {
 
   it('cerebellar: only an untreated course that reaches coma is flagged life-threatening, with no invented mortality figure', () => {
     const untreated = plain(PICA_SCA, 72);
-    expect(sev(untreated, 'coma')).toBeGreaterThanOrEqual(2);
+    // R6-1: the course reaches true coma (1a = 3), and the flag's event lasts while the coma does
+    expect(sev(untreated, 'coma')).toBe(3);
     expect(untreated.cascade.fatalRisk).toEqual(['posterior_fossa']);
     const e = event(untreated, 'posterior_fossa_fatal')!;
-    expect(e.endH).toBeUndefined();
+    expect(e.endH).toBeDefined();
     expect(e.desc.en).toMatch(/suboccipital/i);
     expect(e.desc.en).not.toMatch(/\d+ ?% (of )?(untreated|die)/i);
     const operated = plain(PICA_SCA, 72, { decompression: true });
@@ -301,5 +307,219 @@ describe('C4-F6: crossed cerebellar diaschisis', () => {
 
   it('starts within hours for the fronto-motor trigger too', () => {
     expect(event(scenario('l_m1', 24), 'ccd_l')!.onsetH).toBeLessThanOrEqual(6);
+  });
+});
+
+describe('R6-5: an uncal herniation follows the midline shift of the oedema model, not the infarct volume alone', () => {
+  it('a large superior-division infarct whose shift stays under 8 mm is not comatose and does not herniate', () => {
+    for (const s of ['r', 'l'] as const) {
+      const v = `mca_m2_sup_${s}`;
+      const stops = [24, 48, 72, 96, 120, 168];
+      const runs = stops.map((tH) => plain(occl(v), tH));
+      runs.forEach((r, i) => {
+        const where = `${v} ${stops[i]} h`;
+        expect(r.edema.midlineShiftMm, where).toBeLessThan(8);
+        expect(sev(r, 'coma'), where).toBeLessThan(3);
+        expect(sev(r, 'cn3_palsy'), where).toBe(0);
+        expect(activeAt(r, `uncal_${s}`, stops[i]), where).toBe(false);
+        // consciousness follows the shift: drowsy from 4 mm, stuporous from 6 mm
+        const want = r.edema.midlineShiftMm >= 6 ? 2 : r.edema.midlineShiftMm >= 4 ? 1 : 0;
+        expect(item1a(r), where).toBe(want);
+      });
+      const r72 = runs[2];
+      expect(event(r72, `uncal_${s}`)).toBeUndefined();
+      expect(event(r72, `subfalcine_${s}`)).toBeUndefined();
+      expect(event(r72, `herniation_fatal_${s}`)).toBeUndefined();
+      expect(r72.cascade.fatalRisk).toEqual([]);
+      // the risk from the early volume is still named, with the shift the model reaches
+      const mal = event(r72, `malignant_edema_${s}`)!;
+      expect(mal.desc.en).toMatch(/peaks at about \d+(\.\d)? mm/);
+      expect(mal.desc.en).not.toMatch(/Death likely after herniation/);
+      expect(mal.desc.zh).toMatch(/約 \d+(\.\d)? mm/);
+    }
+  });
+
+  it('across M1, M2 and ICA occlusions, collaterals and blood pressures: an uncal herniation only with a shift in the coma range, and no lighter consciousness while the shift still rises', () => {
+    const stops = [24, 48, 72, 96, 120, 168, 240, 336];
+    for (const v of ['mca_m1_r', 'mca_m1_l', 'mca_m2_sup_r', 'ica_terminal_r', 'ica_terminal_l'])
+      for (const collateral of ['good', 'moderate', 'poor'] as const)
+        for (const map of [70, 93, 120]) {
+          const runs = stops.map((tH) => plain(occl(v), tH, { collateral, map }));
+          runs.forEach((r, i) => {
+            const where = `${v} ${collateral} MAP ${map} ${stops[i]} h`;
+            for (const s of ['r', 'l'])
+              if (activeAt(r, `uncal_${s}`, stops[i])) expect(r.edema.midlineShiftMm, where).toBeGreaterThanOrEqual(8 - 0.05);
+            if (i > 0 && r.edema.midlineShiftMm > runs[i - 1].edema.midlineShiftMm + 0.05)
+              expect(item1a(r), where).toBeGreaterThanOrEqual(item1a(runs[i - 1]));
+          });
+        }
+  });
+});
+
+describe('R6-2, R6-7: the uncal herniation ends when the midline shift leaves the coma range', () => {
+  it('has an end time where the shift falls under 8 mm, is not active or listed as a late consequence months later, and is ongoing while the coma lasts', () => {
+    for (const id of ['r_m1_malignant', 'r_ica_t']) {
+      const e = event(scenario(id, 72), 'uncal_r')!;
+      expect(e.endH, id).toBeDefined();
+      expect(e.endH!, id).toBeGreaterThan(168);
+      expect(e.endH!, id).toBeLessThan(336);
+      expect(scenario(id, e.endH! - 1).edema.midlineShiftMm, id).toBeGreaterThanOrEqual(8);
+      expect(scenario(id, e.endH! + 1).edema.midlineShiftMm, id).toBeLessThan(8);
+      for (const tH of [720, 2160, 4320]) expect(activeAt(scenario(id, tH), 'uncal_r', tH), `${id} ${tH} h`).toBe(false);
+      expect(lateEvents(scenario(id, 4320)).map((x) => x.id), id).not.toContain('uncal_r');
+      // the death after herniation stays a lasting flag
+      expect(lateEvents(scenario(id, 4320)).map((x) => x.id), id).toContain('herniation_fatal_r');
+      // NowSummary lists an event as ongoing while it has an end still ahead: at 5 days the coma lasts
+      const r120 = scenario(id, 120);
+      expect(sev(r120, 'coma'), id).toBe(3);
+      expect(activeAt(r120, 'uncal_r', 120), id).toBe(true);
+    }
+  });
+});
+
+describe('R6-1: a malignant cerebellar swelling without surgery reaches true coma before it is flagged life-threatening, and consciousness follows the swelling', () => {
+  const at = (tH: number) => plain(PICA_SCA, tH);
+  it('stuporous on day 3, comatose (NIHSS 1a = 3) near the swelling peak, and flagged life-threatening only from then', () => {
+    expect(item1a(at(48))).toBe(2);
+    for (const tH of [72, 96, 120]) {
+      expect(sev(at(tH), 'coma'), `${tH} h`).toBe(3);
+      expect(item1a(at(tH)), `${tH} h`).toBe(3);
+    }
+    const e = event(at(72), 'posterior_fossa_fatal')!;
+    expect(e.title.en).toMatch(/coma/);
+    // the flag is set when the coma begins, and the coma lifts with the swelling
+    expect(e.onsetH).toBeGreaterThan(48);
+    expect(item1a(at(e.onsetH - 0.5))).toBe(2);
+    expect(item1a(at(e.onsetH + 0.5))).toBe(3);
+    expect(e.endH).toBeDefined();
+    expect(item1a(at(e.endH! - 0.5))).toBe(3);
+    expect(item1a(at(e.endH! + 0.5))).toBe(2);
+    expect(activeAt(at(4320), 'posterior_fossa_fatal', 4320)).toBe(false);
+    expect(at(4320).cascade.fatalRisk).toEqual(['posterior_fossa']);
+  });
+
+  it('no fixed step at two weeks: consciousness lightens one level at a time as the swelling subsides', () => {
+    const stops = [120, 168, 200, 240, 260, 280, 300, 320, 335, 336, 360, 400, 500];
+    const levels = stops.map((tH) => item1a(at(tH)));
+    for (let i = 1; i < levels.length; i++) expect(levels[i - 1] - levels[i], `${stops[i - 1]}→${stops[i]} h: ${levels.join(',')}`).toBeLessThanOrEqual(1);
+    expect(levels).toContain(1);
+    expect(item1a(at(335))).toBe(item1a(at(336)));
+    expect(item1a(at(720))).toBe(0);
+    // the compression signs and the hydrocephalus go with the compression, not at a fixed day 14
+    const bc = event(at(72), 'brainstem_compression')!;
+    expect(bc.endH).not.toBe(336);
+    expect(event(at(72), 'hydrocephalus')!.endH).not.toBe(336);
+  });
+});
+
+describe('R6-3: a complete SCA-territory infarct gets the warning to watch for swelling', () => {
+  it('the SCA template (about 24 mL of cerebellum) is a warning to monitor, without a malignant course', () => {
+    const r = scenario('r_sca', 72);
+    const cb = r.cascade.volumes.cerebellum.r + r.cascade.volumes.cerebellum.l;
+    expect(cb).toBeLessThan(25);
+    const e = event(r, 'cerebellar_edema')!;
+    expect(e).toBeDefined();
+    expect(e.severity).toBe('warn');
+    expect(e.desc.en).toMatch(/PICA and SCA infarcts can both swell/);
+    expect(event(r, 'brainstem_compression')).toBeUndefined();
+    expect(event(r, 'hydrocephalus')).toBeUndefined();
+    expect(sev(r, 'coma')).toBe(0);
+  });
+});
+
+describe('R6-4: the crossed cerebellar diaschisis text names what triggered it', () => {
+  it('a PCA infarct reaching the ventrolateral thalamus: the thalamic pathway and the thalamic figures, not the carotid PET study', () => {
+    for (const [id, tH] of [['l_pca', 24], ['basilar_tip', 24]] as const) {
+      const e = event(scenario(id, tH), 'ccd_l')!;
+      expect(e, id).toBeDefined();
+      expect(e.desc.en, id).toMatch(/thalam/i);
+      expect(e.desc.en, id).toMatch(/9 of 39/);
+      expect(e.desc.en, id).not.toMatch(/carotid|58%|any lobe/);
+      expect(e.desc.zh, id).toMatch(/視丘/);
+      expect(e.desc.zh, id).not.toMatch(/頸動脈|58%|任何腦葉/);
+    }
+  });
+
+  it('a carotid-territory infarct: the capsule or carotid-territory cortex and the PET figure, not "any lobe"', () => {
+    for (const [id, tH] of [['l_m2_inf', 48], ['l_m1', 24]] as const) {
+      const e = event(scenario(id, tH), 'ccd_l')!;
+      expect(e.desc.en, id).toMatch(/carotid-territory cortex/);
+      expect(e.desc.en, id).toMatch(/58%/);
+      expect(e.desc.en, id).not.toMatch(/any lobe/);
+      expect(e.desc.zh, id).toMatch(/頸動脈供應區的皮質/);
+      expect(e.desc.zh, id).not.toMatch(/任何腦葉/);
+    }
+  });
+});
+
+describe('R6-10: the midline-shift tooltip gives the bands the model uses', () => {
+  it('drowsy from about 4 mm, stupor from 6 mm, coma from 8 mm (Ropper 1986), in both languages', () => {
+    const en = UI.en.midlineShiftNote;
+    const zh = UI['zh-TW'].midlineShiftNote;
+    for (const mm of ['4 mm', '6 mm', '8 mm']) {
+      expect(en).toContain(mm);
+      expect(zh).toContain(mm);
+    }
+    expect(en).not.toMatch(/~5 mm/);
+    expect(zh).not.toMatch(/約 5 mm/);
+    expect(en).toMatch(/Ropper/);
+    expect(zh).toMatch(/Ropper/);
+  });
+});
+
+describe("R6-15: the PICA + SCA template gives the model's volume as the model's, in both languages", () => {
+  it('says "here" for the 58 mL in Chinese too', () => {
+    const sc = SCENARIOS.find((s) => s.id === 'cerebellar_swelling')!;
+    expect(sc.summary.en).toContain('about 58 mL here');
+    expect(sc.summary.zh).toContain('（解剖病理系列中常見；這裡約 58 mL）');
+    const r = scenario('cerebellar_swelling', 72);
+    expect(Math.round(r.cascade.volumes.cerebellum.r + r.cascade.volumes.cerebellum.l)).toBe(58);
+  });
+});
+
+
+describe("R6-6: a stroke's coma and late signs follow the age of its own lesion, not the first stroke's clock", () => {
+  const stack = (a: string, ta: number, b: string, tb: number, tH: number) =>
+    simulate({
+      occlusions: [
+        { vessel: a, severity: 1, fromH: ta },
+        { vessel: b, severity: 1, fromH: tb },
+      ],
+      variants: [],
+      collateral: 'poor',
+      map: 93,
+      tH,
+      reperfusionH: null,
+      decompression: false,
+    });
+  const basilarAlone = (tH: number) => plain(occl('basilar_upper'), tH);
+
+  it('a basilar occlusion a month after an M1 stroke: comatose first, a disorder of consciousness only two weeks later', () => {
+    for (const tH of [721, 744, 900]) {
+      const r = stack('mca_m1_l', 0, 'basilar_upper', 720, tH);
+      expect(r.schedule.onsetH, `${tH} h`).toBe(0);
+      expect(sev(r, 'coma'), `${tH} h`).toBe(sev(basilarAlone(tH - 720), 'coma'));
+      expect(sev(r, 'coma'), `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(sev(r, 'disorder_of_consciousness'), `${tH} h`).toBe(0);
+      // the spasticity of the new pontine lesion (left body) has not begun; the M1's (right) has
+      expect(r.symptoms.some((s) => s.id === 'spasticity' && s.side === 'l'), `${tH} h`).toBe(false);
+      expect(r.symptoms.some((s) => s.id === 'spasticity' && s.side === 'r'), `${tH} h`).toBe(true);
+    }
+    const later = stack('mca_m1_l', 0, 'basilar_upper', 720, 720 + 340);
+    expect(sev(later, 'coma')).toBe(0);
+    expect(sev(later, 'disorder_of_consciousness')).toBeGreaterThan(0);
+  });
+
+  it('an M1 stroke a month after a basilar occlusion: the earlier coma is relabelled on its own clock, as without the M1', () => {
+    for (const tH of [340, 720]) {
+      const r = stack('basilar_upper', 0, 'mca_m1_l', 720, tH);
+      expect(r.schedule.onsetH).toBe(720);
+      expect(sev(r, 'coma'), `${tH} h`).toBe(0);
+      expect(sev(basilarAlone(tH), 'coma'), `${tH} h`).toBe(0);
+      // (its severity can differ: the earlier lesion's perilesional swelling still runs on the index
+      // clock, a documented approximation of stacked strokes)
+      expect(sev(r, 'disorder_of_consciousness'), `${tH} h`).toBeGreaterThan(0);
+      expect(sev(basilarAlone(tH), 'disorder_of_consciousness'), `${tH} h`).toBeGreaterThan(0);
+    }
   });
 });

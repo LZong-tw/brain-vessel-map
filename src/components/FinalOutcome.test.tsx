@@ -307,8 +307,32 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     useApp.setState({ rightTab: 'final', collateral: 'moderate', reperfusionH: 1 });
     render(<RightPanel sim={simOf()} />);
     const table = screen.getByRole('table');
-    const cells = within(within(table).getByRole('rowheader', { name: '可能死亡（疝脫）' }).closest('tr')!).getAllByRole('cell').map((c) => c.textContent);
+    // R6-14: 'likely', not 'possible' (可能), as in English and in the callout's 'usually fatal'
+    const cells = within(within(table).getByRole('rowheader', { name: '很可能死亡（疝脫）' }).closest('tr')!).getAllByRole('cell').map((c) => c.textContent);
     expect(cells).toEqual(['—', '很可能']);
+  });
+
+  it('labels the row by the risk: a swollen cerebellum is life-threatening, not a likely death from herniation (R6-8, R6-13)', () => {
+    useApp.getState().loadScenario('cerebellar_swelling');
+    useApp.setState({ rightTab: 'final', reperfusionH: 6 });
+    render(<RightPanel sim={simOf()} />);
+    const row = (name: string) => within(within(screen.getByRole('table')).getByRole('rowheader', { name }).closest('tr')!);
+    expect(row('危及生命（腦幹受壓、未手術）').getAllByRole('cell').map((c) => c.textContent)).toEqual(['是', '是']);
+    expect(screen.getByRole('table').textContent).not.toMatch(/疝脫|很可能/);
+    cleanup();
+
+    useApp.setState({ lang: 'en' });
+    render(<RightPanel sim={simOf()} />);
+    expect(row('Life-threatening (brainstem compression, no surgery)').getAllByRole('cell').map((c) => c.textContent)).toEqual(['yes', 'yes']);
+    expect(screen.getByRole('table').textContent).not.toMatch(/herniation|likely/i);
+  });
+
+  it('keeps the herniation label in English', () => {
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final', collateral: 'moderate', reperfusionH: 1, lang: 'en' });
+    render(<RightPanel sim={simOf()} />);
+    const tr = within(within(screen.getByRole('table')).getByRole('rowheader', { name: 'Death likely (herniation)' }).closest('tr')!);
+    expect(tr.getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', 'likely']);
   });
 });
 

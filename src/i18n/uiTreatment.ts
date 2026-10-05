@@ -69,14 +69,23 @@ export interface TreatmentStrings {
   range: (typical: string | null, low: string, high: string) => string;
   source: string;
   /** warnings */
-  warnIvtWindow: (window: string, delay: string) => string;
+  /** IV thrombolysis alone with flow back so late that the drug start (`start`, after onset) is beyond the window */
+  warnIvtWindow: (window: string, delay: string, start: string) => string;
   /** beyond the standard window but within a guideline's consensus window (basilar) */
   warnIvtWindowConsensus: (window: string, consensusWindow: string, delay: string) => string;
+  /** note: flow back after the window, but early enough for a drug started within it */
+  noteIvtWindowFits: (window: string, delay: string, start: string) => string;
+  /** IV thrombolysis alone with flow back within about 1 h of onset */
+  warnIvtTooEarly: (delay: string) => string;
+  /** note for bridging after the window: thrombectomy sets the time (`consensusWindow`: basilar) */
+  noteBridgingDrugStart: (window: string, consensusWindow: string | null, delay: string) => string;
   warnEvtWindow: (window: string, delay: string) => string;
   warnIvtLargeVessel: (site: string, chance: string) => string;
   warnIvtBasilar: (chance: string) => string;
   /** thrombectomy at a site no randomised trial enrolled */
   warnEvtNoTrial: string;
+  /** thrombectomy for a perforator, the ophthalmic artery or a communicating artery */
+  warnEvtNotApplicable: string;
   /** thrombectomy for a medium/distal vessel occlusion */
   warnEvtMevo: string;
   /** summary line in the results */
@@ -146,17 +155,24 @@ const zh: TreatmentStrings = {
   },
   range: (typical, low, high) => (typical ? `約 ${typical}（${low}–${high}）` : `${low}–${high}`),
   source: '來源',
-  warnIvtWindow: (w, d) =>
-    `靜脈血栓溶解須在發作後 ${w}內開始用藥（更晚只在影像篩選後：WAKE-UP、EXTEND 試驗；無法取栓的大血管阻塞可在 24 小時內用 tenecteplase：TRACE-III，中國病人）。這裡選的是血流恢復的時間：發作後 ${d}；用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以開始用藥大約早 1–3 小時。`,
+  warnIvtWindow: (w, d, start) =>
+    `靜脈血栓溶解須在發作後 ${w}內開始用藥（更晚只在影像篩選後：WAKE-UP、EXTEND 試驗；無法取栓的大血管阻塞可在 24 小時內用 tenecteplase：TRACE-III，中國病人）。這裡選的是血流恢復的時間：發作後 ${d}；用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以藥物是在發作後約 ${start}開始的。`,
   warnIvtWindowConsensus: (w, cw, d) =>
     `靜脈血栓溶解的標準是發作後 ${w}內開始用藥；這裡是發作後 ${d}（血流恢復的時間）。基底動脈阻塞時，ESO/ESMINT 指引依專家共識建議可用到 ${cw}，但證據確定性非常低。`,
+  noteIvtWindowFits: (w, d, start) =>
+    `發作後 ${d}血流恢復，和 ${w}內開始用藥相符：用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以藥物是在發作後約 ${start}開始的。`,
+  warnIvtTooEarly: (d) =>
+    `發作後才 ${d}就恢復血流，比靜脈血栓溶解通常能做到的更快：要先做腦部影像才能用藥，用藥後動脈通常在接下來 1–3 小時內才逐漸打通（INTERRSeCT 世代研究中，從開始用藥到評估再通的中位數約 2 小時）。`,
+  noteBridgingDrugStart: (w, cw, d) =>
+    `橋接治療的靜脈血栓溶解也須在發作後 ${w}內開始用藥${cw ? `（基底動脈阻塞時，ESO/ESMINT 指引依專家共識建議可用到 ${cw}）` : ''}；這裡選的時間（發作後 ${d}）是取栓恢復血流的時間，看不出藥物是何時給的。`,
   warnEvtWindow: (w, d) => `取栓通常只在發作後 ${w}內（且影像條件合適）進行；這裡是發作後 ${d}。`,
   warnIvtLargeVessel: (site, chance) => `${site}這類大血管阻塞，只用靜脈血栓溶解在數小時內早期打通的機會低（${chance}），通常會再取栓。`,
   warnIvtBasilar: (chance) =>
     `基底動脈阻塞只用靜脈血栓溶解，數小時內早期再通的機會低（${chance}）；較晚判定的病例系列約 50%。ESO 指引建議靜脈血栓溶解之後，NIHSS ≥ 10 時再加取栓。`,
   warnEvtNoTrial: '這個阻塞部位的取栓沒有經過隨機試驗驗證（試驗收的是顱內 ICA、M1 與基底動脈阻塞），只能個別決定。',
+  warnEvtNotApplicable: '取栓不處理這類動脈（穿通支、眼動脈或交通動脈）；這裡的再灌流治療是靜脈血栓溶解。',
   warnEvtMevo:
-    '中型／遠端血管阻塞：2025 年 ESCAPE-MeVO 與 DISTAL 試驗中取栓沒有改善預後，症狀性出血較多，ESCAPE-MeVO 的死亡率也較高——模型裡救回的組織，在試驗中並沒有變成較好的結果。優勢側近端 M2 沒有納入 DISTAL，仍不確定。',
+    '中型／遠端血管阻塞：2025 年 ESCAPE-MeVO 與 DISTAL 試驗中取栓沒有改善預後；症狀性出血在 ESCAPE-MeVO 為 5.4% vs 2.2%、在 DISTAL 為 5.9% vs 2.6%（作者認為相近），只有 ESCAPE-MeVO 的死亡率較高——模型裡救回的組織，在試驗中並沒有變成較好的結果。優勢側近端 M2 沒有納入 DISTAL，仍不確定。',
   summaryLabel: '治療',
   summaryGrade: (g) => `eTICI ${g}`,
   summaryReocclusion: (h) => `${h}後再阻塞`,
@@ -223,10 +239,16 @@ const en: TreatmentStrings = {
   },
   range: (typical, low, high) => (typical ? `about ${typical} (${low}–${high})` : `${low}–${high}`),
   source: 'Source',
-  warnIvtWindow: (w, d) =>
-    `IV thrombolysis must be started within ${w} of onset (later only after imaging selection: the WAKE-UP and EXTEND trials; or tenecteplase up to 24 h for a large-vessel occlusion without access to thrombectomy: TRACE-III, Chinese patients). The time chosen here is when flow returns, ${d} after onset; after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about 1–3 h earlier.`,
+  warnIvtWindow: (w, d, start) =>
+    `IV thrombolysis must be started within ${w} of onset (later only after imaging selection: the WAKE-UP and EXTEND trials; or tenecteplase up to 24 h for a large-vessel occlusion without access to thrombectomy: TRACE-III, Chinese patients). The time chosen here is when flow returns, ${d} after onset; after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about ${start} after onset.`,
   warnIvtWindowConsensus: (w, cw, d) =>
     `IV thrombolysis is standard when started within ${w} of onset; this is ${d} after onset (when flow returns). For basilar-artery occlusion the ESO/ESMINT guideline suggests it up to ${cw}, by expert consensus at very low certainty of evidence.`,
+  noteIvtWindowFits: (w, d, start) =>
+    `Flow returning ${d} after onset fits a drug started within ${w}: after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about ${start} after onset.`,
+  warnIvtTooEarly: (d) =>
+    `Flow returning only ${d} after onset is faster than IV thrombolysis usually achieves: the drug is started only after brain imaging, and the artery then usually reopens gradually over the next 1–3 h (in the INTERRSeCT cohort recanalisation was assessed a median of about 2 h after the drug was started).`,
+  noteBridgingDrugStart: (w, cw, d) =>
+    `With bridging, IV thrombolysis too must be started within ${w} of onset${cw ? ` (for a basilar-artery occlusion the ESO/ESMINT guideline suggests up to ${cw}, by expert consensus)` : ''}; the time chosen here (${d} after onset) is when thrombectomy restores flow, which does not tell when the drug was given.`,
   warnEvtWindow: (w, d) => `Thrombectomy is usually done only within ${w} of onset (with favourable imaging); this is ${d} after onset.`,
   warnIvtLargeVessel: (site, chance) =>
     `For a large-vessel occlusion such as the ${site}, early reopening with IV thrombolysis alone is uncommon (${chance} within hours); thrombectomy is usually added.`,
@@ -234,8 +256,9 @@ const en: TreatmentStrings = {
     `For a basilar-artery occlusion, early recanalisation with IV thrombolysis alone is uncommon (${chance} within hours); later case-series rates are about 50%. The ESO guideline suggests adding thrombectomy after IV thrombolysis for NIHSS ≥ 10.`,
   warnEvtNoTrial:
     'Thrombectomy for an occlusion at this site has not been tested in randomised trials (they enrolled intracranial ICA, M1 and basilar occlusions); it is an individual decision.',
+  warnEvtNotApplicable: 'Thrombectomy does not treat this kind of artery (a perforator, the ophthalmic artery or a communicating artery); reperfusion treatment here means IV thrombolysis.',
   warnEvtMevo:
-    'Medium/distal vessel occlusion: in the 2025 ESCAPE-MeVO and DISTAL trials thrombectomy did not improve outcome, with more symptomatic haemorrhage and, in ESCAPE-MeVO, higher mortality; tissue saved in the model did not translate into better outcomes in these trials. A dominant proximal M2 was excluded from DISTAL and remains uncertain.',
+    'Medium/distal vessel occlusion: in the 2025 ESCAPE-MeVO and DISTAL trials thrombectomy did not improve outcome; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), with higher mortality only in ESCAPE-MeVO. Tissue saved in the model did not translate into better outcomes in these trials. A dominant proximal M2 was excluded from DISTAL and remains uncertain.',
   summaryLabel: 'Treatment',
   summaryGrade: (g) => `eTICI ${g}`,
   summaryReocclusion: (h) => `reoccludes after ${h}`,

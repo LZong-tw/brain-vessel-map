@@ -221,7 +221,8 @@ describe('R3-5, R3-6: breathing after a lateral medullary infarct, and thalamic 
 
   it('the right-sided excess of thalamic pain is from published cases (possibly reporting bias)', () => {
     const d = SYNDROMES.find((s) => s.id === 'thalamic_sensory')!.desc;
-    expect(d.en).toMatch(/more often after right-sided lesions among published cases \(possibly reporting bias\)/);
-    expect(d.zh).toMatch(/已發表的病例中右側病灶比較常見（可能有報告偏差）/);
+    // worded as the central-pain event in cascade.ts (merged with R5-11)
+    expect(d.en).toMatch(/among published cases right-sided lesions are more frequent \(possibly reporting bias\)/);
+    expect(d.zh).toMatch(/已發表的病例中右側病灶較多（可能有報告偏差）/);
   });
 });

@@ -20,7 +20,7 @@ import { simulate, type SimInput, type SimResult } from './simulate';
 const base: SimInput = { occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false };
 const occ = (occlusions: Occlusion[], tH: number, over: Partial<SimInput> = {}) => simulate({ ...base, occlusions, tH, ...over });
 const one = (vessel: string, tH: number, over: Partial<SimInput> = {}) => occ([{ vessel, severity: 1 }], tH, over);
-const scenario = (id: string, tH: number) => {
+const scenario = (id: string, tH: number, over: Partial<SimInput> = {}) => {
   const sc = SCENARIO_BY_ID[id];
   return simulate({
     occlusions: sc.occlusions,
@@ -30,6 +30,7 @@ const scenario = (id: string, tH: number) => {
     tH,
     reperfusionH: sc.reperfusionH ?? null,
     decompression: sc.decompression ?? false,
+    ...over,
   });
 };
 const syn = (r: SimResult) => r.syndromes.map((m) => m.def.id + (m.side ? `_${m.side}` : ''));
@@ -309,5 +310,105 @@ describe('C9 references', () => {
   it('every new reference is in REFERENCES.md', () => {
     for (const n of ['Lazzaro NA', 'Bogousslavsky J, Regli F, Uske A', 'Carrera E, Bogousslavsky J', 'Ghika-Schmid F, Bogousslavsky J', 'Neau JP, Bogousslavsky J', 'Ghika-Schmid F, Ghika J'])
       for (const r of ref(n)) expect(REFERENCES_MD).toContain(`- ${r}`);
+  });
+});
+
+describe('R4-9: the Percheron outcome figures come from a series of 15', () => {
+  const texts = () => [
+    SCENARIO_BY_ID.percheron_midbrain.summary,
+    desc('thalamic_paramedian_bilateral'),
+    desc('thalamomesencephalic_bilateral'),
+  ];
+  it('every text gives the series size and the counts, not bare percentages', () => {
+    for (const t of texts()) {
+      expect(t.en).toMatch(/15 patients/);
+      expect(t.en).toMatch(/2 of 8/);
+      expect(t.en).toMatch(/4 of 6/);
+      expect(t.en).toMatch(/mRS ≤ 2/);
+      expect(t.en).not.toMatch(/about 67% do well/);
+      expect(t.en).not.toMatch(/much worse/);
+      expect(t.zh).toMatch(/15 人/);
+      expect(t.zh).toMatch(/8 人中 2 人/);
+      expect(t.zh).toMatch(/6 人中 4 人/);
+      expect(t.zh).not.toMatch(/差很多/);
+    }
+    expect(SCENARIO_BY_ID.percheron_midbrain.summary.en).toMatch(/small series/);
+    expect(SCENARIO_BY_ID.percheron_midbrain.summary.zh).toMatch(/小系列/);
+  });
+  it('the reference note gives the counts too', () => {
+    const a = ref('Arauz A');
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatch(/2 of 8.*4 of 6/);
+  });
+});
+
+describe('R5-7: thalamic signs that need an awake patient, or a face that moves on command, are not listed against them', () => {
+  /** items that cannot be shown or examined in a stuporous or comatose patient, or in a disorder of consciousness */
+  const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism', 'emotional_facial_paresis'];
+  const unaware = (r: SimResult) => sym(r, 'coma').some((s) => s.sev >= 2) || ids(r).includes('disorder_of_consciousness');
+  const CASES: [string, () => SimResult[]][] = [
+    ['basilar_tip', () => [24, 336, 2160, 4320].map((tH) => scenario('basilar_tip', tH))],
+    ['basilar_tip good', () => [24, 336, 4320].map((tH) => scenario('basilar_tip', tH, { collateral: 'good' }))],
+    ['percheron', () => [1, 24, 168].map((tH) => scenario('percheron', tH))],
+    ['percheron_midbrain', () => [1, 24, 168].map((tH) => scenario('percheron_midbrain', tH))],
+    ['basilar_upper', () => [24, 720, 4320].map((tH) => one('basilar_upper', tH, { collateral: 'moderate' }))],
+  ];
+  it.each(CASES)('%s: none of them while stuporous, comatose or in a disorder of consciousness', (_, runs) => {
+    const rs = runs();
+    expect(rs.some(unaware)).toBe(true);
+    for (const r of rs) if (unaware(r)) for (const id of NEEDS_AWAKE) expect(ids(r), `${r.input.tH} h ${id}`).not.toContain(id);
+  });
+
+  it('emotional facial paresis is not listed on a side whose face is weak on command', () => {
+    for (const r of [scenario('basilar_tip', 24), scenario('basilar_tip', 4320), scenario('fetal_pca', 24), scenario('fetal_pca', 168)])
+      for (const e of sym(r, 'emotional_facial_paresis'))
+        expect(r.symptoms.some((s) => (s.id === 'face_weak' || s.id === 'face_weak_peripheral') && (s.side === e.side || s.side === 'both')), `${r.input.tH} h ${e.side}`).toBe(false);
+    // with the face moving on command it stays (an anterior thalamic infarct alone)
+    expect(sym(one('tuberothalamic_r', 24), 'emotional_facial_paresis').map((s) => s.side)).toEqual(['l']);
+  });
+
+  it('awake patients keep them (Percheron after two weeks: hypersomnia, not coma)', () => {
+    const r = scenario('percheron', 336);
+    expect(ids(r)).not.toContain('coma');
+    for (const id of ['executive', 'disinhibition', 'aphasia_thalamic']) expect(ids(r), id).toContain(id);
+  });
+});
+
+describe('R5-8: the Percheron-with-midbrain summary does not promise deeper impairment of consciousness', () => {
+  it('names the oculomotor palsies on both sides beside impaired consciousness and amnesia, and drops "deeper"', () => {
+    const s = SCENARIO_BY_ID.percheron_midbrain.summary;
+    expect(s.en).not.toMatch(/deeper/);
+    expect(s.en).toMatch(/Besides impaired consciousness and amnesia there are oculomotor palsies on both sides/);
+    expect(s.zh).not.toContain('更深的意識障礙');
+    expect(s.zh).toContain('除了意識障礙與記憶障礙，還有兩側動眼神經麻痺');
+    // the model agrees: the same level of consciousness with and without the midbrain
+    for (const tH of [1, 24, 168]) expect(scenario('percheron_midbrain', tH).nihss.items['1a'], `${tH} h`).toBe(scenario('percheron', tH).nihss.items['1a']);
+  });
+});
+
+describe('R5-9: an anterior (tuberothalamic) thalamic infarct leaves memory loss and apathy at 6 months, as its label says', () => {
+  it('right and left: only amnesia and abulia at 6 months, NIHSS 0', () => {
+    for (const s of ['r', 'l'] as const) {
+      const r = one(`tuberothalamic_${s}`, 4320);
+      expect([...ids(r)].sort(), s).toEqual(['abulia', 'amnesia']);
+      expect(r.nihss.total, s).toBe(0);
+    }
+  });
+
+  it('neglect, emotional facial paresis and dysarthria from the anterior thalamus recover like its other deficits', () => {
+    for (const id of ['neglect', 'emotional_facial_paresis', 'dysarthria']) expect(REDUNDANCY[id].bySource?.thalamus_anterior?.any, id).toBeDefined();
+    // the same symptoms from elsewhere keep their own redundancy
+    expect(REDUNDANCY.neglect.uni).toBe(0.6);
+    expect(REDUNDANCY.dysarthria.kind).toBe('bilateral');
+  });
+});
+
+describe('R5-11: the thalamic pain texts agree that the right-sided excess may be reporting bias', () => {
+  it('the Dejerine–Roussy text says "among published cases … (possibly reporting bias)"', () => {
+    const d = desc('thalamic_sensory');
+    expect(d.en).toMatch(/among published cases right-sided lesions are more frequent \(possibly reporting bias\)/);
+    expect(d.en).not.toMatch(/more often after right-sided lesions/);
+    expect(d.zh).toContain('已發表的病例中右側病灶較多（可能有報告偏差）');
+    expect(d.zh).not.toContain('右側病灶比較常見');
   });
 });

@@ -6,6 +6,7 @@ import { BEDS, REGIONS, VESSELS } from './anatomy';
 import { SCENARIOS } from './anatomy/scenarios';
 import { SYNDROMES } from './anatomy/syndromes';
 import { VARIANTS } from './anatomy/variants';
+import { CEREBELLAR_MALIGNANT_ML, CEREBELLAR_SPACE_ML } from './engine/cascade';
 
 /**
  * The documentation quotes counts from the data and exists in two languages. Both drifted
@@ -107,5 +108,35 @@ describe('documentation', () => {
     const links = localLinks(md);
     expect(links.length).toBeGreaterThan(0);
     for (const href of links) expect(FILES, href).toContain(href);
+  });
+});
+
+describe('what the READMEs say about the acute course', () => {
+  it('state the cerebellar thresholds the engine uses (R6-3)', () => {
+    const zh = [...readmeZh.matchAll(/(\d+) mL 起要觀察|小腦梗塞 ≥ (\d+) mL 要觀察/g)].map((m) => Number(m[1] ?? m[2]));
+    const en = [...readmeEn.matchAll(/watched from (\d+) mL|cerebellar infarct ≥ (\d+) mL/g)].map((m) => Number(m[1] ?? m[2]));
+    expect(zh).toEqual([CEREBELLAR_SPACE_ML, CEREBELLAR_SPACE_ML]);
+    expect(en).toEqual([CEREBELLAR_SPACE_ML, CEREBELLAR_SPACE_ML]);
+    expect([...readmeZh.matchAll(/(\d+) mL 起可能惡性腫脹|≥ (\d+) mL 惡性腫脹可能/g)].map((m) => Number(m[1] ?? m[2]))).toEqual([CEREBELLAR_MALIGNANT_ML, CEREBELLAR_MALIGNANT_ML]);
+    expect([...readmeEn.matchAll(/malignant swelling likely from (\d+) mL|≥ (\d+) mL → malignant swelling likely/g)].map((m) => Number(m[1] ?? m[2]))).toEqual([
+      CEREBELLAR_MALIGNANT_ML,
+      CEREBELLAR_MALIGNANT_ML,
+    ]);
+  });
+
+  it('do not call a swollen cerebellum in coma usually fatal: life-threatening, with no reliable figure (R6-13)', () => {
+    const deathEn = readmeEn.split('\n').find((l) => l.includes('never represents death'))!;
+    const deathZh = readmeZh.split('\n').find((l) => l.includes('模型不模擬死亡'))!;
+    expect(deathEn).not.toMatch(/\(or a swollen cerebellum[^)]*\) is usually fatal/);
+    expect(deathEn).toMatch(/cerebell[^.;]*life-threatening/);
+    expect(deathEn).toMatch(/no reliable/);
+    expect(deathZh).not.toMatch(/（或小腦腫脹昏迷而未手術）通常致命/);
+    expect(deathZh).toMatch(/小腦[^。；]*危及生命/);
+    expect(deathZh).toMatch(/沒有可靠/);
+  });
+
+  it('the Chinese README says death is likely (很可能), not merely possible (可能), after herniation (R6-14)', () => {
+    expect(readmeZh).not.toMatch(/[^很]可能死亡/);
+    expect(readmeZh).toMatch(/很可能死亡/);
   });
 });

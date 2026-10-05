@@ -50,6 +50,8 @@ export interface RecoveryInput {
   lacunes?: string[];
   /** fraction of each lacune that is infarcted at tH (lacunes can start at different times) */
   lacuneLoss?: Record<string, number>;
+  /** hours since each region became ischaemic, when that differs from tH (clinical.aggregateSymptoms; R6-6) */
+  regionAgeH?: Record<string, number>;
 }
 
 // ── temporary dysfunction ────────────────────────────────────────────
@@ -232,7 +234,7 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
         if (d.only && r.side !== d.only) continue;
         if (d.bilateralOnly && (lesions.bySymptom.get(d.s)?.size ?? 0) < 2) continue;
         if (d.minLevel && inf < d.minLevel) continue;
-        const c = symptomCompensation(d.s, r, inf, inf, lesions, tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy);
+        const c = symptomCompensation(d.s, r, inf, inf, lesions, input.regionAgeH?.[r.id] ?? tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy);
         if (c.kind === 'exempt') continue;
         const w = d.sev ?? 2;
         sum += c.compensated * w;

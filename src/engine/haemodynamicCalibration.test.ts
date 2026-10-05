@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import readmeZh from '../../README.md?raw';
+import readmeEn from '../../README.en.md?raw';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { UI } from '../i18n/ui';
 import { simulateHemodynamics, type CollateralGrade } from './hemodynamics';
@@ -87,6 +89,50 @@ describe('C8-F2: poor collaterals in mid-basilar occlusion are a disadvantage, n
   });
 });
 
+describe('R4-1: the poor-collateral calibration holds for every basilar segment, not only the mid basilar', () => {
+  /** the paramedian perforator group that each single-segment occlusion cuts off */
+  const SEGMENTS: [string, string][] = [
+    ['basilar_lower', 'pons_caudal_basis_l#pontine_paramedian_inferior_l'],
+    ['basilar_mid', 'pons_caudal_basis_l#pontine_paramedian_caudal_l'],
+    ['basilar_upper', 'pons_rostral_basis_l#pontine_paramedian_rostral_l'],
+  ];
+  const flow = (segment: string, unit: string, collateral: CollateralGrade) =>
+    simulateHemodynamics({ occlusions: occl(segment), variants: [], map: 93, collateral }).unitRel[unit];
+  const run = (segment: string, reperfusionH: number | null) =>
+    sim({ occlusions: occl(segment), collateral: 'poor', reperfusionH, tH: 4320 });
+
+  it('poor collaterals leave each paramedian group in the low penumbra, not in the core', () => {
+    for (const [segment, unit] of SEGMENTS) {
+      expect(flow(segment, unit, 'poor'), segment).toBeGreaterThan(0.31);
+      expect(flow(segment, unit, 'poor'), segment).toBeLessThan(0.38);
+    }
+  });
+
+  it('good and moderate collaterals keep their calibration', () => {
+    expect(flow('basilar_lower', SEGMENTS[0][1], 'good')).toBeCloseTo(0.431, 2);
+    expect(flow('basilar_lower', SEGMENTS[0][1], 'moderate')).toBeCloseTo(0.352, 2);
+    expect(flow('basilar_upper', SEGMENTS[2][1], 'good')).toBeCloseTo(0.432, 2);
+    expect(flow('basilar_upper', SEGMENTS[2][1], 'moderate')).toBeCloseTo(0.352, 2);
+  });
+
+  it('reopening at 1 h and 3 h saves part of the pons and lowers the NIHSS in every segment', () => {
+    for (const [segment] of SEGMENTS) {
+      const untreated = run(segment, null);
+      for (const reperfusionH of [1, 3]) {
+        const r = run(segment, reperfusionH);
+        expect(r.volumes.finalInfarct, `${segment} ${reperfusionH} h`).toBeLessThan(0.75 * untreated.volumes.finalInfarct);
+        expect(r.nihss.total, `${segment} ${reperfusionH} h`).toBeLessThan(untreated.nihss.total);
+      }
+    }
+  });
+
+  it('by about 12 h reopening is close to no treatment in every segment', () => {
+    for (const [segment] of SEGMENTS) {
+      expect(run(segment, 12).volumes.finalInfarct, segment).toBeGreaterThan(0.85 * run(segment, null).volumes.finalInfarct);
+    }
+  });
+});
+
 describe('C8-F3: blood pressure', () => {
   const m1 = (map: number) => sim({ occlusions: occl('mca_m1_l'), map });
 
@@ -148,5 +194,59 @@ describe('C8-F5: subclavian steal', () => {
     expect(d.en).toContain('40–50 mmHg');
     expect(d.zh).toContain('多半沒有症狀');
     expect(d.zh).toContain('40–50 mmHg');
+  });
+});
+
+describe('R4-3: a PICA trunk occlusion depends on the collaterals and on early reopening', () => {
+  const PICA = occl('pica_r');
+  const run = (collateral: CollateralGrade, reperfusionH: number | null) => sim({ occlusions: PICA, collateral, reperfusionH, tH: 4320 });
+  const flow = (unit: string) => simulateHemodynamics({ occlusions: PICA, variants: [], map: 93, collateral: 'good' }).unitRel[unit];
+
+  it('good collaterals hold the PICA territory in the penumbra', () => {
+    expect(flow('vermis_inferior_r#pica_medial_r')).toBeGreaterThanOrEqual(0.31);
+    expect(flow('cerebellum_posterior_inferior_r#pica_lateral_r')).toBeGreaterThanOrEqual(0.31);
+  });
+
+  it('with good collaterals, reopening at 1 h leaves less than half the untreated infarct', () => {
+    expect(run('good', 1).volumes.finalInfarct).toBeLessThan(0.5 * run('good', null).volumes.finalInfarct);
+  });
+
+  it('untreated, good collaterals leave a smaller infarct than poor ones', () => {
+    expect(run('good', null).volumes.finalInfarct).toBeLessThan(run('poor', null).volumes.finalInfarct);
+  });
+
+  it('the medial and the lateral branch alone still infarct their territories with good collaterals', () => {
+    const medial = sim({ occlusions: occl('pica_medial_r'), tH: 72 });
+    expect(medial.regions.vermis_inferior_r.infarct).toBeGreaterThanOrEqual(0.5);
+    const lateral = sim({ occlusions: occl('pica_lateral_r'), tH: 72 });
+    expect(lateral.regions.cerebellum_posterior_inferior_r.infarct).toBeGreaterThan(0.9);
+  });
+});
+
+describe('R4-6: the chest-wall and neck collaterals also compensate CCA and brachiocephalic occlusions', () => {
+  // Pinned so that a later calibration change to these links shows up here. With poor collaterals
+  // the brain is fed through the undrawn subclavian links (thyrocervical trunk / superior thyroid
+  // → external carotid → carotid bifurcation; around an innominate occlusion also from the aorta
+  // through the internal thoracic artery into the reversed subclavian and on into the carotid).
+  const PINNED: [string, number][] = [
+    ['cca_r', 5.1],
+    ['cca_l', 4.47],
+    ['brachiocephalic', 7.57],
+  ];
+  it.each(PINNED)('%s with poor collaterals at 24 h: NIHSS 0 and a small infarct', (vessel, finalInfarct) => {
+    const r = sim({ occlusions: occl(vessel), collateral: 'poor', tH: 24 });
+    expect(r.nihss.total).toBe(0);
+    expect(r.volumes.finalInfarct).toBeCloseTo(finalInfarct, 1);
+  });
+
+  it('around an innominate occlusion the right carotid is fed from the aorta through the reversed subclavian', () => {
+    const h = simulateHemodynamics({ occlusions: occl('brachiocephalic'), variants: [], map: 93, collateral: 'poor' });
+    expect(h.vesselFlow.subclavian_prox_r).toBeLessThan(-50);
+    expect(h.vesselFlow.cca_r).toBeGreaterThan(50);
+  });
+
+  it('the README says so in both languages', () => {
+    expect(readmeEn).toMatch(/common carotid or the brachiocephalic trunk is blocked/);
+    expect(readmeZh).toMatch(/頸總動脈或頭臂動脈幹阻塞/);
   });
 });

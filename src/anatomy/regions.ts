@@ -976,8 +976,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'cn3_palsy', lat: 'ipsi', sev: 3 },
       { s: 'cn4_palsy', lat: 'contra', sev: 1 },
       // the ataxia is acute; the rubral (Holmes) tremor comes weeks to months later (Raina et al.,
-      // Neurology 2016; Castaigne et al., Ann Neurol 1981)
-      { s: 'holmes_tremor', lat: 'contra', sev: 2 },
+      // Neurology 2016; Castaigne et al., Ann Neurol 1981), in a minority: none of the 29 movement
+      // disorders after 2500 first strokes was described as a Holmes tremor (Ghika-Schmid et al.,
+      // J Neurol Sci 1997), so it is a mild possibility (R5-2). TODO(medical-review): sev
+      { s: 'holmes_tremor', lat: 'contra', sev: 1 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
       // a rostral (pontomesencephalic) lesion lowers the opposite eye (Brandt & Dieterich, Ann
       // Neurol 1993). TODO(medical-review): sev
@@ -1118,10 +1120,13 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'diplopia', lat: 'none', sev: 1 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
       // coma lesions were bilateral in 7 of 9 and one-sided in 2, while 9 patients with a very
-      // small one-sided tegmental lesion were not comatose (Parvizi & Damasio, Brain 2003): an
-      // extensive one-sided lesion lowers arousal (drowsiness), a small one does not.
+      // small one-sided tegmental lesion were not comatose (Parvizi & Damasio, Brain 2003); among
+      // 150 isolated pontine infarcts loss of consciousness was described only with bilateral ones
+      // (Kumral et al., J Neurol 2002). So one paramedian perforator (0.7 of the supply, the common
+      // basilar-branch infarct) leaves arousal intact, and only a nearly complete one-sided
+      // infarct (paramedian and SCA branches) is shown as drowsiness: a model assumption (R5-6).
       // TODO(medical-review): sev and minLevel
-      { s: 'somnolence', lat: 'none', sev: 1, minLevel: 0.5 },
+      { s: 'somnolence', lat: 'none', sev: 1, minLevel: 0.85 },
       // the pontine micturition centre (Sakakibara et al., J Neurol Sci 1996). Severity 1: small
       // series. TODO(medical-review): sev. (REM sleep behaviour disorder is a possible late problem
       // of any pontine or medullary infarct, shown as a cascade event: C10-F7.)

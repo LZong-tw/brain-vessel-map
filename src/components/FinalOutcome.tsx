@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { REGION_BY_ID, regionName, tr } from '../anatomy';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { formatHours } from '../anatomy/timeline';
+import type { FatalRisk } from '../engine/cascade';
 import type { NihssResult, SymptomItem } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
 import { OUTCOME_UI } from '../i18n/uiOutcome';
@@ -19,6 +20,9 @@ import { formatClock } from '../ui/scheduleFormat';
 import { treatmentLine } from '../ui/caseSummary';
 import { EventItem } from './EventItem';
 import { useSimSeries } from './useSimSeries';
+
+/** the risks the comparison can show, in this order */
+const FATAL_RISKS: FatalRisk[] = ['herniation', 'posterior_fossa'];
 
 /** regions listed before "+ n more" */
 const REGIONS_SHOWN = 12;
@@ -138,13 +142,14 @@ export function FinalOutcome() {
                 <td>{o.items(course.lasting)}</td>
                 <td>{o.items(untreated.lasting)}</td>
               </tr>
-              {(course.fatal.length > 0 || untreated.fatal.length > 0) && (
-                <tr>
-                  <th scope="row">{o.rowFatal}</th>
-                  <td>{course.fatal.length ? o.fatalYes : o.fatalNo}</td>
-                  <td>{untreated.fatal.length ? o.fatalYes : o.fatalNo}</td>
+              {/* one row per risk, labelled by what it means (R6-8, R6-13) */}
+              {FATAL_RISKS.filter((k) => course.fatal.includes(k) || untreated.fatal.includes(k)).map((k) => (
+                <tr key={k}>
+                  <th scope="row">{o.rowFatal[k]}</th>
+                  <td>{course.fatal.includes(k) ? o.fatalYes[k] : o.fatalNo}</td>
+                  <td>{untreated.fatal.includes(k) ? o.fatalYes[k] : o.fatalNo}</td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
           <p className="muted small">

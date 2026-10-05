@@ -172,13 +172,15 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   leg_weak: parallel(0.65, 0.15),
   // independent finger movement: poor
   hand_clumsy: { kind: 'fine', uni: 0.2, bi: 0.05 },
-  // articulation is partly bilaterally controlled
-  dysarthria: bilateral(0.7, 0.15),
+  // articulation is partly bilaterally controlled; the soft speech of an anterior thalamic
+  // infarct improves with its other deficits (R5-9)
+  dysarthria: bilateral(0.7, 0.15, { bySource: { thalamus_anterior: ANTERIOR_THALAMUS(0.15) } }),
   alien_hand: partial(0.5, 0.2),
   // usually regresses (Ghika-Schmid et al., J Neurol Sci 1997). TODO(medical-review): uni / bi
   jerky_dystonic_hand: partial(0.6, 0.3),
-  // TODO(medical-review): uni / bi; no data on its course
-  emotional_facial_paresis: partial(0.6, 0.3),
+  // TODO(medical-review): uni / bi; no data on its course. After an anterior thalamic infarct it
+  // improves with the rest of the picture, memory loss and apathy being what persists (R5-9)
+  emotional_facial_paresis: partial(0.6, 0.3, { bySource: { thalamus_anterior: ANTERIOR_THALAMUS(0.2) } }),
   // a result of the lesion and of the recovery process itself
   spasticity: EXEMPT,
 
@@ -223,7 +225,12 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   acalculia: partial(0.5, 0.2),
   finger_agnosia: partial(0.5, 0.2),
   neglect: partial(0.6, 0.2, {
-    bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.2), supramarginal: LEFT_NEGLECT, angular: LEFT_NEGLECT },
+    bySource: {
+      thalamus_paramedian: RIGHT_PARAMEDIAN(0.2),
+      thalamus_anterior: ANTERIOR_THALAMUS(0.2),
+      supramarginal: LEFT_NEGLECT,
+      angular: LEFT_NEGLECT,
+    },
   }),
   anosognosia: partial(0.6, 0.3),
   visuospatial: partial(0.45, 0.15),

@@ -1,6 +1,6 @@
 import type { SymptomSystem } from '../anatomy';
 import type { SymptomItem } from '../engine/clinical';
-import { consciousnessFromShift } from '../engine/cascade';
+import { consciousnessFromShift, symptomsAddedAt, type CascadeEvent } from '../engine/cascade';
 import type { SimResult } from '../engine/simulate';
 import { symptomKey, systemOf } from './format';
 
@@ -41,16 +41,13 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const tH = now.input.tH;
   const shift = now.edema.midlineShiftMm;
   const byShift = consciousnessFromShift(shift);
-  const activeEvents = now.cascade.events.filter(
-    (e) =>
-      (e.symptoms || e.shiftSymptoms) &&
-      e.onsetH <= tH &&
-      tH < (e.endH ?? Infinity) &&
-      // a herniation coma that has lifted with the shift (simulate.ts) no longer explains anything
-      !(e.symptomsWhileShiftMm !== undefined && tH >= (e.peakH ?? e.onsetH) && shift < e.symptomsWhileShiftMm),
-  );
-  // the event's own symptoms, or the consciousness level its swelling sets through the midline shift
-  const explains = (e: (typeof activeEvents)[number], id: string) => !!e.symptoms?.some((x) => x.id === id) || (!!e.shiftSymptoms && byShift?.id === id);
+  // an event explains its own symptoms when simulate() adds them, by the same rule (a herniation
+  // coma only while the shift is in the coma range; R6-9), and the consciousness level its
+  // swelling sets through the midline shift while it is active
+  const adds = (e: CascadeEvent) => symptomsAddedAt(e, tH, shift);
+  const swells = (e: CascadeEvent) => !!e.shiftSymptoms && e.onsetH <= tH && tH < (e.endH ?? Infinity);
+  const activeEvents = now.cascade.events.filter((e) => adds(e).length > 0 || swells(e));
+  const explains = (e: CascadeEvent, id: string) => adds(e).some((x) => x.id === id) || (swells(e) && byShift?.id === id);
   const items: CellSymptom[] = now.symptoms
     .filter(inSystem)
     .map((s) => {

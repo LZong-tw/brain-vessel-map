@@ -145,6 +145,8 @@ const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_sc
  * evidence does not support), and does not fade (redundancy EXEMPT).
  */
 const SPASTICITY_PARESIS = ['arm_weak', 'leg_weak', 'arm_weak_proximal'];
+/** non-lateralised symptoms that only an awake, cooperating patient can show or be examined for (R5-7) */
+const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism'];
 const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
 
 export function aggregateSymptoms(
@@ -166,6 +168,12 @@ export function aggregateSymptoms(
    * for what the early picture predicts (spasticity, C10-F1); left out, the levels at `tH` are used
    */
   acuteDys?: Record<string, number>,
+  /**
+   * hours since each region became ischaemic, when that differs from `tH` (an occlusion that
+   * starts after the index event, R6-6): a region's late symptoms, the relabelling of its coma and
+   * drowsiness and its compensation follow the age of its own lesion. Regions left out use `tH`.
+   */
+  regionAgeH?: Record<string, number>,
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
@@ -192,8 +200,11 @@ export function aggregateSymptoms(
   const earlyParesis: Record<Side, number> = { r: 0, l: 0 };
   const earlySensory: Record<Side, boolean> = { r: false, l: false };
 
+  /** the age of a region's lesion (R6-6) */
+  const ageOf = (rid: string) => regionAgeH?.[rid] ?? tH;
   for (const r of REGIONS) {
     const def = DEF_BY_BASE[r.baseId];
+    const age = ageOf(r.id);
     // a region whose dysfunction lies mainly in its ACA–MCA border-zone beds does what that
     // strip does (C1-F6), at the level of those beds
     const b = def.borderDeficits ? border[r.id] : undefined;
@@ -228,11 +239,11 @@ export function aggregateSymptoms(
         return reaches(onset, thr) && reaches(inf);
       };
       if (!reaches(level, thr) && !(d.deepTract && tractCut())) continue;
-      // each late symptom from its own onset (C10-F2)
-      if (tH < symptomOnsetH(sym)) continue;
+      // each late symptom from its own onset (C10-F2), counted from the region's own lesion (R6-6)
+      if (age < symptomOnsetH(sym)) continue;
       // drowsiness is the acute picture: a raised need for sleep that lasts beyond two weeks is
       // listed as persistent hypersomnia (C3-F2)
-      if (d.s === 'somnolence' && tH >= COMA_RELABEL_H) continue;
+      if (d.s === 'somnolence' && age >= COMA_RELABEL_H) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
@@ -247,20 +258,20 @@ export function aggregateSymptoms(
       // from two weeks on a region's coma is listed as what follows it (C3-F2)
       let id = d.s;
       let shownDelayed = delayed;
-      if (d.s === 'coma' && tH >= COMA_RELABEL_H) {
+      if (d.s === 'coma' && age >= COMA_RELABEL_H) {
         const next = comaBecomes(r.baseId, r.side, regionInf);
         if (!next) continue;
         id = next;
         shownDelayed = !!SYMPTOM_BY_ID[next]?.delayed;
       }
-      const peak = sym.peakH && tH >= sym.peakH[0] && tH < sym.peakH[1] ? 1 : 0;
+      const peak = sym.peakH && age >= sym.peakH[0] && age < sym.peakH[1] ? 1 : 0;
       const raw = ((d.sev ?? 2) + peak) * (0.35 + 0.65 * Math.min(1, level / 0.8));
       let sevEff = raw;
       // the hypersomnia that follows coma is a sleep disorder, never worse than moderate
       if (id === 'hypersomnia' && d.s === 'coma') sevEff = Math.min(sevEff, 2);
       // weeks–months later, spared pathways take over part of what the dead tissue did; a coma
       // that became a disorder of consciousness keeps the arousal system's (coma's) redundancy
-      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, tH, d.fast, Math.round(raw) >= 3, d.redundancy);
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
@@ -345,7 +356,7 @@ export function aggregateSymptoms(
       for (const s of components) {
         const c = aphasiaRaw.get(s.id);
         if (!c) continue;
-        const rec = symptomCompensation('aphasia_global', c.r, c.level, c.inf, lesions, tH);
+        const rec = symptomCompensation('aphasia_global', c.r, c.level, c.inf, lesions, ageOf(c.r.id));
         const v = c.raw * (1 - rec.compensated);
         if (v > best) {
           best = v;
@@ -414,7 +425,20 @@ export function aggregateSymptoms(
   if (map.has('coma|') || map.has('disorder_of_consciousness|')) {
     del('peduncular_hallucinosis', null);
     for (const fs of ['r', 'l'] as Side[]) del('visual_release_hallucinations', fs);
+    // a tremor of the arm the person moves, not of an unconscious one (R5-2)
+    for (const fs of ['r', 'l'] as Side[]) del('holmes_tremor', fs);
   }
+  // what only an awake, cooperating patient can show or be examined for (behaviour, executive
+  // function, gait, word finding, emotional expression) is not listed while the patient is
+  // stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of consciousness (R5-7)
+  if ((get('coma', null)?.sev ?? 0) >= 2 || map.has('disorder_of_consciousness|')) {
+    for (const id of NEEDS_AWAKE) del(id, null);
+    for (const fs of ['r', 'l'] as Side[]) del('emotional_facial_paresis', fs);
+  }
+  // an emotional facial paresis is a face that moves normally on command: not on a side whose face
+  // is weak on command (R5-7)
+  for (const fs of ['r', 'l'] as Side[])
+    if (['face_weak', 'face_weak_peripheral'].some((id) => get(id, fs) || get(id, 'both'))) del('emotional_facial_paresis', fs);
   // misaligned eyes see double; a skew deviation gives vertical double vision (C3-F5)
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino', 'skew_deviation'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { TIME_STOPS } from '../anatomy/timeline';
+import type { CascadeEvent } from '../engine/cascade';
 import type { Occlusion } from '../engine/hemodynamics';
 import { simulate, type SimInput } from '../engine/simulate';
 import { systemCellDetail } from './cellDetail';
@@ -64,5 +65,27 @@ describe('function heat-map cell detail', () => {
     expect(drowsy).toBeDefined();
     expect(drowsy!.events).toContain('vasogenic_edema');
     expect(drowsy!.events).not.toContain('uncal_r');
+  });
+
+  it('attributes a symptom to an event by the one rule simulate uses: a shift-gated event explains nothing while the shift is under its threshold, before its peak too (R6-9, R6-5)', () => {
+    const malignant = seriesOf({ occlusions: [{ vessel: 'mca_m1_r', severity: 1 }], collateral: 'poor' });
+    const i = at(24);
+    expect(malignant[i].edema.midlineShiftMm).toBeLessThan(8);
+    const gated: CascadeEvent = {
+      id: 'gated_test',
+      kind: 'secondary',
+      severity: 'danger',
+      onsetH: 12,
+      peakH: 120,
+      title: { zh: '', en: '' },
+      desc: { zh: '', en: '' },
+      regions: [],
+      symptoms: [{ id: 'arm_weak', side: 'l', sev: 2 }],
+      symptomsWhileShiftMm: 8,
+    };
+    const series = malignant.map((r, k) => (k === i ? { ...r, cascade: { ...r.cascade, events: [...r.cascade.events, gated] } } : r));
+    const arm = systemCellDetail(series, i, 'motor').items.find((s) => s.id === 'arm_weak' && s.side === 'l');
+    expect(arm).toBeDefined();
+    expect(arm!.events).not.toContain('gated_test');
   });
 });
