@@ -63,15 +63,18 @@ describe('a syndrome named for its signs is shown only with them', () => {
     expect(labels(scenario('r_wallenberg', 24))).toContain('wallenberg_r');
   });
 
-  it('thalamogeniculate occlusion with ataxia and involuntary movements is not a "pure sensory" stroke', () => {
+  it('thalamogeniculate occlusion with ataxia is not a "pure sensory" stroke', () => {
+    // (involuntary movements are no longer a symptom of it: C6-F3)
     const r = occlusion(occl('thalamogeniculate_l'), 24);
-    expect(sym(r)).toEqual(expect.arrayContaining(['sens_hemibody(r)', 'ataxia_limb(r)', 'movement_disorder(r)']));
+    expect(sym(r)).toEqual(expect.arrayContaining(['sens_hemibody(r)', 'ataxia_limb(r)']));
     expect(labels(r)).toContain('thalamic_sensory_l');
     expect(labels(r)).not.toContain('lacunar_pure_sensory_l');
-    // a single-branch thalamic lacune spares those functions and is a pure sensory stroke
+    // a single-branch thalamic lacune spares that function and is a pure sensory stroke (and,
+    // C6-F7, only that: not also the syndrome of the whole inferolateral territory)
     const lacune = occlusion([{ vessel: 'thalamogeniculate_l', severity: 1, branch: true }], 24);
-    expect(sym(lacune).some((s) => s.startsWith('ataxia_limb') || s.startsWith('movement_disorder'))).toBe(false);
+    expect(sym(lacune).some((s) => s.startsWith('ataxia_limb'))).toBe(false);
     expect(labels(lacune)).toContain('lacunar_pure_sensory_l');
+    expect(labels(lacune)).not.toContain('thalamic_sensory_l');
     // bilateral P2 occlusion: never two "pure sensory lacunar strokes"
     const p2 = occlusion(occl('pca_p2_r', 'pca_p2_l'), 24);
     expect(labels(p2).some((l) => l.startsWith('lacunar_pure_sensory'))).toBe(false);

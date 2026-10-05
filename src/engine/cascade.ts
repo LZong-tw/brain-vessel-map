@@ -18,6 +18,7 @@ import type { L, Side } from '../anatomy';
 import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
+import { isTreatable } from './schedule';
 
 export type EventKind = 'mechanism' | 'imaging' | 'treatment' | 'secondary' | 'complication' | 'recovery';
 export type EventSeverity = 'info' | 'warn' | 'danger' | 'good';
@@ -66,6 +67,11 @@ export interface CascadeInput {
   bedEarly: Record<string, number>;
   /** fraction of each region that is dysfunctional in the first hours (core + penumbra) */
   regionAcute: Record<string, number>;
+  /**
+   * regions hit by a lacunar (single-branch) occlusion in effect at onset: ischaemic although the
+   * flow the model sees is unchanged (C6-F2)
+   */
+  lacuneIschaemia?: string[];
   /**
    * when blood returns to the index territory (hours after onset): treatment that reopened the
    * artery, or an occlusion reopening by itself; null or left out when it never does
@@ -406,7 +412,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     if (reg.compartment !== 'supra') continue;
     earlySupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedEarly[b.id] ?? 0) * b.volume;
   }
-  const anyIschemia = Object.values(regionAcute).some((x) => x >= 0.05);
+  const lacuneIschaemia = input.lacuneIschaemia ?? [];
+  const anyIschemia = Object.values(regionAcute).some((x) => x >= 0.05) || lacuneIschaemia.length > 0;
   const occludedBases = new Set(input.occlusions.filter((o) => o.severity >= 1).map((o) => baseOf(o.vessel)));
   const isLvo = LVO.some((b) => occludedBases.has(b));
   const isMevo = !isLvo && MEVO.some((b) => occludedBases.has(b));
@@ -414,7 +421,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // ── 1–2. hyperacute mechanisms, imaging and treatment windows ──────
   // which story fits: only the retina is ischaemic (eye stroke), brain ischaemia that leaves no
   // infarct (a TIA, or tissue held by collaterals), or a brain infarct
-  const ischaemicRegions = Object.keys(regionAcute).filter((rid) => regionAcute[rid] >= 0.05);
+  const ischaemicRegions = [...new Set([...Object.keys(regionAcute).filter((rid) => regionAcute[rid] >= 0.05), ...lacuneIschaemia])];
   const eyeOnly = anyIschemia && ischaemicRegions.every((rid) => REGION_BY_ID[rid]?.category === 'eye');
   const noInfarct = anyIschemia && !eyeOnly && vol.total < 0.05;
   if (eyeOnly) pushEyeEvents(events);
@@ -474,10 +481,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   }
 
   const treatment = input.treatment;
-  if (reperfusionH !== null && anyIschemia && !eyeOnly && input.occlusions.some((o) => o.severity >= 1) && treatment) {
+  // only an occlusion that treatment can reopen: a single branch (lacune) or a stenosis stays
+  const reopenable = input.occlusions.some(isTreatable);
+  if (reperfusionH !== null && anyIschemia && !eyeOnly && reopenable && treatment) {
     events.push(reperfusionEvent(treatment, reperfusionH, savedVolume));
     pushTreatmentComplications(events, treatment, reperfusionH);
-  } else if (reperfusionH !== null && anyIschemia && !eyeOnly && input.occlusions.some((o) => o.severity >= 1)) {
+  } else if (reperfusionH !== null && anyIschemia && !eyeOnly && reopenable) {
     const late = reperfusionH > 6;
     events.push({
       id: 'reperfusion',
@@ -849,6 +858,47 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   }
 
   // ── 7. remote effects: diaschisis & degeneration ──────────────
+  // striatocapsular infarction (putamen, caudate and internal capsule, the cortex spared): the
+  // commonest presentation has cortical signs — dysphasia, neglect or dyspraxia — acutely from
+  // cortical hypoperfusion, chronically attributed to diaschisis (Donnan GA et al. Brain
+  // 1991;114:51-70, PMID 1998890); aphasia is extremely rare with lesions confined to the basal
+  // ganglia (Bhatia KP, Marsden CD. Brain 1994;117:859-876, PMID 7922471), so these signs come
+  // with the whole striatocapsular pattern only, not with a putaminal or caudate lacune. On the
+  // left a non-fluent aphasia with preserved repetition (listed as transcortical motor) and limb
+  // apraxia, on the right neglect; shown for the first three months (illustrative: the paper gives
+  // no time course). C6-F6.
+  for (const s of ['r', 'l'] as Side[]) {
+    const deep =
+      acute(`putamen_${s}`, 0.4) &&
+      (acute(`caudate_body_${s}`) || acute(`caudate_head_${s}`)) &&
+      ['ic_posterior_limb', 'ic_genu', 'ic_anterior_limb'].some((b) => acute(`${b}_${s}`)) &&
+      infarcted(`putamen_${s}`, 0.3);
+    if (!deep || REGIONS.some((r) => r.side === s && r.category === 'cortex' && infarcted(r.id, 0.3))) continue;
+    const left = s === 'l';
+    events.push({
+      id: `striatocapsular_cortical_${s}`,
+      kind: 'secondary',
+      severity: 'warn',
+      onsetH: 0,
+      endH: 2160,
+      title: { zh: '紋狀體內囊梗塞的皮質徵象', en: 'Cortical signs of a striatocapsular infarct' },
+      desc: {
+        zh: `梗塞只在深部（殼核、尾狀核、內囊），${left ? '左' : '右'}側大腦皮質沒有壞死，卻常出現皮質徵象：${
+          left ? '說話少而費力但能複誦的失語（皮質下失語，這裡列為經皮質運動性失語）與失用' : '左側空間忽略'
+        }。急性期歸因於皮質灌流不足（堵住豆紋動脈開口的 M1 起始處血栓或狹窄，也會減少皮質的血流），之後則歸因於深部與皮質之間的連結中斷（遠隔效應，diaschisis）。常在數週到數月內改善，部分會留下來；模型顯示前三個月。只有手臂或手臂加臉無力、沒有皮質徵象的病人，恢復通常最好。`,
+        en: `The infarct is deep (putamen, caudate, internal capsule) and the ${left ? 'left' : 'right'} cortex has not died, yet cortical signs are common: ${
+          left ? 'an aphasia with sparse, effortful speech but preserved repetition (a subcortical aphasia, listed here as transcortical motor aphasia) and apraxia' : 'neglect of the left side'
+        }. Acutely they are attributed to cortical hypoperfusion (the clot or stenosis at the MCA origin that blocks the lenticulostriate openings can also reduce cortical flow); later to the lost connections between the deep structures and the cortex (diaschisis). They often improve over weeks to months, and some remain; the model shows them for the first three months. Patients with arm or arm-and-face weakness alone and no cortical signs usually recover best.`,
+      },
+      regions: REGIONS.filter((r) => r.side === s && ['putamen', 'caudate_head', 'caudate_body', 'ic_posterior_limb', 'ic_genu', 'ic_anterior_limb'].includes(r.baseId) && acute(r.id)).map((r) => r.id),
+      symptoms: left
+        ? [
+            { id: 'aphasia_tc_motor', side: null, sev: 1 },
+            { id: 'apraxia', side: null, sev: 1 },
+          ]
+        : [{ id: 'neglect', side: 'l', sev: 1 }],
+    });
+  }
   for (const s of ['r', 'l'] as Side[]) {
     const drivers = FRONTO_MOTOR.map((b) => `${b}_${s}`).filter((r) => infarcted(r, 0.3));
     if (drivers.length && vol.supra[s] >= 8) {

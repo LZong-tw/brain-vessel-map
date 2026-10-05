@@ -115,7 +115,6 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // articulation is partly bilaterally controlled
   dysarthria: bilateral(0.7, 0.15),
   alien_hand: partial(0.5, 0.2),
-  movement_disorder: partial(0.5, 0.2),
   // a result of the lesion and of the recovery process itself
   spasticity: EXEMPT,
 

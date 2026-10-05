@@ -38,6 +38,12 @@ export interface Occlusion {
    */
   branch?: boolean;
   /**
+   * with `branch`: where in that bundle's territory the lacune lies and so which presentation it
+   * gives (a site id of anatomy/lacunes.ts LACUNE_SITES); absent or unknown: the bundle's first,
+   * classic site
+   */
+  lacuneSite?: string;
+  /**
    * hours after the start of the timeline at which this occlusion begins (default 0). The same
    * vessel may be listed more than once with non-overlapping windows (e.g. a stenosis that later
    * occludes). simulateHemodynamics ignores the timing: it treats every occlusion it is given as

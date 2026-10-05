@@ -1861,6 +1861,18 @@ select.sched-sev {
   padding: 4px 6px;
   font-size: 12.5px;
 }
+.lacune-site {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  min-width: 0;
+}
+.lacune-site select {
+  max-width: 100%;
+  padding: 4px 6px;
+  font-size: 12.5px;
+}
 .sched-add {
   display: flex;
   align-items: flex-end;

@@ -298,17 +298,8 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: true,
     sideWord: 'body',
   },
-  {
-    id: 'movement_disorder',
-    name: { zh: '不自主運動（舞蹈症／肌張力異常）', en: 'Involuntary movements (chorea / dystonia)' },
-    desc: {
-      zh: '基底核受損可能出現不自主的甩動或扭轉。',
-      en: 'Basal ganglia damage can produce flinging or twisting involuntary movements.',
-    },
-    system: 'motor',
-    lateralised: true,
-    sideWord: 'body',
-  },
+  // involuntary movements (hemichorea–hemiballism, dystonia) follow about 1 % of strokes, so they
+  // are not a symptom here but a figure with the problems after stroke (postStrokeRisks.ts, C6-F3)
   {
     id: 'spasticity',
     name: { zh: '肌肉痙攣、僵硬（數週後）', en: 'Spasticity (weeks later)' },
@@ -976,8 +967,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'disinhibition',
     name: { zh: '個性改變、去抑制', en: 'Personality change / disinhibition' },
     desc: {
-      zh: '眼眶額葉受損：衝動、不得體、情緒控制變差。',
-      en: 'Orbitofrontal damage: impulsive, socially inappropriate, poor emotional control.',
+      zh: '眼眶額葉或尾狀核受損：衝動、躁動、不得體、情緒控制變差。',
+      en: 'Orbitofrontal or caudate damage: impulsive, agitated, socially inappropriate, poor emotional control.',
     },
     system: 'cognition',
     lateralised: false,

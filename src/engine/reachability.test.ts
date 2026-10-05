@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { REGIONS, VESSELS } from '../anatomy';
+import { lacuneSitesOf } from '../anatomy/lacunes';
 import { SYMPTOMS } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { VARIANTS } from '../anatomy/variants';
@@ -17,8 +18,22 @@ function runs(): Run[] {
   const out: Run[] = [];
   for (const v of VESSELS.filter((x) => isOccludable(x.id)))
     for (const c of ['good', 'moderate', 'poor'] as const) out.push({ o: [{ vessel: v.id, severity: 1 }], c, v: [], map: 93 });
-  for (const v of VESSELS.filter((x) => x.kind === 'perforator' && (x.n ?? 1) > 1))
+  for (const v of VESSELS.filter((x) => x.kind === 'perforator' && (x.n ?? 1) > 1)) {
     out.push({ o: [{ vessel: v.id, severity: 1, branch: true }], c: 'good', v: [], map: 93 });
+    // every lacune site of the bundle (ataxic hemiparesis, dysarthria–clumsy hand, capsular genu)
+    for (const site of lacuneSitesOf(v.baseId).slice(1))
+      out.push({ o: [{ vessel: v.id, severity: 1, branch: true, lacuneSite: site.id }], c: 'good', v: [], map: 93 });
+  }
+  // two 5-minute attacks of one branch within a day: the capsular warning syndrome
+  out.push({
+    o: [
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, toH: 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 1, toH: 1 + 1 / 12 },
+    ],
+    c: 'good',
+    v: [],
+    map: 93,
+  });
   out.push({
     o: [
       { vessel: 'thalamogeniculate_l', severity: 1, branch: true },

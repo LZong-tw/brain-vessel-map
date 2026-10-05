@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
-import { canBeLacunar } from '../anatomy/lacunes';
+import { canBeLacunar, lacuneSiteOf, lacuneSitesOf } from '../anatomy/lacunes';
 import type { SymptomSystem } from '../anatomy/types';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
@@ -248,6 +248,23 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
                 {t.lacuneOption}
               </button>
               <p className="muted small">{t.lacuneHint}</p>
+              {occ?.branch && lacuneSitesOf(v.baseId).length > 1 && (
+                <div className="lacune-site small">
+                  <span aria-hidden="true">{t.lacuneSite}</span>
+                  <select
+                    aria-label={t.lacuneSite}
+                    value={lacuneSiteOf(v.baseId, occ.lacuneSite)!.id}
+                    onChange={(e) => st.updateOcclusion(st.occlusions.indexOf(occ), { lacuneSite: e.target.value })}
+                  >
+                    {lacuneSitesOf(v.baseId).map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {tr(x.name, lang)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="muted">{t.lacuneSiteHint}</span>
+                </div>
+              )}
             </>
           )}
           {occ && <ScheduleEditor vessel={id} sim={sim} />}

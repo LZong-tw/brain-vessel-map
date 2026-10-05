@@ -104,10 +104,14 @@ export const validWindow = (o: Occlusion): boolean => {
   return Number.isFinite(f) && f >= 0 && (e === null || (Number.isFinite(e) && e > f));
 };
 
-/** drop default timing (start 0, never reopens) so that plain occlusions stay `{ vessel, severity }` */
+/**
+ * drop default timing (start 0, never reopens) so that plain occlusions stay `{ vessel, severity }`;
+ * a lacune site goes with a single-branch occlusion only
+ */
 export function tidy(o: Occlusion): Occlusion {
   const out: Occlusion = { ...o };
   if (!out.branch) delete out.branch;
+  if (!out.branch || !out.lacuneSite) delete out.lacuneSite;
   if (!out.fromH) delete out.fromH;
   if (out.toH === null || out.toH === undefined) delete out.toH;
   return out;

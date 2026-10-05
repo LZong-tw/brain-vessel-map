@@ -16,7 +16,7 @@ export interface Scenario {
    * fromH / toH: when an occlusion begins and when it reopens by itself (hours; default 0 and
    * never). A vessel may appear more than once with non-overlapping windows.
    */
-  occlusions: { vessel: string; severity: number; branch?: boolean; fromH?: number; toH?: number | null }[];
+  occlusions: { vessel: string; severity: number; branch?: boolean; lacuneSite?: string; fromH?: number; toH?: number | null }[];
   variants?: string[];
   collateral?: 'good' | 'moderate' | 'poor';
   map?: number;
@@ -150,8 +150,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: '左前脈絡叢動脈阻塞', en: 'Left anterior choroidal artery occlusion' },
     summary: {
-      zh: '小血管、大影響：右側偏癱、偏身麻木、右側偏盲。',
-      en: 'Small vessel, big effect: right hemiplegia, hemisensory loss and right hemianopia.',
+      zh: '整條前脈絡叢動脈阻塞：右側偏癱、偏身麻木、右側偏盲的典型三「偏」。這是嚴重的一端：大多數前脈絡叢動脈梗塞只表現為腔隙症候群（例如單純無力），要看常見的樣子，可以只塞住其中一條小分支。',
+      en: 'The whole anterior choroidal artery blocked: the classic triad of right hemiplegia, hemisensory loss and right hemianopia. This is the severe end: most AChA infarcts present only as a lacunar syndrome (e.g. pure motor weakness) — block just one small branch to see the common picture.',
     },
     occlusions: [{ vessel: 'acha_l', severity: 1 }],
     tH: 24,
@@ -174,11 +174,44 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: '左豆紋動脈單一分支：純運動性腔隙中風', en: 'One left lenticulostriate branch: pure motor lacune' },
     summary: {
-      zh: '高血壓小血管病變的典型：梗塞不到 1 mL，卻因內囊後肢的運動纖維非常密集，右臉、手、腳同等無力；沒有失語、視野或感覺障礙。',
-      en: 'Classic hypertensive small-vessel disease: an infarct under 1 mL, yet because motor fibres are packed tightly in the posterior limb, the right face, arm and leg are equally weak — no aphasia, field or sensory loss.',
+      zh: '高血壓小血管病變的典型：梗塞不到 1 mL，卻因內囊後肢的運動纖維非常密集，右臉、手、腳都無力、程度相近，多為輕到中度（腔隙中風的 NIHSS 中位數約 3–4）；沒有失語、視野或感覺障礙。落在內囊最下方的小梗塞也可能造成嚴重偏癱。',
+      en: 'Classic hypertensive small-vessel disease: an infarct under 1 mL, yet because motor fibres are packed tightly in the posterior limb, the right face, arm and leg are weak to a similar degree, usually mildly to moderately (lacunar strokes have a median NIHSS of about 3–4) — no aphasia, field or sensory loss. A small infarct in the lowest part of the capsule can still cause a dense hemiplegia.',
     },
     occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }],
     tH: 24,
+    view: 'left',
+  },
+  {
+    // C6-F5: the supratentorial form of ataxic hemiparesis (Moulin 1995; Hiraga 2007)
+    id: 'l_cr_lacune',
+    group: 'deep',
+    title: { zh: '左豆紋動脈單一分支到放射冠：運動失調性偏癱', en: 'One left lenticulostriate branch in the corona radiata: ataxic hemiparesis' },
+    summary: {
+      zh: '同樣是一條小分支，落在放射冠：右側輕度無力，同一側手腳卻明顯笨拙、不協調（比無力更明顯），沒有感覺障礙。同樣的表現也可以來自內囊、橋腦或視丘——光看症狀分不出位置；在血管面板可以改選腔隙的位置，比較純運動性、構音障礙—笨拙手與內囊膝部的不同。',
+      en: 'Again one small branch, this time in the corona radiata: mild right-sided weakness with clumsy, uncoordinated right limbs (more than the weakness explains) and no sensory loss. The same picture can come from the internal capsule, pons or thalamus — the signs alone do not tell the site; in the vessel panel you can move the lacune and compare pure motor, dysarthria–clumsy hand and the capsular genu.',
+    },
+    occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite: 'ataxic' }],
+    tH: 24,
+    view: 'left',
+  },
+  {
+    // C6-F2: crescendo capsular TIAs from one branch, then a lacunar stroke (Donnan GA et al.
+    // Neurology 1993;43:957-962; Paul NL et al. Neurology 2012;79:1356-1362). Each attack lasts 5
+    // minutes, short enough to leave no infarct in the model (one of 15 min would leave a lacune).
+    id: 'capsular_warning',
+    group: 'deep',
+    title: { zh: '內囊警訊症候群：反覆的腔隙性 TIA，接著中風', en: 'Capsular warning syndrome: crescendo lacunar TIAs, then a stroke' },
+    summary: {
+      zh: '同一條豆紋動脈小分支在 0、1、3 小時各阻塞 5 分鐘：每次右臉、手、腳無力，幾分鐘後完全恢復；第 6 小時起它不再打開，變成純運動性腔隙中風。把時間軸逐格往後拉，看症狀出現、消失又出現。這種反覆發作的 TIA 一週內中風的風險極高，即使症狀已經消失也要當急症處理。',
+      en: 'One small lenticulostriate branch closes for 5 minutes at 0, 1 and 3 h: each time the right face, arm and leg go weak and recover fully within minutes; from 6 h it stays shut and becomes a pure motor lacunar stroke. Step the timeline forward to watch the symptoms come, go and come back. Such crescendo TIAs carry a very high stroke risk within a week — an emergency even when the symptoms have cleared.',
+    },
+    occlusions: [
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 0, toH: 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 1, toH: 1 + 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 3, toH: 3 + 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 6 },
+    ],
+    tH: 1,
     view: 'left',
   },
   {
@@ -334,10 +367,10 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '右橋腦小穿通支：運動失調性偏癱', en: 'Small right pontine branch: ataxic hemiparesis' },
     summary: {
-      zh: '一條橋腦旁正中小分支阻塞：左側無力加上同側的笨拙與運動失調（或構音障礙—笨拙手）。和內囊腔隙一樣是小血管病，但位置在腦幹。',
-      en: 'One small paramedian pontine branch: left-sided weakness with clumsiness and ataxia on the same side (or dysarthria–clumsy hand). Small-vessel disease like a capsular lacune, but in the brainstem.',
+      zh: '一條橋腦旁正中小分支阻塞：左側輕度無力，加上同一側明顯的運動失調（手指碰鼻子會偏）。同一條小分支也可能只造成純運動性無力或構音障礙—笨拙手——可以在血管面板改選。和內囊腔隙一樣是小血管病，但位置在腦幹。',
+      en: 'One small paramedian pontine branch: mild left-sided weakness with marked ataxia of the same limbs (finger-to-nose overshoots). The same small branch can instead give pure motor weakness or dysarthria–clumsy hand — switch in the vessel panel. Small-vessel disease like a capsular lacune, but in the brainstem.',
     },
-    occlusions: [{ vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true }],
+    occlusions: [{ vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true, lacuneSite: 'ataxic' }],
     tH: 24,
     view: 'brainstem',
   },

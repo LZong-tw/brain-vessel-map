@@ -3,7 +3,7 @@
  */
 
 import { REGIONS, REGION_BY_ID } from '../anatomy';
-import type { NihssItem, Region, Side } from '../anatomy';
+import type { DeficitRef, NihssItem, Region, Side } from '../anatomy';
 import { REGION_DEFS } from '../anatomy/regions';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
@@ -116,6 +116,11 @@ export function aggregateSymptoms(
   lacuneOnly: string[] = [],
   /** border-zone levels of the regions with `borderDeficits` (see BorderLevel) */
   border: Record<string, BorderLevel> = {},
+  /**
+   * what the lacune does in a region of `lacuneOnly` whose lacune site has its own deficit list
+   * (anatomy/lacunes.ts): it replaces the region's deficits there
+   */
+  lacuneDeficits: Record<string, DeficitRef[]> = {},
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
@@ -146,11 +151,13 @@ export function aggregateSymptoms(
     const dys = inBorder ? b!.dys : regionDys[r.id] ?? 0;
     const inf = inBorder ? b!.inf : regionInf[r.id] ?? 0;
     if (!reaches(dys) && !reaches(inf)) continue;
-    for (const d of inBorder ? def.borderDeficits! : def.deficits) {
+    const lacune = lacuneOnly.includes(r.id);
+    const list = inBorder ? def.borderDeficits! : (lacune && lacuneDeficits[r.id]) || def.deficits;
+    for (const d of list) {
       const sym = SYMPTOM_BY_ID[d.s];
       if (!sym) continue;
       if (d.only && r.side !== d.only) continue;
-      if (d.spareInLacune && lacuneOnly.includes(r.id)) continue;
+      if (d.spareInLacune && lacune) continue;
       const delayed = !!sym.delayed;
       const byInfarct = delayed || !!sym.fromInfarct;
       const level = byInfarct ? inf : dys;

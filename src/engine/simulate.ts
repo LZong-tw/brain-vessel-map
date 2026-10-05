@@ -49,7 +49,7 @@
  */
 
 import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
-import type { Side } from '../anatomy';
+import type { DeficitRef, Side } from '../anatomy';
 import { computeCascade, type BedEffectKind, type CascadeOutput, type CascadeTreatment } from './cascade';
 import {
   aggregateSymptoms,
@@ -89,7 +89,7 @@ import {
   reperfusedFraction,
   type TreatmentOptions,
 } from './treatment';
-import { LACUNE_DYSFUNCTION, LACUNE_ML, LACUNE_TARGET, canBeLacunar } from '../anatomy/lacunes';
+import { LACUNE_DYSFUNCTION, LACUNE_ML, canBeLacunar, lacuneSiteOf } from '../anatomy/lacunes';
 import { isWatershedPicture } from '../anatomy/syndromes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
@@ -322,14 +322,20 @@ function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], save
   bs.infarct += f * frac;
 }
 
+/** the region a lacunar (single-branch) occlusion hits: its lacune site's (anatomy/lacunes.ts), or null */
+function lacuneRegionOf(o: Occlusion): string | null {
+  const v = VESSEL_BY_ID[o.vessel];
+  if (!o.branch || !v || !canBeLacunar(v.baseId, v.n) || v.side === 'm') return null;
+  const rid = `${lacuneSiteOf(v.baseId, o.lacuneSite)!.region}_${v.side}`;
+  return REGION_BY_ID[rid] ? rid : null;
+}
+
 /** target regions of lacunar (single-branch) occlusions */
 function lacuneRegions(occlusions: Occlusion[]): Map<string, Occlusion[]> {
   const out = new Map<string, Occlusion[]>();
   for (const o of occlusions) {
-    const v = VESSEL_BY_ID[o.vessel];
-    if (!o.branch || !v || !canBeLacunar(v.baseId, v.n) || v.side === 'm') continue;
-    const rid = `${LACUNE_TARGET[v.baseId]}_${v.side}`;
-    if (!REGION_BY_ID[rid]) continue;
+    const rid = lacuneRegionOf(o);
+    if (!rid) continue;
     const list = out.get(rid);
     if (list) list.push(o);
     else out.set(rid, [o]);
@@ -351,6 +357,28 @@ function lacuneLossAt(course: Course, rid: string, tH: number): number {
   let loss = 0;
   for (const o of course.lacunes.get(rid) ?? []) loss = Math.max(loss, infarctFractionOf(branchHistory(o), tH));
   return loss;
+}
+
+/**
+ * a lacunar occlusion of region `rid` is in effect at time t: its tissue is ischaemic, and silent,
+ * from the moment the branch closes, not only once it has died (C6-F2). A treatment never reopens
+ * a single branch (schedule.isTreatable), so only its own window counts.
+ */
+const lacuneActiveAt = (course: Course, rid: string, tH: number): boolean => (course.lacunes.get(rid) ?? []).some((o) => inWindow(o, tH));
+
+/**
+ * the deficit lists of the lacune sites that have their own (anatomy/lacunes.ts), per target
+ * region; two lacunes at different sites of one region add up
+ */
+function lacuneDeficitsOf(course: Course): Record<string, DeficitRef[]> {
+  const out: Record<string, DeficitRef[]> = {};
+  for (const [rid, list] of course.lacunes) {
+    const lists = list.map((o) => lacuneSiteOf(VESSEL_BY_ID[o.vessel].baseId, o.lacuneSite)!.deficits);
+    // a site without a list of its own uses the region's (with the functions spared in a lacune)
+    if (lists.some((l) => !l)) continue;
+    out[rid] = [...new Set(lists.flatMap((l) => l!))];
+  }
+  return out;
 }
 
 /** fraction of a region occupied by one lacune */
@@ -547,7 +575,7 @@ interface Model {
 const modelCache = new Map<string, Model>();
 
 function modelKey(input: SimInput): string {
-  const occ = input.occlusions.map((o) => `${o.vessel}:${o.severity}:${o.branch ? 'b' : ''}:${startOf(o)}:${endOf(o)}`).join(',');
+  const occ = input.occlusions.map((o) => `${o.vessel}:${o.severity}:${o.branch ? `b${o.lacuneSite ?? ''}` : ''}:${startOf(o)}:${endOf(o)}`).join(',');
   const key = `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}|${input.reperfusionH}|${input.decompression}`;
   const t = input.reperfusionH === null ? DEFAULT_TREATMENT : treatmentOptions(input.treatment);
   return t === DEFAULT_TREATMENT ? key : `${key}|${t.method}:${t.grade}:${t.reocclusionAfterH}:${t.distalEmbolus}:${t.noReflow}`;
@@ -630,6 +658,8 @@ function modelFor(input: SimInput): Model {
     bedFinalUntreated,
     bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14, untreated, x), course, onsetH + 14),
     regionAcute: regionAgg(acute),
+    // a single branch changes no flow the model sees, yet its brain tissue is ischaemic (C6-F2)
+    lacuneIschaemia: [...course.lacunes.keys()].filter((rid) => BRAIN.has(REGION_BY_ID[rid].category) && lacuneActiveAt(course, rid, onsetH)),
     // a reocclusion closes the artery again, so the flow does not stay back
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // left out for the default treatment, which keeps the former event texts exactly
@@ -708,7 +738,12 @@ export function simulate(input: SimInput): SimResult {
   // lacunes: one branch of a perforator bundle → a small infarct in its target structure
   const lacunes = [...course.lacunes.keys()];
   const lacuneLoss: Record<string, number> = {};
-  for (const rid of lacunes) lacuneLoss[rid] = lacuneLossAt(course, rid, tAbs);
+  /** ischaemic but not (yet) dead share of the lacune: its branch is closed now */
+  const lacuneIsch: Record<string, number> = {};
+  for (const rid of lacunes) {
+    lacuneLoss[rid] = lacuneLossAt(course, rid, tAbs);
+    lacuneIsch[rid] = lacuneActiveAt(course, rid, tAbs) ? 1 - lacuneLoss[rid] : 0;
+  }
   // the clinical clock: hours since the index onset (see the header); the cascade runs on it
   const t = Math.max(0, tAbs - model.onsetH);
   const cascade = model.cascade;
@@ -748,10 +783,13 @@ export function simulate(input: SimInput): SimResult {
   });
   for (const rid of lacunes) {
     const x = lacuneFraction(rid) * lacuneLoss[rid];
+    // the part of the lacune that is ischaemic but still alive while its branch is closed
+    const p = lacuneFraction(rid) * lacuneIsch[rid];
     for (const bid of REGION_BY_ID[rid].beds) {
       const bs = beds[bid];
-      for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - x;
+      for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - x - p;
       bs.frac.core += x;
+      bs.frac.penumbra += p;
       bs.infarct += x * (1 - bs.infarct);
     }
   }
@@ -804,12 +842,15 @@ export function simulate(input: SimInput): SimResult {
   const rPrim = regionAgg(primaryDys);
   const rInf = regionAgg(infMap);
   const rRel = regionAgg(relMap);
-  // a lacune is small but sits in a compact fibre tract: it knocks out most of its function
+  // a lacune is small but sits in a compact fibre tract: it knocks out most of its function, from
+  // the moment its branch closes (ischaemic tissue is silent too) — so a branch that reopens
+  // within minutes gives a fully reversible deficit, a capsular TIA (C6-F2)
   for (const rid of lacunes) {
-    const level = LACUNE_DYSFUNCTION * lacuneLoss[rid];
+    const dead = LACUNE_DYSFUNCTION * lacuneLoss[rid];
+    const level = LACUNE_DYSFUNCTION * (lacuneLoss[rid] + lacuneIsch[rid]);
     rDys[rid] = Math.max(rDys[rid] ?? 0, level);
     rPrim[rid] = Math.max(rPrim[rid] ?? 0, level);
-    rInf[rid] = Math.max(rInf[rid] ?? 0, level);
+    rInf[rid] = Math.max(rInf[rid] ?? 0, dead);
   }
   const regions: Record<string, RegionTimeState> = {};
   for (const r of REGIONS) {
@@ -835,7 +876,9 @@ export function simulate(input: SimInput): SimResult {
   }
 
   for (const rid of lacunes) {
-    if (lacuneLoss[rid] >= 0.5 && regions[rid] && !regions[rid].effect) regions[rid].dominant = 'core';
+    if (!regions[rid] || regions[rid].effect) continue;
+    if (lacuneLoss[rid] >= 0.5) regions[rid].dominant = 'core';
+    else if (lacuneIsch[rid] > 0 && ['normal', 'oligemia', 'salvaged'].includes(regions[rid].dominant)) regions[rid].dominant = 'penumbra';
   }
 
   // ── symptoms, NIHSS, syndromes ──
@@ -891,7 +934,7 @@ export function simulate(input: SimInput): SimResult {
     }
     if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
   }
-  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border);
+  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course));
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
 
@@ -911,6 +954,13 @@ export function simulate(input: SimInput): SimResult {
     cortexCount: (side, thr = 0.2) =>
       REGIONS.filter((r) => r.side === side && r.category === 'cortex' && rPrim[r.id] >= thr).length,
     map: input.map,
+    lacune: (base, side) => lacuneOnly.includes(`${base}_${side}`),
+    branchEpisodes: (base, side) =>
+      input.occlusions
+        .filter((o) => o.branch && o.vessel === `${base}_${side}` && startOf(o) <= tAbs)
+        .map((o) => ({ fromH: startOf(o), toH: endOf(o) }))
+        .sort((a, b) => a.fromH - b.fromH),
+    tH: tAbs,
   }, symptoms);
 
   // ── volumes ──

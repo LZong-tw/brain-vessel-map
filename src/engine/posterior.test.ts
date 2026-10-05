@@ -158,6 +158,9 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
     amaurosis: 0,
     // added with the occlusion schedules: a 5-minute event within the ischaemic lag leaves no infarct
     tia_l_mca: 0,
+    // added with C6: one lacune each (the capsular warning attacks of 5 minutes leave nothing)
+    l_cr_lacune: 0.8,
+    capsular_warning: 0.8,
   };
   it.each(SCENARIOS.filter((s) => s.group !== 'posterior').map((s) => [s.id, s] as const))('%s', (id, sc) => {
     const r = sim({

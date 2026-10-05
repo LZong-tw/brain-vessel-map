@@ -5,7 +5,7 @@
  *  - Effect-only regions (secondary degeneration/diaschisis) don't show a misleading "0%".
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { REGION_BY_ID, regionName } from '../anatomy';
 import { regionAffectedPct } from '../ui/regionLabel';
 import { simulate } from '../engine/simulate';
@@ -104,5 +104,30 @@ describe('named syndromes', () => {
     const acute = render(<RightPanel sim={early} />);
     expect(early.syndromes.some((s) => s.def.id === 'watershed')).toBe(true);
     expect(within(acute.container.querySelector('details.syndrome') as HTMLElement).queryByText('臨床無症狀')).toBeNull();
+  });
+});
+
+describe('a lacune can be placed within its bundle (C6-F5)', () => {
+  it('offers the sites of a lenticulostriate branch and switches the occlusion to the one chosen', () => {
+    const occlusions = [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }];
+    useApp.setState({ occlusions, selected: { kind: 'vessel', id: 'lenticulostriate_l' }, rightTab: 'details', tIndex: tIndexFor(24), lang: 'en' });
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false });
+    render(<RightPanel sim={sim} />);
+    const pick = screen.getByRole('combobox', { name: 'Where the branch lies' }) as HTMLSelectElement;
+    expect([...pick.options].map((o) => o.value)).toEqual(['pure_motor', 'ataxic', 'dch', 'genu']);
+    expect(pick.value).toBe('pure_motor');
+    fireEvent.change(pick, { target: { value: 'ataxic' } });
+    expect(useApp.getState().occlusions).toEqual([{ vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite: 'ataxic' }]);
+  });
+
+  it('is not offered for a whole-bundle occlusion or a bundle with one site', () => {
+    for (const occlusions of [[{ vessel: 'lenticulostriate_l', severity: 1 }], [{ vessel: 'thalamogeniculate_l', severity: 1, branch: true }]]) {
+      const id = occlusions[0].vessel;
+      useApp.setState({ occlusions, selected: { kind: 'vessel', id }, rightTab: 'details', tIndex: tIndexFor(24), lang: 'en' });
+      const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false });
+      render(<RightPanel sim={sim} />);
+      expect(screen.queryByRole('combobox', { name: 'Where the branch lies' })).toBeNull();
+      cleanup();
+    }
   });
 });

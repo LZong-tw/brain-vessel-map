@@ -4,7 +4,8 @@
  * Pure: takes the relevant state, returns strings.
  */
 
-import { VESSEL_BY_ID, vesselName } from '../anatomy';
+import { VESSEL_BY_ID, tr, vesselName } from '../anatomy';
+import { lacuneSitesOf } from '../anatomy/lacunes';
 import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
@@ -51,7 +52,13 @@ const nameOf = (id: string, lang: Lang) => (VESSEL_BY_ID[id] ? vesselName(VESSEL
 
 /** how a single occlusion narrows its vessel, or '' for a complete occlusion */
 function degree(o: Occlusion, lang: Lang): string {
-  if (o.branch) return UI[lang].lacuneTag;
+  if (o.branch) {
+    // a lacune at a site other than the bundle's classic one says where (C6-F5)
+    const v = VESSEL_BY_ID[o.vessel];
+    const sites = v ? lacuneSitesOf(v.baseId) : [];
+    const site = sites.find((x) => x.id === o.lacuneSite);
+    return site && site !== sites[0] ? `${UI[lang].lacuneTag}${SEP}${tr(site.name, lang)}` : UI[lang].lacuneTag;
+  }
   return o.severity < 1 ? STACK_UI[lang].partial(Math.round(o.severity * 100)) : '';
 }
 

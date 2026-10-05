@@ -259,8 +259,8 @@ describe('最終 tab', () => {
   });
 });
 
-describe('最終 tab: common problems after stroke (population figures)', () => {
-  const TITLE = '中風後常見的其他問題';
+describe('最終 tab: problems after stroke (population figures)', () => {
+  const TITLE = '中風後的其他問題';
   const section = (c: HTMLElement) => c.querySelector('.outcome-risks') as HTMLElement | null;
   const riskNames = POST_STROKE_RISKS.map((r) => r.name.zh);
 
@@ -283,7 +283,8 @@ describe('最終 tab: common problems after stroke (population figures)', () => 
     expect(within(dep).getByText('相關因素與病灶位置').tagName).toBe('SUMMARY');
     expect(dep.querySelector('details')!.textContent).toMatch(/Carson 2000/);
     // grouped under headings, in the order of the systems
-    expect([...box.querySelectorAll('.risk-group h4')].map((h) => h.textContent)).toEqual(['認知', '情緒與動機', '睡眠、精神與體力']);
+    // (C6-F3: the movement disorders, about 1 %, under their own heading)
+    expect([...box.querySelectorAll('.risk-group h4')].map((h) => h.textContent)).toEqual(['動作', '認知', '情緒與動機', '睡眠、精神與體力']);
   });
 
   it('in English too', () => {
@@ -291,7 +292,7 @@ describe('最終 tab: common problems after stroke (population figures)', () => 
     useApp.setState({ rightTab: 'final', lang: 'en' });
     const { container } = render(<RightPanel sim={simOf()} />);
     const box = section(container)!;
-    within(box).getByRole('heading', { name: 'Other common problems after stroke' });
+    within(box).getByRole('heading', { name: 'Other problems after stroke' });
     within(box).getByText('about 31 % (95% CI 28–35 %)');
     within(box).getByText(/cannot predict whether this case will develop them/);
   });

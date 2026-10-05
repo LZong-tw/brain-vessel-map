@@ -1,6 +1,8 @@
 /**
  * Problems that are common after a stroke but that the lesion site does not determine, or only
- * weakly: depression, anxiety, fatigue, insomnia, sleep-disordered breathing, apathy …
+ * weakly: depression, anxiety, fatigue, insomnia, sleep-disordered breathing, apathy … — and an
+ * uncommon one that a lesion site makes possible but cannot predict, the post-stroke movement
+ * disorders (about 1 %; C6-F3).
  *
  * The tissue model cannot tell who will develop them, so they are shown as population figures
  * beside the outcome — how often they occur after a stroke and what is known to raise the risk —
@@ -49,6 +51,12 @@ const GILLESPIE_2016 =
 const BROOMFIELD_2024 = 'Broomfield NM et al. Post-stroke emotionalism: diagnosis, pathophysiology, and treatment. Int J Stroke 2024;19:857–866.';
 const PENDLEBURY_2009 =
   'Pendlebury ST, Rothwell PM. Prevalence, incidence, and factors associated with pre-stroke and post-stroke dementia: a systematic review and meta-analysis. Lancet Neurol 2009;8:1006–1018.';
+const GHIKA_SCHMID_1997 =
+  'Ghika-Schmid F, Ghika J, Regli F, Bogousslavsky J. Hyperkinetic movement disorders during and after acute stroke: the Lausanne Stroke Registry. J Neurol Sci 1997;146:109–116.';
+const KIM_2001 = 'Kim JS. Delayed onset mixed involuntary movements after thalamic stroke: clinical, radiological and pathophysiological findings. Brain 2001;124:299–309.';
+const BOGOUSSLAVSKY_1988 = 'Bogousslavsky J, Regli F, Uske A. Thalamic infarcts: clinical syndromes, etiology, and prognosis. Neurology 1988;38:837–848.';
+const POSTUMA_2003 = 'Postuma RB, Lang AE. Hemiballism: revisiting a classic disorder. Lancet Neurol 2003;2:661–668.';
+const BHATIA_1994 = 'Bhatia KP, Marsden CD. The behavioural and motor consequences of focal lesions of the basal ganglia in man. Brain 1994;117:859–876.';
 
 /**
  * Pooled figures from systematic reviews / meta-analyses. Each `prevalence` is the review's own
@@ -216,5 +224,26 @@ export const POST_STROKE_RISKS: PostStrokeRisk[] = [
     },
     sources: [PENDLEBURY_2009],
     typicalOnsetH: 2160,
+  },
+  {
+    // not a symptom of the case (C6-F3): a registry of first strokes, not a systematic review
+    id: 'movement_disorders',
+    system: 'motor',
+    name: { zh: '中風後不自主運動（偏側舞蹈—投擲症、肌張力異常）', en: 'Movement disorders after stroke (hemichorea–hemiballism, dystonia)' },
+    desc: {
+      zh: '中風後出現的不自主運動：手腳不由自主地甩動或扭動（偏側舞蹈—投擲症）、持續的扭轉姿勢（肌張力異常），較少見的還有顫抖或肌躍。',
+      en: 'Involuntary movements after a stroke: flinging or writhing movements of the limbs on one side (hemichorea–hemiballism), sustained twisting postures (dystonia), less often tremor or jerks.',
+    },
+    prevalence: { value: 29 / 2500 },
+    window: {
+      zh: '首次中風、急性期或之後才出現（洛桑中風登錄，2500 人中 29 人）',
+      en: 'first strokes, during the acute phase or later (Lausanne Stroke Registry, 29 of 2500)',
+    },
+    factors: {
+      zh: '最常見的是偏側舞蹈—投擲症與偏側肌張力異常，多在基底核與鄰近白質（中大腦或後大腦動脈區）梗塞之後，大多會自行消退——超過 6 個月的只有 3 人（Ghika-Schmid 1997）。偏側投擲症很少真正來自視丘下核，多數預後良好（Postuma 2003）。外側視丘中風後，不自主運動（肌張力異常、手足徐動、舞蹈、顫抖）常在中風一段時間之後才出現，與嚴重的本體覺喪失和運動失調有關，無力恢復時反而更明顯（Kim 2001）；40 例視丘梗塞中有 3 例（Bogousslavsky 1988）。文獻病例中，豆狀核（尤其殼核）病灶常伴肌張力異常，尾狀核病灶則很少有運動障礙（Bhatia 1994；為已發表病例，不能當作發生率）。',
+      en: 'Mostly hemichorea–hemiballism and hemidystonia, after infarcts of the basal ganglia and adjacent white matter (middle or posterior cerebral artery territory); they usually regress — only 3 lasted beyond 6 months (Ghika-Schmid 1997). Hemiballism seldom involves the subthalamic nucleus itself and mostly has a benign course (Postuma 2003). After lateral thalamic strokes, involuntary movements (dystonia, athetosis, chorea, tremor) often appear only some time later (delayed onset), tied to severe position-sense loss and ataxia and becoming more evident as the weakness recovers (Kim 2001); 3 of 40 thalamic infarcts (Bogousslavsky 1988). Among published cases, lentiform (especially putaminal) lesions were often reported with dystonia and caudate lesions seldom with movement disorders (Bhatia 1994; reported cases, not incidence).',
+    },
+    sources: [GHIKA_SCHMID_1997, POSTUMA_2003, KIM_2001, BOGOUSSLAVSKY_1988, BHATIA_1994],
+    typicalOnsetH: 0,
   },
 ];

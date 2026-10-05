@@ -96,6 +96,20 @@ describe('shareable URL state', () => {
     expect(encodeState(s)).toBe('o=mca_m1_l%2Cica_cervical_r%3A0.7%2Clenticulostriate_r%3Ab&t=24&r=2');
   });
 
+  it('keeps where in its bundle a lacune lies (C6-F5); an unknown site is the classic one', () => {
+    applyHash('#o=lenticulostriate_l:b:ataxic,pontine_paramedian_rostral_r:b:nosuch&t=24');
+    const s = useApp.getState();
+    expect(s.occlusions).toEqual([
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite: 'ataxic' },
+      { vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true },
+    ]);
+    const enc = encodeState(s);
+    expect(enc).toContain('lenticulostriate_l%3Ab%3Aataxic');
+    applyHash('#o=aca_a1_r');
+    applyHash(`#${enc}`);
+    expect(useApp.getState().occlusions[0]).toEqual({ vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite: 'ataxic' });
+  });
+
   it('round-trips through encodeState', () => {
     applyHash('#o=mca_m1_l,ica_cervical_r:0.7,lenticulostriate_r:b&c=moderate&t=24&r=2');
     expect(useApp.getState().occlusions).toContainEqual({ vessel: 'lenticulostriate_r', severity: 1, branch: true });

@@ -104,6 +104,10 @@ describe('severityTag and vesselSummary', () => {
     expect(severityTag(stacked, 'pica_r', 'zh-TW')).toBe('完全阻塞');
     expect(severityTag([{ vessel: 'pica_r', severity: 0.7 }], 'pica_r', 'zh-TW')).toBe('狹窄 70%');
     expect(severityTag([{ vessel: 'lenticulostriate_l', severity: 1, branch: true }], 'lenticulostriate_l', 'en')).toBe('one branch');
+    // a lacune at another site of its bundle says where (C6-F5)
+    const cr = [{ vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite: 'ataxic' }];
+    expect(severityTag(cr, 'lenticulostriate_l', 'en')).toBe('one branch · Corona radiata: ataxic hemiparesis');
+    expect(severityTag(cr, 'lenticulostriate_l', 'zh-TW')).toBe('單一分支 · 放射冠：運動失調性偏癱');
     const phases: Occlusion[] = [
       { vessel: 'basilar_mid', severity: 1, toH: 1 / 12 },
       { vessel: 'basilar_mid', severity: 0.9, fromH: 1 / 12, toH: 72 },

@@ -551,8 +551,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'caudate_head',
     name: { zh: '尾狀核頭（含依核）', en: 'Caudate head (incl. nucleus accumbens)' },
     func: {
-      zh: '額葉—基底核迴路的一環：動機、學習、認知控制。',
-      en: 'Part of frontal–basal ganglia loops: motivation, learning and cognitive control.',
+      zh: '額葉—基底核迴路的一環：動機、學習、認知控制。尾狀核梗塞主要造成行為改變（意志缺失、躁動），常有構音障礙；不自主運動很少見。同時出現的輕微、短暫偏癱多半來自延伸到鄰近的內囊。',
+      en: 'Part of frontal–basal ganglia loops: motivation, learning and cognitive control. Caudate infarcts mainly change behaviour (abulia, agitation), often with dysarthria; involuntary movements are rare. The slight, transient hemiparesis that often comes with them is mostly from extension into the adjacent internal capsule.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
@@ -560,10 +560,19 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'heubner_{s}', share: 0.7 },
       { v: 'lenticulostriate_{s}', share: 0.3 },
     ],
+    // Caplan LR et al. Caudate infarcts. Arch Neurol 1990;47:133-143 (PMID 2405818): of 18,
+    // dysarthria in 11, abulia in 10, agitation and hyperactivity in 7, motor signs (mostly a
+    // slight transient hemiparesis) in 13 — half extended into the anterior limb of the capsule;
+    // neglect in 3 (all right caudate), language abnormalities in 2 (both left). Bhatia KP,
+    // Marsden CD. Brain 1994;117:859-876 (PMID 7922471; published cases): caudate lesions rarely
+    // caused movement disorders (chorea 6 %, dystonia 9 %) but often abulia (28 %), sometimes
+    // alternating with disinhibition (11 %); aphasia was extremely rare with lesions confined to
+    // the basal ganglia, so none is listed here (C6-F9). Movement disorders: postStrokeRisks.ts.
     deficits: [
       { s: 'abulia', lat: 'none', sev: 2 },
       { s: 'executive', lat: 'none', sev: 1 },
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
+      { s: 'dysarthria', lat: 'none', sev: 1 },
+      { s: 'disinhibition', lat: 'none', sev: 1 },
       // right basal ganglia (Karnath HO, Himmelbach M, Rorden C, Brain 2002;125:350-360, PMID 11844735)
       { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
@@ -589,8 +598,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'putamen',
     name: { zh: '殼核', en: 'Putamen' },
     func: {
-      zh: '基底核的運動入口：動作的選擇與流暢度。',
-      en: 'Motor input nucleus of the basal ganglia: selection and fluency of movement.',
+      zh: '基底核的運動入口：動作的選擇與流暢度。少數中風（約 1%）之後會出現不自主運動（偏側舞蹈—投擲症、肌張力異常），多半在基底核與鄰近白質梗塞之後，通常會自行消退。',
+      en: 'Motor input nucleus of the basal ganglia: selection and fluency of movement. In a few strokes (about 1 %) involuntary movements follow (hemichorea–hemiballism, dystonia), mostly after infarcts of the basal ganglia and the adjacent white matter; they usually subside.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
@@ -598,8 +607,11 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'lenticulostriate_{s}', share: 0.9 },
       { v: 'heubner_{s}', share: 0.1 },
     ],
+    // involuntary movements are not a symptom of every putaminal infarct: 29 of 2500 first strokes,
+    // mostly hemichorea–hemiballism and hemidystonia, usually regressing (Ghika-Schmid F et al.
+    // J Neurol Sci 1997;146:109-116, PMID 9077506); listed with the problems after stroke
+    // (postStrokeRisks.ts, C6-F3)
     deficits: [
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       // the right putamen is a critical subcortical site (Karnath et al. 2002)
       { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
@@ -619,8 +631,8 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'lenticulostriate_{s}', share: 0.5 },
       { v: 'acha_{s}', share: 0.5 },
     ],
+    // involuntary movements: postStrokeRisks.ts (C6-F3)
     deficits: [
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
       // the dorsal pallidum especially (Kim, J Neurol 2002). TODO(medical-review): sev
       { s: 'emotionalism', lat: 'none', sev: 1 },
@@ -650,8 +662,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'ic_genu',
     name: { zh: '內囊膝部', en: 'Internal capsule, genu' },
     func: {
-      zh: '皮質延髓徑通過處：控制對側臉部、舌頭與吞嚥的運動指令。',
-      en: 'Corticobulbar fibres: motor commands for the opposite face, tongue and swallowing.',
+      zh: '皮質延髓徑通過處：控制對側臉部、舌頭與吞嚥的運動指令。膝部下方還有視丘通往額葉的纖維（視丘下腳與前腳）：這裡的小梗塞可造成突然的意識混亂、冷漠與失憶（「策略性梗塞」），無力反而輕微。',
+      en: 'Corticobulbar fibres: motor commands for the opposite face, tongue and swallowing. Below them run thalamic fibres to the frontal lobe (inferior and anterior thalamic peduncles): a small infarct here can cause sudden confusion, apathy and memory loss (a "strategic infarct") with only mild weakness.',
     },
     category: 'deep',
     cbf: WM_CBF,
@@ -659,8 +671,12 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'lenticulostriate_{s}', share: 0.6 },
       { v: 'acha_{s}', share: 0.4 },
     ],
+    // facial weakness from the genu alone is mild to moderate (Tatemichi TK et al. Neurology
+    // 1992;42:1966-1979, PMID 1407580: mild unless the infarct reaches the posterior limb; C6-F8),
+    // so the face is no weaker than the arm in a striatocapsular infarct (C6-F6). The cognitive
+    // syndrome of a lower-genu lacune: lacunes.ts
     deficits: [
-      { s: 'face_weak', lat: 'contra', sev: 3 },
+      { s: 'face_weak', lat: 'contra', sev: 2 },
       { s: 'dysarthria', lat: 'none', sev: 2 },
       // corticobulbar fibres to the swallowing muscles (Suntrup et al. 2015); see the precentral gyrus
       { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
@@ -674,8 +690,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'ic_posterior_limb',
     name: { zh: '內囊後肢', en: 'Internal capsule, posterior limb' },
     func: {
-      zh: '皮質脊髓徑高度集中處：很小的梗塞就能造成對側臉、手、腳同等程度的癱瘓（純運動性中風）。',
-      en: 'The corticospinal tract is tightly packed here: a tiny infarct can paralyse the opposite face, arm and leg equally (pure motor stroke).',
+      zh: '皮質脊髓徑高度集中處：很小的梗塞就能讓對側臉、手、腳無力，程度相近（純運動性中風），多為輕到中度；位在內囊最下方的小梗塞也可能造成嚴重偏癱。',
+      en: 'The corticospinal tract is tightly packed here: a tiny infarct can weaken the opposite face, arm and leg to a similar degree (pure motor stroke), usually mildly to moderately; a small infarct in the lowest part of the capsule can still cause a dense hemiplegia.',
     },
     category: 'deep',
     cbf: WM_CBF,
@@ -750,7 +766,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'sens_hemibody', lat: 'contra', sev: 3 },
       // a sensory lacune sits in VPL/VPM; the motor thalamus (VL) is usually spared
       { s: 'ataxia_limb', lat: 'contra', sev: 1, spareInLacune: true },
-      { s: 'movement_disorder', lat: 'contra', sev: 1, spareInLacune: true },
+      // the delayed involuntary movements of lateral thalamic strokes (weeks to months, with severe
+      // position-sense loss and ataxia: Kim JS. Brain 2001;124:299-309, PMID 11157557) are listed
+      // with the problems after stroke (postStrokeRisks.ts, C6-F3)
       { s: 'central_pain', lat: 'contra', sev: 2 },
       // VPM relays taste; side not fixed above the midbrain (Onoda et al., J Neurol 2012).
       // TODO(medical-review): sev

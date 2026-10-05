@@ -1,7 +1,7 @@
 /**
  * The common problems after stroke that the lesion site does not determine (depression, anxiety,
- * fatigue, insomnia, sleep apnoea, apathy, emotionalism, dementia), as the Outcome tab shows
- * them. Pure (no React, no store).
+ * fatigue, insomnia, sleep apnoea, apathy, emotionalism, dementia), and the uncommon movement
+ * disorders, as the Outcome tab shows them. Pure (no React, no store).
  *
  * They are population figures from systematic reviews, never a prediction for the simulated case:
  * nothing here computes a probability for the case, and every figure shown is the review's own,
@@ -14,7 +14,8 @@
  *     deficits still counts — it is a stroke;
  *   • a short note that the case has a factor the cited review associates with the problem
  *     (e.g. a moderate-or-worse deficit at 6 months and depression, Ayerbe 2013) — worded as
- *     "is associated with a higher risk", without a number.
+ *     "is associated with a higher risk", without a number — or, for the movement disorders,
+ *     that its infarct involves the sites they arise from.
  */
 
 import { REGION_BY_ID } from '../anatomy';
@@ -68,11 +69,18 @@ const MODERATE_OR_WORSE: ReadonlySet<NihssResult['category']> = new Set(['modera
 
 const hasLastingCognitive = (m6: SimResult) => m6.symptoms.some((s) => systemOf(s.id) === 'cognition');
 
+/** basal ganglia and lateral thalamus (base ids), the sites of post-stroke movement disorders */
+const MOVEMENT_SITES = ['putamen', 'globus_pallidus', 'caudate_head', 'caudate_body', 'thalamus_ventrolateral', 'thalamus_posterior'];
+/** an infarcted share at which a region counts as part of the infarct (the symptom threshold) */
+const DEAD = 0.25;
+
 /**
  * Factors of the case that the risk's own sources associate with it, as sentences without numbers.
- * Only factors a cited review reports are used:
+ * Only factors a cited source reports are used:
  *   • depression — stroke severity / disability and cognitive impairment (Ayerbe 2013);
- *   • apathy — cognitive impairment, more frequent in people with apathy (Caeiro 2013).
+ *   • apathy — cognitive impairment, more frequent in people with apathy (Caeiro 2013);
+ *   • movement disorders — an infarct of the basal ganglia (Ghika-Schmid 1997) or of the lateral
+ *     thalamus (Kim 2001).
  */
 export function caseNotes(risk: PostStrokeRisk, m6: SimResult): L[] {
   const out: L[] = [];
@@ -88,6 +96,13 @@ export function caseNotes(risk: PostStrokeRisk, m6: SimResult): L[] {
         en: 'This case leaves a cognitive deficit; cognitive impairment is associated with a higher risk of depression.',
       });
   }
+  // the lesion sites the movement-disorder sources describe (basal ganglia and adjacent white
+  // matter: Ghika-Schmid 1997; the lateral thalamus: Kim 2001)
+  if (risk.id === 'movement_disorders' && MOVEMENT_SITES.some((b) => (['r', 'l'] as const).some((s) => (m6.regions[`${b}_${s}`]?.infarct ?? 0) >= DEAD)))
+    out.push({
+      zh: '此病例的梗塞涉及基底核或外側視丘；這些部位的梗塞與較高的中風後不自主運動風險相關，但它仍不常見，多半會消退。',
+      en: 'This case’s infarct involves the basal ganglia or the lateral thalamus; infarcts there are associated with a higher risk of post-stroke movement disorders, which still remain uncommon and mostly regress.',
+    });
   if (risk.id === 'apathy' && hasLastingCognitive(m6))
     out.push({
       zh: '此病例留下認知方面的缺損；中風後有冷漠的人較常合併認知障礙。',

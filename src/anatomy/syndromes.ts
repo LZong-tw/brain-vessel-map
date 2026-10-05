@@ -29,6 +29,16 @@ export interface SyndromeCtx {
   /** number of dysfunctional cortical regions on a side */
   cortexCount(side: Side, thr?: number): number;
   map: number;
+  /** region `base` on `side` is damaged by a lacune (one branch of a perforator bundle) alone */
+  lacune(base: string, side: Side): boolean;
+  /**
+   * the single-branch (lacunar) occlusions of perforator bundle `base` on `side` that have begun
+   * by the displayed time, in time order: when each began and when it reopened by itself (null:
+   * it lasts)
+   */
+  branchEpisodes(base: string, side: Side): { fromH: number; toH: number | null }[];
+  /** the displayed time (h, on the timeline clock) */
+  tH: number;
 }
 
 /** What the symptom list shown at the same time contains (for the signs a label needs). */
@@ -68,7 +78,7 @@ export interface SyndromeDef {
 
 const other = (s: Side): Side => (s === 'r' ? 'l' : 'r');
 /** any weakness or incoordination of a body side: what a "pure sensory" stroke does not have */
-const MOTOR_OR_ATAXIC = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'ataxia_limb', 'movement_disorder'];
+const MOTOR_OR_ATAXIC = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'ataxia_limb'];
 const weakOn = (q: SymptomQuery, bodySide: Side) => ['arm_weak', 'leg_weak'].some((id) => q.on(id, bodySide));
 
 const MCA_CORTEX = [
@@ -84,6 +94,29 @@ const MCA_CORTEX = [
 ];
 
 const mcaCount = (c: SyndromeCtx, s: Side) => MCA_CORTEX.filter((b) => c.has(b, s, 0.3)).length;
+
+/** perforator bundles whose single-branch attacks make up a capsular or pontine warning syndrome */
+const WARNING_BUNDLES = ['lenticulostriate', 'acha', 'pontine_paramedian_rostral', 'pontine_paramedian_caudal', 'pontine_paramedian_inferior'];
+/** a second attack within this many hours of one that cleared (Paul 2012: all within 24 h) */
+const WARNING_WITHIN_H = 24;
+/** the label stays this long after the latest attack or occlusion of that branch (7-day stroke risk, Paul 2012) */
+const WARNING_SHOWN_H = 168;
+/**
+ * from the start of a second attack of the same branch within a day of one that had cleared, for
+ * a week after its latest attack (or the lasting occlusion that followed): a crescendo of
+ * stereotyped lacunar TIAs
+ */
+function crescendo(episodes: { fromH: number; toH: number | null }[], tH: number): boolean {
+  for (let j = 1; j < episodes.length; j++) {
+    const a = episodes[j - 1];
+    const b = episodes[j];
+    if (a.toH !== null && a.toH <= b.fromH && b.fromH - a.fromH <= WARNING_WITHIN_H) {
+      const last = episodes[episodes.length - 1].fromH;
+      return tH >= b.fromH && tH < last + WARNING_SHOWN_H;
+    }
+  }
+  return false;
+}
 
 /**
  * A hemisphere whose dysfunction is a border-zone (watershed) picture: at least 4 mL in border-zone
@@ -178,9 +211,14 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'anterior',
     lateral: true,
     name: { zh: '前脈絡叢動脈症候群', en: 'Anterior choroidal artery syndrome' },
+    // Palomeras E et al. Acta Neurol Scand 2008;118:42-47 (PMID 18205882): of 42 consecutive
+    // AChA infarcts 83.3 % presented with a lacunar syndrome, though often not a lacunar infarct;
+    // 10 had an NIHSS > 7; involvement of the superficial territory meant a more severe stroke and
+    // a worse outcome. Hupperts RM et al. Brain 1994;117:825-834 (PMID 7922468): lacunar or
+    // cortical syndromes as often as with other small deep infarcts (C6-F4).
     desc: {
-      zh: '三「偏」：對側偏癱（內囊後肢）、偏身感覺減退、同側偏盲（視徑／外側膝狀體）。梗塞雖小，失能可以很大。',
-      en: 'The triad of contralateral hemiplegia (posterior limb of the internal capsule), hemisensory loss and homonymous hemianopia (optic tract / LGB). Small infarct, large disability.',
+      zh: '完整的三「偏」——對側偏癱（內囊後肢）、偏身感覺減退、同側偏盲（視徑／外側膝狀體）——是整條動脈阻塞的典型，但並不常見：大多數前脈絡叢動脈梗塞以腔隙症候群表現（83%，常是單純無力或感覺運動型），即使梗塞範圍比腔隙大。梗塞延伸到表淺區域（顳葉內側、視徑）時較嚴重、失能較多。',
+      en: 'The full triad — contralateral hemiplegia (posterior limb of the internal capsule), hemisensory loss and homonymous hemianopia (optic tract / LGB) — is the classic picture of the whole artery blocked, but uncommon: most AChA infarcts present with a lacunar syndrome (83 %, often pure motor or sensorimotor), even when the infarct is larger than a lacune. Infarcts that reach the superficial territory (medial temporal lobe, optic tract) are more severe and more disabling.',
     },
     test: (c, s) => c.has('ic_posterior_limb', s, 0.3) && c.has('optic_tract', s, 0.3) && mcaCount(c, s) < 3,
   },
@@ -282,7 +320,11 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '對側半身（臉、手、腳）所有感覺減退；數週到數月後，約 1/4–1/3 的人會出現頑固的燒灼痛（視丘痛）。',
       en: 'Loss of all sensation over the opposite half of the body (face, arm, leg); weeks to months later a quarter to a third develop intractable burning pain (thalamic pain).',
     },
-    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3),
+    // the inferolateral (thalamogeniculate) territory: hemisensory loss, hemiparesis, hemiataxia
+    // and pain (Schmahmann JD. Stroke 2003;34:2264-2278, PMID 12933968); one branch alone is a
+    // pure sensory lacune, named as such (C6-F7)
+    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && !c.lacune('thalamus_ventrolateral', s),
+    supersedes: ['lacunar_pure_sensory'],
   },
   {
     id: 'thalamic_paramedian_bilateral',
@@ -440,8 +482,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '橋腦腔隙性中風（純運動／運動失調性偏癱／構音障礙—笨拙手）', en: 'Pontine lacune (pure motor / ataxic hemiparesis / dysarthria–clumsy hand)' },
     desc: {
-      zh: '單一穿通動脈阻塞造成的小梗塞：對側無力合併同側肢體不協調，或只有口齒不清與手笨拙。與高血壓小血管病變有關。',
-      en: 'A small infarct from one perforator: contralateral weakness with incoordination, or just slurred speech and a clumsy hand. Linked to hypertensive small-vessel disease.',
+      zh: '單一穿通動脈阻塞造成的小梗塞，依切斷哪些纖維而有不同表現：對側輕到中度無力（純運動性，最常見）；無力加上同一側肢體不協調（運動失調性偏癱）；或只有口齒不清與手笨拙（構音障礙—笨拙手）。與高血壓小血管病變有關。',
+      en: 'A small infarct from one perforator, whose picture depends on which fibres it cuts: mild-to-moderate weakness of the opposite side (pure motor, the commonest); weakness with incoordination of the same limbs (ataxic hemiparesis); or just slurred speech and a clumsy hand (dysarthria–clumsy hand). Linked to hypertensive small-vessel disease.',
     },
     test: (c, s) =>
       c.has('pons_rostral_basis', s, 0.3) &&
@@ -543,8 +585,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '紋狀體內囊梗塞', en: 'Striatocapsular infarction' },
     desc: {
-      zh: '整群豆紋動脈（或 M1 起始處阻塞、皮質靠側枝撐住）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）。對側偏癱為主，常合併輕微的皮質徵象（左側失語、右側忽略）。',
-      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm). Mainly contralateral hemiparesis, often with subtle cortical signs (aphasia on the left, neglect on the right) — Donnan et al., Brain 1991.',
+      zh: '整群豆紋動脈（或 M1 起始處阻塞、皮質靠側枝撐住）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）。最常見的是以手臂為主的對側偏癱，合併皮質徵象（左側失語、右側忽略、失用）：急性期來自皮質灌流不足，之後則歸因於遠隔效應（diaschisis）。只有手臂或手臂加臉無力、沒有皮質徵象時，通常恢復得很好。',
+      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm). Most often an arm-predominant contralateral hemiparesis with cortical signs (aphasia on the left, neglect on the right, dyspraxia): acutely from cortical hypoperfusion, later attributed to diaschisis. With arm or arm-and-face weakness alone and no cortical signs, recovery is usually excellent — Donnan et al., Brain 1991.',
     },
     test: (c, s) =>
       c.has('putamen', s, 0.4) &&
@@ -558,15 +600,20 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'lacunar',
     lateral: true,
     name: { zh: '純運動性腔隙中風', en: 'Pure motor lacunar stroke' },
+    // the commonest lacunar syndrome (57 %); severity follows the infarct volume, except in the
+    // lowest part of the internal capsule (Chamorro A et al. Stroke 1991;22:175-181, PMID 2003281);
+    // lacunar strokes have a median NIHSS of 3-4 (Barow 2020; Vynckier 2021). C6-F1.
     desc: {
-      zh: '內囊後肢小梗塞：對側臉、手、腳「同等程度」無力，沒有感覺、視野或語言障礙。',
-      en: 'Small infarct in the posterior limb of the internal capsule: equal weakness of the opposite face, arm and leg with no sensory, visual or language deficit.',
+      zh: '內囊後肢小梗塞：對側臉、手、腳無力程度相近，多為輕到中度，沒有感覺、視野或語言障礙。位在內囊最下方的小梗塞也可能造成嚴重偏癱。',
+      en: 'Small infarct in the posterior limb of the internal capsule: weakness of the opposite face, arm and leg to a similar degree, usually mild to moderate, with no sensory, visual or language deficit. A small infarct in the lowest part of the internal capsule can still cause a dense hemiplegia.',
     },
     test: (c, s) =>
       c.hasAny(['ic_posterior_limb', 'ic_genu'], s, 0.3) &&
       !c.has('thalamus_ventrolateral', s, 0.3) &&
       !c.has('optic_tract', s, 0.3) &&
       c.cortexCount(s) === 0,
+    // named for its signs: a weak arm or leg on the opposite side
+    requires: (q, s) => weakOn(q, other(s)),
   },
   {
     id: 'lacunar_pure_sensory',
@@ -577,9 +624,11 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '視丘腹後核小梗塞：對側半身麻木，沒有無力。',
       en: 'Small infarct in the ventral posterior thalamus: numbness of the opposite half of the body without weakness.',
     },
-    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
-    // "pure": no weakness, ataxia or involuntary movement on that body side (with them, the
-    // thalamic sensory syndrome describes it)
+    // a lacune: the whole inferolateral territory is the thalamic sensory syndrome (C6-F7)
+    test: (c, s) =>
+      c.has('thalamus_ventrolateral', s, 0.3) && c.lacune('thalamus_ventrolateral', s) && !c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
+    // "pure": no weakness or ataxia on that body side (with them, the thalamic sensory syndrome
+    // describes it)
     requires: (q, s) => !MOTOR_OR_ATAXIC.some((id) => q.on(id, other(s))),
   },
   {
@@ -593,6 +642,85 @@ export const SYNDROMES: SyndromeDef[] = [
     },
     test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
     supersedes: ['lacunar_pure_motor', 'lacunar_pure_sensory'],
+  },
+  {
+    // Moulin T et al. J Neurol Neurosurg Psychiatry 1995;58:422-427 (PMID 7738547): 100 patients
+    // with hemiparesis and ipsilateral incoordination without sensory loss — internal capsule
+    // 39 %, pons 19 %, thalamus 13 %, corona radiata 13 %, lentiform nucleus 8 %, with almost
+    // identical features; Hiraga A et al. J Neurol Neurosurg Psychiatry 2007;78:1260-1262 (PMID
+    // 17550988): on DWI mainly pontine or internal capsule / corona radiata; Gorman MJ et al.
+    // Stroke 1998;29:2549-2555 (PMID 9836766): sensory loss points to the capsule. 10 % of
+    // lacunar syndromes (Chamorro 1991). The pontine form is the pontine lacune (C6-F5).
+    id: 'lacunar_ataxic_hemiparesis',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '運動失調性偏癱（腔隙性）', en: 'Ataxic hemiparesis (lacunar)' },
+    desc: {
+      zh: '一側輕度無力，同一側手腳又笨拙、不協調（比無力本身更明顯），沒有感覺障礙。同樣的表現可以來自內囊（39%）、橋腦（19%）、視丘與放射冠（各 13%）或豆狀核（8%），各處幾乎無法從症狀區分。',
+      en: 'Mild weakness of one side with clumsy, uncoordinated movements of the same limbs, out of proportion to the weakness, and no sensory loss. The same picture comes from the internal capsule (39 %), pons (19 %), thalamus and corona radiata (13 % each) or lentiform nucleus (8 %), and the sites can hardly be told apart by the signs.',
+    },
+    test: (c, s) =>
+      c.hasAny(['ic_posterior_limb', 'corona_radiata'], s, 0.3) &&
+      !c.has('thalamus_ventrolateral', s, 0.3) &&
+      !c.has('optic_tract', s, 0.3) &&
+      c.cortexCount(s) === 0,
+    requires: (q, s) => weakOn(q, other(s)) && q.on('ataxia_limb', other(s)),
+    supersedes: ['lacunar_pure_motor'],
+  },
+  {
+    // Arboix A et al. J Neurol Neurosurg Psychiatry 2004;75:231-234 (PMID 14742595): 35 of 570
+    // lacunar syndromes (6.1 %); internal capsule 40 %, pons 17 %, corona radiata 8.6 %; limb
+    // weakness but not cerebellar-type ataxia; 45.7 % symptom-free at discharge (C6-F5)
+    id: 'lacunar_dysarthria_clumsy_hand',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '構音障礙—笨拙手症候群（腔隙性）', en: 'Dysarthria–clumsy hand syndrome (lacunar)' },
+    desc: {
+      zh: '口齒不清加上一隻手笨拙、略無力（寫字、扣釦子困難），常有輕微的臉部無力，沒有感覺障礙。約占腔隙症候群的 6%；病灶多在內囊（40%）、橋腦（17%）或放射冠（9%）。預後通常很好，近半數出院時已無症狀。',
+      en: 'Slurred speech with a clumsy, slightly weak hand (writing, buttoning), often a mild facial weakness, and no sensory loss. About 6 % of lacunar syndromes; mostly in the internal capsule (40 %), pons (17 %) or corona radiata (9 %). The outlook is usually good: nearly half are symptom-free at discharge.',
+    },
+    test: (c, s) =>
+      c.hasAny(['ic_genu', 'ic_posterior_limb', 'corona_radiata'], s, 0.3) &&
+      !c.has('thalamus_ventrolateral', s, 0.3) &&
+      !c.has('optic_tract', s, 0.3) &&
+      c.cortexCount(s) === 0,
+    requires: (q, s) => q.from('dysarthria', s) && q.on('hand_clumsy', other(s)) && !weakOn(q, other(s)),
+    supersedes: ['lacunar_pure_motor'],
+  },
+  {
+    // Tatemichi TK et al. Neurology 1992;42:1966-1979 (PMID 1407580): six patients with inferior
+    // genu infarcts — fluctuating alertness, inattention, memory loss, apathy, abulia and
+    // psychomotor slowing with mild hemiparesis and dysarthria; severe verbal memory loss after
+    // left-sided infarcts, dementia in four; thalamocortical disconnection (C6-F8)
+    id: 'capsular_genu',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '內囊膝部梗塞（策略性梗塞）', en: 'Capsular genu infarct (strategic infarct)' },
+    desc: {
+      zh: '內囊膝部下方的小梗塞切斷視丘通往額葉的纖維，使同側額葉功能下降：突然的意識混亂、清醒程度起伏、注意力差、冷漠與意志缺失、反應變慢與失憶；左側梗塞造成嚴重的語言記憶障礙，有時達到失智（「策略性梗塞失智」），右側則只有短暫的空間記憶障礙。無力與口齒不清通常輕微。根據小型病例系列。',
+      en: 'A small infarct in the lower genu of the internal capsule cuts the thalamic fibres to the frontal lobe and depresses that frontal lobe: sudden confusion with fluctuating alertness, inattention, apathy and abulia, slowness and memory loss — severe verbal memory loss after a left-sided infarct, sometimes amounting to dementia ("strategic-infarct dementia"), only a transient visuospatial memory problem after a right-sided one. Weakness and dysarthria are usually mild. From a small case series.',
+    },
+    test: (c, s) => c.has('ic_genu', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && !c.has('putamen', s, 0.4) && c.cortexCount(s) === 0,
+    requires: (q, s) => q.from('amnesia', s),
+    supersedes: ['lacunar_pure_motor', 'lacunar_dysarthria_clumsy_hand'],
+  },
+  {
+    // Donnan GA et al. Neurology 1993;43:957-962 (PMID 8492952): crescendo capsular TIAs in 50
+    // patients, 4.5 % of TIAs, mostly face, arm and leg, from one small penetrating vessel; 42 %
+    // had an early capsular stroke; resistant to treatment. Paul NL et al. Neurology
+    // 2012;79:1356-1362 (PMID 22972645): 1.5 % of TIAs in a population, 7-day stroke risk 60 %,
+    // the recurrent TIA always within 24 h of the first. Vynckier 2021: early neurological
+    // deterioration in lacunar stroke, adjusted odds ratio 7.0. Saposnik G et al. Arch Neurol
+    // 2008;65:1375-1377 (PMID 18852355): the pontine warning syndrome (C6-F2).
+    id: 'capsular_warning',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '內囊／橋腦警訊症候群（反覆發作的腔隙性 TIA）', en: 'Capsular / pontine warning syndrome (crescendo lacunar TIAs)' },
+    desc: {
+      zh: '同一條小穿通動脈反覆、刻板地發作：對側臉、手、腳無力，每次幾分鐘內就恢復，一天內再發。約占 TIA 的 4.5%（人口研究中 1.5%）；42% 很快就變成內囊（腔隙性）中風，人口研究中 7 天內中風風險 60%。橋腦旁正中穿通支也會這樣發作（橋腦警訊症候群）。即使發作停了也要當急症處理；它也預示腔隙性中風早期惡化。',
+      en: 'Repeated, stereotyped attacks from one small penetrating artery: weakness of the opposite face, arm and leg, clearing within minutes each time, and recurring within a day. About 4.5 % of TIAs (1.5 % in a population study); 42 % soon went on to a capsular (lacunar) stroke, and the 7-day stroke risk was 60 % in the population study. A paramedian pontine branch can do the same (pontine warning syndrome). An emergency even when the attacks have stopped; it also predicts early worsening of a lacunar stroke.',
+    },
+    test: (c, s) => WARNING_BUNDLES.some((b) => crescendo(c.branchEpisodes(b, s), c.tH)),
   },
 
   // ─────────────── watershed & haemodynamic ───────────────

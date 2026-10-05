@@ -237,7 +237,9 @@ describe('every new symptom can occur', () => {
  * stupor scores 1b = 2 and no ataxia; anarthria scores 1b = 1), C5-F2 (a syndrome named for
  * its signs is shown only with them) and C1 (hemispheric syndromes: F1 one aphasia type, graded;
  * F2 the MCA hemianopia; F3 the PCA hemianopia; F5 where neglect comes from; F6 the border-zone
- * arm weakness). [total, items > 0, syndromes (with lesion side)]
+ * arm weakness) and C6 (lacunar and deep syndromes: F1 a single lacune is mild to moderate; F6 the
+ * cortical signs of a striatocapsular infarct; the capsular warning and corona radiata scenarios
+ * are new). [total, items > 0, syndromes (with lesion side)]
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
@@ -277,10 +279,19 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'r_aca@2160': [3, { '5l': 1, '6l': 1, 8: 1 }, ['aca_r']],
   'l_acha@24': [12, { 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['acha_l']],
   'l_acha@2160': [7, { 3: 2, 4: 1, '5r': 1, '6r': 1, 8: 1, 10: 1 }, ['acha_l']], // C5-F1 drift: was 9
-  'l_lsa@24': [10, { 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['striatocapsular_l']],
+  // C6-F6: a subcortical (transcortical motor) aphasia from cortical hypoperfusion (9: 0 → 1; was 10)
+  'l_lsa@24': [11, { 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 1, 10: 1 }, ['striatocapsular_l']],
   'l_lsa@2160': [5, { 4: 1, '5r': 1, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']], // C5-F1 drift: was 7
-  'l_lacune@24': [10, { 4: 2, '5r': 4, '6r': 4 }, ['lacunar_pure_motor_l']],
-  'l_lacune@2160': [5, { 4: 1, '5r': 3, '6r': 1 }, ['lacunar_pure_motor_l']], // C5-F1 drift: was 6 (6r 2)
+  // C6-F1: a lacune weakens face, arm and leg mildly (sev 1 each), not to a plegia (was 10, 4: 2, 5r: 4, 6r: 4)
+  'l_lacune@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
+  // C5-F1 drift: was 6 (6r 2); C6-F1: drift of arm and leg left, the face compensated (was 5, 4: 1, 5r: 3)
+  'l_lacune@2160': [2, { '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
+  // C6-F5: ataxic hemiparesis from a lenticulostriate branch in the corona radiata (new scenario)
+  'l_cr_lacune@24': [4, { 4: 1, '5r': 1, '6r': 1, 7: 1 }, ['lacunar_ataxic_hemiparesis_l']],
+  'l_cr_lacune@2160': [3, { '5r': 1, '6r': 1, 7: 1 }, ['lacunar_ataxic_hemiparesis_l']],
+  // C6-F2: three 5-minute attacks of one branch, then a lasting occlusion from 6 h (new scenario)
+  'capsular_warning@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['capsular_warning_l', 'lacunar_pure_motor_l']],
+  'capsular_warning@2160': [2, { '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
   // C5-F2: with limb ataxia and involuntary movements it is not a pure sensory stroke
   'l_thalamic@24': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
@@ -312,8 +323,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'r_sca@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['sca_r']],
   'l_pontine@24': [13, { 2: 2, 4: 2, '5r': 4, '6r': 4, 10: 1 }, ['foville_l']],
   'l_pontine@2160': [7, { 2: 2, 4: 2, '5r': 1, '6r': 1, 7: 1 }, ['foville_l']], // C5-F1 drift: was 9
-  'r_pontine_lacune@24': [11, { 4: 2, '5l': 4, '6l': 4, 10: 1 }, ['pontine_lacunar_r']],
-  'r_pontine_lacune@2160': [6, { 4: 1, '5l': 3, '6l': 1, 10: 1 }, ['pontine_lacunar_r']], // C5-F1 drift: was 7 (6l 2)
+  // C6-F1: ataxic hemiparesis — mild weakness, so the ataxia is scored (was 11, 4: 2, 5l: 4, 6l: 4, no 7)
+  'r_pontine_lacune@24': [5, { 4: 1, '5l': 1, '6l': 1, 7: 1, 10: 1 }, ['pontine_lacunar_r']],
+  // C5-F1 drift: was 7 (6l 2); C6-F1: (was 6, 4: 1, 5l: 3, no 7)
+  'r_pontine_lacune@2160': [4, { '5l': 1, '6l': 1, 7: 1, 10: 1 }, ['pontine_lacunar_r']],
   'r_asa@24': [9, { '5l': 4, '6l': 4, 10: 1 }, ['dejerine_r']],
   'r_asa@2160': [5, { '5l': 3, '6l': 1, 10: 1 }, ['dejerine_r']], // C5-F1 drift: was 6 (6l 2)
   'ica_silent@24': [0, {}, ['carotid_compensated_r']],
