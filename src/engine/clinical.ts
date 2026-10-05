@@ -186,6 +186,8 @@ export function aggregateSymptoms(
   const lesions = lesionSides(regionInf);
   /** the strongest region source of each aphasia component before compensation (for a global aphasia) */
   const aphasiaRaw = new Map<string, { raw: number; r: Region; level: number; inf: number }>();
+  /** each listed aphasia component's severity after its own compensation (not rounded) */
+  const aphasiaNow = new Map<string, number>();
   /** per body side: the worst early limb weakness (before rounding) and any early hemisensory loss */
   const earlyParesis: Record<Side, number> = { r: 0, l: 0 };
   const earlySensory: Record<Side, boolean> = { r: false, l: false };
@@ -219,7 +221,13 @@ export function aggregateSymptoms(
       const byInfarct = delayed || !!sym.fromInfarct;
       const level = byInfarct ? inf : dys;
       const thr = Math.max(DYS_THR, d.minLevel ?? 0);
-      if (!reaches(level, thr)) continue;
+      // a deep tract that a large lesion reached at onset stays cut where that lesion left an
+      // infarct, whether or not the cortex above it has recovered (R1-6)
+      const tractCut = () => {
+        const onset = acuteDys ? Math.max(acuteDys[r.id] ?? 0, inf) : Math.max(dys, inf);
+        return reaches(onset, thr) && reaches(inf);
+      };
+      if (!reaches(level, thr) && !(d.deepTract && tractCut())) continue;
       // each late symptom from its own onset (C10-F2)
       if (tH < symptomOnsetH(sym)) continue;
       // drowsiness is the acute picture: a raised need for sleep that lasts beyond two weeks is
@@ -257,7 +265,10 @@ export function aggregateSymptoms(
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
       }
-      if (APHASIA_FEATURES[id] && raw > (aphasiaRaw.get(id)?.raw ?? 0)) aphasiaRaw.set(id, { raw, r, level, inf });
+      if (APHASIA_FEATURES[id]) {
+        if (raw > (aphasiaRaw.get(id)?.raw ?? 0)) aphasiaRaw.set(id, { raw, r, level, inf });
+        aphasiaNow.set(id, Math.max(aphasiaNow.get(id) ?? 0, sevEff));
+      }
       add(id, side, sevEff, r.id, shownDelayed, rec);
     }
   }
@@ -313,12 +324,18 @@ export function aggregateSymptoms(
   }
   // colour lost in the whole field takes in the half-field loss (C1-F8)
   if (map.has('achromatopsia|')) for (const fs of ['r', 'l'] as Side[]) del('hemiachromatopsia', fs);
+  // colour cannot be lost, or tested, where nothing is seen (R1-5): no half-field colour loss in
+  // a hemianopic half-field, and no colour loss at all when the whole field is blind (cortical
+  // blindness, or both half-fields lost without spared central vision)
+  const allBlind = map.has('cortical_blindness|') || (!!get('hemianopia', 'r') && !!get('hemianopia', 'l') && !map.has('macular_sparing|'));
+  for (const fs of ['r', 'l'] as Side[]) if (allBlind || get('hemianopia', fs)) del('hemiachromatopsia', fs);
+  if (allBlind) del('achromatopsia', null);
 
   // one aphasia type (C1-F1), from the features of the components still listed
   const components = [...map.values()].filter((s) => APHASIA_FEATURES[s.id]);
   if (components.length > 0) {
-    const f = Object.assign({}, ...components.map((s) => APHASIA_FEATURES[s.id]));
-    const type = aphasiaType(f);
+    const features = (list: SymptomItem[]) => Object.assign({}, ...list.map((s) => APHASIA_FEATURES[s.id]));
+    let type = aphasiaType(features(components));
     let sev = Math.max(...components.map((s) => s.sev));
     let recovery = components.find((s) => s.sev === sev)?.recovery;
     if (type === 'aphasia_global') {
@@ -336,12 +353,28 @@ export function aggregateSymptoms(
         }
       }
       if (best > 0) sev = Math.max(1, Math.min(3, Math.round(best))) as 1 | 2 | 3;
+      // Global aphasia is the most severe type by definition (Kertesz & Poole), so a mild one
+      // is no longer global: in the first year the type changes only towards less severe forms,
+      // a global aphasia for example into a Wernicke type (Copenhagen aphasia study: Pedersen PM
+      // et al. Cerebrovasc Dis 2004;17:35-43, PMID 14530636). It follows the components still at
+      // moderate severity or, when all are mild, the one most severe after its own compensation
+      // (R1-2).
+      if (sev < 2) {
+        const strong = components.filter((s) => s.sev >= 2);
+        const strongType = strong.length > 0 ? aphasiaType(features(strong)) : 'aphasia_global';
+        const now = (s: SymptomItem) => aphasiaNow.get(s.id) ?? s.sev;
+        const dominant = components.reduce((a, b) => (now(b) > now(a) ? b : a));
+        const kept = strongType !== 'aphasia_global' ? strong : [dominant];
+        type = strongType !== 'aphasia_global' ? strongType : dominant.id;
+        sev = Math.max(...kept.map((s) => s.sev)) as 1 | 2 | 3;
+        recovery = kept.find((s) => s.sev === sev)?.recovery;
+      }
     }
     const sources = [...new Set(components.flatMap((s) => s.sources))];
     for (const s of components) del(s.id, null);
     map.set(`${type}|`, recovery ? { id: type, side: null, sev: sev as 1 | 2 | 3, sources, delayed: false, recovery } : { id: type, side: null, sev: sev as 1 | 2 | 3, sources, delayed: false });
     // apraxia of speech is a non-fluent motor-speech disorder: a fluent aphasia type contradicts it
-    if (!f.nonfluent) del('apraxia_of_speech', null);
+    if (!APHASIA_FEATURES[type].nonfluent) del('apraxia_of_speech', null);
     // the word-finding difficulty of a thalamic aphasia (C9-F4) is part of the cortical type
     // listed with it: one aphasia type at a time (C1-F1)
     del('aphasia_thalamic', null);
@@ -395,7 +428,8 @@ export function aggregateSymptoms(
  * Turk J Emerg Med 2020;20:118-134, Appendix 3; PMID 32832731): 1b scores 2 for aphasic and
  * stuporous patients who do not comprehend and 1 for those unable to speak because of severe
  * dysarthria; ataxia (7) is absent in a patient who cannot understand or is paralysed; a
- * brainstem stroke with bilateral loss of sensation scores 2 on item 8.
+ * brainstem stroke with bilateral loss of sensation scores 2 on item 8; a 3 on item 9 means mute
+ * and following no one-step command, so 1c and 10 score 2 with it.
  */
 export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]): NihssResult {
   const items: Record<string, number> = {};
@@ -488,6 +522,13 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   } else if (poorComprehension || has('aphasia_broca') || has('aphasia_tc_sensory')) {
     set('1b', 1, 2);
   }
+  // "a score of 3 [on item 9] should be used only if the patient is mute and follows no one-step
+  // commands": such a patient performs neither command (1c = 2) and, being mute, scores 2 on
+  // dysarthria ("mute/anarthric"). The comatose patient (1a = 3) is scored below.
+  if ((items['9'] ?? 0) >= 3) {
+    set('1c', 2, 2);
+    set('10', 2, 2);
+  }
   // a stuporous patient does not comprehend the questions: 2. The scale gives no such rule for
   // the commands (1c), which can still be shown by pantomime, so 1c keeps what language gives it.
   if ((items['1a'] ?? 0) === 2) set('1b', 2, 2);
@@ -512,7 +553,7 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
 export function symptomQuery(symptoms: SymptomItem[]): SymptomQuery {
   return {
     has: (id) => symptoms.some((s) => s.id === id),
-    on: (id, side) => symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both')),
+    on: (id, side, minSev = 1) => symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both') && s.sev >= minSev),
     from: (id, side) => symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side)),
   };
 }

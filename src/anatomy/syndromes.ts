@@ -55,8 +55,8 @@ export interface SyndromeCtx {
 export interface SymptomQuery {
   /** present at all */
   has(id: string): boolean;
-  /** present on this body side (a symptom of both sides counts for each) */
-  on(id: string, bodySide: Side): boolean;
+  /** present on this body side (a symptom of both sides counts for each), at least `minSev` severe */
+  on(id: string, bodySide: Side, minSev?: 1 | 2 | 3): boolean;
   /** produced by a region on this side of the brain (for symptoms without a body side) */
   from(id: string, lesionSide: Side): boolean;
 }
@@ -314,6 +314,9 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Left occipital lobe + splenium: right hemianopia, and words seen in the left field cannot cross the splenium to the language areas. The patient can write but cannot read what they just wrote.',
     },
     test: (c, s) => s === 'l' && c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'l', 0.3) && c.has('splenium', 'l', 0.3),
+    // named for its signs: the alexia, and writing spared — an agraphia (e.g. when the left
+    // angular gyrus is infarcted too) makes it alexia with agraphia (R1-9)
+    requires: (q) => q.from('alexia', 'l') && !q.has('agraphia'),
   },
   {
     // both banks of the calcarine fissure on both sides (one bank on each side leaves bilateral
@@ -960,23 +963,25 @@ export const SYNDROMES: SyndromeDef[] = [
     // bilateral anterior border-zone infarcts: bilateral brachial paralysis, worst proximally
     // (Martí-Vilalta JL, Arboix A, Garcia JH. J Stroke Cerebrovasc Dis 1994;4:114-120, PMID
     // 26487612); after hypotension, 11 of 34 comatose patients moved their legs but not their
-    // arms, with a poor prognosis (Sage JI, Van Uitert RL. Neurology 1986;36:1102-1103, PMID
-    // 3736874). Named for its signs: proximal arm weakness on both sides, with the leg area of
-    // both paracentral lobules spared (C1-F6).
+    // arms, and 1 of those 11 survived to leave hospital, against 8 of the 23 others (Sage JI, Van
+    // Uitert RL. Neurology 1986;36:1102-1103, PMID 3736874). Named for its signs: at least
+    // moderate proximal arm weakness on both sides (a drift is not a "barrel"), with the leg area
+    // of both paracentral lobules spared (C1-F6). The poor outcome belongs to that comatose
+    // series, not to every patient the model shows (R1-3).
     id: 'man_in_barrel',
     group: 'watershed',
     lateral: false,
     name: { zh: '雙側前分水嶺梗塞（桶中人症候群）', en: 'Bilateral anterior watershed infarction (man-in-the-barrel)' },
     desc: {
-      zh: '全身血壓過低（例如心跳停止、休克）後，兩側前／中大腦動脈交界區同時缺血：兩側肩膀與上臂癱瘓、雙腿卻能動，好像被套在桶子裡。預後通常很差。',
-      en: 'After a profound fall in blood pressure (cardiac arrest, shock) both ACA–MCA border zones fail together: both shoulders and upper arms are paralysed while the legs still move, as if the person were standing in a barrel. The prognosis is usually poor.',
+      zh: '全身血壓嚴重下降（例如心跳停止、休克）時，兩側前／中大腦動脈交界區可能同時缺血：兩側肩膀與上臂無力（嚴重時癱瘓），雙腿卻能動，好像被套在桶子裡。經典的病例系列是低血壓後昏迷的病人：有這個表現的 11 人中只有 1 人存活出院（沒有的 23 人中 8 人）。手臂無力本身能恢復多少，要看交界區有多少組織壞死。',
+      en: 'When blood pressure falls profoundly (cardiac arrest, shock), both ACA–MCA border zones can fail together: both shoulders and upper arms are weak (paralysed when severe) while the legs still move, as if the person were standing in a barrel. The classic series was of comatose patients after a fall in blood pressure: only 1 of 11 with this picture survived to leave hospital (8 of 23 without it). How far the arm weakness itself recovers depends on how much border-zone tissue has died.',
     },
     test: (c) =>
       (['r', 'l'] as Side[]).every((s) => {
         const b = c.border(s);
         return isWatershedPicture(b) && b.kinds.some((k) => k.startsWith('ACA|MCA')) && !c.has('paracentral', s, 0.3);
       }),
-    requires: (q) => q.on('arm_weak_proximal', 'r') && q.on('arm_weak_proximal', 'l'),
+    requires: (q) => q.on('arm_weak_proximal', 'r', 2) && q.on('arm_weak_proximal', 'l', 2),
     supersedes: ['watershed'],
   },
   {

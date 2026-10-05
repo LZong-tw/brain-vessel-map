@@ -179,6 +179,12 @@ export interface DeficitRef {
    * or drowsiness after an extensive one-sided upper pontine tegmental infarct
    */
   minLevel?: number;
+  /**
+   * a tract running deep to the region, which only a large lesion reaches (`minLevel`): once the
+   * lesion reached that level at onset and has left an infarct (at least the symptom threshold),
+   * the tract stays cut, even when the surviving cortex above it has got its function back
+   */
+  deepTract?: boolean;
   /** the compensation of this source settles within ~1–2 weeks (overrides the symptom's own pace) */
   fast?: boolean;
 }

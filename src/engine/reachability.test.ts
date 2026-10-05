@@ -57,6 +57,9 @@ function runs(): Run[] {
     ['aca_a2_l', 'mca_angular_l'],
   ])
     out.push({ o: pair.map((vessel) => ({ vessel, severity: 1 })), c: 'moderate', v: [], map: 93 });
+  // both ventral occipitotemporal (colour) areas without cortical blindness: achromatopsia, which
+  // is not listed inside a blind field (R1-5)
+  out.push({ o: [{ vessel: 'pca_temporal_r', severity: 1 }, { vessel: 'pca_temporal_l', severity: 1 }], c: 'poor', v: [], map: 93 });
   return out;
 }
 

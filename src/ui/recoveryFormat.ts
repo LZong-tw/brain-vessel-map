@@ -82,7 +82,9 @@ const MERGED_INTO: Record<string, string[]> = {
   quadrant_inf: ['hemianopia', 'cortical_blindness'],
   central_scotoma: ['hemianopia', 'cortical_blindness'],
   hemianopia: ['cortical_blindness'],
-  hemiachromatopsia: ['achromatopsia'],
+  // colour loss is not listed in a blind (half-)field (R1-5)
+  hemiachromatopsia: ['achromatopsia', 'hemianopia', 'cortical_blindness'],
+  achromatopsia: ['cortical_blindness', 'hemianopia'],
   // one aphasia type at a time: a type that is no longer listed has changed into another one
   // (e.g. global → Broca) rather than gone, as long as some aphasia is still listed (C1-F1)
   ...Object.fromEntries(APHASIA_TYPES.map((id) => [id, APHASIA_TYPES.filter((o) => o !== id)])),

@@ -150,6 +150,25 @@ describe('syndromes and events agree with the symptoms', () => {
       ],
       'good',
     ],
+    // R1-9: a left PCA infarct with the angular gyrus (alexia with agraphia), and without it
+    [
+      'pca_p2_l + mca_angular_l poor',
+      [
+        { vessel: 'pca_p2_l', severity: 1 },
+        { vessel: 'mca_angular_l', severity: 1 },
+      ],
+      'poor',
+    ],
+    ['pca_p2_l poor', [{ vessel: 'pca_p2_l', severity: 1 }], 'poor'],
+    // R1-5: both calcarine arteries (cortical blindness)
+    [
+      'both calcarine arteries',
+      [
+        { vessel: 'pca_calcarine_r', severity: 1 },
+        { vessel: 'pca_calcarine_l', severity: 1 },
+      ],
+      'moderate',
+    ],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -171,7 +190,7 @@ describe('syndromes and events agree with the symptoms', () => {
   /** the same questions the engine asks, answered here from the symptom list itself */
   const query = (r: SimResult): SymptomQuery => ({
     has: (id) => r.symptoms.some((s) => s.id === id),
-    on: (id, side) => r.symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both')),
+    on: (id, side, minSev = 1) => r.symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both') && s.sev >= minSev),
     from: (id, side) => r.symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side)),
   });
   /** a symptom produced by a region on this side (lateral labels) or by any region (bilateral ones) */
@@ -195,6 +214,8 @@ describe('syndromes and events agree with the symptoms', () => {
         // C1-F6, C1-F7
         'man_in_barrel',
         'cortical_blindness',
+        // R1-9: alexia, with writing spared
+        'alexia_without_agraphia',
         // the second audit chain's brainstem labels, gated the same way (MERGE: C3-F1, C3-F4 × C5-F2)
         'basilar_coma',
         'pontine_doc',
@@ -221,6 +242,24 @@ describe('syndromes and events agree with the symptoms', () => {
         if (m.def.pattern) expect(m.silent ?? false, where).toBe(!anyFrom(r, m.side));
         else expect(m.silent ?? false, where).toBe(false);
       }
+    });
+  });
+
+  // R1-1: item 9 = 3 is "mute and follows no one-step commands" (the scale's instructions)
+  it.each(CASES)('%s: a mute global aphasia (item 9 = 3) follows no command and is scored mute', (name) => {
+    series(name).forEach((r, i) => {
+      if (r.nihss.items['9'] !== 3) return;
+      expect([r.nihss.items['1c'], r.nihss.items['10']], `${name} ${STOPS[i]} h`).toEqual([2, 2]);
+    });
+  });
+
+  // R1-5: colour can be neither lost nor tested where nothing is seen
+  it.each(CASES)('%s: no colour loss is listed in a blind field', (name) => {
+    series(name).forEach((r, i) => {
+      const has = (id: string, side: 'r' | 'l' | null = null) => r.symptoms.some((s) => s.id === id && (side === null || s.side === side));
+      const where = `${name} ${STOPS[i]} h`;
+      if (has('cortical_blindness')) expect(has('achromatopsia') || has('hemiachromatopsia'), where).toBe(false);
+      for (const fs of ['r', 'l'] as const) if (has('hemianopia', fs)) expect(has('hemiachromatopsia', fs), `${where} (${fs})`).toBe(false);
     });
   });
 

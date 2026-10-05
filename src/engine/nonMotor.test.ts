@@ -248,17 +248,23 @@ describe('every new symptom can occur', () => {
  * cortical signs of a striatocapsular infarct; the capsular warning and corona radiata scenarios
  * are new), C7 (medulla and cerebellum: F4 the lateral medulla's facial weakness and
  * dysarthria), C3 (F1 incomplete locked-in syndrome; F2 the time course of coma), C9 (F1 to F4:
- * the thalamus), C4 (F2 consciousness from the midline shift; F3 graded cerebellar swelling) and
- * MERGE (where findings of the two audit chains meet, as explained at the row).
+ * the thalamus), C4 (F2 consciousness from the midline shift; F3 graded cerebellar swelling),
+ * MERGE (where findings of the two audit chains meet, as explained at the row) and the review of
+ * the cortex fixes, R1 (1: a mute global aphasia follows no command; 2: a mild global aphasia
+ * changes type; 3: shoulder weakness on item 5; 6: the parietal field cut; 7: left-hemisphere
+ * neglect clears).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
   // right neglect after a left-hemisphere stroke (11: 0 → 1); C1-F1: Gerstmann cannot be tested
-  // with a global aphasia, so it is not named (was 19, ['gerstmann_l', 'mca_complete_l'])
-  'l_m1@24': [21, { '1b': 2, '1c': 1, 2: 1, 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1, 11: 1 }, ['mca_complete_l']],
+  // with a global aphasia, so it is not named (was 19, ['gerstmann_l', 'mca_complete_l']);
+  // R1-1: item 9 = 3 is a mute patient who follows no command (1c: 1 → 2, 10: 1 → 2; was 21)
+  'l_m1@24': [23, { '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 2, 11: 1 }, ['mca_complete_l']],
   // C5-F1 drift: was 14 (5r 2, 6r 2); C1-F1: the global aphasia is graded from its compensated
-  // components (sev 1): 9: 3 → 2, 1b: 2 → 1, 1c: 1 → 0 (was 12)
-  'l_m1@2160': [9, { '1b': 1, 3: 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 2, 10: 1 }, ['mca_complete_l']],
+  // components (sev 1): 9: 3 → 2, 1b: 2 → 1, 1c: 1 → 0 (was 12). R1-2: a mild global aphasia is
+  // no longer global but a mild Wernicke type (9: 2 → 1); R1-6: the parietal optic radiation
+  // stays cut where the infarct is, so the hemianopia stays (3: 1 → 2); still 9
+  'l_m1@2160': [9, { '1b': 1, 3: 2, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_complete_l']],
   'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
   // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 10)
   'l_m1_thrombectomy@2160': [7, { '1b': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_inferior_l']],
@@ -276,13 +282,15 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F5: right neglect from the left supramarginal gyrus (11: 0 → 1; was 13)
   'l_m2_sup@24': [14, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1, 11: 1 }, ['mca_superior_l']],
   // C5-F1 drift: was 6 (5r 2); C1-F5: the right neglect of a large supramarginal infarct is still
-  // there (11: 0 → 1; was 5)
-  'l_m2_sup@2160': [6, { '1b': 1, 4: 1, '5r': 1, 8: 1, 9: 1, 11: 1 }, ['mca_superior_l']],
+  // there (11: 0 → 1; was 5). R1-7: neglect after a left-hemisphere stroke clears within weeks
+  // (11: 1 → 0; was 6)
+  'l_m2_sup@2160': [5, { '1b': 1, 4: 1, '5r': 1, 8: 1, 9: 1 }, ['mca_superior_l']],
   // C1-F2: hemianopia (3: 1 → 2); C1-F5: right neglect (11: 0 → 1); C1-F1: no Gerstmann label
   // with a Wernicke aphasia (was 7, ['gerstmann_l', 'mca_inferior_l'])
   'l_m2_inf@24': [9, { '1b': 2, '1c': 1, 3: 2, 9: 2, 10: 1, 11: 1 }, ['mca_inferior_l']],
-  // C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 6)
-  'l_m2_inf@2160': [3, { '1b': 1, 3: 1, 9: 1 }, ['mca_inferior_l']],
+  // C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 6). R1-6: the
+  // hemianopia stays where the infarct cut the parietal optic radiation (3: 1 → 2; was 3)
+  'l_m2_inf@2160': [4, { '1b': 1, 3: 2, 9: 1 }, ['mca_inferior_l']],
   'tia_l_mca@24': [0, {}, []],
   'tia_l_mca@2160': [0, {}, []],
   // C1-F5: the superior parietal lobule alone gives no neglect (was 7, 11: 1, ['aca_r', 'neglect_r'])
@@ -373,7 +381,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // inferolateral thalamus (4, 5l: drift, C5-F1); was 6
   'fetal_pca@24': [9, { 3: 2, 4: 1, '5l': 1, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
   'fetal_pca@2160': [7, { 3: 2, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
-  'watershed@24': [5, { 4: 1, '5l': 1, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']], // C5-F1 drift: was 7
+  // C5-F1 drift: was 7; R1-3: a moderate proximal (shoulder) weakness is some effort against
+  // gravity, not drift (5l: 1 → 2; was 5)
+  'watershed@24': [6, { 4: 1, '5l': 2, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']],
   // C1-F6: the anterior border zone of the motor strip leaves a mild proximal arm weakness, so
   // the label is no longer clinically silent (was 0, {}; the silent case is now at 65 mmHg,
   // syndromeSigns.test.ts)

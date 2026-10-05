@@ -63,6 +63,8 @@ describe('C1-F1: one aphasia type at a time (Kertesz & Poole taxonomy)', () => {
     // global severity comes from its components, not a fixed "maximum + 1"
     expect(get(r, 'aphasia_global')[0].sev).toBe(2);
     expect(r.nihss.items['9']).toBe(3);
+    // mute and following no command (R1-1)
+    expect(r.nihss.items).toMatchObject({ '1c': 2, '10': 2 });
   });
 
   it('left superior division: Broca aphasia (repetition is impaired, so no conduction or transcortical label)', () => {
@@ -91,11 +93,16 @@ describe('C1-F1: one aphasia type at a time (Kertesz & Poole taxonomy)', () => {
   });
 
   it('the type changes as components are compensated: global is graded, compensated like global aphasia, and no longer scores as mute', () => {
-    const m3 = scenario('l_m1', 2160);
-    const g = get(m3, 'aphasia_global');
+    // one month: still global, graded from its compensated components
+    const m1 = scenario('l_m1', 720);
+    const g = get(m1, 'aphasia_global');
     expect(g).toHaveLength(1);
-    expect(g[0].sev).toBeLessThan(3);
+    expect(g[0].sev).toBe(2);
     expect(g[0].recovery?.compensated ?? 0).toBeGreaterThan(0);
+    // three months: mild, so no longer global (R1-2) — a milder type, no longer mute
+    const m3 = scenario('l_m1', 2160);
+    expect(aphasias(m3)).toHaveLength(1);
+    expect(get(m3, 'aphasia_global')).toEqual([]);
     expect(m3.nihss.items['9']).toBeLessThan(3);
     expect(m3.nihss.items['1b'] ?? 0).toBeLessThan(2);
   });
@@ -303,8 +310,16 @@ describe('C1-F7: cortical blindness and Anton syndrome', () => {
 
 describe('C1-F8: colour vision', () => {
   it('a one-sided lesion: a lateralised hemiachromatopsia, not a grey world', () => {
+    // Paulson's pattern: lower bank and colour area of one side, the colour loss below an upper
+    // quadrantanopia
+    const lvl = { lingual_l: 0.9, inferior_temporal_fusiform_l: 0.9 };
+    const got = aggregateSymptoms(lvl, lvl, 24);
+    expect(sym(got)).toEqual(expect.arrayContaining(['quadrant_sup(r)', 'hemiachromatopsia(r)']));
+    expect(has(got, 'achromatopsia')).toBe(false);
+    // R1-5: not inside a half-field that is blind (both banks: a hemianopia)
     const r = sim(occl('pca_calcarine_l'), 24, { collateral: 'moderate' });
-    expect(sym(r)).toContain('hemiachromatopsia(r)');
+    expect(sym(r)).toContain('hemianopia(r)');
+    expect(has(r, 'hemiachromatopsia')).toBe(false);
     expect(has(r, 'achromatopsia')).toBe(false);
     expect(SYMPTOM_BY_ID.hemiachromatopsia.sideWord).toBe('field');
     expect(SYMPTOM_BY_ID.hemiachromatopsia.nihss).toBeUndefined();

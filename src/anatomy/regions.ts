@@ -254,7 +254,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'apraxia', lat: 'none', only: 'l', sev: 2 },
       { s: 'neglect', lat: 'contra', only: 'r', sev: 2 },
       // after a left-hemisphere stroke neglect of the right side is rarer, milder and clears
-      // sooner (20 % acutely, 5 % at 3 months vs 43 % and 17 % on the right: Ringman et al. 2004)
+      // sooner (20 % acutely, 5 % at 3 months vs 43 % and 17 % on the right: Ringman et al. 2004;
+      // its higher plateau of compensation is redundancy.ts LEFT_NEGLECT, R1-7)
       { s: 'neglect', lat: 'contra', only: 'l', sev: 1, fast: true },
       { s: 'anosognosia', lat: 'none', only: 'r', sev: 1 },
       { s: 'cortical_sensory', lat: 'contra', sev: 1 },
@@ -284,7 +285,9 @@ export const REGION_DEFS: RegionDef[] = [
       // occipital lobe (32 % of 904: Zhang X et al., Neurology 2006;66:906-910, PMID 16567710),
       // runs deep to the parietal cortex; reached only by a large (deep) lesion, not by cortical
       // spill-over. With Meyer's loop (temporal) it makes the hemianopia of a large MCA infarct.
-      { s: 'quadrant_inf', lat: 'contra', sev: 2, minLevel: 0.5 },
+      // A field cut caused by the infarct does not end when the penumbral cortex above the tract
+      // recovers its function (R1-6): `deepTract`.
+      { s: 'quadrant_inf', lat: 'contra', sev: 2, minLevel: 0.5, deepTract: true },
     ],
     compartment: 'supra',
   }),

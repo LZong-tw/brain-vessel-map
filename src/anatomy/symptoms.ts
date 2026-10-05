@@ -121,7 +121,10 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'motor',
     lateralised: true,
     sideWord: 'body',
-    nihss: { item: '5', pts: [1, 1, 2] },
+    // NIHSS 5 tests holding the arm out, which is the shoulder's work: mild = drift (1), moderate =
+    // some effort against gravity (2), severe = no effort against gravity (3); the hand still
+    // moves, so never "no movement" (4) (R1-3)
+    nihss: { item: '5', pts: [1, 2, 3] },
   },
   {
     id: 'leg_weak',
@@ -654,15 +657,17 @@ export const SYMPTOMS: SymptomDef[] = [
   },
   {
     // one side: colour is lost in the opposite half of the field — in Paulson's two patients its
-    // lower quarter, below an upper quadrantanopia — and patients do not notice it (Paulson HL,
-    // Galetta SL, Grossman M, Alavi A. Hemiachromatopsia of unilateral occipitotemporal infarcts.
-    // Am J Ophthalmol 1994;118:518-523, PMID 7943133; hemifield-specific after a one-sided lesion:
-    // Nestmann S, Karnath HO, Rennig J. Cortex 2021;142:357-369, PMID 34358731)
+    // lower quarter, below an upper quadrantanopia — and neither of them noticed it; bedside
+    // testing found it (Paulson HL, Galetta SL, Grossman M, Alavi A. Hemiachromatopsia of
+    // unilateral occipitotemporal infarcts. Am J Ophthalmol 1994;118:518-523, PMID 7943133;
+    // hemifield-specific after a one-sided lesion: Nestmann S, Karnath HO, Rennig J. Cortex
+    // 2021;142:357-369, PMID 34358731). Two patients give no proportion, so the text says "may"
+    // (R1-10). Not listed on a side whose half-field is blind (clinical.ts, R1-5).
     id: 'hemiachromatopsia',
     name: { zh: '半側視野色盲', en: 'Hemiachromatopsia' },
     desc: {
-      zh: '一側的顏色區受損：對側半邊視野的顏色變淡、變灰；常合併上象限偏盲，此時褪色的是還看得見的下方四分之一。病人多半自己沒有察覺。',
-      en: 'The colour area of one side is damaged: colours fade to grey in the opposite half of the visual field; often there is also an upper quadrantanopia, and the colour loss is then in the lower quarter that is still seen. Most patients do not notice it.',
+      zh: '一側的顏色區受損：對側半邊視野的顏色變淡、變灰；常合併上象限偏盲，此時褪色的是還看得見的下方四分之一。病人可能自己沒有察覺，可能要逐一測試各部分視野的顏色才會發現（一篇病例報告的兩位病人都沒有察覺）。',
+      en: 'The colour area of one side is damaged: colours fade to grey in the opposite half of the visual field; often there is also an upper quadrantanopia, and the colour loss is then in the lower quarter that is still seen. Patients may not notice it; it may come to light only when colour is tested in each part of the visual field (neither of the two patients in one case report was aware of it).',
     },
     system: 'vision',
     lateralised: true,
@@ -674,12 +679,13 @@ export const SYMPTOMS: SymptomDef[] = [
     // after a latent period, stereotyped, told apart from epileptic auras; hallucinations in 12 of
     // 117 superficial PCA infarcts, from either side (Cals N et al., J Neurol 2002;249:855-861,
     // PMID 12140669). The latency is not given in the abstracts: `onsetH` is illustrative, and no
-    // course over time is modelled (it stays while the field defect does).
+    // course over time is modelled (it stays while the field defect does). A minority has it, so
+    // it is named and described as possible, not predicted, like central post-stroke pain (R1-4).
     id: 'visual_release_hallucinations',
-    name: { zh: '盲視野中的釋放性幻視', en: 'Release hallucinations in the blind field' },
+    name: { zh: '可能出現：盲視野中的釋放性幻視（少數人）', en: 'Possible: release hallucinations in the blind field (a minority)' },
     desc: {
-      zh: '枕葉梗塞後，經過一段潛伏期，在看不見的那半邊視野裡出現人物、動物或景物的影像；影像一再重複、顏色偏淡。這是視野缺損造成的現象，不是精神病，也和癲癇的視覺先兆不同。約十分之一的枕葉中風會有。',
-      en: 'After an occipital infarct and a latent period, images of people, animals or scenes appear in the blind half of the field; the same images recur, pale in colour. They come from the field loss, not from psychosis, and differ from an epileptic visual aura. About one in ten occipital strokes.',
+      zh: '枕葉梗塞後，經過一段潛伏期，有些人會在看不見的那部分視野裡看到人物、動物或景物的影像；影像一再重複、顏色偏淡。這是視野缺損造成的現象，不是精神病，也和癲癇的視覺先兆不同。只有少數人會有：一個系列中同側偏盲的 120 人中 16 人，另一個系列中表淺後大腦動脈梗塞的 117 人中 12 人有幻覺。這裡列出的是「可能」，不是預測。',
+      en: 'After an occipital infarct and a latent period, some people see images of people, animals or scenes in the blind part of the field; the same images recur, weak in colour. They come from the field loss, not from psychosis, and differ from an epileptic visual aura. Only a minority have them: 16 of 120 people with a homonymous hemianopia in one series, and hallucinations in 12 of 117 superficial PCA infarcts in another. It is listed as possible, not predicted.',
     },
     system: 'vision',
     lateralised: true,
@@ -975,12 +981,14 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'aphasia_global',
     name: { zh: '全面性失語', en: 'Global aphasia' },
     desc: {
-      zh: '說、聽、複誦都嚴重受損，幾乎無法溝通。恢復最差的失語類型；部分人隨時間轉為較輕的類型。',
-      en: 'Expression, comprehension and repetition are all severely impaired. The aphasia type with the poorest recovery; some patients move on to a milder type over time.',
+      zh: '說、聽、複誦都嚴重受損，幾乎無法溝通。恢復最差的失語類型；變輕之後會轉成較輕的類型（例如韋尼克或布洛卡型），模型就改列那個類型。',
+      en: 'Expression, comprehension and repetition are all severely impaired. The aphasia type with the poorest recovery; as it becomes milder it changes into a milder type (a Wernicke or Broca type, for example), and the model then lists that type.',
     },
     system: 'language',
     lateralised: false,
-    // 3 = mute / global aphasia; a partly compensated one still scores as severe (2)
+    // 3 = mute, following no one-step command (clinical.ts then scores 1c = 2 and 10 = 2, R1-1);
+    // a global aphasia that has become mild is listed as another type (R1-2: Pedersen PM et al.
+    // Cerebrovasc Dis 2004;17:35-43, PMID 14530636), so in practice it scores 3
     nihss: { item: '9', pts: [2, 3, 3] },
   },
   {

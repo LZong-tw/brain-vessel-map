@@ -1660,9 +1660,11 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'pca_p2',
     name: { zh: '後大腦動脈 P2 段', en: 'Posterior cerebral artery, P2 segment' },
     abbr: 'P2',
+    // "often", not "usually": with good collaterals the right-sided occlusion of the model leaves
+    // only an upper quadrantanopia at 3 months (the territory atlas is not symmetric; R1-8)
     desc: {
-      zh: '繞過大腦腳往後走，發出供應視丘外側與後部的分支，再分成供應枕葉與顳葉內下側的皮質支。未治療的阻塞通常造成對側同側偏盲。',
-      en: 'Wraps around the cerebral peduncle, gives branches to the lateral and posterior thalamus, then divides into cortical branches to the occipital and inferomedial temporal lobes. Untreated occlusion usually leaves a contralateral homonymous hemianopia.',
+      zh: '繞過大腦腳往後走，發出供應視丘外側與後部的分支，再分成供應枕葉與顳葉內下側的皮質支。未治療的阻塞常造成對側同側偏盲。',
+      en: 'Wraps around the cerebral peduncle, gives branches to the lateral and posterior thalamus, then divides into cortical branches to the occipital and inferomedial temporal lobes. Untreated occlusion often leaves a contralateral homonymous hemianopia.',
     },
     kind: 'trunk',
     group: 'posterior',
@@ -1760,9 +1762,10 @@ export const VESSEL_DEFS: VesselDef[] = [
   bi({
     id: 'pca_calcarine',
     name: { zh: '距狀動脈', en: 'Calcarine artery' },
+    // "often": with good collaterals the right calcarine cortex of the model survives (R1-8)
     desc: {
-      zh: '沿距狀溝走，供應初級視覺皮質（距狀溝上下唇；上唇的楔葉也由頂枕動脈供應）。阻塞造成對側同側偏盲。',
-      en: 'Runs in the calcarine fissure to the primary visual cortex (both banks; the upper bank, the cuneus, shares the parieto-occipital artery); occlusion gives a contralateral homonymous hemianopia.',
+      zh: '沿距狀溝走，供應初級視覺皮質（距狀溝上下唇；上唇的楔葉也由頂枕動脈供應）。阻塞常造成對側同側偏盲。',
+      en: 'Runs in the calcarine fissure to the primary visual cortex (both banks; the upper bank, the cuneus, shares the parieto-occipital artery); occlusion often gives a contralateral homonymous hemianopia.',
     },
     kind: 'branch',
     group: 'posterior',

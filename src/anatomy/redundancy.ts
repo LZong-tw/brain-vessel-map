@@ -105,6 +105,14 @@ const RIGHT_PARAMEDIAN = (bi: number) => ({ r: partial(0.9, bi) });
  * Ghika-Schmid F, Bogousslavsky J. Ann Neurol 2000;48:220–227). TODO(medical-review): 0.9
  */
 const ANTERIOR_THALAMUS = (bi: number) => ({ any: partial(0.9, bi) });
+/**
+ * Neglect of the right side after a left-hemisphere stroke: in 20 % of left-lesioned patients
+ * acutely but 5 % at 3 months, against 43 % and 17 % after right-hemisphere strokes (1281
+ * patients, Ringman JM et al. Neurology 2004;63:468–474, PMID 15304577) — rarer and mostly
+ * resolved. The left-hemisphere sources therefore compensate almost fully, within weeks (their
+ * deficits are `fast`), rather than to the right-hemisphere plateau (R1-7). TODO(medical-review): 0.85
+ */
+const LEFT_NEGLECT = { l: partial(0.85, 0.2) };
 
 // TODO(medical-review): all `uni` / `bi` values below
 export const REDUNDANCY: Record<string, Redundancy> = {
@@ -194,7 +202,9 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   optic_ataxia: partial(0.4, 0.15),
   acalculia: partial(0.5, 0.2),
   finger_agnosia: partial(0.5, 0.2),
-  neglect: partial(0.6, 0.2, { bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.2) } }),
+  neglect: partial(0.6, 0.2, {
+    bySource: { thalamus_paramedian: RIGHT_PARAMEDIAN(0.2), supramarginal: LEFT_NEGLECT, angular: LEFT_NEGLECT },
+  }),
   anosognosia: partial(0.6, 0.3),
   visuospatial: partial(0.45, 0.15),
   // one hippocampus / thalamus: partly; both: dense amnesia persists
