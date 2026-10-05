@@ -172,6 +172,11 @@ export function aggregateSymptoms(
     }
   }
   if (map.has('coma|')) del('somnolence', null);
+  // a sleep disorder cannot be told apart from unrousable coma
+  if ((get('coma', null)?.sev ?? 0) >= 3) del('hypersomnia', null);
+  // central sleep apnoea after a one-sided lateral medullary lesion is the mild end of what
+  // `respiratory` (automatic breathing failing, including in sleep) describes: list it once
+  if (map.has('respiratory|')) del('central_sleep_apnoea', null);
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {
     add('diplopia', null, 2, [...map.values()].find((s) => eye.includes(s.id))!.sources[0], false);

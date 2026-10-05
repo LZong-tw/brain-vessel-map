@@ -32,6 +32,37 @@ Thresholds, time courses and syndrome definitions in `src/engine/` and `src/anat
 
 Sleep, emotional expression, temperature regulation and sweating, taste and bladder control (`src/anatomy/symptoms.ts`, `src/anatomy/regions.ts`):
 
+- Bassetti C, Mathis J, Gugger M, Lovblad KO, Hess CW. Hypersomnia following paramedian thalamic stroke: a report of 12 patients. Ann Neurol 1996;39:471–480. (Persistent hypersomnia.)
+- Bassetti CL. Sleep and stroke. Semin Neurol 2005;25:19–32. (Lasting sleep–wake disorders from thalamic or brainstem damage.)
+- Bogousslavsky J, Khurana R, Deruaz JP, Hornung JP, Regli F, Janzer R, Perret C. Respiratory failure and unilateral caudal brainstem infarction. Ann Neurol 1990;28:668–673. (Loss of automatic breathing — 2 cases.)
+- Grau AJ, Buggle F, Schnitzler P, Spiel M, Lichy C, Hacke W. Fever and infection early after ischemic stroke. J Neurol Sci 1999;171:115–120. (Why central fever is not modelled.)
+- Heckmann JG, Stössel C, Lang CJ, Neundörfer B, Tomandl B, Hummel T. Taste disorders in acute stroke: a prospective observational study on taste disorders in 102 stroke patients. Stroke 2005;36:1690–1694.
+- Hermann DM, Siccoli M, Brugger P, Wachter K, Mathis J, Achermann P, Bassetti CL. Evolution of neurological, neuropsychological and sleep-wake disturbances after paramedian thalamic stroke. Stroke 2008;39:62–68. (Course of hypersomnia, one- vs two-sided.)
+- House A, Dennis M, Molyneux A, Warlow C, Hawton K. Emotionalism after stroke. BMJ 1989;298:991–994.
+- Kim BS, Kim YI, Lee KS. Contralateral hyperhidrosis after cerebral infarction. Clinicoanatomic correlations in five cases. Stroke 1995;26:896–899.
+- Kim JS. Post-stroke emotional incontinence after small lenticulocapsular stroke: correlation with lesion location. J Neurol 2002;249:805–810.
+- Kim JS, Choi-Kwon S. Poststroke depression and emotional incontinence: correlation with lesion location. Neurology 2000;54:1805–1810. (Sites of pathological crying.)
+- Kimura K, Tachibana N, Kohyama J, Otsuka Y, Fukazawa S, Waki R. A discrete pontine ischemic lesion could cause REM sleep behavior disorder. Neurology 2000;55:894–895. (Case report.)
+- Korpelainen JT, Sotaniemi KA, Myllylä VV. Hyperhidrosis as a reflection of autonomic failure in patients with acute hemispheral brain infarction. An evaporimetric study. Stroke 1992;23:1271–1275.
+- Korpelainen JT, Sotaniemi KA, Myllylä VV. Ipsilateral hypohidrosis in brain stem infarction. Stroke 1993;24:100–104.
+- Korpelainen JT, Sotaniemi KA, Myllylä VV. Asymmetric sweating in stroke: a prospective quantitative study of patients with hemispheral brain infarction. Neurology 1993;43:1211–1214.
+- Korpelainen JT, Sotaniemi KA, Myllylä VV. Asymmetrical skin temperature in ischemic stroke. Stroke 1995;26:1543–1547. (Cooler limbs opposite the infarct.)
+- Labar DR, Mohr JP, Nichols FT 3rd, Tatemichi TK. Unilateral hyperhidrosis after cerebral infarction. Neurology 1988;38:1679–1682.
+- Landis BN, Leuchter I, San Millán Ruíz D, Lacroix JS, Landis T. Transient hemiageusia in cerebrovascular lateral pontine lesions. J Neurol Neurosurg Psychiatry 2006;77:680–683. (Case report.)
+- Mendoza M, Latorre JG. Pearls and oy-sters: reversible Ondine's curse in a case of lateral medullary infarction. Neurology 2013;80:e13–e16. (Case report.)
+- Odd H, Dore C, Eriksson SH, Heydrich L, Bargiotas P, Ashburner J, Lambert C. Lesion network mapping of REM sleep behaviour disorder. Neuroimage Clin 2025;45:103751.
+- Onoda K, Ikeda M, Sekine H, Ogawa H. Clinical study of central taste disorders and discussion of the central gustatory pathway. J Neurol 2012;259:261–266. (Side of taste loss by lesion level.)
+- Pavšič K, Pretnar-Oblak J, Bajrović FF, Dolenc-Grošelj L. Prospective study of sleep-disordered breathing in 28 patients with acute unilateral lateral medullary infarction. Sleep Breath 2020;24:1557–1563.
+- Rousseaux M, Hurtevent JF, Benaim C, Cassim F. Late contralateral hyperhidrosis in lateral medullary infarcts. Stroke 1996;27:991–995. (Not modelled.)
+- Sacco S, Sarà M, Pistoia F, Conson M, Albertini G, Carolei A. Management of pathologic laughter and crying in patients with locked-in syndrome: a report of 4 cases. Arch Phys Med Rehabil 2008;89:775–778.
+- Sakakibara R, Hattori T, Yasuda K, Yamanishi T. Micturitional disturbance and the pontine tegmental lesion: urodynamic and MRI analyses of vascular cases. J Neurol Sci 1996;141:105–110.
+- Sung CY, Lee TH, Chu NS. Central hyperthermia in acute stroke. Eur Neurol 2009;62:86–92. (Why central fever is not modelled.)
+- Tang WK, Hermann DM, Chen YK, Liang HJ, Liu XX, Chu WC, Ahuja AT, Abrigo J, Mok V, Ungvari GS, Wong KS. Brainstem infarcts predict REM sleep behavior disorder in acute ischemic stroke. BMC Neurol 2014;14:88.
+- Tellenbach N, Schmidt MH, Alexiev F, Blondiaux E, Cavalloni F, Bassetti CL, Heydrich L, Bargiotas P. REM sleep and muscle atonia in brainstem stroke: a quantitative polysomnographic and lesion analysis study. J Sleep Res 2023;32:e13640. (Evidence against: no excess REM muscle activity.)
+- Wanklyn P, Ilsley DW, Greenstein D, Hampton IF, Roper TA, Kester RC, Mulley GP. The cold hemiplegic arm. Stroke 1994;25:1765–1770.
+- Wanklyn P, Forster A, Young J, Mulley G. Prevalence and associated features of the cold hemiplegic arm. Stroke 1995;26:1867–1870.
+- Xi Z, Luning W. REM sleep behavior disorder in a patient with pontine stroke. Sleep Med 2009;10:143–146. (Case report.)
+
 ### 血流、組織與臨床模型 · Flow, tissue and clinical model
 
 - Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)

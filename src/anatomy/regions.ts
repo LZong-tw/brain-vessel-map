@@ -86,6 +86,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'aphasia_broca', lat: 'none', only: 'l', sev: 2 },
       { s: 'apraxia_of_speech', lat: 'none', only: 'l', sev: 1 },
       { s: 'aprosodia', lat: 'none', only: 'r', sev: 1 },
+      // the frontal operculum: sweating on the opposite side (Labar et al., Neurology 1988) and
+      // the taste cortex next to the insula, without a fixed side (Onoda et al., J Neurol 2012).
+      // TODO(medical-review): sev
+      { s: 'hyperhidrosis', lat: 'contra', sev: 1 },
+      { s: 'taste_loss', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -106,6 +111,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'aphasia_tc_motor', lat: 'none', only: 'l', sev: 1 },
       { s: 'incontinence', lat: 'none', sev: 1 },
       { s: 'akinetic_mutism', lat: 'none', sev: 3, bilateralOnly: true },
+      // frontal ACA-territory lesions (Kim & Choi-Kwon, Neurology 2000). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -140,6 +147,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hand_clumsy', lat: 'contra', sev: 2 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // vasomotor asymmetry with pyramidal signs (Korpelainen et al., Stroke 1995).
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -172,6 +182,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'sens_leg', lat: 'contra', sev: 2 },
       { s: 'incontinence', lat: 'none', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -310,6 +322,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'apraxia_of_speech', lat: 'none', only: 'l', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'anosognosia', lat: 'none', only: 'r', sev: 1 },
+      // insular–opercular cortex: sweating on the opposite side (Labar et al. 1988; Kim et al.,
+      // Stroke 1995) and primary taste cortex, without a fixed side (Onoda et al. 2012).
+      // TODO(medical-review): sev
+      { s: 'hyperhidrosis', lat: 'contra', sev: 1 },
+      { s: 'taste_loss', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -456,6 +473,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hand_clumsy', lat: 'contra', sev: 1 },
       { s: 'sens_hemibody', lat: 'contra', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 1 },
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -513,6 +532,9 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
+      // lenticulocapsular strokes (Kim & Choi-Kwon, Neurology 2000; Kim, J Neurol 2002).
+      // TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -529,6 +551,8 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
+      // the dorsal pallidum especially (Kim, J Neurol 2002). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -567,6 +591,9 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'face_weak', lat: 'contra', sev: 3 },
       { s: 'dysarthria', lat: 'none', sev: 2 },
+      // corticobulbar fibres, part of the lenticulocapsular group (Kim & Choi-Kwon 2000).
+      // TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -590,6 +617,8 @@ export const REGION_DEFS: RegionDef[] = [
       // thalamocortical fibres run in the posterior third; the classic lacune spares them
       { s: 'sens_hemibody', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -627,6 +656,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'vertical_gaze_palsy', lat: 'none', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
       { s: 'coma', lat: 'none', sev: 2, bilateralOnly: true },
+      // sleep needs stay raised for months, more after bilateral lesions (Bassetti et al., Ann
+      // Neurol 1996; Hermann et al., Stroke 2008). TODO(medical-review): sev
+      { s: 'hypersomnia', lat: 'none', sev: 1 },
+      { s: 'hypersomnia', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'supra',
   }),
@@ -634,8 +667,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'thalamus_ventrolateral',
     name: { zh: '視丘腹外側（感覺轉運核 VPL/VPM 與 VL）', en: 'Ventrolateral thalamus (VPL/VPM sensory relay & VL)' },
     func: {
-      zh: '全身感覺傳到大腦皮質的轉運站；VL 核轉送小腦的協調訊號。',
-      en: 'Relays all body sensation to the cortex; the VL nucleus relays cerebellar coordination signals.',
+      zh: '全身感覺傳到大腦皮質的轉運站（VPM 也轉送味覺）；VL 核轉送小腦的協調訊號。',
+      en: 'Relays all body sensation (and, in VPM, taste) to the cortex; the VL nucleus relays cerebellar coordination signals.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
@@ -646,6 +679,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'ataxia_limb', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'movement_disorder', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'central_pain', lat: 'contra', sev: 2 },
+      // VPM relays taste; side not fixed above the midbrain (Onoda et al., J Neurol 2012).
+      // TODO(medical-review): sev
+      { s: 'taste_loss', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -774,6 +810,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'somnolence', lat: 'none', sev: 2 },
       { s: 'diplopia', lat: 'none', sev: 2 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
+      // upper brainstem damage can leave a lasting sleep–wake disorder (Bassetti, Semin Neurol
+      // 2005). TODO(medical-review): sev
+      { s: 'hypersomnia', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -802,6 +841,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'horner', lat: 'ipsi', sev: 1 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
+      // the same descending sympathetic fibres (Korpelainen et al., Stroke 1993 studied pontine and
+      // medullary infarcts; the midbrain is assumed). TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -861,6 +903,10 @@ export const REGION_DEFS: RegionDef[] = [
       // Grabois 1986)
       { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
+      // pontine base: 53 % after one-sided lesions (Kim & Choi-Kwon, Neurology 2000); frequent in
+      // locked-in syndrome (Sacco et al., Arch Phys Med Rehabil 2008). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
+      { s: 'emotionalism', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -880,6 +926,8 @@ export const REGION_DEFS: RegionDef[] = [
     structures: [
       { name: { zh: '內側縱束（MLF）', en: 'Medial longitudinal fasciculus' }, role: { zh: '雙眼水平同向運動', en: 'Yokes horizontal eye movements' } },
       { name: { zh: '橋腦嘴側網狀結構', en: 'Rostral pontine reticular formation' }, role: { zh: '維持清醒', en: 'Arousal' } },
+      { name: { zh: '藍斑核與藍斑下區', en: 'Locus coeruleus & subcoeruleus area' }, role: { zh: '做夢（REM）時讓肌肉放鬆', en: 'Switches the muscles off in dreaming (REM) sleep' } },
+      { name: { zh: '橋腦排尿中樞（Barrington 核）', en: "Pontine micturition centre (Barrington's nucleus)" }, role: { zh: '協調膀胱收縮與括約肌放鬆', en: 'Bladder contraction with sphincter relaxation' } },
       { name: { zh: '內側蹄系', en: 'Medial lemniscus' }, role: { zh: '對側本體覺', en: 'Opposite position sense' } },
     ],
     deficits: [
@@ -887,6 +935,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 1 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
+      // REM-sleep atonia (next to the locus coeruleus; Odd et al., Neuroimage Clin 2025) and the
+      // pontine micturition centre (Sakakibara et al., J Neurol Sci 1996). Severity 1: case
+      // reports and small series. TODO(medical-review): sev
+      { s: 'rbd', lat: 'none', sev: 1 },
+      { s: 'urinary_retention', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -921,6 +974,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_face', lat: 'contra', sev: 1 },
       { s: 'horner', lat: 'ipsi', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
+      // descending sympathetic fibres (Korpelainen et al., Stroke 1993); the dorsolateral
+      // tegmentum by the parabrachial nucleus (Sakakibara et al., J Neurol Sci 1996).
+      // TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      { s: 'urinary_retention', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -955,6 +1013,10 @@ export const REGION_DEFS: RegionDef[] = [
       // Grabois 1986)
       { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
+      // pontine base: 53 % after one-sided lesions (Kim & Choi-Kwon, Neurology 2000); frequent in
+      // locked-in syndrome (Sacco et al., Arch Phys Med Rehabil 2008). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
+      { s: 'emotionalism', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -990,6 +1052,10 @@ export const REGION_DEFS: RegionDef[] = [
       // educational approximation; real severity ranges from mild irregularity to
       // ventilator dependence and is not captured by this model.
       { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
+      // the pathway from the locus coeruleus region down to the medulla that switches the muscles
+      // off in REM sleep (Odd et al., Neuroimage Clin 2025; a paramedian pontine tegmental lacune:
+      // Xi & Luning, Sleep Med 2009). Case reports only. TODO(medical-review): sev
+      { s: 'rbd', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1026,6 +1092,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'horner', lat: 'ipsi', sev: 1 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
+      // descending sympathetic fibres (Korpelainen et al., Stroke 1993); the taste pathway still
+      // ascends on the same side (Landis et al., J Neurol Neurosurg Psychiatry 2006 — a case
+      // report). TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      { s: 'taste_loss', lat: 'ipsi', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1078,7 +1149,9 @@ export const REGION_DEFS: RegionDef[] = [
       { name: { zh: '脊髓視丘徑', en: 'Spinothalamic tract' }, role: { zh: '對側身體痛溫覺', en: 'Opposite body pain & temperature' } },
       { name: { zh: '前庭神經核', en: 'Vestibular nuclei' }, role: { zh: '平衡、眼震、眩暈', en: 'Balance, nystagmus, vertigo' } },
       { name: { zh: '下小腦腳', en: 'Inferior cerebellar peduncle' }, role: { zh: '同側協調', en: 'Same-side coordination' } },
-      { name: { zh: '下行交感纖維', en: 'Descending sympathetic fibres' }, role: { zh: '同側霍納氏症候群', en: 'Same-side Horner' } },
+      { name: { zh: '下行交感纖維', en: 'Descending sympathetic fibres' }, role: { zh: '同側霍納氏症候群、同側半身少汗', en: 'Same-side Horner and reduced sweating' } },
+      { name: { zh: '孤束核', en: 'Solitary tract nucleus' }, role: { zh: '同側舌頭味覺；呼吸與心血管反射', en: 'Same-side taste; breathing and cardiovascular reflexes' } },
+      { name: { zh: '腹外側呼吸網路', en: 'Ventrolateral respiratory network' }, role: { zh: '自動呼吸（睡著時也要呼吸）', en: 'Automatic breathing (including during sleep)' } },
     ],
     deficits: [
       { s: 'dysphagia', lat: 'none', sev: 3 },
@@ -1093,6 +1166,16 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hiccups', lat: 'none', sev: 1 },
       { s: 'central_pain', lat: 'contra', sev: 1 },
       { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
+      // TODO(medical-review): every sev below
+      // whole-body ipsilateral hypohidrosis (Korpelainen et al., Stroke 1993)
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      // central apnoea in sleep after a one-sided infarct (Pavšič et al., Sleep Breath 2020); two
+      // sides → `respiratory` above, which replaces it (clinical.ts)
+      { s: 'central_sleep_apnoea', lat: 'none', sev: 1 },
+      // the solitary tract nucleus: taste on the same side (Onoda et al., J Neurol 2012)
+      { s: 'taste_loss', lat: 'ipsi', sev: 1 },
+      // cooler limbs on the opposite side with Wallenberg syndrome (Korpelainen et al., Stroke 1995)
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'infra',
   }),

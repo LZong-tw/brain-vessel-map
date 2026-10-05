@@ -27,8 +27,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'somnolence',
     name: { zh: '嗜睡、反應遲鈍', en: 'Drowsiness / hypersomnolence' },
     desc: {
-      zh: '一直想睡、叫醒後很快又睡著，常見於視丘旁正中或中腦受損。',
-      en: 'Excessive sleepiness, drifting off after being roused; typical of paramedian thalamic or midbrain lesions.',
+      zh: '一直想睡、叫醒後很快又睡著，常見於視丘旁正中或中腦受損。數週後仍持續的睡眠需求增加另列為「長期嗜睡」。',
+      en: 'Excessive sleepiness, drifting off after being roused; typical of paramedian thalamic or midbrain lesions. A raised need for sleep that persists for weeks is listed separately as persistent hypersomnia.',
     },
     system: 'consciousness',
     lateralised: false,
@@ -666,6 +666,24 @@ export const SYMPTOMS: SymptomDef[] = [
     sideWord: 'body',
   },
   {
+    // Taste is a special sense carried by cranial nerves VII and IX, hence 'cranial'. Side rule
+    // (regions.ts): ipsilateral below the upper pons, no fixed side above it.
+    // Heckmann JG et al. Stroke 2005;36:1690–1694 (30 % of 102 acute strokes; good prognosis).
+    // Onoda K et al. J Neurol 2012;259:261–266 (38 central cases: ipsilateral from the medulla to
+    // the pons, mostly bilateral above the midbrain; 80 % improved by 24 weeks).
+    // Landis BN et al. J Neurol Neurosurg Psychiatry 2006;77:680–683 (ipsilateral hemiageusia,
+    // lateral pontine infarct — a case report).
+    id: 'taste_loss',
+    name: { zh: '味覺減退', en: 'Reduced taste' },
+    desc: {
+      zh: '舌頭的味覺先到延髓的孤束核，在同一側腦幹往上走到中腦附近，再經視丘（VPM 核）送到島葉與額葉島蓋的味覺皮質。延髓或橋腦外側的病灶使同側半邊舌頭嘗不出味道；更高位置（視丘、島葉）的病灶常是兩側都變差，側別不固定。急性中風約三成有味覺減退，多數在幾個月內改善。',
+      en: 'Taste travels from the tongue to the solitary tract nucleus in the medulla, up the same side of the brainstem to about the midbrain, then through the thalamus (VPM nucleus) to the taste cortex in the insula and frontal operculum. A lateral medullary or pontine lesion dulls taste on the same half of the tongue; higher lesions (thalamus, insula) more often dull it on both sides, with no fixed side. About a third of people with an acute stroke have reduced taste, and most improve within months.',
+    },
+    system: 'cranial',
+    lateralised: true,
+    sideWord: 'body',
+  },
+  {
     id: 'vertigo',
     name: { zh: '眩暈', en: 'Vertigo' },
     desc: {
@@ -875,16 +893,6 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: false,
   },
   {
-    id: 'emotional',
-    name: { zh: '情緒改變', en: 'Emotional change' },
-    desc: {
-      zh: '冷漠、焦慮或情緒失控。',
-      en: 'Apathy, anxiety or emotional lability.',
-    },
-    system: 'cognition',
-    lateralised: false,
-  },
-  {
     id: 'topographic',
     name: { zh: '方向感喪失', en: 'Topographic disorientation' },
     desc: {
@@ -892,6 +900,99 @@ export const SYMPTOMS: SymptomDef[] = [
       en: 'Gets lost even in familiar places.',
     },
     system: 'cognition',
+    lateralised: false,
+  },
+
+  // ── Mood & emotional expression ─────────────────────────────────
+  // Only what a lesion SITE produces. Post-stroke depression, anxiety and fatigue are common but
+  // weakly tied to the site; they are population figures, never symptoms of the case
+  // (postStrokeRisks.ts).
+  {
+    id: 'emotional',
+    name: { zh: '情緒改變', en: 'Emotional change' },
+    desc: {
+      zh: '邊緣系統（扣帶迴、杏仁核、顳極）受損後的冷漠、焦慮等情緒變化。突然停不下來的哭或笑另列為「病理性哭笑」。',
+      en: 'Apathy, anxiety and similar changes in mood after damage to the limbic system (cingulate, amygdala, temporal pole). Sudden crying or laughing that cannot be stopped is listed separately as pathological crying or laughing.',
+    },
+    system: 'mood',
+    lateralised: false,
+  },
+  {
+    // Post-stroke emotionalism / emotional incontinence / pseudobulbar affect.
+    // Kim JS, Choi-Kwon S. Neurology 2000;54:1805–1810 (148 single unilateral strokes at 2–4
+    // months: 34 % overall; 45 % lenticulocapsular, 53 % pontine base, 40 % frontal-MCA, 100 % of a
+    // small frontal-ACA group; none after temporal, occipital, parietal or dorsal pontine lesions;
+    // also 55 % after medullary lesions — not modelled, the mechanism is unclear).
+    // Kim JS. J Neurol 2002;249:805–810 (52 % after small lenticulocapsular strokes; dorsal pallidum).
+    // House A et al. BMJ 1989;298:991–994 (15 % at 1 month, 21 % at 6, 11 % at 12; not mostly
+    // bilateral; episodes provoked by real emotional cues).
+    // Sacco S et al. Arch Phys Med Rehabil 2008;89:775–778 (locked-in syndrome — 4 cases).
+    id: 'emotionalism',
+    name: { zh: '病理性哭笑（情緒失禁）', en: 'Pathological crying or laughing (emotionalism)' },
+    desc: {
+      zh: '突然哭出來（較少是笑）、停不下來，強度遠超過當下的感受；常被一點小事（一句關心、一個悲傷的畫面）引發。中風後幾週到幾個月常見，與豆狀核—內囊、橋腦腹側與額葉的病灶有關；兩側橋腦腹側受損（閉鎖症候群）時特別明顯。常隨時間減輕。',
+      en: 'Sudden bouts of crying (less often laughing) that are hard to stop and far stronger than what the person feels, often set off by something small — a kind word, a sad picture. Common in the weeks to months after a stroke and linked to lesions of the lentiform nucleus and internal capsule, the ventral pons and the frontal lobe; especially marked when the ventral pons is damaged on both sides (locked-in syndrome). It often lessens over time.',
+    },
+    system: 'mood',
+    lateralised: false,
+    delayed: true,
+  },
+
+  // ── Sleep & breathing in sleep ───────────────────────────────────
+  {
+    // Persistent hypersomnia; the acute drowsiness is `somnolence` (NIHSS 1a), unchanged.
+    // Bassetti C et al. Ann Neurol 1996;39:471–480 (12 isolated paramedian thalamic strokes,
+    // 10 to > 20 h of sleep behaviour a day).
+    // Hermann DM et al. Stroke 2008;39:62–68 (46 patients: hypersomnia in all at first; sleep
+    // needs improved with bilateral and almost disappeared with unilateral lesions by 1 year).
+    // Bassetti CL. Semin Neurol 2005;25:19–32 (persisting sleep–wake disorders from thalamic or
+    // brainstem damage).
+    id: 'hypersomnia',
+    name: { zh: '長期嗜睡（睡眠需求增加）', en: 'Persistent hypersomnia (increased sleep need)' },
+    desc: {
+      zh: '急性期過後仍然一天睡很久（最嚴重時 10 到 20 小時以上）、白天難以保持清醒。視丘旁正中（尤其兩側）受損時最典型，上腦幹的病灶也可能出現；單側病灶多在一年內接近恢復，兩側病灶改善較少。',
+      en: 'Weeks after the acute phase the person still sleeps much longer than before (10 to over 20 hours a day at worst) and struggles to stay awake in the daytime. Typical of paramedian thalamic lesions, especially on both sides, and possible with upper brainstem lesions; after a one-sided lesion it has almost gone within a year, after a two-sided one it improves less.',
+    },
+    system: 'sleep',
+    lateralised: false,
+    delayed: true,
+  },
+  {
+    // Loss of REM-sleep atonia. Evidence is thin, hence severity 1 everywhere (regions.ts):
+    // case reports (Kimura K et al. Neurology 2000;55:894–895; Xi Z, Luning W. Sleep Med
+    // 2009;10:143–146 — a unilateral paramedian pontine tegmental lacune), a questionnaire study
+    // at 3 months (Tang WK et al. BMC Neurol 2014;14:88 — brainstem infarcts predicted RBD, OR 3.7)
+    // and lesion network mapping of 25 published cases (Odd H et al. Neuroimage Clin
+    // 2025;45:103751 — along the tract from the rostral locus coeruleus to the medulla). Against:
+    // Tellenbach N et al. J Sleep Res 2023;32:e13640 (15 brainstem strokes on polysomnography:
+    // less, not more, muscle activity in REM sleep).
+    id: 'rbd',
+    name: { zh: '快速動眼期睡眠行為障礙（夢境演出）', en: 'REM sleep behaviour disorder (acting out dreams)' },
+    desc: {
+      zh: '做夢（快速動眼期）時肌肉本該放鬆不動；負責這件事的橋腦被蓋路徑受損後，肌肉仍會動，人可能在夢中說話、大叫、揮拳或踢腳，傷到自己或枕邊人。中風後並不常見：證據來自個案報告、一項 3 個月時的問卷研究與病灶網路分析，而一項腦幹中風的睡眠檢查研究並沒有看到這種現象。',
+      en: 'During dreaming (REM) sleep the muscles are normally switched off; when the pontine tegmental pathway that does this is damaged they are not, and the person may talk, shout, punch or kick while dreaming and hurt themselves or a bed partner. Uncommon after stroke: the evidence comes from case reports, a questionnaire study at 3 months and a lesion-network analysis, while a sleep-laboratory study of brainstem strokes did not find it.',
+    },
+    system: 'sleep',
+    lateralised: false,
+    delayed: true,
+  },
+  {
+    // Central sleep apnoea after a ONE-sided lateral medullary infarct. The severe form —
+    // automatic breathing failing outright (Ondine's curse) — is `respiratory` (autonomic), which
+    // the regions give for lesions of both sides; clinical.ts lists only that one when both apply.
+    // Pavšič K et al. Sleep Breath 2020;24:1557–1563 (28 acute unilateral lateral medullary
+    // infarcts on polysomnography: central apnoea in 43 %, central events fewer at 3–6 months;
+    // respiratory failure complicates 2–6 %).
+    // Bogousslavsky J et al. Ann Neurol 1990;28:668–673 (loss of automatic breathing from a
+    // unilateral caudal brainstem infarct — 2 cases).
+    // Mendoza M, Latorre JG. Neurology 2013;80:e13–e16 (reversible Ondine's curse — a case).
+    id: 'central_sleep_apnoea',
+    name: { zh: '睡眠中呼吸暫停（中樞型）', en: 'Central sleep apnoea (pauses in breathing during sleep)' },
+    desc: {
+      zh: '延髓外側有讓呼吸自動進行的神經網路。單側梗塞的急性期，睡著時常出現呼吸停頓——不是呼吸道塞住，而是大腦沒有送出呼吸的指令；幾週到幾個月內通常會減少。少數人（約 2–6%）連自動呼吸都會失去：清醒時能呼吸，睡著就停（「Ondine 詛咒」），需要呼吸器。這種嚴重型另列為「呼吸節律異常」，本模型只在兩側受損時顯示。',
+      en: 'The lateral medulla holds the network that keeps breathing going automatically. In the acute phase of a one-sided infarct, breathing often pauses during sleep — not because the airway is blocked but because the brain stops sending the signal to breathe; these pauses usually become fewer over weeks to months. In a few (about 2–6 %) automatic breathing fails outright: the person breathes while awake but stops when asleep ("Ondine\'s curse") and needs a ventilator. That severe form is listed separately as abnormal breathing control, which this model shows only when both sides are damaged.',
+    },
+    system: 'sleep',
     lateralised: false,
   },
 
@@ -910,11 +1011,86 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'respiratory',
     name: { zh: '呼吸節律異常', en: 'Abnormal breathing control' },
     desc: {
-      zh: '延髓與橋腦呼吸中樞受損，可能需要呼吸器。',
-      en: 'Medullary and pontine respiratory centres are damaged; ventilatory support may be needed.',
+      zh: '延髓與橋腦呼吸中樞受損：自動呼吸的節律亂掉，睡著時可能停止呼吸，可能需要呼吸器。',
+      en: 'Medullary and pontine respiratory centres are damaged: the automatic rhythm of breathing fails and may stop during sleep; ventilatory support may be needed.',
     },
     system: 'autonomic',
     lateralised: false,
+  },
+  {
+    // Pontine micturition centre (Barrington's nucleus, next to the locus coeruleus). The existing
+    // `incontinence` is the medial frontal (storage) side of bladder control.
+    // Sakakibara R et al. J Neurol Sci 1996;141:105–110 (39 acute brainstem strokes: 49 % had
+    // urinary symptoms within 3 months, retention 21 %; lesions of the symptomatic patients in the
+    // dorsolateral pontine tegmentum).
+    id: 'urinary_retention',
+    name: { zh: '排尿困難、尿液滯留', en: 'Difficulty passing urine / urinary retention' },
+    desc: {
+      zh: '橋腦背外側被蓋（藍斑核旁）有協調膀胱收縮與括約肌放鬆的排尿中樞：受損時尿解不出來或解不乾淨，也可能夜尿、急尿。腦幹中風後 3 個月內約一半有排尿問題，約五分之一出現尿滯留。',
+      en: 'The dorsolateral pontine tegmentum (next to the locus coeruleus) holds the micturition centre that makes the bladder contract while its sphincter relaxes: when it is damaged, urine will not come or the bladder does not empty, and night-time frequency or urgency can also occur. Within 3 months of a brainstem stroke about half have bladder symptoms and about one in five urinary retention.',
+    },
+    system: 'autonomic',
+    lateralised: false,
+  },
+
+  // ── Temperature regulation & sweating ────────────────────────────
+  // The hypothalamus (temperature set point) is not a region of this model, so only the
+  // descending sympathetic pathway (brainstem) and the cortical control of sweating are mapped.
+  // Central ("neurogenic") fever is left out: fever early after an ischaemic stroke is mostly
+  // infection or aspiration (Grau AJ et al. J Neurol Sci 1999;171:115–120 — 25 % febrile within
+  // 48 h, most explained by infection), and of 74 patients with early central hyperthermia only
+  // 4 % had a large cortical infarct and 3 % a basilar occlusion, the rest haemorrhages, all with
+  // brainstem involvement (Sung CY et al. Eur Neurol 2009;62:86–92).
+  // Temperature SENSATION is a different thing: pain_temp_body / pain_temp_face.
+  {
+    // Korpelainen JT, Sotaniemi KA, Myllylä VV. Stroke 1993;24:100–104 (18 brainstem infarcts:
+    // heat-induced sweating lower over the whole ipsilateral body in 83 % acutely, 100 % at 1
+    // month, 76 % at 6 months; medullary and pontine alike).
+    id: 'hypohidrosis',
+    name: { zh: '流汗減少（整個半身）', en: 'Reduced sweating (whole half of the body)' },
+    desc: {
+      zh: '控制流汗的下行交感神經從下視丘出發（本模型未納入下視丘），經過腦幹外側：這裡受損時，病灶同側的臉、手、軀幹與腳流汗變少，熱的時候最明顯，常與霍納氏症候群同時出現。多半自己不會察覺，卻可能持續數月（約四分之三的人 6 個月時仍有）。',
+      en: 'The descending sympathetic pathway that drives sweating starts in the hypothalamus (not included in this model) and runs through the lateral brainstem: when it is damaged there, the face, arm, trunk and leg on the same side as the lesion sweat less, most obviously in the heat, often together with Horner syndrome. People often do not notice it, but it can last for months (still present in about three quarters at 6 months).',
+    },
+    system: 'thermo',
+    lateralised: true,
+    sideWord: 'body',
+  },
+  {
+    // Labar DR et al. Neurology 1988;38:1679–1682 (6 cases contralateral to acute infarcts: 2
+    // opercular, 4 large cortical–subcortical; face and arm; lasted 1–3 days).
+    // Kim BS et al. Stroke 1995;26:896–899 (5 cases; 2 large MCA, 2 medullary; 2 days–2 months).
+    // Korpelainen JT et al. Stroke 1992;23:1271–1275 and Neurology 1993;43:1211–1214 (measured:
+    // more sweating on the paretic side in most hemispheric infarcts, tracking the paresis, still
+    // present at 6 months). Brainstem hyperhidrosis (late, after lateral medullary infarcts:
+    // Rousseaux M et al. Stroke 1996;27:991–995) is not modelled.
+    id: 'hyperhidrosis',
+    name: { zh: '多汗（臉與手臂為主）', en: 'Excess sweating (mainly face and arm)' },
+    desc: {
+      zh: '大腦皮質（島蓋、島葉一帶）被認為有一條抑制對側流汗的路徑：大範圍或島蓋的梗塞後，癱瘓那一側的臉與手臂可能大量出汗，通常只持續幾天到幾週。用儀器測量時，癱瘓側流汗較多的不對稱更常見、也更持久，但多半不明顯。',
+      en: 'A pathway from the cortex (around the operculum and insula) is thought to hold back sweating on the opposite side: after a large or opercular infarct the face and arm on the paralysed side can sweat heavily, usually for a few days to weeks. Measured with instruments, more sweating on the paralysed side is commoner and lasts longer, but is mostly not noticed.',
+    },
+    system: 'thermo',
+    lateralised: true,
+    sideWord: 'body',
+  },
+  {
+    // Korpelainen JT, Sotaniemi KA, Myllylä VV. Stroke 1995;26:1543–1547 (63 infarcts: forearm,
+    // leg and foot cooler on the side opposite the infarct throughout 6 months; with pyramidal
+    // signs in hemispheric and with Wallenberg syndrome in brainstem infarcts).
+    // Wanklyn P et al. Stroke 1994;25:1765–1770 (symptomatic cold hemiplegic hand: lower finger
+    // temperature, 35 % less hand blood flow).
+    // Wanklyn P et al. Stroke 1995;26:1867–1870 (53 % of 75 at ≥ 12 months; median onset 1 month).
+    id: 'cold_limb',
+    name: { zh: '手腳發冷（數週後）', en: 'Cold arm and leg (weeks later)' },
+    desc: {
+      zh: '癱瘓那一側的手腳皮膚溫度較低、摸起來冰冷，手部血流也減少；常在中風後約一個月開始、可持續一年以上，有些人覺得很困擾。與運動路徑受損（調節皮膚血管的自主神經可能跟著受影響）有關，延髓外側中風則出現在病灶對側。這是血管調節的改變，和感覺不到冷熱的「溫度覺喪失」不同。',
+      en: 'The skin of the arm and leg on the paralysed side is cooler and feels cold, with less blood flow to the hand; it often starts about a month after the stroke, can last more than a year and troubles some people a lot. Linked to damage of the motor pathways (probably because the autonomic control of skin blood vessels is affected with them) and, after a lateral medullary stroke, found on the side opposite the lesion. This is a change in blood-vessel control, not the loss of temperature sensation.',
+    },
+    system: 'thermo',
+    lateralised: true,
+    sideWord: 'body',
+    delayed: true,
   },
 
   {
