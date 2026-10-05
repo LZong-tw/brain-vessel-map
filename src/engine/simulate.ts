@@ -631,6 +631,7 @@ function modelFor(input: SimInput): Model {
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
     lacunes: [...course.lacunes].filter(([, list]) => list.some((o) => o.severity >= 1)).map(([rid]) => rid),
     bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
+    map: input.map,
   });
   const model: Model = {
     course,

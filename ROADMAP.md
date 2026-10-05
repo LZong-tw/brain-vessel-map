@@ -4,10 +4,10 @@
 
 - 由 MNI ICBM152 2009c 模板產生的真實大腦／小腦／腦幹／深部核團網格，每個表面點標上「功能腦區 × 動脈供應區」
   · Real cerebrum / cerebellum / brainstem / deep-nuclei meshes from the MNI ICBM152 2009c template, every surface point labelled with a functional region and an arterial territory
-- 178 段動脈（含腦幹穿通支、小腦動脈、38 段側枝），主幹位置校正到 MRA 統計圖譜
-  · 178 arterial segments (brainstem perforators, cerebellar arteries, 38 collaterals), main trunks fitted to an MRA statistical atlas
-- Poiseuille 血流網路：Willis 環代償、竊血、自動調節、分水嶺、13 種解剖變異、側枝分級、腦幹軟腦膜側枝
-  · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 13 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
+- 180 段動脈（含腦幹穿通支、小腦動脈、38 段側枝），主幹位置校正到 MRA 統計圖譜
+  · 180 arterial segments (brainstem perforators, cerebellar arteries, 38 collaterals), main trunks fitted to an MRA statistical atlas
+- Poiseuille 血流網路：Willis 環代償、竊血、自動調節、分水嶺、15 種解剖變異、側枝分級、腦幹軟腦膜側枝
+  · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 15 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
 - 組織命運隨時間演變（核心／半影區／低灌流），後循環時間窗依基底動脈取栓試驗校正
   · Tissue fate over time (core / penumbra / oligaemia), posterior-circulation time window calibrated to the basilar thrombectomy trials
 - 分段病程：TIA、狹窄後才完全阻塞、自行再通，可在任一時間點治療

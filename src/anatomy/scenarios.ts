@@ -360,8 +360,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'haemodynamic',
     title: { zh: '右內頸動脈閉塞＋完整 Willis 環', en: 'Right ICA occlusion with complete circle of Willis' },
     summary: {
-      zh: '血液經前交通、後交通動脈與眼動脈逆流補足，大多沒有症狀——打開「血流」圖層看方向反轉。',
-      en: 'Blood arrives via the AComm, PComm and reversed ophthalmic flow, so there are few symptoms — turn on the flow layer to see reversals.',
+      zh: '血液經前交通、後交通動脈與眼動脈逆流補足，大多沒有症狀——打開「血流」圖層看方向反轉。但這樣完整的 Willis 環在 MRA 研究中只見於約 12–42% 的成人；少了前交通動脈，同樣的阻塞就會造成大範圍梗塞（打開「前交通動脈缺如」變異試試）。',
+      en: 'Blood arrives via the AComm, PComm and reversed ophthalmic flow, so there are few symptoms — turn on the flow layer to see reversals. But MRA studies find such a complete circle in only about 12–42% of adults; without the AComm the same occlusion leaves a large infarct (turn on the absent-AComm variant to see it).',
     },
     occlusions: [{ vessel: 'ica_cervical_r', severity: 1 }],
     tH: 24,
@@ -412,8 +412,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'haemodynamic',
     title: { zh: '左鎖骨下動脈近端阻塞：竊血', en: 'Proximal left subclavian occlusion: steal' },
     summary: {
-      zh: '左椎動脈血流倒流去供應左手；腦部多半由其他血管補足。',
-      en: 'The left vertebral artery reverses to feed the left arm; the brain is usually covered by other vessels.',
+      zh: '左椎動脈血流倒流去供應左手，血液經椎基底動脈交會處由右椎動脈補上；基底動脈仍順向流動，腦部不受影響，多半沒有症狀——打開「血流」圖層看方向反轉。',
+      en: 'The left vertebral artery reverses to feed the left arm, drawing on the right vertebral artery across the vertebrobasilar junction; the basilar artery keeps flowing forwards and the brain is unaffected, so it is usually silent — turn on the flow layer to see the reversal.',
     },
     occlusions: [{ vessel: 'subclavian_prox_l', severity: 1 }],
     tH: 1,
@@ -424,8 +424,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'haemodynamic',
     title: { zh: '右眼動脈栓塞：單眼突然失明', en: 'Right ophthalmic embolism: sudden monocular blindness' },
     summary: {
-      zh: '頸動脈的小栓子先到眼睛：右眼突然看不見。幾分鐘內自行恢復叫「一過性黑矇」（眼睛的暫時性缺血），持續不退則是視網膜中央動脈阻塞——兩者都是腦中風的警訊，要當急症處理。本模型用腦組織的時間常數，視網膜實際能撐得稍久（約 1.5–4 小時）。',
-      en: 'A small carotid embolus reaches the eye first: sudden right-eye blindness. If it clears within minutes it is amaurosis fugax (a TIA of the eye); if it persists it is a central retinal artery occlusion — both are stroke warnings and emergencies. The model uses brain-tissue time constants; the retina actually tolerates somewhat longer (~1.5–4 h).',
+      zh: '頸動脈的小栓子先到眼睛：右眼突然看不見。幾分鐘內自行恢復叫「一過性黑矇」（眼睛的暫時性缺血），持續不退則是視網膜中央動脈阻塞——兩者都是腦中風的警訊，要當急症處理。視網膜能撐多久並不確定（猴子實驗約 1.5–4 小時，人類可能只有 12–15 分鐘）；模型採用較短的估計。',
+      en: 'A small carotid embolus reaches the eye first: sudden right-eye blindness. If it clears within minutes it is amaurosis fugax (a TIA of the eye); if it persists it is a central retinal artery occlusion — both are stroke warnings and emergencies. How long the retina survives is uncertain (about 1.5–4 h in monkey experiments, perhaps only 12–15 min in people); the model uses the shorter estimate.',
     },
     occlusions: [{ vessel: 'ophthalmic_r', severity: 1 }],
     tH: 1,

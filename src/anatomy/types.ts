@@ -108,6 +108,11 @@ export interface VesselDef {
   notOccludable?: boolean;
   /** an occluding clot here also covers the distal bifurcation (e.g. carotid-T, basilar tip) */
   occludesDistalJunction?: boolean;
+  /**
+   * absent from the default anatomy: the vessel exists only when a chosen variant gives it a
+   * scale above 0 (e.g. a persistent trigeminal artery); see variantOverrides in hemodynamics.ts
+   */
+  variantOnly?: boolean;
 }
 
 /** Fully expanded vessel (after bilateral expansion). */

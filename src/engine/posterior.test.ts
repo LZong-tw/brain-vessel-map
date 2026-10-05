@@ -72,7 +72,9 @@ describe('reperfusion of a mid-basilar occlusion (goal 2)', () => {
     const poor = savedShare('poor');
     expect(good(12)).toBeGreaterThan(0.4);
     expect(good(24)).toBeGreaterThan(0.25);
-    expect(poor(12)).toBeLessThan(0.05);
+    // poor collaterals leave the pons in the low penumbra (C8-F2), so reopening at 12 h still
+    // saves a few per cent; the benefit is gone by 24 h
+    expect(poor(12)).toBeLessThan(0.08);
     expect(poor(24)).toBeLessThan(0.05);
   });
 
@@ -122,9 +124,10 @@ describe('collateral grade matters in basilar occlusion (goal 4)', () => {
 });
 
 describe('the anterior circulation is unchanged (goal 5)', () => {
-  it('only brainstem beds fed entirely by the basilar artery have their own tissue parameters', () => {
+  it('only brainstem beds fed entirely by the basilar artery (and the retina, C8-F1) have their own tissue parameters', () => {
     for (const b of BEDS) {
       if (tissueParamsForBed(b.id) === DEFAULT_TISSUE) continue;
+      if (REGION_BY_ID[b.region].category === 'eye') continue;
       expect(REGION_BY_ID[b.region].category, b.id).toBe('brainstem');
       expect(b.region, b.id).toMatch(/^(pons|midbrain)_/);
       expect(b.region, b.id).not.toMatch(/^midbrain_peduncle/);

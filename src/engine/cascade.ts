@@ -88,7 +88,12 @@ export interface CascadeInput {
    * without treatment (the large-core thrombectomy trials select on the core at that point)
    */
   bedAtDecision?: Record<string, number>;
+  /** mean arterial pressure (mmHg); left out, no blood-pressure note */
+  map?: number;
 }
+
+/** mean arterial pressure from which the high-blood-pressure note is shown (≈ 170/95 mmHg) */
+export const HIGH_MAP = 120;
 
 /** The treatment details the event texts need (times on the clinical clock, like reperfusionH). */
 export interface CascadeTreatment {
@@ -256,7 +261,10 @@ export interface CascadeOutput {
 /**
  * Only the retina is ischaemic (an ophthalmic or central retinal artery embolus): the brain-stroke
  * story (brain DWI, thrombolysis windows for brain tissue) does not apply as such.
- * Retinal survival time: Hayreh SS et al. Exp Eye Res 2004;78:723–736 (about 240 min in primates).
+ * Retinal survival time: Hayreh SS et al. Exp Eye Res 2004;78:723–736 (no detectable damage after
+ * 97 min, massive damage after about 240 min, in old hypertensive monkeys); Tobalem S et al. BMC
+ * Ophthalmol 2018;18:101 (in people probably about 12–15 min of complete occlusion; the shorter
+ * estimate is the one the model uses, see RETINA_TISSUE in tissueParams.ts).
  * Management as a stroke equivalent: Mac Grory B et al. Stroke 2021;52:e282–e294 (AHA scientific
  * statement on central retinal artery occlusion).
  */
@@ -269,8 +277,8 @@ function pushEyeEvents(events: CascadeEvent[]): void {
     endH: 6,
     title: { zh: '視網膜缺血（數秒內失明）', en: 'Retinal ischaemia (vision lost within seconds)' },
     desc: {
-      zh: '視網膜是中樞神經的一部分，由眼動脈分出的視網膜中央動脈單獨供應，沒有側枝。血流一中斷，數秒內那隻眼睛就看不見。若栓子在幾分鐘內被沖走，視力恢復，稱為「一過性黑矇」；若持續阻塞，視網膜內層約在數小時內（動物研究約 4 小時，人類可能更短）開始不可逆壞死。本模型沿用腦組織的時間常數，視網膜實際能撐得稍久。這裡沒有腦組織缺血。',
-      en: 'The retina is part of the central nervous system and is fed by the central retinal artery, a branch of the ophthalmic artery with no collaterals. When flow stops, that eye goes blind within seconds. If the embolus clears within minutes, vision returns (amaurosis fugax); if it stays, the inner retina begins to die irreversibly within hours (about 4 h in primate studies, possibly less in people). The model uses brain-tissue time constants; the retina actually tolerates somewhat longer. No brain tissue is ischaemic here.',
+      zh: '視網膜是中樞神經的一部分，由眼動脈分出的視網膜中央動脈單獨供應，沒有側枝。血流一中斷，數秒內那隻眼睛就看不見。若栓子在幾分鐘內被沖走，視力恢復，稱為「一過性黑矇」；若持續阻塞，視網膜內層會不可逆壞死，但多快並不確定：在年老、有動脈硬化與高血壓的猴子，完全阻塞 97 分鐘幾乎看不到損傷、約 4 小時則大範圍壞死；一篇回顧認為這些實驗有重要缺陷，人類完全阻塞約 12–15 分鐘後就可能開始梗塞，而許多阻塞並不完全，所以較晚治療仍偶有效果。模型採用較短的估計：完全阻塞約 12 分鐘後視網膜開始壞死；部分阻塞（程度 < 100%）撐得較久。這裡沒有腦組織缺血。',
+      en: 'The retina is part of the central nervous system and is fed by the central retinal artery, a branch of the ophthalmic artery with no collaterals. When flow stops, that eye goes blind within seconds. If the embolus clears within minutes, vision returns (amaurosis fugax); if it stays, the inner retina dies irreversibly, but how fast is uncertain: in old, atherosclerotic, hypertensive monkeys 97 min of complete occlusion left practically no detectable damage and about 4 h massive damage, while a review argues that these experiments are flawed, that in people the inner retina probably starts to infarct after about 12–15 min of complete occlusion, and that many occlusions are incomplete, which is why later treatment sometimes still helps. The model follows the shorter estimate: the retina starts to die after about 12 min of complete occlusion; a partial occlusion (severity < 100%) lasts longer. No brain tissue is ischaemic here.',
     },
     regions: [],
   });
@@ -1228,7 +1236,30 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
   }
 
+  // ── 8b. blood pressure ────────────────────────────────────────
+  // IST: Leonardi-Bee J et al. Stroke 2002;33:1315–1320 (associations in 17,398 patients);
+  // thrombolysis limits: Sandset EC et al. 2025 update to the ESO guideline on blood pressure
+  // management, Eur Stroke J 2026;11:aakag004; induced hypertension: Bang OY et al. Neurology
+  // 2019;93:e1955–e1963 (n = 153, Class III); ENCHANTED2/MT: Yang P et al. Lancet 2022;400:1585–1596
+  if (input.map !== undefined && input.map >= HIGH_MAP && ((anyIschemia && !eyeOnly) || lacunarOnly)) {
+    events.push({
+      id: 'high_blood_pressure',
+      kind: 'treatment',
+      severity: 'warn',
+      onsetH: 0,
+      endH: 336,
+      title: { zh: '急性期血壓偏高', en: 'High blood pressure in the acute phase' },
+      desc: {
+        zh: '平均動脈壓 120 mmHg 以上，約相當於 170/95 mmHg 或更高。國際中風試驗（IST）的 17,398 名病人中，收縮壓與早期死亡呈 U 型關係，約 150 mmHg 時最低：血壓高時，兩週內中風復發（每高 10 mmHg 增加 4.2%）與疑似腦水腫造成的死亡較多，血壓則與症狀性出血無關；血壓低時，嚴重中風與心臟病死亡較多。這些是相關，不能證明降壓有益。血栓溶解前血壓須低於 185/110 mmHg，溶栓或取栓期間與之後 24 小時維持低於 180/105 mmHg（歐洲中風組織 ESO 2025）。本模型裡血壓越高，只會把更多血推過側枝、讓梗塞變小——這是模型的假設：用藥物升壓只在小型試驗中測試過（一個 153 人的隨機試驗，對象是非心因性栓塞、不適合再灌流治療的病人），ESO 也不建議對沒有接受再灌流治療的病人常規使用升壓藥；成功取栓後把收縮壓壓到 120 mmHg 以下，預後反而較差（ENCHANTED2/MT）。',
+        en: 'A mean arterial pressure of 120 mmHg or more corresponds to roughly 170/95 mmHg or higher. In 17,398 patients of the International Stroke Trial (IST), the relation of systolic pressure to early death was U-shaped, lowest around 150 mmHg: with high pressure, recurrent stroke within two weeks (+4.2% per 10 mmHg) and death from presumed brain oedema were more common, and the pressure was not related to symptomatic haemorrhage; with low pressure, severe strokes and cardiac deaths were more common. These are associations, not proof that lowering the pressure helps. Before thrombolysis the pressure must be below 185/110 mmHg, and it is kept below 180/105 mmHg during and for 24 h after thrombolysis or thrombectomy (European Stroke Organisation, ESO 2025). In this model a higher pressure only pushes more blood through the collaterals and shrinks the infarct: that is a model assumption. Raising the pressure with drugs has been tested in small trials only (one randomised trial of 153 patients with non-cardioembolic stroke who were not eligible for reperfusion), and the ESO discourages routine vasopressors in patients not treated with reperfusion; after successful thrombectomy, lowering systolic pressure below 120 mmHg led to worse outcome (ENCHANTED2/MT).',
+      },
+      regions: [],
+    });
+  }
+
   // ── 9. flow redistribution notes ──────────────────────────────
+  // subclavian steal: basilar flow at rest (Harper C et al. J Vasc Surg 2008;48:859–864) and
+  // symptoms by arm pressure difference (Labropoulos N et al. Ann Surg 2010;252:166–170)
   const rev = hemo.reversed;
   if (rev.some((v) => v.startsWith('va_'))) {
     events.push({
@@ -1238,8 +1269,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 0,
       title: { zh: '血流反轉：竊血現象', en: 'Flow reversal: steal' },
       desc: {
-        zh: '椎動脈血流倒流去供應手臂（鎖骨下竊血）：手臂用力時後循環血流被「偷走」，可能出現頭暈、視力模糊、走不穩。',
-        en: 'Vertebral flow reverses to feed the arm (subclavian steal): exercising that arm "steals" posterior-circulation blood, causing dizziness, blurred vision or unsteadiness.',
+        zh: '椎動脈血流倒流去供應手臂（鎖骨下竊血）。超音波上很常見，多半沒有症狀：手臂也能經胸壁與頸部的側枝得到血液，基底動脈通常仍由另一側椎動脈供應、維持順向。兩手血壓差超過 40–50 mmHg 時較常出現症狀——手臂用力時後循環血流被「偷走」而頭暈、視力模糊、走不穩，或手臂痠痛無力。',
+        en: 'Vertebral flow reverses to feed the arm (subclavian steal). It is common on ultrasound and usually without symptoms: the arm is also fed through chest-wall and neck collaterals, and the basilar artery usually keeps flowing forwards, fed by the other vertebral artery. Symptoms are more frequent when the arm pressures differ by more than 40–50 mmHg: exercising that arm "steals" posterior-circulation blood, causing dizziness, blurred vision or unsteadiness, or the arm itself tires and aches.',
       },
       regions: [],
     });

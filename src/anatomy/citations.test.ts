@@ -159,3 +159,26 @@ describe('C2: treatment and evidence references', () => {
     expect(chainB).toContain(`- ${r[0]}`);
   });
 });
+
+describe('C8: haemodynamics, variants and tissue calibration', () => {
+  it.each([
+    ['Tobalem S', 'BMC Ophthalmol 2018;18:101'],
+    ['Alemseged F, Van der Hoeven E', 'Stroke 2019;50:1415–1422'],
+    ['Leonardi-Bee J', 'Stroke 2002;33:1315–1320'],
+    ['Bang OY', 'Neurology 2019;93:e1955–e1963'],
+    ['Yang P, Song L', 'Lancet 2022;400:1585–1596'],
+    ['Sandset EC', 'Eur Stroke J 2026;11:aakag004'],
+    ['Harper C', 'J Vasc Surg 2008;48:859–864'],
+    ['Labropoulos N', 'Ann Surg 2010;252:166–170'],
+    ['Huang W', 'Surg Radiol Anat 2023;45:947–957'],
+    ['Triantafyllou G', 'Neuroradiology 2026;68:1607–1617'],
+  ])('lists %s (%s)', (author, where) => {
+    const r = ref(author);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toContain(where);
+  });
+  it('cites the retinal survival-time sources next to the retina tissue parameters', () => {
+    expect(TISSUE_PARAMS_SRC).toContain('Tobalem S et al.');
+    expect(TISSUE_PARAMS_SRC).toContain('Hayreh SS');
+  });
+});
