@@ -230,67 +230,77 @@ describe('every new symptom can occur', () => {
 /**
  * NIHSS (total and items) and named syndromes of every teaching scenario at 24 h and 3 months,
  * computed at commit 54e06e5 — before any of these symptoms existed — and pinned here. The new
- * symptoms carry no NIHSS points and syndromes are detected from regions, so adding them must
- * leave every value as it was. [total, items > 0, syndromes (with lesion side)]
+ * symptoms carry no NIHSS points, and no syndrome rule reads them (rules read regions, and the
+ * signs a sign-named syndrome requires are not among them), so adding them must leave every value
+ * as it was. Re-baselined on purpose for the clinical-detail audit, each changed row commented
+ * with the finding that explains it: C5-F1 (the NIHSS item rules: mild weakness is drift = 1;
+ * stupor scores 1b = 2 and no ataxia; anarthria scores 1b = 1) and C5-F2 (a syndrome named for
+ * its signs is shown only with them). [total, items > 0, syndromes (with lesion side)]
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_m1@24': [19, { '1b': 2, '1c': 1, 2: 1, 3: 1, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1 }, ['gerstmann_l', 'mca_complete_l']],
-  'l_m1@2160': [14, { '1b': 2, '1c': 1, 3: 1, 4: 1, '5r': 2, '6r': 2, 8: 1, 9: 3, 10: 1 }, ['mca_complete_l']],
+  'l_m1@2160': [12, { '1b': 2, '1c': 1, 3: 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 3, 10: 1 }, ['mca_complete_l']], // C5-F1 drift: was 14 (5r 2, 6r 2)
   'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
-  'l_m1_thrombectomy@2160': [12, { '1b': 2, '1c': 1, 4: 1, '5r': 2, '6r': 2, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
+  'l_m1_thrombectomy@2160': [10, { '1b': 2, '1c': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']], // C5-F1 drift: was 12
   'r_m1_malignant@24': [17, { '1a': 1, 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  'r_m1_malignant@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
+  'r_m1_malignant@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
   'r_m1_decompression@24': [17, { '1a': 1, 2: 1, 3: 1, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  'r_m1_decompression@2160': [10, { 3: 1, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
+  'r_m1_decompression@2160': [9, { 3: 1, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 10 (6l 2)
   'r_ica_t@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  'r_ica_t@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
+  'r_ica_t@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
   'l_m2_sup@24': [13, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1 }, ['mca_superior_l']],
-  'l_m2_sup@2160': [6, { '1b': 1, 4: 1, '5r': 2, 8: 1, 9: 1 }, ['mca_superior_l']],
+  'l_m2_sup@2160': [5, { '1b': 1, 4: 1, '5r': 1, 8: 1, 9: 1 }, ['mca_superior_l']], // C5-F1 drift: was 6 (5r 2)
   'l_m2_inf@24': [7, { '1b': 2, '1c': 1, 3: 1, 9: 2, 10: 1 }, ['gerstmann_l', 'mca_inferior_l']],
   'l_m2_inf@2160': [6, { '1b': 2, '1c': 1, 3: 1, 9: 2 }, ['mca_inferior_l']],
   'tia_l_mca@24': [0, {}, []],
   'tia_l_mca@2160': [0, {}, []],
   'r_aca@24': [7, { '5l': 1, '6l': 4, 8: 1, 11: 1 }, ['aca_r', 'neglect_r']],
-  'r_aca@2160': [4, { '5l': 1, '6l': 2, 8: 1 }, ['aca_r', 'neglect_r']],
+  // C5-F1 drift: was 4 (6l 2); C5-F2: the neglect has resolved, so its label goes (aca_r stays)
+  'r_aca@2160': [3, { '5l': 1, '6l': 1, 8: 1 }, ['aca_r']],
   'l_acha@24': [12, { 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['acha_l']],
-  'l_acha@2160': [9, { 3: 2, 4: 1, '5r': 2, '6r': 2, 8: 1, 10: 1 }, ['acha_l']],
+  'l_acha@2160': [7, { 3: 2, 4: 1, '5r': 1, '6r': 1, 8: 1, 10: 1 }, ['acha_l']], // C5-F1 drift: was 9
   'l_lsa@24': [10, { 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['striatocapsular_l']],
-  'l_lsa@2160': [7, { 4: 1, '5r': 2, '6r': 2, 8: 1, 10: 1 }, ['striatocapsular_l']],
+  'l_lsa@2160': [5, { 4: 1, '5r': 1, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']], // C5-F1 drift: was 7
   'l_lacune@24': [10, { 4: 2, '5r': 4, '6r': 4 }, ['lacunar_pure_motor_l']],
-  'l_lacune@2160': [6, { 4: 1, '5r': 3, '6r': 2 }, ['lacunar_pure_motor_l']],
-  'l_thalamic@24': [3, { 7: 1, 8: 2 }, ['lacunar_pure_sensory_l', 'thalamic_sensory_l']],
-  'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['lacunar_pure_sensory_l', 'thalamic_sensory_l']],
-  'percheron@24': [5, { '1a': 2, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
+  'l_lacune@2160': [5, { 4: 1, '5r': 3, '6r': 1 }, ['lacunar_pure_motor_l']], // C5-F1 drift: was 6 (6r 2)
+  // C5-F2: with limb ataxia and involuntary movements it is not a pure sensory stroke
+  'l_thalamic@24': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
+  'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
+  // C5-F1: stuporous (1a = 2), so the questions score 2 and the ataxia is not scored (was 7: 2)
+  'percheron@24': [5, { '1a': 2, '1b': 2, 2: 1 }, ['thalamic_paramedian_bilateral']],
   'percheron@2160': [4, { '1a': 1, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
   'l_pca@24': [4, { 3: 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
   'l_pca@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   'basilar_tip@24': [36, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 1, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
-  'basilar_tip@2160': [21, { '1a': 2, '1b': 1, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']],
-  'basilar_mid@24': [23, { 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
-  'basilar_mid@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
+  'basilar_tip@2160': [22, { '1a': 2, '1b': 2, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']], // C5-F1 stupor: 1b 1 → 2
+  // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
+  'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
+  'basilar_mid@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
   'basilar_stuttering@24': [0, {}, []],
-  'basilar_stuttering@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']],
+  'basilar_stuttering@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in']], // C5-F1 anarthria: 1b = 1
   'r_wallenberg@24': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
   'r_wallenberg@2160': [2, { 7: 1, 8: 1 }, ['wallenberg_r']],
-  'r_pica@24': [3, { 2: 1, 7: 1, 8: 1 }, ['pica_cerebellar_r']],
-  'r_pica@2160': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r']],
+  // C5-F2: its lateral medullary signs (Horner, crossed pain/temperature loss) are named too
+  'r_pica@24': [3, { 2: 1, 7: 1, 8: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
+  'r_pica@2160': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
   'l_aica@24': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'l_aica@2160': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'r_sca@24': [5, { 2: 1, 7: 2, 8: 1, 10: 1 }, ['sca_r']],
   'r_sca@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['sca_r']],
   'l_pontine@24': [13, { 2: 2, 4: 2, '5r': 4, '6r': 4, 10: 1 }, ['foville_l']],
-  'l_pontine@2160': [9, { 2: 2, 4: 2, '5r': 2, '6r': 2, 7: 1 }, ['foville_l']],
+  'l_pontine@2160': [7, { 2: 2, 4: 2, '5r': 1, '6r': 1, 7: 1 }, ['foville_l']], // C5-F1 drift: was 9
   'r_pontine_lacune@24': [11, { 4: 2, '5l': 4, '6l': 4, 10: 1 }, ['pontine_lacunar_r']],
-  'r_pontine_lacune@2160': [7, { 4: 1, '5l': 3, '6l': 2, 10: 1 }, ['pontine_lacunar_r']],
+  'r_pontine_lacune@2160': [6, { 4: 1, '5l': 3, '6l': 1, 10: 1 }, ['pontine_lacunar_r']], // C5-F1 drift: was 7 (6l 2)
   'r_asa@24': [9, { '5l': 4, '6l': 4, 10: 1 }, ['dejerine_r']],
-  'r_asa@2160': [6, { '5l': 3, '6l': 2, 10: 1 }, ['dejerine_r']],
+  'r_asa@2160': [5, { '5l': 3, '6l': 1, 10: 1 }, ['dejerine_r']], // C5-F1 drift: was 6 (6l 2)
   'ica_silent@24': [0, {}, ['carotid_compensated_r']],
   'ica_silent@2160': [0, {}, ['carotid_compensated_r']],
   'ica_isolated@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['ica_territory_r', 'neglect_r']],
-  'ica_isolated@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']],
+  'ica_isolated@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
   'fetal_pca@24': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
   'fetal_pca@2160': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
-  'watershed@24': [7, { 4: 1, '5l': 2, '6l': 2, 8: 1, 10: 1 }, ['watershed_r']],
+  'watershed@24': [5, { 4: 1, '5l': 1, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']], // C5-F1 drift: was 7
+  // the border-zone infarct stays named, marked clinically silent (syndromeSigns.test.ts)
   'watershed@2160': [0, {}, ['watershed_r']],
   'subclavian_steal@24': [0, {}, ['subclavian_steal_l']],
   'subclavian_steal@2160': [0, {}, ['subclavian_steal_l']],

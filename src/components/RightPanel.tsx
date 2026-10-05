@@ -293,6 +293,11 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
               {preview.syndromes.slice(0, 3).map((s) => (
                 <div key={s.def.id + s.side} className="syndrome-mini">
                   {tr(s.def.name, lang)}
+                  {s.silent && (
+                    <span className="tag" title={t.syndromeSilentHint}>
+                      {t.syndromeSilent}
+                    </span>
+                  )}
                 </div>
               ))}
               <ul className="bullets">
@@ -624,6 +629,11 @@ function Results({ sim }: { sim: SimResult }) {
               <summary>
                 {s.side && <span className="side-tag">{s.side === 'r' ? (lang === 'en' ? 'R' : '右') : lang === 'en' ? 'L' : '左'}</span>}
                 {tr(s.def.name, lang)}
+                {s.silent && (
+                  <span className="tag" title={t.syndromeSilentHint}>
+                    {t.syndromeSilent}
+                  </span>
+                )}
               </summary>
               <p>{tr(s.def.desc, lang)}</p>
             </details>

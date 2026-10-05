@@ -848,6 +848,8 @@ export function simulate(input: SimInput): SimResult {
   const occl = new Set(episode.active.filter((o) => o.severity >= 1).map((o) => o.vessel));
   const rev = new Set(episodeHemo.reversed);
   const idOf = (base: string, side?: Side | 'm') => (side && side !== 'm' ? `${base}_${side}` : base);
+  // the region rules read the primary vascular pattern; a label named for its signs also needs
+  // them in the symptom list just computed
   const syndromes = detectSyndromes({
     f: (base, side) => rPrim[`${base}_${side}`] ?? 0,
     has: (base, side, thr = 0.25) => (rPrim[`${base}_${side}`] ?? 0) >= thr,
@@ -875,7 +877,7 @@ export function simulate(input: SimInput): SimResult {
     cortexCount: (side, thr = 0.2) =>
       REGIONS.filter((r) => r.side === side && r.category === 'cortex' && rPrim[r.id] >= thr).length,
     map: input.map,
-  });
+  }, symptoms);
 
   // ── volumes ──
   let core = 0;

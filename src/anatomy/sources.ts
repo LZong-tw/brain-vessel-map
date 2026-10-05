@@ -137,6 +137,7 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Wanklyn P, Forster A, Young J, Mulley G. Prevalence and associated features of the cold hemiplegic arm. Stroke 1995;26:1867–1870.',
   'Xi Z, Luning W. REM sleep behavior disorder in a patient with pontine stroke. Sleep Med 2009;10:143–146. (Case report.)',
   // ── audit (chain A: cortex, deep structures, medulla and cerebellum, late and non-motor, NIHSS rules) ──
+  'Torab-Miandoab A, Samad-Soltani T, Shams-Vahdati S, Rezaei-Hachesu P. An intelligent system for improving adherence to guidelines on acute stroke. Turk J Emerg Med 2020;20:118–134. (Appendix 3 reproduces the NIH Stroke Scale instructions behind the item rules: drift, stupor, anarthria, ataxia, bilateral brainstem sensory loss.)',
   // ── flow, tissue and clinical model ──
   'Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)',
   'Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.',

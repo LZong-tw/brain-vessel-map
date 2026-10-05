@@ -3,6 +3,14 @@
  * which vessel is blocked — the same vessel can produce different syndromes depending on
  * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Fiester et al.,
  * RadioGraphics 2019 (brainstem syndromes); Schmahmann, Stroke 2003 (thalamus).
+ *
+ * Two kinds of label. One named for its signs (neglect, Wallenberg, pure sensory stroke,
+ * locked-in …) also needs those signs in the symptom list shown at the same time (`requires`):
+ * the regions alone do not decide it, because weeks later spared pathways may have taken a sign
+ * over while the region stays damaged, and the region rules use their own thresholds. One named
+ * for the vascular pattern of the damaged tissue (a territory, a watershed infarct: `pattern`)
+ * stays while the tissue is damaged, and is marked clinically silent when no symptom from that
+ * side is left.
  * TODO(medical-review)
  */
 
@@ -23,6 +31,16 @@ export interface SyndromeCtx {
   map: number;
 }
 
+/** What the symptom list shown at the same time contains (for the signs a label needs). */
+export interface SymptomQuery {
+  /** present at all */
+  has(id: string): boolean;
+  /** present on this body side (a symptom of both sides counts for each) */
+  on(id: string, bodySide: Side): boolean;
+  /** produced by a region on this side of the brain (for symptoms without a body side) */
+  from(id: string, lesionSide: Side): boolean;
+}
+
 export type SyndromeGroup = 'anterior' | 'posterior' | 'brainstem' | 'cerebellar' | 'lacunar' | 'watershed' | 'other';
 
 export interface SyndromeDef {
@@ -33,9 +51,25 @@ export interface SyndromeDef {
   /** evaluated per side (lesion side) */
   lateral: boolean;
   test: (c: SyndromeCtx, side: Side) => boolean;
+  /**
+   * a label named for its signs: those signs must be in the symptom list shown at the same time
+   * (`side` is the lesion side; 'r' for labels that are not lateral)
+   */
+  requires?: (q: SymptomQuery, side: Side) => boolean;
+  /**
+   * a label named for the vascular pattern of the damaged tissue (territory, watershed): it stays
+   * while the tissue is damaged and is marked clinically silent when no symptom from that side
+   * (from any region, for a bilateral label) is left
+   */
+  pattern?: boolean;
   /** hides these syndromes when this one matches on the same side */
   supersedes?: string[];
 }
+
+const other = (s: Side): Side => (s === 'r' ? 'l' : 'r');
+/** any weakness or incoordination of a body side: what a "pure sensory" stroke does not have */
+const MOTOR_OR_ATAXIC = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'ataxia_limb', 'movement_disorder'];
+const weakOn = (q: SymptomQuery, bodySide: Side) => ['arm_weak', 'leg_weak'].some((id) => q.on(id, bodySide));
 
 const MCA_CORTEX = [
   'precentral_face_arm',
@@ -55,6 +89,7 @@ export const SYNDROMES: SyndromeDef[] = [
   // ─────────────── anterior circulation ───────────────
   {
     id: 'ica_territory',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '內頸動脈供應區梗塞（前＋中大腦動脈區）', en: 'ICA-territory infarction (ACA + MCA territories)' },
@@ -67,6 +102,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'mca_complete',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '完全性中大腦動脈症候群（M1）', en: 'Complete MCA syndrome (M1)' },
@@ -79,6 +115,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'mca_superior',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '中大腦動脈上分支症候群', en: 'MCA superior-division syndrome' },
@@ -93,6 +130,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'mca_inferior',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '中大腦動脈下分支症候群', en: 'MCA inferior-division syndrome' },
@@ -105,6 +143,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'aca',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '前大腦動脈症候群', en: 'ACA syndrome' },
@@ -116,6 +155,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'aca_bilateral',
+    pattern: true,
     group: 'anterior',
     lateral: false,
     name: { zh: '雙側前大腦動脈梗塞', en: 'Bilateral ACA infarction' },
@@ -127,6 +167,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'acha',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '前脈絡叢動脈症候群', en: 'Anterior choroidal artery syndrome' },
@@ -146,6 +187,8 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Left angular gyrus tetrad: agraphia, acalculia, finger agnosia and left–right confusion, often with alexia.',
     },
     test: (c, s) => s === 'l' && c.has('angular', 'l', 0.4),
+    // the modelled parts of the tetrad (left–right confusion is not a separate symptom)
+    requires: (q) => ['agraphia', 'acalculia', 'finger_agnosia'].every((id) => q.from(id, 'l')),
   },
   {
     id: 'neglect',
@@ -157,11 +200,13 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Ignores the left side of space and body, denies the paralysis (anosognosia), dressing and constructional apraxia. Patients often feel nothing is wrong — a major cause of falls and poor rehabilitation.',
     },
     test: (c, s) => s === 'r' && c.hasAny(['angular', 'supramarginal', 'superior_parietal'], 'r', 0.35),
+    requires: (q) => q.from('neglect', 'r'),
   },
 
   // ─────────────── posterior cerebral ───────────────
   {
     id: 'pca',
+    pattern: true,
     group: 'posterior',
     lateral: true,
     name: { zh: '後大腦動脈皮質症候群', en: 'PCA cortical syndrome' },
@@ -220,6 +265,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'thalamic_paramedian_bilateral',
+    pattern: true,
     group: 'posterior',
     lateral: false,
     name: { zh: '雙側視丘旁正中梗塞（Percheron 動脈）', en: 'Bilateral paramedian thalamic infarction (artery of Percheron)' },
@@ -232,6 +278,7 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'top_of_basilar',
+    pattern: true,
     group: 'posterior',
     lateral: false,
     name: { zh: '基底動脈頂端症候群', en: 'Top-of-the-basilar syndrome' },
@@ -267,6 +314,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral tremor, involuntary movements and ataxia are added (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
     },
     test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25),
+    requires: (q, s) => q.on('cn3_palsy', s) && ['face_weak', 'arm_weak', 'leg_weak'].some((id) => q.on(id, other(s))),
     supersedes: ['claude'],
   },
   {
@@ -279,6 +327,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis.',
     },
     test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3),
+    requires: (q, s) => q.on('cn3_palsy', s) && ['ataxia_limb', 'tremor'].some((id) => q.on(id, other(s))),
   },
   {
     id: 'parinaud',
@@ -303,7 +352,27 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking (controlled by the midbrain). Horizontal gaze is usually lost too, because the abducens nuclei and PPRF lie in the adjacent pontine tegmentum. Sensation is usually preserved; it can be partly affected when the lesion extends into the tegmentum. Typical of mid-basilar occlusion; easily mistaken for coma.',
     },
     test: (c) => c.both('pons_rostral_basis', 0.4) || c.both('pons_caudal_basis', 0.4),
-    supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'],
+    requires: (q) => q.has('anarthria') && weakOn(q, 'r') && weakOn(q, 'l'),
+    supersedes: ['locked_in_incomplete', 'pontine_ventral', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'],
+  },
+  {
+    // Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol
+    // 1979;221:77-91 (PMID 92545): classical locked-in is total immobility except vertical eye
+    // movements and blinking; any other movement left makes it incomplete. Both ventral pontine
+    // halves damaged from the threshold at which their bilateral signs (anarthria, weakness on
+    // both sides) appear, but less than the classical rule needs: one bilateral picture, not two
+    // crossed syndromes.
+    id: 'locked_in_incomplete',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '雙側橋腦腹側梗塞（不完全閉鎖症候群）', en: 'Bilateral ventral pontine infarction (incomplete locked-in syndrome)' },
+    desc: {
+      zh: '兩側橋腦腹側都受損，但沒有典型閉鎖症候群那麼完全：不能說話、吞嚥困難、四肢無力，卻仍留有一些肢體或水平眼球的動作，常合併兩側外展神經麻痺。除了垂直眼動與眨眼之外還能做其他動作，就稱為「不完全」閉鎖症候群（Bauer 1979）。不是兩個單側的交叉性症候群。',
+      en: 'Both halves of the ventral pons are damaged, but less completely than in classical locked-in syndrome: no speech, difficulty swallowing and weakness of all four limbs, yet some limb or horizontal eye movement remains, often with abducens palsies on both sides. Any movement beyond vertical eye movements and blinking makes it an "incomplete" locked-in syndrome (Bauer 1979). It is not two one-sided crossed syndromes.',
+    },
+    test: (c) => c.both('pons_rostral_basis', 0.25) || c.both('pons_caudal_basis', 0.25),
+    requires: (q) => q.has('anarthria') && weakOn(q, 'r') && weakOn(q, 'l'),
+    supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville'],
   },
   {
     id: 'pontine_ventral',
@@ -314,7 +383,10 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '同側外展神經麻痺（眼睛無法向外轉）±同側周邊型顏面麻痺＋對側偏癱。',
       en: 'Ipsilateral abducens palsy (eye cannot turn out) ± ipsilateral peripheral facial palsy + contralateral hemiplegia.',
     },
-    test: (c, s) => c.has('pons_caudal_basis', s, 0.3) && !c.has('pons_caudal_basis', s === 'r' ? 'l' : 'r', 0.4),
+    // one-sided: the other half counts as involved from the threshold at which the bilateral
+    // signs appear (then the lesion is bilateral: locked_in_incomplete)
+    test: (c, s) => c.has('pons_caudal_basis', s, 0.3) && !c.has('pons_caudal_basis', other(s), 0.25),
+    requires: (q, s) => weakOn(q, other(s)),
     supersedes: ['pontine_lacunar'],
   },
   {
@@ -339,6 +411,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Abducens nucleus/PPRF plus MLF: neither eye looks towards the lesion, and looking away only the opposite eye abducts ("one-and-a-half"); add the ipsilateral facial genu and it becomes "eight-and-a-half" (1½ + 7). No limb weakness.',
     },
     test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && !c.has('pons_caudal_basis', s, 0.3),
+    requires: (q, s) => q.on('gaze_palsy_horizontal', s),
   },
   {
     id: 'pontine_lacunar',
@@ -387,7 +460,11 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群、同側肢體運動失調、「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺），通常沒有明顯無力。最常見原因是椎動脈（而非單純 PICA）阻塞或剝離。',
       en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, and "crossed" sensory loss (pain/temperature on the same-side face and opposite body), usually without weakness. Most often due to vertebral (not isolated PICA) occlusion or dissection.',
     },
-    test: (c, s) => c.has('medulla_lateral', s, 0.3),
+    // the region threshold is the one the symptoms use (0.25), so that a lateral medulla whose
+    // signs are listed (e.g. behind a PICA occlusion) is also named; the label needs the crossed
+    // sensory loss with an ipsilateral Horner or facial pain/temperature loss
+    test: (c, s) => c.has('medulla_lateral', s, 0.25),
+    requires: (q, s) => q.on('pain_temp_body', other(s)) && (q.on('horner', s) || q.on('pain_temp_face', s)),
   },
   {
     id: 'dejerine',
@@ -440,6 +517,7 @@ export const SYNDROMES: SyndromeDef[] = [
   // ─────────────── lacunar (supratentorial) ───────────────
   {
     id: 'striatocapsular',
+    pattern: true,
     group: 'lacunar',
     lateral: true,
     name: { zh: '紋狀體內囊梗塞', en: 'Striatocapsular infarction' },
@@ -479,6 +557,9 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Small infarct in the ventral posterior thalamus: numbness of the opposite half of the body without weakness.',
     },
     test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
+    // "pure": no weakness, ataxia or involuntary movement on that body side (with them, the
+    // thalamic sensory syndrome describes it)
+    requires: (q, s) => !MOTOR_OR_ATAXIC.some((id) => q.on(id, other(s))),
   },
   {
     id: 'lacunar_sensorimotor',
@@ -496,6 +577,7 @@ export const SYNDROMES: SyndromeDef[] = [
   // ─────────────── watershed & haemodynamic ───────────────
   {
     id: 'watershed',
+    pattern: true,
     group: 'watershed',
     lateral: true,
     name: { zh: '分水嶺（邊界區）缺血', en: 'Watershed (border-zone) ischaemia' },

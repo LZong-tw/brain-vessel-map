@@ -65,6 +65,8 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 
 ### 臨床細節審查（A）· Clinical-detail audit (A): cortex, deep structures, medulla and cerebellum, late and non-motor, NIHSS
 
+- Torab-Miandoab A, Samad-Soltani T, Shams-Vahdati S, Rezaei-Hachesu P. An intelligent system for improving adherence to guidelines on acute stroke. Turk J Emerg Med 2020;20:118–134. (Appendix 3 reproduces the NIH Stroke Scale instructions behind the item rules: drift, stupor, anarthria, ataxia, bilateral brainstem sensory loss.)
+
 ### 血流、組織與臨床模型 · Flow, tissue and clinical model
 
 - Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)

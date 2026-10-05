@@ -6,7 +6,7 @@ import { REGIONS, REGION_BY_ID } from '../anatomy';
 import type { NihssItem, Side } from '../anatomy';
 import { REGION_DEFS } from '../anatomy/regions';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
-import { SYNDROMES, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
+import { SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
 import { indexById } from '../anatomy/indexById';
 import { lesionSides, symptomCompensation } from './recovery';
 import type { SymptomRecovery } from './recoveryTypes';
@@ -37,6 +37,12 @@ export interface NihssResult {
 export interface SyndromeMatch {
   def: SyndromeDef;
   side: Side | null;
+  /**
+   * a label named for its vascular pattern (`def.pattern`) whose side has no symptom left (for a
+   * bilateral label: no symptom from any region): the tissue is still damaged, but clinically
+   * silent — compensated, or never noticeable
+   */
+  silent?: true;
 }
 
 const DEF_BY_BASE = indexById(REGION_DEFS, (d) => d.id);
@@ -185,6 +191,13 @@ export function aggregateSymptoms(
   return [...map.values()];
 }
 
+/**
+ * The item rules follow the NIH Stroke Scale instructions (reproduced in Torab-Miandoab A et al.
+ * Turk J Emerg Med 2020;20:118-134, Appendix 3; PMID 32832731): 1b scores 2 for aphasic and
+ * stuporous patients who do not comprehend and 1 for those unable to speak because of severe
+ * dysarthria; ataxia (7) is absent in a patient who cannot understand or is paralysed; a
+ * brainstem stroke with bilateral loss of sensation scores 2 on item 8.
+ */
 export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]): NihssResult {
   const items: Record<string, number> = {};
   const set = (k: string, v: number, cap: number) => (items[k] = Math.min(cap, Math.max(items[k] ?? 0, v)));
@@ -193,7 +206,10 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
     return n ? n.pts[sev - 1] : 0;
   };
   const armSide = { r: 0, l: 0 };
+  const legSide = { r: 0, l: 0 };
   const ataxia = { r: 0, l: 0 };
+  /** body sides with pinprick-type (item 8) loss that comes from the brainstem alone */
+  const brainstemSensory = new Set<Side>();
   for (const s of symptoms) {
     if (s.delayed) continue;
     const n = SYMPTOM_BY_ID[s.id]?.nihss;
@@ -208,7 +224,10 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
         }
         break;
       case '6':
-        for (const sd of sides) set(`6${sd}`, p, 4);
+        for (const sd of sides) {
+          set(`6${sd}`, p, 4);
+          legSide[sd] = Math.max(legSide[sd], p);
+        }
         break;
       case '7':
         // item 7 counts limbs: arm and leg on the same side score 2
@@ -228,6 +247,8 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
         break;
       case '8':
         set('8', p, 2);
+        if (s.sources.length > 0 && s.sources.every((src) => REGION_BY_ID[src]?.category === 'brainstem'))
+          for (const sd of sides) brainstemSensory.add(sd);
         break;
       case '9':
         set('9', p, 3);
@@ -242,13 +263,21 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
         break;
     }
   }
-  // limb ataxia is scored only if out of proportion to weakness
-  const ax = (['r', 'l'] as Side[]).reduce((a, sd) => a + (armSide[sd] >= 3 ? 0 : ataxia[sd]), 0);
+  const has = (id: string) => symptoms.some((s) => s.id === id && !s.delayed);
+  // limb ataxia is scored only if out of proportion to weakness, and is absent in a patient who
+  // cannot understand or is paralysed: not on a side whose arm cannot move against gravity or
+  // whose leg cannot move at all, and not at all in a stuporous patient (1a ≥ 2, who cannot do
+  // the finger-nose test) or one with global or Wernicke aphasia (who cannot follow it)
+  const cannotCooperate = (items['1a'] ?? 0) >= 2 || has('aphasia_global') || has('aphasia_wernicke');
+  const ax = cannotCooperate
+    ? 0
+    : (['r', 'l'] as Side[]).reduce((a, sd) => a + (armSide[sd] >= 3 || legSide[sd] >= 4 ? 0 : ataxia[sd]), 0);
   if (ax) set('7', ax, 2);
+  // a brainstem stroke with loss of (pinprick) sensation on both sides scores 2
+  if (brainstemSensory.size === 2) set('8', 2, 2);
   // hemianopia on both sides without explicit cortical blindness
   if (symptoms.filter((s) => s.id === 'hemianopia').length >= 2) set('3', 3, 3);
   // questions / commands depend on language and consciousness
-  const has = (id: string) => symptoms.some((s) => s.id === id && !s.delayed);
   if (has('aphasia_global')) {
     set('1b', 2, 2);
     set('1c', 1, 2);
@@ -258,6 +287,13 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   } else if (has('aphasia_broca') || has('aphasia_tc_sensory')) {
     set('1b', 1, 2);
   }
+  // a stuporous patient does not comprehend the questions: 2. The scale gives no such rule for
+  // the commands (1c), which can still be shown by pantomime, so 1c keeps what language gives it.
+  if ((items['1a'] ?? 0) === 2) set('1b', 2, 2);
+  // unable to answer aloud because speech is unintelligible or absent (item 10 = 2: severe
+  // dysarthria or anarthria): 1. Eye opening and closing still works as a command, so 1c is not
+  // touched (a locked-in patient can follow it).
+  if ((items['10'] ?? 0) >= 2) set('1b', 1, 2);
   if ((items['1a'] ?? 0) >= 3) {
     Object.assign(items, { '1b': 2, '1c': 2, '5r': 4, '5l': 4, '6r': 4, '6l': 4, '7': 0, '8': 2, '9': 3, '10': 2, '11': 2 });
   }
@@ -271,19 +307,40 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   return { total, items, category, posteriorCaveat: posterior && total <= 6, uncaptured: total === 0 && symptoms.length > 0 };
 }
 
-export function detectSyndromes(ctx: SyndromeCtx): SyndromeMatch[] {
+/** The symptom list as the syndrome rules ask about it (see SymptomQuery). */
+export function symptomQuery(symptoms: SymptomItem[]): SymptomQuery {
+  return {
+    has: (id) => symptoms.some((s) => s.id === id),
+    on: (id, side) => symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both')),
+    from: (id, side) => symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side)),
+  };
+}
+
+/**
+ * Named syndromes: the region rules (on the primary vascular dysfunction), gated for a label
+ * named for its signs by those signs being in `symptoms` (shown at the same time); a label named
+ * for its vascular pattern is marked silent when no symptom from its side is left.
+ */
+export function detectSyndromes(ctx: SyndromeCtx, symptoms: SymptomItem[] = []): SyndromeMatch[] {
+  const q = symptomQuery(symptoms);
+  const signs = (def: SyndromeDef, s: Side) => !def.requires || def.requires(q, s);
   const found: SyndromeMatch[] = [];
   for (const def of SYNDROMES) {
     if (def.lateral) {
-      for (const s of ['r', 'l'] as Side[]) if (def.test(ctx, s)) found.push({ def, side: s });
-    } else if (def.test(ctx, 'r')) {
+      for (const s of ['r', 'l'] as Side[]) if (def.test(ctx, s) && signs(def, s)) found.push({ def, side: s });
+    } else if (def.test(ctx, 'r') && signs(def, 'r')) {
       found.push({ def, side: null });
     }
   }
-  return found.filter(
-    (m) =>
-      !found.some(
-        (o) => o !== m && o.def.supersedes?.includes(m.def.id) && (o.side === m.side || o.side === null || m.side === null),
-      ),
-  );
+  // a symptom produced by a region on that side (any region, for a bilateral label)
+  const fromSide = (side: Side | null) =>
+    symptoms.some((s) => s.sources.some((src) => !!REGION_BY_ID[src] && (side === null || REGION_BY_ID[src].side === side)));
+  return found
+    .filter(
+      (m) =>
+        !found.some(
+          (o) => o !== m && o.def.supersedes?.includes(m.def.id) && (o.side === m.side || o.side === null || m.side === null),
+        ),
+    )
+    .map((m) => (m.def.pattern && !fromSide(m.side) ? { ...m, silent: true as const } : m));
 }

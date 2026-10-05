@@ -3,8 +3,12 @@
  *
  * NIHSS mapping: `pts` gives the item score for [mild, moderate, severe] involvement.
  * These are EDUCATIONAL approximations used to illustrate relative severity; the real
- * NIHSS is a bedside examination and cannot be derived from a lesion map.
- * Reference: Brott T, et al. Stroke. 1989;20:864-870.
+ * NIHSS is a bedside examination and cannot be derived from a lesion map. The rules that tie
+ * items to each other (stupor, anarthria, ataxia, bilateral sensory loss) are in
+ * estimateNihss (src/engine/clinical.ts).
+ * Reference: Brott T, et al. Stroke. 1989;20:864-870. Item definitions and scoring rules: the NIH
+ * Stroke Scale instructions, reproduced in Torab-Miandoab A et al. Turk J Emerg Med
+ * 2020;20:118-134, Appendix 3 (PMID 32832731).
  */
 
 import type { SymptomDef } from './types';
@@ -70,7 +74,9 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'motor',
     lateralised: true,
     sideWord: 'body',
-    nihss: { item: '5', pts: [2, 3, 4] },
+    // NIHSS 5: 1 = drift, 2 = some effort against gravity, 3 = none, 4 = no movement. The mildest
+    // grade is drift, so it scores 1; moderate (no effort against gravity) 3; plegic 4.
+    nihss: { item: '5', pts: [1, 3, 4] },
   },
   {
     id: 'arm_weak_proximal',
@@ -94,7 +100,8 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'motor',
     lateralised: true,
     sideWord: 'body',
-    nihss: { item: '6', pts: [2, 3, 4] },
+    // NIHSS 6, graded like the arm (1 = drift … 4 = no movement)
+    nihss: { item: '6', pts: [1, 3, 4] },
   },
   {
     id: 'hand_clumsy',

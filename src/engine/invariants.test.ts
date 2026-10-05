@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { REGION_BY_ID } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
+import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { aggregateSymptoms } from './clinical';
-import { simulate, type SimInput } from './simulate';
+import type { CollateralGrade, Occlusion } from './hemodynamics';
+import { simulate, type SimInput, type SimResult } from './simulate';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
 
@@ -89,3 +92,130 @@ describe('output invariants', () => {
   });
 });
 
+
+/**
+ * Named syndromes and cascade events must agree with the symptom list shown at the same time:
+ * a syndrome named for its signs only with those signs, a label named for the vascular pattern
+ * marked clinically silent when no symptom from its side is left, an event that adds a symptom
+ * together with it, and a bilateral lesion as one bilateral picture rather than two one-sided
+ * crossed syndromes.
+ */
+describe('syndromes and events agree with the symptoms', () => {
+  /** every scenario at every displayed time, plus single occlusions that reach the gated labels */
+  const EXTRA: [string, Occlusion[], CollateralGrade][] = [
+    ['aca_a2_r poor', [{ vessel: 'aca_a2_r', severity: 1 }], 'poor'],
+    ['aca_pericallosal_r moderate', [{ vessel: 'aca_pericallosal_r', severity: 1 }], 'moderate'],
+    ['mca_post_parietal_r poor', [{ vessel: 'mca_post_parietal_r', severity: 1 }], 'poor'],
+    ['pica_l moderate', [{ vessel: 'pica_l', severity: 1 }], 'moderate'],
+    ['va_v4_dist_l', [{ vessel: 'va_v4_dist_l', severity: 1 }], 'good'],
+    ['thalamogeniculate_r', [{ vessel: 'thalamogeniculate_r', severity: 1 }], 'good'],
+    ['thalamogeniculate_r lacune', [{ vessel: 'thalamogeniculate_r', severity: 1, branch: true }], 'good'],
+    ['pca_p2_r + pca_p2_l', [{ vessel: 'pca_p2_r', severity: 1 }, { vessel: 'pca_p2_l', severity: 1 }], 'good'],
+    ['basilar_lower good', [{ vessel: 'basilar_lower', severity: 1 }], 'good'],
+    ['basilar_lower poor', [{ vessel: 'basilar_lower', severity: 1 }], 'poor'],
+    ['basilar_upper', [{ vessel: 'basilar_upper', severity: 1 }], 'moderate'],
+    [
+      'both caudal pontine perforator groups',
+      [
+        { vessel: 'pontine_paramedian_caudal_r', severity: 1 },
+        { vessel: 'pontine_paramedian_caudal_l', severity: 1 },
+      ],
+      'good',
+    ],
+    ['pontine_paramedian_caudal_r lacune', [{ vessel: 'pontine_paramedian_caudal_r', severity: 1, branch: true }], 'good'],
+    ['pontine_circumferential_l', [{ vessel: 'pontine_circumferential_l', severity: 1 }], 'good'],
+    ['mesencephalic_perf_l', [{ vessel: 'mesencephalic_perf_l', severity: 1 }], 'good'],
+    ['brachiocephalic moderate', [{ vessel: 'brachiocephalic', severity: 1 }], 'moderate'],
+  ];
+  const STOPS = TIME_STOPS.map((s) => s.h);
+  const memo = new Map<string, SimResult[]>();
+  const series = (name: string): SimResult[] => {
+    let got = memo.get(name);
+    if (!got) {
+      const extra = EXTRA.find((e) => e[0] === name);
+      got = STOPS.map((tH) =>
+        extra
+          ? simulate({ occlusions: extra[1], variants: [], collateral: extra[2], map: 93, tH, reperfusionH: null, decompression: false })
+          : simulate(inputOf(name, { tH })),
+      );
+      memo.set(name, got);
+    }
+    return got;
+  };
+  const CASES = [...SCENARIOS.map((s) => s.id), ...EXTRA.map((e) => e[0])].map((n) => [n]);
+
+  /** the same questions the engine asks, answered here from the symptom list itself */
+  const query = (r: SimResult): SymptomQuery => ({
+    has: (id) => r.symptoms.some((s) => s.id === id),
+    on: (id, side) => r.symptoms.some((s) => s.id === id && (s.side === side || s.side === 'both')),
+    from: (id, side) => r.symptoms.some((s) => s.id === id && s.sources.some((src) => REGION_BY_ID[src]?.side === side)),
+  });
+  /** a symptom produced by a region on this side (lateral labels) or by any region (bilateral ones) */
+  const anyFrom = (r: SimResult, side: 'r' | 'l' | null) =>
+    r.symptoms.some((s) => s.sources.some((src) => REGION_BY_ID[src] && (side === null || REGION_BY_ID[src].side === side)));
+
+  it('the syndromes named for their signs carry the signs they need', () => {
+    const gated = SYNDROMES.filter((d) => d.requires).map((d) => d.id);
+    expect(gated).toEqual(
+      expect.arrayContaining([
+        'neglect',
+        'gerstmann',
+        'wallenberg',
+        'lacunar_pure_sensory',
+        'locked_in',
+        'locked_in_incomplete',
+        'pontine_ventral',
+        'one_and_half',
+        'weber_benedikt',
+        'claude',
+      ]),
+    );
+    // a label is either named for its signs or for its vascular pattern
+    for (const d of SYNDROMES) expect(!!d.requires && !!d.pattern, d.id).toBe(false);
+  });
+
+  it.each(CASES)('%s: every shown syndrome named for its signs has them, at every time', (name) => {
+    series(name).forEach((r, i) => {
+      for (const m of r.syndromes) {
+        if (!m.def.requires) continue;
+        expect(m.def.requires(query(r), m.side ?? 'r'), `${name} ${STOPS[i]} h: ${m.def.id}_${m.side ?? ''}`).toBe(true);
+      }
+    });
+  });
+
+  it.each(CASES)('%s: a pattern label is marked silent exactly when no symptom from its side is left', (name) => {
+    series(name).forEach((r, i) => {
+      for (const m of r.syndromes) {
+        const where = `${name} ${STOPS[i]} h: ${m.def.id}_${m.side ?? ''}`;
+        if (m.def.pattern) expect(m.silent ?? false, where).toBe(!anyFrom(r, m.side));
+        else expect(m.silent ?? false, where).toBe(false);
+      }
+    });
+  });
+
+  it.each(CASES)('%s: no bilateral lesion is named as two one-sided crossed pontine syndromes', (name) => {
+    series(name).forEach((r, i) => {
+      for (const id of ['pontine_ventral', 'pontine_lacunar', 'foville']) {
+        const sides = r.syndromes.filter((m) => m.def.id === id).map((m) => m.side);
+        expect(sides.length, `${name} ${STOPS[i]} h: ${id} ${sides.join('+')}`).toBeLessThan(2);
+      }
+    });
+  });
+
+  it.each(CASES)('%s: every active cascade event that adds a symptom has it in the symptom list', (name) => {
+    series(name).forEach((r, i) => {
+      const tH = STOPS[i];
+      for (const e of r.cascade.events) {
+        if (!e.symptoms || e.onsetH > tH || tH >= (e.endH ?? Infinity)) continue;
+        for (const s of e.symptoms) {
+          // drowsiness is listed as coma when the patient is also comatose
+          const ids = s.id === 'somnolence' ? ['somnolence', 'coma'] : [s.id];
+          expect(
+            r.symptoms.some((x) => ids.includes(x.id)),
+            `${name} ${tH} h: event ${e.id} adds ${s.id}`,
+          ).toBe(true);
+        }
+      }
+    });
+  });
+});

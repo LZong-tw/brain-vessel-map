@@ -195,6 +195,16 @@ describe('最終 tab', () => {
     expect(line.textContent).toContain(lockedIn!.def.name.zh);
   });
 
+  it('marks a vascular-pattern label with no symptom left as clinically silent (watershed at 6 months)', () => {
+    useApp.getState().loadScenario('watershed');
+    useApp.setState({ rightTab: 'final' });
+    const ws = at6m().syndromes.find((s) => s.def.id === 'watershed');
+    expect(ws?.silent).toBe(true);
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const line = container.querySelector('.outcome-syndromes') as HTMLElement;
+    expect(line.textContent).toContain(`${ws!.def.name.zh}（臨床無症狀）`);
+  });
+
   it('says so when a TIA leaves nothing behind', () => {
     useApp.getState().loadScenario('tia_l_mca');
     useApp.setState({ rightTab: 'final' });

@@ -182,7 +182,9 @@ export function FinalOutcome() {
           <p className="outcome-syndromes small">
             {t.syndromes}
             {lang === 'en' ? ': ' : '：'}
-            {shown.syndromes.map((s) => tr(s.def.name, lang)).join(lang === 'en' ? '; ' : '、')}
+            {shown.syndromes
+              .map((s) => tr(s.def.name, lang) + (s.silent ? (lang === 'en' ? ` (${t.syndromeSilent})` : `（${t.syndromeSilent}）`) : ''))
+              .join(lang === 'en' ? '; ' : '、')}
           </p>
         )}
         {DEFICIT_GROUPS.filter((g) => deficits[g].length > 0).map((g) => (

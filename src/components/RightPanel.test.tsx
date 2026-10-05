@@ -76,3 +76,32 @@ describe('effect-only regions in the affected-regions list', () => {
     expect(shown).toBe(regionAffectedPct(sim.regions.cerebellum_superior_r));
   });
 });
+
+describe('named syndromes', () => {
+  const at = (scenarioOcc: { vessel: string; severity: number }[], tH: number, map: number) =>
+    simulate({ occlusions: scenarioOcc, variants: [], map, collateral: 'good', tH, reperfusionH: null, decompression: false });
+
+  it('tags a vascular-pattern label whose side has no symptom left as clinically silent, in both languages', () => {
+    // the watershed teaching case: right ICA stenosis with low blood pressure
+    const occlusions = [{ vessel: 'ica_cervical_r', severity: 0.85 }];
+    const late = at(occlusions, 2160, 60);
+    expect(late.syndromes.find((s) => s.def.id === 'watershed')?.silent).toBe(true);
+    useApp.setState({ occlusions, map: 60, rightTab: 'now', tIndex: tIndexFor(2160), lang: 'zh-TW' });
+    const { container } = render(<RightPanel sim={late} />);
+    const box = container.querySelector('details.syndrome') as HTMLElement;
+    expect(within(box).getByText('臨床無症狀').getAttribute('title')).toContain('這一側已沒有可察覺的症狀');
+    cleanup();
+
+    useApp.setState({ lang: 'en' });
+    const en = render(<RightPanel sim={late} />);
+    expect(within(en.container.querySelector('details.syndrome') as HTMLElement).getByText('clinically silent')).toBeTruthy();
+    cleanup();
+
+    // the acute stage has symptoms: no tag
+    const early = at(occlusions, 24, 60);
+    useApp.setState({ lang: 'zh-TW', tIndex: tIndexFor(24) });
+    const acute = render(<RightPanel sim={early} />);
+    expect(early.syndromes.some((s) => s.def.id === 'watershed')).toBe(true);
+    expect(within(acute.container.querySelector('details.syndrome') as HTMLElement).queryByText('臨床無症狀')).toBeNull();
+  });
+});
