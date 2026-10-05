@@ -1351,7 +1351,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
   const swallowing = REGIONS.filter((r) => affects(r, ['dysphagia'])).map((r) => r.id);
   const drowsy = REGIONS.some((r) => affects(r, ['coma', 'somnolence']));
-  const dysphagiaRisk = swallowing.length > 0 || drowsy || vol.supra.r + vol.supra.l > 60 || lockedIn;
+  // a TIA (blood back before any tissue died) leaves no swallowing problem or immobility behind:
+  // its symptoms clear when the flow returns, so the complications of a lasting deficit (aspiration,
+  // venous thrombosis) are not told for it; ischaemia that lasts without infarction keeps them
+  const tia = noInfarct && input.flowReturnsH != null;
+  const dysphagiaRisk = !tia && (swallowing.length > 0 || drowsy || vol.supra.r + vol.supra.l > 60 || lockedIn);
   if (dysphagiaRisk) {
     events.push({
       id: 'aspiration',
@@ -1418,7 +1422,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const legWeak = ['paracentral', 'ic_posterior_limb', 'midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis', 'medulla_medial'].some(
     (b) => acute(`${b}_r`) || acute(`${b}_l`),
   );
-  if (legWeak || lockedIn) {
+  if (!tia && (legWeak || lockedIn)) {
     events.push({
       id: 'dvt',
       kind: 'complication',

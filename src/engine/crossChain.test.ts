@@ -141,3 +141,27 @@ describe('SeLECT predictors (C4-F4) with the larger PCA infarct (C1-F3)', () => 
     expect(scenario('l_m1', 720).cascade.events.find((e) => e.id === 'seizure_late')!.desc.en).toMatch(/territory of the middle cerebral artery;/);
   });
 });
+
+describe('a TIA carries no complications of a lasting deficit (C1-F4 with the TIA story)', () => {
+  it('no aspiration or venous-thrombosis warning once the symptoms have cleared with the flow', () => {
+    const tias: [string, SimResult][] = [
+      ['tia_l_mca', scenario('tia_l_mca', 24)],
+      ['5-minute mid-basilar occlusion', occ([{ vessel: 'basilar_mid', severity: 1, toH: 1 / 12 }], 72)],
+      ['5-minute M1 occlusion', occ([{ vessel: 'mca_m1_l', severity: 1, toH: 1 / 12 }], 72)],
+    ];
+    for (const [name, r] of tias) {
+      const ev = r.cascade.events.map((e) => e.id);
+      expect(ev, name).toContain('tia_urgent');
+      expect(ev, name).not.toContain('aspiration');
+      expect(ev, name).not.toContain('dvt');
+    }
+  });
+
+  it('a stroke keeps them', () => {
+    for (const id of ['l_m1', 'basilar_mid']) {
+      const ev = scenario(id, 72).cascade.events.map((e) => e.id);
+      expect(ev, id).toContain('aspiration');
+      expect(ev, id).toContain('dvt');
+    }
+  });
+});
