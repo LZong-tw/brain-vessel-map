@@ -193,11 +193,12 @@ describe('bladder and taste', () => {
 });
 
 describe('a TIA leaves none of them', () => {
-  it('tia_l_mca: present during the attack, no non-motor symptom at 1, 3 or 6 months', () => {
+  it('tia_l_mca: taste during the attack, no sweating change, no non-motor symptom at 1, 3 or 6 months', () => {
     // the ischaemic insula and operculum during the five minutes
     const attack = scenario('tia_l_mca', 0);
-    expect(find(attack, 'hyperhidrosis').map((s) => s.side)).toEqual(['r']);
     expect(ids(attack)).toContain('taste_loss');
+    // excess sweating is described after infarcts, not during passing ischaemia
+    expect(ids(attack)).not.toContain('hyperhidrosis');
     for (const tH of [720, 2160, 4320]) {
       const left = ids(scenario('tia_l_mca', tH)).filter((id) => (NEW_SYMPTOMS as readonly string[]).includes(id) || id === 'emotional');
       expect(left, `${tH} h`).toEqual([]);

@@ -87,13 +87,14 @@ export function aggregateSymptoms(
       if (d.only && r.side !== d.only) continue;
       if (d.spareInLacune && lacuneOnly.includes(r.id)) continue;
       const delayed = !!sym.delayed;
-      const level = delayed ? inf : dys;
+      const byInfarct = delayed || !!sym.fromInfarct;
+      const level = byInfarct ? inf : dys;
       if (!reaches(level)) continue;
       if (delayed && tH < DELAY_H) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
-        const lvl2 = delayed ? regionInf[other] ?? 0 : regionDys[other] ?? 0;
+        const lvl2 = byInfarct ? regionInf[other] ?? 0 : regionDys[other] ?? 0;
         if (!reaches(lvl2)) continue;
       }
       let side: SymptomItem['side'] = null;

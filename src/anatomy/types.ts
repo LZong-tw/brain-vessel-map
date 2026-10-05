@@ -294,4 +294,9 @@ export interface SymptomDef {
   nihss?: { item: NihssItem; pts: [number, number, number] };
   /** appears only in the chronic phase */
   delayed?: boolean;
+  /**
+   * appears only where tissue has died (from the start, not only in the chronic phase): for a
+   * deficit described after infarcts but not during passing ischaemia
+   */
+  fromInfarct?: boolean;
 }

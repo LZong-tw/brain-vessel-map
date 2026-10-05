@@ -1023,8 +1023,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 720,
       title: { zh: '中風後憂鬱與認知障礙', en: 'Post-stroke depression & cognitive impairment' },
       desc: {
-        zh: '約三分之一的中風者會出現憂鬱；關鍵位置（視丘、角迴、海馬迴、額葉）或多次梗塞會增加血管性認知障礙的風險。',
-        en: 'About a third of stroke survivors develop depression; strategically placed (thalamus, angular gyrus, hippocampus, frontal) or multiple infarcts raise the risk of vascular cognitive impairment.',
+        zh: '任一時間點約三分之一的中風者有憂鬱（統合分析 31%），5 年內累積有 39–52% 出現過，與病灶位置沒有一致的關聯。首次中風後一年內約 7% 出現失智，再次中風後超過三分之一；關鍵位置（視丘、角迴、海馬迴、額葉）或多次梗塞會增加血管性認知障礙的風險。這些是族群數字，「最終」頁有出處與相關因素。',
+        en: 'At any time about a third of stroke survivors have depression (31 % in a meta-analysis) and 39–52 % have had it within 5 years, with no consistent link to the lesion site. About 7 % develop dementia within a year of a first stroke, more than a third after a recurrent one; strategically placed (thalamus, angular gyrus, hippocampus, frontal) or multiple infarcts raise the risk of vascular cognitive impairment. These are population figures — the Outcome tab lists their sources and the factors involved.',
       },
       regions: [],
     });

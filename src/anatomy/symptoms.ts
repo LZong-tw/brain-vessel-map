@@ -1073,6 +1073,8 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'thermo',
     lateralised: true,
     sideWord: 'body',
+    // the reports describe it after infarcts, not during passing ischaemia such as a TIA
+    fromInfarct: true,
   },
   {
     // Korpelainen JT, Sotaniemi KA, Myllylä VV. Stroke 1995;26:1543–1547 (63 infarcts: forearm,

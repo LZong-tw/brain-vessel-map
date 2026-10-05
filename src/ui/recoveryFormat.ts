@@ -76,6 +76,9 @@ const MERGED_INTO: Record<string, string[]> = {
   aphasia_broca: ['aphasia_global'],
   aphasia_wernicke: ['aphasia_global'],
   somnolence: ['coma'],
+  hypersomnia: ['coma'],
+  // when both lateral medullas fail, the breathing problem is no longer only one of sleep
+  central_sleep_apnoea: ['respiratory'],
 };
 
 export interface Improvement {
