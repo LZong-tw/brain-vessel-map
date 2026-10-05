@@ -632,11 +632,25 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'deep',
     cbf: DEEP_CBF,
     supply: [{ v: 'tuberothalamic_{s}', share: 1 }],
+    // Tuberothalamic syndrome (Bogousslavsky et al., Neurology 1988; Schmahmann, Stroke 2003):
+    // arousal and orientation, memory, personality and executive deficits, emotional facial
+    // paresis. In 12 anterior thalamic infarcts (Ghika-Schmid & Bogousslavsky, Ann Neurol 2000):
+    // perseveration and dysexecutive features in all, apathy usual, word-finding difficulty in all,
+    // dysarthria in 8 and hypophonia in 5, with comprehension and repetition preserved; memory loss
+    // verbal after left and visuospatial after right infarcts; within months only the memory loss
+    // and apathy were left (see redundancy.ts). Perseveration and apathy, not disinhibition, are the
+    // anterior pattern (Carrera & Bogousslavsky, Neurology 2006).
     deficits: [
       { s: 'amnesia', lat: 'none', sev: 2 },
       { s: 'abulia', lat: 'none', sev: 1 },
-      { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1 },
+      { s: 'executive', lat: 'none', sev: 1 },
+      { s: 'aphasia_thalamic', lat: 'none', only: 'l', sev: 1 },
+      { s: 'dysarthria', lat: 'none', sev: 1 },
+      { s: 'emotional_facial_paresis', lat: 'contra', sev: 1 },
       { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      // extensive bilateral thalamic infarcts (e.g. a Percheron trunk that also feeds both anterior
+      // thalami): thalamic "dementia" (Carrera & Bogousslavsky 2006). TODO(medical-review): sev
+      { s: 'executive', lat: 'none', sev: 3, bilateralOnly: true },
     ],
     compartment: 'supra',
   }),
@@ -650,11 +664,24 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'deep',
     cbf: DEEP_CBF,
     supply: [{ v: 'thalamoperforator_{s}', share: 1 }],
+    // Acute picture of 46 paramedian thalamic strokes (Hermann et al., Stroke 2008): oculomotor
+    // (mostly vertical gaze) palsy 76%, mild gait ataxia 67%, attention 63%, fluency and error
+    // control 59%, learning and memory 67%, behaviour 67%. Persistent frontal and cognitive deficits
+    // in 100% of bilateral, 90% of left- and 33% of right-sided strokes; the right-sided recovery is
+    // in redundancy.ts. Disinhibition, personality change and loss of self-activation are the
+    // paramedian behavioural pattern (Carrera & Bogousslavsky, Neurology 2006). Language deficits
+    // follow left and neglect right paramedian lesions (Schmahmann, Stroke 2003).
     deficits: [
       { s: 'somnolence', lat: 'none', sev: 2 },
       { s: 'amnesia', lat: 'none', sev: 2 },
       { s: 'vertical_gaze_palsy', lat: 'none', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
+      { s: 'executive', lat: 'none', only: 'l', sev: 2 },
+      { s: 'executive', lat: 'none', only: 'r', sev: 1 },
+      { s: 'disinhibition', lat: 'none', sev: 1 },
+      { s: 'ataxia_gait', lat: 'none', sev: 1 },
+      { s: 'aphasia_thalamic', lat: 'none', only: 'l', sev: 1 },
+      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
       { s: 'coma', lat: 'none', sev: 2, bilateralOnly: true },
       // sleep needs stay raised for months, more after bilateral lesions (Bassetti et al., Ann
       // Neurol 1996; Hermann et al., Stroke 2008). TODO(medical-review): sev
@@ -679,6 +706,11 @@ export const REGION_DEFS: RegionDef[] = [
     supply: [{ v: 'thalamogeniculate_{s}', share: 1 }],
     deficits: [
       { s: 'sens_hemibody', lat: 'contra', sev: 3 },
+      // inferolateral territory: hemisensory loss, hemiparesis and hemiataxia (Schmahmann, Stroke
+      // 2003); the weakness is mild and passes within weeks (it settles fast in redundancy.ts), and
+      // a sensory lacune has none
+      { s: 'face_weak', lat: 'contra', sev: 1, spareInLacune: true },
+      { s: 'arm_weak', lat: 'contra', sev: 1, spareInLacune: true },
       // a sensory lacune sits in VPL/VPM; the motor thalamus (VL) is usually spared
       { s: 'ataxia_limb', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'movement_disorder', lat: 'contra', sev: 1, spareInLacune: true },
@@ -693,18 +725,36 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'thalamus_posterior',
     name: { zh: '視丘後部（視丘枕、外側膝狀體）', en: 'Posterior thalamus (pulvinar & lateral geniculate body)' },
     func: {
-      zh: '外側膝狀體是視覺轉運站；視丘枕參與視覺注意力。',
-      en: 'The lateral geniculate body relays vision; the pulvinar supports visual attention.',
+      zh: '外側膝狀體是視覺轉運站；視丘枕參與視覺注意力。這裡梗塞常造成同側象限偏盲；水平扇形偏盲很少見，但提示外側膝狀體受損。',
+      en: 'The lateral geniculate body relays vision; the pulvinar supports visual attention. An infarct here typically gives a homonymous quadrantanopia; a horizontal sectoranopia is rare but points to the lateral geniculate body.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
+    // The thalamic branches of the lateral posterior choroidal artery leave it before it reaches the
+    // choroid plexus, where it meets the AChA, so the plexus anastomosis does not protect all of the
+    // territory: half of it hangs on the artery's proximal course (@mid). Isolated posterior
+    // choroidal infarcts are real, if rare: 10 of 2,925 stroke patients (Neau & Bogousslavsky, Ann
+    // Neurol 1996). TODO(medical-review): the shares
     supply: [
-      { v: 'posterior_choroidal_{s}', share: 0.8 },
+      { v: 'posterior_choroidal_{s}', share: 0.5, at: 'mid' },
+      { v: 'posterior_choroidal_{s}', share: 0.3 },
       { v: 'acha_{s}', share: 0.2 },
     ],
+    // Lateral posterior choroidal infarcts: homonymous quadrantanopia (the partial field defect
+    // below) with or without hemisensory loss and neuropsychological deficits (transcortical aphasia,
+    // memory); late disability from pain and delayed abnormal movements (Neau & Bogousslavsky 1996).
+    // The jerky dystonic unsteady hand is specific to small posterior choroidal infarcts (Ghika-Schmid
+    // et al., J Neurol Sci 1997). Field defects, variable sensory loss, weakness, dystonia, tremor,
+    // occasionally amnesia and language impairment (Schmahmann, Stroke 2003).
     deficits: [
       { s: 'hemianopia', lat: 'contra', sev: 1 },
+      { s: 'sens_hemibody', lat: 'contra', sev: 1 },
+      // "occasionally amnesia and language impairment" (Schmahmann): only when the posterior
+      // choroidal territory itself is infarcted, not from the AChA's share and the swelling around it
+      { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1, minLevel: 0.4 },
+      { s: 'amnesia', lat: 'none', sev: 1, minLevel: 0.4 },
       { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      { s: 'jerky_dystonic_hand', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -794,9 +844,13 @@ export const REGION_DEFS: RegionDef[] = [
     },
     category: 'brainstem',
     cbf: BS_CBF,
+    // The paramedian (thalamoperforating) arteries feed the rostral midbrain in some people and
+    // not in others: by default they give only a small share, below the symptom threshold, and the
+    // variants `thalamomesencephalic_{s}` and `percheron_mid_{s}` make the midbrain part of their
+    // territory (Lazzaro et al., AJNR 2010: Percheron infarcts with midbrain 57%, without 43%).
     supply: [
-      { v: 'mesencephalic_perf_{s}', share: 0.7 },
-      { v: 'thalamoperforator_{s}', share: 0.3 },
+      { v: 'mesencephalic_perf_{s}', share: 0.85 },
+      { v: 'thalamoperforator_{s}', share: 0.15 },
     ],
     structures: [
       { name: { zh: '動眼神經核', en: 'Oculomotor nucleus' }, role: { zh: '眼球上下內轉、提眼瞼、縮瞳', en: 'Up/down/in eye movement, lid, pupil' } },

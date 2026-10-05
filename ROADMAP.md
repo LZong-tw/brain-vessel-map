@@ -6,8 +6,8 @@
   · Real cerebrum / cerebellum / brainstem / deep-nuclei meshes from the MNI ICBM152 2009c template, every surface point labelled with a functional region and an arterial territory
 - 180 段動脈（含腦幹穿通支、小腦動脈、38 段側枝），主幹位置校正到 MRA 統計圖譜
   · 180 arterial segments (brainstem perforators, cerebellar arteries, 38 collaterals), main trunks fitted to an MRA statistical atlas
-- Poiseuille 血流網路：Willis 環代償、竊血、自動調節、分水嶺、15 種解剖變異、側枝分級、腦幹軟腦膜側枝
-  · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 15 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
+- Poiseuille 血流網路：Willis 環代償、竊血、自動調節、分水嶺、21 種解剖變異、側枝分級、腦幹軟腦膜側枝
+  · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 21 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
 - 組織命運隨時間演變（核心／半影區／低灌流），後循環時間窗依基底動脈取栓試驗校正
   · Tissue fate over time (core / penumbra / oligaemia), posterior-circulation time window calibrated to the basilar thrombectomy trials
 - 分段病程：TIA、狹窄後才完全阻塞、自行再通，可在任一時間點治療
@@ -18,12 +18,12 @@
   · Oedema and swelling (cytotoxic → ionic → vasogenic → resolution → atrophy), 3D deformation, midline shift
 - 連鎖反應：腦疝脫、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症
   · Cascade: herniation, hydrocephalus, haemorrhagic transformation, CCD, Wallerian and olivary degeneration, systemic complications
-- 症狀、43 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意）
-  · Symptoms, 43 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative)
+- 症狀、48 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意）
+  · Symptoms, 48 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative)
 - 病例介面：發病前條件／阻塞事件／治療三張卡片，範本可載入或疊加多條血管；右側「此刻／最終／詳細」，最終頁有治療與未治療對照
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
-- 31 個教學範本、單一穿通支阻塞（腔隙性中風）、栓子漂流模擬
-  · 31 teaching templates, single-perforator (lacunar) occlusions, embolus drift simulation
+- 32 個教學範本、單一穿通支阻塞（腔隙性中風）、栓子漂流模擬
+  · 32 teaching templates, single-perforator (lacunar) occlusions, embolus drift simulation
 - 3D、Willis 環、腦幹切面三種視圖；繁中／英文；可分享網址；手機版面
   · 3D, circle-of-Willis and brainstem-section views; Traditional Chinese / English; shareable URLs; phone layout
 - GitHub Pages 自動部署、CI（lint、型別、單元與元件測試、建置）、完整資料來源與授權聲明

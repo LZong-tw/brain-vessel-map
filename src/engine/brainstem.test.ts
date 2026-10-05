@@ -402,9 +402,15 @@ describe('C3-F10: peduncular hallucinosis', () => {
 
 describe('C3-F11: palatal tremor and olivary degeneration', () => {
   it('a palatal tremor is shown as possible only after a clear dentate, red-nucleus or tegmental infarct', () => {
-    // midbrain only 30 % infarcted: olivary degeneration may follow, but no palatal tremor is listed
-    for (const r of [one('thalamoperforator_l', 2160), scenario('percheron', 2160)]) {
+    // midbrain under half infarcted (a paramedian artery that also feeds it, C9-F1): olivary
+    // degeneration may follow, but no palatal tremor is listed
+    for (const r of [one('thalamoperforator_l', 2160, { variants: ['thalamomesencephalic_l'] }), scenario('percheron_midbrain', 2160)]) {
       expect(r.cascade.events.some((e) => e.id.startsWith('hod_'))).toBe(true);
+      expect(ids(r)).not.toContain('palatal_tremor');
+    }
+    // the thalamus alone is outside the dentato-rubro-olivary pathway (C9-F1)
+    for (const r of [one('thalamoperforator_l', 2160), scenario('percheron', 2160)]) {
+      expect(r.cascade.events.some((e) => e.id.startsWith('hod_'))).toBe(false);
       expect(ids(r)).not.toContain('palatal_tremor');
     }
     // the dentate nucleus is fully infarcted

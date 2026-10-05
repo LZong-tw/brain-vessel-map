@@ -150,7 +150,10 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
     l_lsa: 16.581,
     l_lacune: 0.8,
     l_thalamic: 3.431,
-    percheron: 2.91,
+    // C9-F1: the default Percheron trunk no longer infarcts 30% of each paramedian midbrain (was 2.91)
+    percheron: 2.736,
+    // C9-F1: added with the scenario (the Percheron trunk that also feeds the midbrain)
+    percheron_midbrain: 3.026,
     ica_silent: 0,
     ica_isolated: 428.8,
     fetal_pca: 76.199,

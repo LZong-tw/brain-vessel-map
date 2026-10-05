@@ -322,6 +322,38 @@ export const SYMPTOMS: SymptomDef[] = [
     sideWord: 'body',
   },
   {
+    // Ghika-Schmid F, Ghika J, Regli F, Bogousslavsky J. J Neurol Sci 1997;146:109–116 (Lausanne
+    // Stroke Registry: 3 of 29 post-stroke hyperkinetic movement disorders; specifically with a
+    // small posterior choroidal infarct; such movements usually regress). Neau JP, Bogousslavsky J.
+    // Ann Neurol 1996;39:779–788 (late disability from pain and delayed abnormal movements).
+    id: 'jerky_dystonic_hand',
+    name: {
+      zh: '可能出現：抽動、扭轉、不穩的手（數週後）',
+      en: 'Possible: jerky, dystonic, unsteady hand (weeks later)',
+    },
+    desc: {
+      zh: '後脈絡叢動脈區（視丘後部）的小梗塞之後，對側的手可能出現不規則的抽動、扭轉姿勢與不穩，常合併位置感覺變差。這是少見的晚期表現（一個中風登錄中只有 3 位），通常會自行減輕。',
+      en: 'After a small infarct in the posterior choroidal territory (posterior thalamus) the opposite hand may develop irregular jerks, twisted postures and unsteadiness, often with poor position sense. An uncommon late feature (3 patients in one stroke registry) that usually settles by itself.',
+    },
+    system: 'motor',
+    lateralised: true,
+    sideWord: 'body',
+    delayed: true,
+  },
+  {
+    // Schmahmann JD. Stroke 2003;34:2264–2278 (tuberothalamic infarcts: emotional facial paresis).
+    // Voluntary facial movement, which NIHSS item 4 tests, is normal, so it is not scored.
+    id: 'emotional_facial_paresis',
+    name: { zh: '情緒性臉部無力', en: 'Emotional facial paresis' },
+    desc: {
+      zh: '照指示做表情（齜牙、閉眼）時臉部正常，但自然地笑或哭時，對側下半臉動得比較少。視丘前部（結節視丘動脈區）受損的特徵之一；NIHSS 不計分。',
+      en: 'The face moves normally on command (showing the teeth, closing the eyes), but the lower face on the opposite side moves less in spontaneous smiling or crying. A feature of anterior (tuberothalamic) thalamic infarcts; not scored by the NIHSS.',
+    },
+    system: 'motor',
+    lateralised: true,
+    sideWord: 'body',
+  },
+  {
     id: 'spasticity',
     name: { zh: '肌肉痙攣、僵硬（數週後）', en: 'Spasticity (weeks later)' },
     desc: {
@@ -846,6 +878,24 @@ export const SYMPTOMS: SymptomDef[] = [
     nihss: { item: '9', pts: [1, 1, 1] },
   },
   {
+    // Ghika-Schmid F, Bogousslavsky J. Ann Neurol 2000;48:220–227 (12 anterior thalamic infarcts:
+    // word-finding difficulty in all, impaired naming in 7, dysarthria in 8, hypophonia in 5;
+    // comprehension, repetition and writing preserved; spectacular improvement within months).
+    // Schmahmann JD. Stroke 2003;34:2264–2278 (language deficits after left paramedian lesions and
+    // left tuberothalamic lesions). Comprehension of complex speech can still suffer, so the text
+    // says "largely". Scored like the other mild aphasias (item 9), without the item 1b penalty
+    // that clinical.ts adds for poor comprehension.
+    id: 'aphasia_thalamic',
+    name: { zh: '視丘性失語（找字困難）', en: 'Thalamic aphasia (word-finding difficulty)' },
+    desc: {
+      zh: '左側視丘前部或旁正中受損：說話變少、聲音小，常想不起字、叫不出物品名稱，但複誦正常，理解大致保留（複雜的句子仍可能聽不懂）。通常在數月內明顯改善。',
+      en: 'Left anterior or paramedian thalamus: speaks less and more softly, with word-finding and naming difficulty, but repetition is normal and comprehension largely preserved (complex sentences may still be hard to follow). Usually improves markedly within months.',
+    },
+    system: 'language',
+    lateralised: false,
+    nihss: { item: '9', pts: [1, 1, 1] },
+  },
+  {
     id: 'apraxia_of_speech',
     name: { zh: '言語失用', en: 'Apraxia of speech' },
     desc: {
@@ -930,11 +980,13 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: false,
   },
   {
+    // after one-sided anterior thalamic infarcts the memory loss is mainly verbal after left and
+    // visuospatial after right lesions (Ghika-Schmid & Bogousslavsky, Ann Neurol 2000)
     id: 'amnesia',
     name: { zh: '記憶障礙', en: 'Memory impairment' },
     desc: {
-      zh: '記不住新的事情（海馬迴、視丘前部／旁正中受損）。',
-      en: 'Cannot form new memories (hippocampus, anterior / paramedian thalamus).',
+      zh: '記不住新的事情（海馬迴、視丘前部／旁正中受損）。單側受損時，左側主要影響語言記憶，右側主要影響視覺空間記憶。',
+      en: 'Cannot form new memories (hippocampus, anterior / paramedian thalamus). After a one-sided lesion, mainly verbal memory if it is on the left and visuospatial memory if it is on the right.',
     },
     system: 'cognition',
     lateralised: false,

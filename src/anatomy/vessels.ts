@@ -1614,8 +1614,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'thalamoperforator',
     name: { zh: '視丘穿通動脈（旁正中）', en: 'Thalamoperforating (paramedian) arteries' },
     desc: {
-      zh: '由 P1 發出，供應視丘旁正中（內背核、板內核）與中腦上部。部分人只有一條共同主幹（Percheron 動脈）同時供應兩側。',
-      en: 'From P1 to the paramedian thalamus (mediodorsal, intralaminar nuclei) and upper midbrain. Some people have a single trunk (artery of Percheron) feeding both sides.',
+      zh: '由 P1 發出，供應視丘旁正中（內背核、板內核），部分人也供應中腦上部。部分人只有一條共同主幹（Percheron 動脈）同時供應兩側。',
+      en: 'From P1 to the paramedian thalamus (mediodorsal, intralaminar nuclei) and, in some people, the upper midbrain. Some people have a single trunk (artery of Percheron) feeding both sides.',
     },
     kind: 'perforator',
     group: 'posterior',
@@ -1707,8 +1707,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'posterior_choroidal',
     name: { zh: '後脈絡叢動脈', en: 'Posterior choroidal arteries' },
     desc: {
-      zh: '供應視丘枕、外側膝狀體與脈絡叢；與前脈絡叢動脈相吻合。',
-      en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; anastomose with the anterior choroidal artery.',
+      zh: '供應視丘枕、外側膝狀體與脈絡叢；在脈絡叢處與前脈絡叢動脈相吻合，但供應視丘的分支在吻合處之前就已分出。',
+      en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; they meet the anterior choroidal artery at the choroid plexus, but their thalamic branches leave before that anastomosis.',
     },
     kind: 'perforator',
     group: 'posterior',

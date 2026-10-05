@@ -4,7 +4,9 @@
  * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Tatu et al., Neurology 1996
  * (brainstem territories); Sciacca et al., Radiographics 2019 (general review of brainstem
  * anatomy and syndromes; its full text was not checked rule by rule); Schmahmann, Stroke 2003
- * (thalamus). Pontine patterns: Kumral et al., J Neurol 2002 (150 isolated pontine infarcts) and
+ * and Bogousslavsky, Regli & Uske, Neurology 1988 (thalamus: four arterial territories, four
+ * syndromes); Lazzaro et al., AJNR 2010 and Arauz et al., J Stroke Cerebrovasc Dis 2014 (artery of
+ * Percheron with and without the midbrain). Pontine patterns: Kumral et al., J Neurol 2002 (150 isolated pontine infarcts) and
  * Bassetti et al., Neurology 1996 (36); locked-in varieties: Bauer et al., J Neurol 1979.
  * TODO(medical-review)
  */
@@ -160,6 +162,8 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'The triad of contralateral hemiplegia (posterior limb of the internal capsule), hemisensory loss and homonymous hemianopia (optic tract / LGB). Small infarct, large disability.',
     },
     test: (c, s) => c.has('ic_posterior_limb', s, 0.3) && c.has('optic_tract', s, 0.3) && mcaCount(c, s) < 3,
+    // the AChA also feeds part of the lateral geniculate body
+    supersedes: ['thalamic_posterior_choroidal'],
   },
   {
     id: 'gerstmann',
@@ -195,6 +199,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Contralateral homonymous hemianopia (often macular-sparing), sometimes with memory loss (hippocampus) and colour or face recognition problems. Patients may only say "vision feels odd" — easy to miss.',
     },
     test: (c, s) => c.hasAny(['cuneus', 'lingual'], s, 0.3),
+    supersedes: ['thalamic_posterior_choroidal'],
   },
   {
     id: 'alexia_without_agraphia',
@@ -238,10 +243,58 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '視丘感覺症候群（Dejerine–Roussy）', en: 'Thalamic sensory syndrome (Dejerine–Roussy)' },
     desc: {
-      zh: '對側半身（臉、手、腳）所有感覺減退；數週到數月後，約 1/4–1/3 的人會出現頑固的燒灼痛（視丘痛）。',
-      en: 'Loss of all sensation over the opposite half of the body (face, arm, leg); weeks to months later a quarter to a third develop intractable burning pain (thalamic pain).',
+      zh: '視丘下外側（視丘膝狀體動脈）區：對側半身（臉、手、腳）所有感覺減退，加上運動失調，起初常有輕微、數週內消失的無力；數週到數月後，約 1/4–1/3 的人會出現頑固的燒灼痛（視丘痛），右側病灶比較常見。',
+      en: 'Inferolateral (thalamogeniculate) territory: loss of all sensation over the opposite half of the body (face, arm, leg) with ataxia, and at first often a mild weakness that passes within weeks; weeks to months later a quarter to a third develop intractable burning pain (thalamic pain), more often after right-sided lesions.',
     },
     test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3),
+  },
+  {
+    id: 'thalamic_tuberothalamic',
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '視丘前部（結節視丘動脈）梗塞', en: 'Anterior (tuberothalamic) thalamic infarction' },
+    desc: {
+      zh: '意識清醒但淡漠、缺乏主動，思考與動作一再重複（固著），新事物記不住（左側偏語言、右側偏視覺空間），個性改變；左側另有找字困難、說話小聲，理解與複誦保留。照指示做表情正常，自然地笑時對側臉卻動得少（情緒性臉部無力）。數月內多明顯改善，記憶障礙與淡漠最常留下。',
+      en: 'Awake but apathetic and lacking initiative, with perseveration in thinking and action, poor new learning (verbal after left, visuospatial after right lesions) and personality change; on the left also word-finding difficulty and soft speech with comprehension and repetition preserved. The face moves on command but less on the opposite side in a spontaneous smile (emotional facial paresis). Most improves within months; memory loss and apathy are what most often remain.',
+    },
+    test: (c, s) => c.has('thalamus_anterior', s, 0.3),
+  },
+  {
+    id: 'thalamic_paramedian_unilateral',
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '單側視丘旁正中梗塞', en: 'Unilateral paramedian thalamic infarction' },
+    desc: {
+      zh: '起初嗜睡，記憶、注意力與執行功能變差，去抑制或個性改變、主動性降低，常有垂直眼動障礙與輕微步態不穩。左側另有語言障礙，右側可能有左側忽略。右側病灶的預後很好；左側病灶常留下額葉型認知障礙（一項 46 人研究：左側 90%、右側 33%、雙側 100%）。',
+      en: 'Drowsy at first, with impaired memory, attention and executive function, disinhibition or personality change, loss of initiative, often vertical gaze palsy and mild gait ataxia. Language problems on the left, possible left neglect on the right. Outcome is excellent after right-sided lesions; left-sided ones often leave frontal-type cognitive deficits (in a study of 46 patients: 90% of left, 33% of right and 100% of bilateral strokes).',
+    },
+    test: (c, s) => {
+      const o: Side = s === 'r' ? 'l' : 'r';
+      return c.has('thalamus_paramedian', s, 0.3) && !c.has('thalamus_paramedian', o, 0.3) && !c.has('midbrain_paramedian', s, 0.3);
+    },
+  },
+  {
+    id: 'thalamomesencephalic',
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '旁正中視丘中腦梗塞', en: 'Paramedian thalamomesencephalic infarction' },
+    desc: {
+      zh: '同一條旁正中動脈也供應中腦上部時，視丘與中腦一起梗塞：嗜睡、記憶障礙、垂直眼動障礙，加上同側動眼神經麻痺與對側運動失調（中腦）。對側手臂的顫抖可能在數週到數月後才出現。',
+      en: 'When the same paramedian artery also feeds the upper midbrain, thalamus and midbrain infarct together: drowsiness, amnesia and vertical gaze palsy plus a same-side oculomotor palsy and opposite-side ataxia (midbrain). A tremor of the opposite arm may follow weeks to months later.',
+    },
+    test: (c, s) => c.has('thalamus_paramedian', s, 0.3) && c.has('midbrain_paramedian', s, 0.3),
+    supersedes: ['claude'],
+  },
+  {
+    id: 'thalamic_posterior_choroidal',
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '視丘後部（後脈絡叢動脈）梗塞', en: 'Posterior (posterior choroidal) thalamic infarction' },
+    desc: {
+      zh: '外側膝狀體與視丘枕：對側的象限偏盲（水平扇形偏盲很少見，但提示外側膝狀體受損），有時合併半身感覺減退；左側可能有經皮質失語，也可能有記憶障礙。數週後少數人出現對側手的抽動、扭轉與不穩，或疼痛。這種梗塞少見，多由小血管疾病造成，長期失能通常輕微。',
+      en: 'Lateral geniculate body and pulvinar: a quadrantanopia on the opposite side (a horizontal sectoranopia is rare but points to the lateral geniculate body), sometimes with hemisensory loss; on the left possibly a transcortical aphasia, and memory problems. Weeks later a few develop a jerky, dystonic, unsteady opposite hand, or pain. These infarcts are rare, mostly from small-vessel disease, and late disability is usually slight.',
+    },
+    test: (c, s) => c.has('thalamus_posterior', s, 0.3) && !c.hasAny(['cuneus', 'lingual', 'occipital_pole'], s, 0.3),
   },
   {
     id: 'thalamic_paramedian_bilateral',
@@ -249,11 +302,33 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: false,
     name: { zh: '雙側視丘旁正中梗塞（Percheron 動脈）', en: 'Bilateral paramedian thalamic infarction (artery of Percheron)' },
     desc: {
-      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺；昏迷之後留下的是長期嗜睡（睡眠需求增加），而不是昏迷。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。長期預後通常不錯，但中腦也梗塞時差很多（只有約四分之一功能良好）。',
-      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy; what remains after the coma is persistent hypersomnia (a raised need for sleep), not coma. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides. The long-term outcome is usually good, but much worse when the midbrain is infarcted too (only about a quarter do well).',
+      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺，執行功能與行為改變常持續；昏迷之後留下的是長期嗜睡（睡眠需求增加），而不是昏迷。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。不含中腦時長期預後通常不錯（約 67% 功能良好）；中腦也梗塞時另列為「雙側旁正中視丘中腦梗塞」。視丘前部也梗塞時，記憶與執行功能受損更廣。',
+      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy, with executive and behavioural changes that often persist; what remains after the coma is persistent hypersomnia (a raised need for sleep), not coma. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides. Without the midbrain the long-term outcome is usually good (about 67% do well); with the midbrain infarcted too it is listed as bilateral paramedian thalamomesencephalic infarction. When the anterior thalami are infarcted as well, memory and executive function suffer more widely.',
     },
     test: (c) => c.both('thalamus_paramedian', 0.3),
-    supersedes: ['claude', 'weber_benedikt'],
+    supersedes: ['claude', 'weber_benedikt', 'thalamic_paramedian_unilateral', 'thalamomesencephalic', 'thalamic_tuberothalamic'],
+  },
+  {
+    id: 'thalamomesencephalic_bilateral',
+    group: 'posterior',
+    lateral: false,
+    name: {
+      zh: '雙側旁正中視丘中腦梗塞（Percheron 動脈含中腦）',
+      en: 'Bilateral paramedian thalamomesencephalic infarction (artery of Percheron with midbrain)',
+    },
+    desc: {
+      zh: '雙側視丘旁正中加上中腦上部，是 Percheron 動脈梗塞最常見的型態（43%，連同視丘前部再 14%）。以眼球運動障礙（兩側動眼神經麻痺、垂直凝視麻痺）與意識障礙為主，加上記憶障礙。預後比不含中腦時差很多：長期功能良好的只有約 25%，不含中腦時約 67%。',
+      en: 'Both paramedian thalami plus the upper midbrain, the commonest pattern of Percheron infarction (43%, another 14% with the anterior thalami). Eye-movement disorders (bilateral oculomotor palsies, vertical gaze palsy) and impaired consciousness dominate, with amnesia. The outlook is much worse than without the midbrain: about 25% do well in the long term, against about 67%.',
+    },
+    test: (c) => c.both('thalamus_paramedian', 0.3) && c.both('midbrain_paramedian', 0.3),
+    supersedes: [
+      'thalamic_paramedian_bilateral',
+      'thalamic_paramedian_unilateral',
+      'thalamomesencephalic',
+      'thalamic_tuberothalamic',
+      'claude',
+      'weber_benedikt',
+    ],
   },
   {
     id: 'top_of_basilar',
@@ -271,6 +346,11 @@ export const SYNDROMES: SyndromeDef[] = [
         c.both('midbrain_peduncle', 0.3)),
     supersedes: [
       'thalamic_paramedian_bilateral',
+      'thalamomesencephalic_bilateral',
+      'thalamomesencephalic',
+      'thalamic_paramedian_unilateral',
+      'thalamic_tuberothalamic',
+      'thalamic_posterior_choroidal',
       'weber_benedikt',
       'claude',
       'parinaud',
@@ -565,7 +645,17 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '視丘腹後核小梗塞：對側半身麻木，沒有無力。',
       en: 'Small infarct in the ventral posterior thalamus: numbness of the opposite half of the body without weakness.',
     },
-    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
+    // a pure sensory stroke has no weakness: a whole-territory thalamogeniculate infarct does at
+    // first (C9-F2), a sensory lacune does not
+    test: (c, s) => {
+      const body: Side = s === 'r' ? 'l' : 'r';
+      return (
+        c.has('thalamus_ventrolateral', s, 0.3) &&
+        !c.has('ic_posterior_limb', s, 0.3) &&
+        c.cortexCount(s) === 0 &&
+        !['face_weak', 'arm_weak', 'leg_weak'].some((id) => c.sym(id, body) > 0)
+      );
+    },
   },
   {
     id: 'lacunar_sensorimotor',

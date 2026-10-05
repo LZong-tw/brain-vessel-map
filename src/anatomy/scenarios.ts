@@ -198,11 +198,26 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: 'Percheron 動脈阻塞（雙側視丘）', en: 'Artery of Percheron occlusion (both thalami)' },
     summary: {
-      zh: '一條小動脈同時供應雙側視丘：一開始嗜睡甚至昏迷，之後留下長期嗜睡（睡眠需求增加）；記憶喪失、無法上下看。',
-      en: 'One small artery feeds both thalami: drowsiness up to coma at first, then a lasting greater need for sleep (persistent hypersomnia); amnesia, vertical gaze palsy.',
+      zh: '一條小動脈同時供應雙側視丘：一開始嗜睡甚至昏迷，之後留下長期嗜睡（睡眠需求增加）；記憶喪失、無法上下看。這是不含中腦的型態，長期預後通常不錯。',
+      en: 'One small artery feeds both thalami: drowsiness up to coma at first, then a lasting greater need for sleep (persistent hypersomnia); amnesia, vertical gaze palsy. This is the pattern that spares the midbrain, and the long-term outcome is usually good.',
     },
     occlusions: [{ vessel: 'thalamoperforator_r', severity: 1 }],
     variants: ['percheron_r'],
+    tH: 24,
+    view: 'bottom',
+  },
+  {
+    // Lazzaro NA et al. AJNR 2010 (43% of Percheron infarcts include the midbrain, 14% more with the
+    // anterior thalami); Arauz A et al. J Stroke Cerebrovasc Dis 2014 (good outcome 25% vs 67%)
+    id: 'percheron_midbrain',
+    group: 'deep',
+    title: { zh: 'Percheron 動脈阻塞（雙側視丘＋中腦）', en: 'Artery of Percheron occlusion (both thalami + midbrain)' },
+    summary: {
+      zh: '最常見的型態：同一條主幹也供應中腦上部。除了嗜睡、記憶障礙，還有兩側動眼神經麻痺與更深的意識障礙。預後差很多：長期功能良好的只有約 25%，不含中腦時約 67%。',
+      en: 'The commonest pattern: the same trunk also feeds the upper midbrain. Besides drowsiness and amnesia there are oculomotor palsies on both sides and deeper impairment of consciousness. The outlook is much worse: only about 25% do well in the long term, against about 67% without the midbrain.',
+    },
+    occlusions: [{ vessel: 'thalamoperforator_r', severity: 1 }],
+    variants: ['percheron_mid_r'],
     tH: 24,
     view: 'bottom',
   },

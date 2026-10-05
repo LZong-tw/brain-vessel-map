@@ -279,7 +279,8 @@ function buildUnits(overrides: Map<string, SupplyDef[]>): Unit[] {
         prev.baseFlow += frac * bed.baseFlow;
       } else {
         merged.set(node, {
-          id: `${bed.id}#${s.v}`,
+          // one artery can feed a bed at two points (its middle and its end): one unit for each
+          id: `${bed.id}#${s.v}${s.at === 'mid' && supply.some((x) => x.v === s.v && x.at !== 'mid') ? '@mid' : ''}`,
           bed: bed.id,
           node,
           vessel: s.v,

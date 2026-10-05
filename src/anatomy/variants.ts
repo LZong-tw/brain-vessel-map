@@ -126,23 +126,119 @@ export const VARIANTS: VariantDef[] = [
     },
     excludes: [`asa_unilateral_${o(s)}`],
   })),
+  // Artery of Percheron: one paramedian trunk from one P1 feeds both paramedian thalami. Its
+  // infarcts come in four imaging patterns (37 patients, Lazzaro NA et al. AJNR 2010;31:1283–1289):
+  // both paramedian thalami with the rostral midbrain 43%, without it 38%, with the anterior
+  // thalami and the midbrain 14%, with the anterior thalami without the midbrain 5%. With the
+  // midbrain, eye-movement and mental-status disturbances dominate and 25% had a good outcome
+  // (mRS ≤ 2); without it, amnesia and mental-status changes, and 67% did well (15 patients, Arauz A
+  // et al. J Stroke Cerebrovasc Dis 2014;23:1083–1088). `percheron_{s}` is the pattern without the
+  // midbrain; `percheron_mid_{s}` and `percheron_ant_{s}` add the midbrain and the anterior thalami
+  // and can be combined.
   ...perSide((s) => ({
     id: `percheron_${s}`,
     name: { zh: `Percheron 動脈（起自${sideZh(s)}側 P1）`, en: `Artery of Percheron (from ${sideEn(s).toLowerCase()} P1)` },
     desc: {
-      zh: '單一條視丘穿通動脈同時供應雙側視丘旁正中與中腦上部；它一旦阻塞就會雙側梗塞，造成昏睡、記憶與垂直眼動障礙。',
-      en: 'A single thalamoperforating trunk feeds both paramedian thalami and the upper midbrain; its occlusion causes bilateral infarcts with stupor, amnesia and vertical gaze palsy.',
+      zh: '單一條視丘穿通動脈同時供應雙側視丘旁正中；它一旦阻塞就會雙側梗塞，造成嗜睡、記憶障礙與垂直眼動障礙。這是不含中腦的型態；中腦或視丘前部也由它供應時，另見「含中腦」「含視丘前部」兩個變異。',
+      en: 'A single thalamoperforating trunk feeds both paramedian thalami; its occlusion causes bilateral infarcts with drowsiness, amnesia and vertical gaze palsy. This is the pattern without the midbrain; when the trunk also feeds the midbrain or the anterior thalami, see the "with midbrain" and "with anterior thalamus" variants.',
     },
-    prevalence: { zh: '約 4–12%', en: '≈4–12%' },
+    prevalence: {
+      zh: '一般人約 4–12% 有 Percheron 動脈；其梗塞中約 38% 不含中腦',
+      en: '≈4–12% of people have an artery of Percheron; ≈38% of its infarcts spare the midbrain',
+    },
     supplyOverride: {
       [`thalamus_paramedian_${s}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
       [`thalamus_paramedian_${o(s)}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
       [`midbrain_paramedian_${o(s)}`]: [
-        { v: `mesencephalic_perf_${o(s)}`, share: 0.7 },
-        { v: `thalamoperforator_${s}`, share: 0.3 },
+        { v: `mesencephalic_perf_${o(s)}`, share: 0.85 },
+        { v: `thalamoperforator_${s}`, share: 0.15 },
       ],
     },
-    excludes: [`percheron_${o(s)}`],
+    excludes: [`percheron_${o(s)}`, `percheron_mid_${s}`, `percheron_mid_${o(s)}`, `percheron_ant_${s}`, `percheron_ant_${o(s)}`, `thalamomesencephalic_${o(s)}`],
+  })),
+  ...perSide((s) => ({
+    id: `percheron_mid_${s}`,
+    name: {
+      zh: `Percheron 動脈含中腦分支（起自${sideZh(s)}側 P1）`,
+      en: `Artery of Percheron with midbrain branches (from ${sideEn(s).toLowerCase()} P1)`,
+    },
+    desc: {
+      zh: '同一條主幹除了雙側視丘旁正中，也供應兩側中腦上部的旁正中被蓋，是 Percheron 梗塞最常見的型態。阻塞時除了嗜睡、記憶障礙，還有動眼神經麻痺等眼球運動障礙與更深的意識障礙；長期功能良好的比例只有約 25%（不含中腦時約 67%）。可與「含視丘前部」合併。',
+      en: 'The same trunk feeds both paramedian thalami and the paramedian tegmentum of the upper midbrain on both sides, the commonest pattern of Percheron infarction. Besides drowsiness and amnesia its occlusion gives oculomotor palsies and other eye-movement disorders and deeper impairment of consciousness; only about 25% do well in the long term (about 67% without the midbrain). Can be combined with "with anterior thalamus".',
+    },
+    prevalence: {
+      zh: 'Percheron 梗塞中約 43% 含中腦（再加上視丘前部的約 14%）',
+      en: '≈43% of Percheron infarcts include the midbrain (another ≈14% with the anterior thalami too)',
+    },
+    supplyOverride: {
+      [`thalamus_paramedian_${s}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
+      [`thalamus_paramedian_${o(s)}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
+      [`midbrain_paramedian_${s}`]: [
+        { v: `mesencephalic_perf_${s}`, share: 0.6 },
+        { v: `thalamoperforator_${s}`, share: 0.4 },
+      ],
+      [`midbrain_paramedian_${o(s)}`]: [
+        { v: `mesencephalic_perf_${o(s)}`, share: 0.6 },
+        { v: `thalamoperforator_${s}`, share: 0.4 },
+      ],
+    },
+    excludes: [
+      `percheron_${s}`,
+      `percheron_${o(s)}`,
+      `percheron_mid_${o(s)}`,
+      `percheron_ant_${o(s)}`,
+      `thalamomesencephalic_${s}`,
+      `thalamomesencephalic_${o(s)}`,
+    ],
+  })),
+  ...perSide((s) => ({
+    id: `percheron_ant_${s}`,
+    name: {
+      zh: `Percheron 動脈含視丘前部（起自${sideZh(s)}側 P1）`,
+      en: `Artery of Percheron with anterior thalamus (from ${sideEn(s).toLowerCase()} P1)`,
+    },
+    desc: {
+      zh: '結節視丘動脈缺如時，由同一條主幹供應雙側視丘前部與旁正中。阻塞時記憶與執行功能受損更廣，可能造成「視丘性失智」。單獨使用是不含中腦的型態；與「含中腦分支」合併則是視丘前部加中腦的型態。',
+      en: 'When the tuberothalamic arteries are missing, the same trunk feeds both anterior and both paramedian thalami. Its occlusion damages memory and executive function more widely and can cause "thalamic dementia". On its own this is the pattern without the midbrain; combined with "with midbrain branches" it is the pattern with anterior thalami and midbrain.',
+    },
+    prevalence: {
+      zh: 'Percheron 梗塞中約 14% 含視丘前部與中腦、約 5% 含視丘前部而不含中腦',
+      en: '≈14% of Percheron infarcts include the anterior thalami and the midbrain, ≈5% the anterior thalami without the midbrain',
+    },
+    supplyOverride: {
+      [`thalamus_paramedian_${s}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
+      [`thalamus_paramedian_${o(s)}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
+      [`thalamus_anterior_${s}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
+      [`thalamus_anterior_${o(s)}`]: [{ v: `thalamoperforator_${s}`, share: 1 }],
+      // the midbrain is left to `percheron_mid_{s}`, so that the two combine in either order
+    },
+    excludes: [`percheron_${s}`, `percheron_${o(s)}`, `percheron_mid_${o(s)}`, `percheron_ant_${o(s)}`, `thalamomesencephalic_${o(s)}`],
+  })),
+  // A one-sided paramedian artery can also feed the rostral paramedian midbrain: a paramedian
+  // thalamopeduncular (thalamomesencephalic) infarct (Castaigne P et al. Ann Neurol 1981;10:127–148).
+  // Oculomotor palsy, mostly of vertical gaze, followed 76% of paramedian thalamic strokes (Hermann
+  // DM et al. Stroke 2008;39:62–68), so midbrain extension is common.
+  ...perSide((s) => ({
+    id: `thalamomesencephalic_${s}`,
+    name: {
+      zh: `${sideZh(s)}側旁正中動脈也供應中腦`,
+      en: `${sideEn(s)} paramedian artery also feeding the midbrain`,
+    },
+    desc: {
+      zh: `${sideZh(s)}側視丘穿通動脈除了視丘旁正中，也供應同側中腦上部的旁正中被蓋。阻塞時視丘與中腦一起梗塞（視丘中腦旁正中梗塞）：除了嗜睡與記憶障礙，還有同側動眼神經麻痺與對側運動失調。`,
+      en: `The ${sideEn(s).toLowerCase()} thalamoperforating artery feeds the paramedian tegmentum of the upper midbrain on the same side as well as the paramedian thalamus. Its occlusion infarcts both (a paramedian thalamomesencephalic infarct): drowsiness and amnesia plus a same-side oculomotor palsy and opposite-side ataxia.`,
+    },
+    prevalence: {
+      zh: '常見：旁正中視丘梗塞約 76% 有眼動障礙（多為垂直眼動）',
+      en: 'Common: eye-movement palsies (mostly vertical) in ≈76% of paramedian thalamic strokes',
+    },
+    supplyOverride: {
+      [`midbrain_paramedian_${s}`]: [
+        { v: `mesencephalic_perf_${s}`, share: 0.6 },
+        { v: `thalamoperforator_${s}`, share: 0.4 },
+      ],
+    },
+    excludes: [`percheron_${o(s)}`, `percheron_mid_${s}`, `percheron_mid_${o(s)}`, `percheron_ant_${o(s)}`],
   })),
 ];
 

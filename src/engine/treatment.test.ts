@@ -46,12 +46,18 @@ describe('default treatment = the model before treatment details', () => {
   // refined centrelines (the generated paths had been missing them; their length enters the flow
   // model), and in the 4th–5th when the subclavian arteries got their chest-wall and neck
   // collaterals (C8-F5): they carry a trickle at baseline, which shifts the vertebral and
-  // communicating flows of the calibration slightly. NIHSS and event texts did not change.
+  // communicating flows of the calibration slightly. They moved again in the 3rd–4th significant
+  // digit (l_m1 core 58.99 → 59.10 mL) when half of the posterior thalamus was attached to the
+  // posterior choroidal artery before its choroidal anastomosis with the AChA (C9-F5): the
+  // posterior choroidal artery now carries more of its own territory at baseline (0.13 → 0.33
+  // mL/min) and the AChA less, which shifts the PCA and ICA flows slightly; the smaller paramedian
+  // midbrain share of the thalamoperforating arteries (C9-F1) moves the basilar values in the 5th.
+  // NIHSS and event texts did not change.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
-    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 58.99228860972392, finalInfarct: 58.99228860972392, saved: 90.21605499459179, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5449829777081282, finalInfarct: 0.5449829777081282, saved: 2.2891369129435635, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 59.10283042708653, finalInfarct: 59.10283042708653, saved: 90.36763664836022, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5457730253012257, finalInfarct: 0.5457730253012257, saved: 2.289112141304178, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
     ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 485.13835470147296, finalInfarct: 485.13835470147296, saved: 3.0127011996228248e-12, nihss: 37, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5518541614493337, finalInfarct: 0.5518541614493337, saved: 2.282265729202358, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5526530033823711, finalInfarct: 0.5526530033823711, saved: 2.2822321632230325, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {
     const id = label.split(' ')[0];

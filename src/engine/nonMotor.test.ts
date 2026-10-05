@@ -235,7 +235,7 @@ describe('every new symptom can occur', () => {
  * symptoms carry no NIHSS points and syndromes are detected from regions, so adding them must
  * leave every value as it was. [total, items > 0, syndromes (with lesion side)]
  * Deliberate changes since then are marked at their rows with the audit finding that explains them
- * (C3-F1: incomplete locked-in syndrome; C3-F2: the time course of coma).
+ * (C3-F1: incomplete locked-in syndrome; C3-F2: the time course of coma; C9-F1 to C9-F4: the thalamus).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_m1@24': [19, { '1b': 2, '1c': 1, 2: 1, 3: 1, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 1 }, ['gerstmann_l', 'mca_complete_l']],
@@ -262,15 +262,24 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_lsa@2160': [7, { 4: 1, '5r': 2, '6r': 2, 8: 1, 10: 1 }, ['striatocapsular_l']],
   'l_lacune@24': [10, { 4: 2, '5r': 4, '6r': 4 }, ['lacunar_pure_motor_l']],
   'l_lacune@2160': [6, { 4: 1, '5r': 3, '6r': 2 }, ['lacunar_pure_motor_l']],
-  'l_thalamic@24': [3, { 7: 1, 8: 2 }, ['lacunar_pure_sensory_l', 'thalamic_sensory_l']],
+  // C9-F2: the inferolateral thalamus gives a mild, passing weakness (4, 5r); with it the infarct is no longer a pure sensory stroke
+  'l_thalamic@24': [6, { 4: 1, '5r': 2, 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   'l_thalamic@2160': [3, { 7: 1, 8: 2 }, ['lacunar_pure_sensory_l', 'thalamic_sensory_l']],
-  'percheron@24': [5, { '1a': 2, 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
+  // C9-F1: the default Percheron pattern spares the midbrain (no CN III/IV palsy, item 2, or midbrain ataxia, item 7);
+  // C9-F3/F4: thalamic aphasia from the left (9) and neglect from the right (11) paramedian thalamus
+  'percheron@24': [4, { '1a': 2, 9: 1, 11: 1 }, ['thalamic_paramedian_bilateral']],
   // C3-F2: the coma of the paramedian thalami has given way to persistent hypersomnia by 3 months (1a 1 → 0)
-  'percheron@2160': [3, { 2: 1, 7: 2 }, ['thalamic_paramedian_bilateral']],
-  'l_pca@24': [4, { 3: 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
+  // C9-F1, C9-F3/F4: as at 24 h; the neglect has recovered
+  'percheron@2160': [1, { 9: 1 }, ['thalamic_paramedian_bilateral']],
+  // C9-F1: the Percheron pattern with the midbrain (a scenario of its own)
+  'percheron_midbrain@24': [7, { '1a': 2, 2: 1, 7: 2, 9: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
+  'percheron_midbrain@2160': [4, { 2: 1, 7: 2, 9: 1 }, ['thalamomesencephalic_bilateral']],
+  // C9-F2: mild, passing weakness from the inferolateral thalamus (4, 5r)
+  'l_pca@24': [7, { 3: 1, 4: 1, '5r': 2, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
   'l_pca@2160': [3, { 7: 1, 8: 2 }, ['thalamic_sensory_l']],
   'basilar_tip@24': [36, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 1, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
-  'basilar_tip@2160': [21, { '1a': 2, '1b': 1, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1 }, ['top_of_basilar']],
+  // C9-F4: the left anterior thalamus gives thalamic aphasia with preserved comprehension (no 1b) and dysarthria (10)
+  'basilar_tip@2160': [21, { '1a': 2, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 1, 10: 1 }, ['top_of_basilar']],
   'basilar_mid@24': [23, { 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
   // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome
   'basilar_mid@2160': [19, { 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
@@ -295,8 +304,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'ica_silent@2160': [0, {}, ['carotid_compensated_r']],
   'ica_isolated@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['ica_territory_r', 'neglect_r']],
   'ica_isolated@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']],
-  'fetal_pca@24': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
-  'fetal_pca@2160': [6, { 3: 2, 7: 1, 8: 2, 11: 1 }, ['pca_r', 'thalamic_sensory_r']],
+  // C9-F2: the PComm feeds the tuberothalamic artery, so the anterior thalamus is infarcted too and now has its
+  // own label; C9-F4: its dysarthria (10); C9-F2: mild, passing weakness from the inferolateral thalamus (4, 5l)
+  'fetal_pca@24': [10, { 3: 2, 4: 1, '5l': 2, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
+  'fetal_pca@2160': [7, { 3: 2, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
   'watershed@24': [7, { 4: 1, '5l': 2, '6l': 2, 8: 1, 10: 1 }, ['watershed_r']],
   'watershed@2160': [0, {}, ['watershed_r']],
   'subclavian_steal@24': [0, {}, ['subclavian_steal_l']],
