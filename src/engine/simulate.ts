@@ -1037,6 +1037,7 @@ export function simulate(input: SimInput): SimResult {
   // them in the symptom list just computed
   const syndromes = detectSyndromes({
     f: (base, side) => rPrim[`${base}_${side}`] ?? 0,
+    acute: (base, side) => (tAbs >= model.onsetH ? model.regionAcute[`${base}_${side}`] ?? 0 : 0),
     has: (base, side, thr = 0.25) => (rPrim[`${base}_${side}`] ?? 0) >= thr,
     hasAny: (bases, side, thr = 0.25) => bases.some((b) => (rPrim[`${b}_${side}`] ?? 0) >= thr),
     both: (base, thr = 0.25) => (rPrim[`${base}_r`] ?? 0) >= thr && (rPrim[`${base}_l`] ?? 0) >= thr,

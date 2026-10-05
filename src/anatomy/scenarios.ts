@@ -247,8 +247,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'deep',
     title: { zh: 'Percheron 動脈阻塞（雙側視丘＋中腦）', en: 'Artery of Percheron occlusion (both thalami + midbrain)' },
     summary: {
-      zh: '最常見的型態：同一條主幹也供應中腦上部。除了嗜睡、記憶障礙，還有兩側動眼神經麻痺與更深的意識障礙。在一個小系列中預後較差：15 人中，含中腦者 8 人中 2 人（25%）、不含中腦者 6 人中 4 人（67%）在約 4.5 年後達 mRS ≤ 2。',
-      en: 'The commonest pattern: the same trunk also feeds the upper midbrain. Besides drowsiness and amnesia there are oculomotor palsies on both sides and deeper impairment of consciousness. The outlook was worse in one small series: of 15 patients, 2 of 8 (25%) with midbrain involvement and 4 of 6 (67%) without reached mRS ≤ 2 after about 4.5 years.',
+      zh: '最常見的型態：同一條主幹也供應中腦上部。除了意識障礙與記憶障礙，還有兩側動眼神經麻痺。在一個小系列中預後較差：15 人中，含中腦者 8 人中 2 人（25%）、不含中腦者 6 人中 4 人（67%）在約 4.5 年後達 mRS ≤ 2。',
+      en: 'The commonest pattern: the same trunk also feeds the upper midbrain. Besides impaired consciousness and amnesia there are oculomotor palsies on both sides. The outlook was worse in one small series: of 15 patients, 2 of 8 (25%) with midbrain involvement and 4 of 6 (67%) without reached mRS ≤ 2 after about 4.5 years.',
     },
     occlusions: [{ vessel: 'thalamoperforator_r', severity: 1 }],
     variants: ['percheron_mid_r'],

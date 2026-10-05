@@ -30,7 +30,8 @@
 
 import { BEDS, REGIONS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { Bed, DeficitRef, Family, L, Region, Side } from '../anatomy';
-import { SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
+import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
+import { LOCKED_IN_BASES_FLOOR } from '../anatomy/syndromes';
 import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
@@ -1219,9 +1220,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const MIDBRAIN_PARAMEDIAN: [string, string][] = [['midbrain_paramedian_r', 'midbrain_paramedian_l']];
   // Both states come from the acute dysfunction. When blood returns before the tissue on both
   // sides dies, the state lasts only until then (the symptoms clear with reperfusion); without
-  // that, it stays for as long as the dysfunction does.
-  const transientUntil = (pairs: [string, string][]) =>
-    input.flowReturnsH != null && !bilateral(infarcted, pairs) ? input.flowReturnsH : undefined;
+  // that, it stays for as long as the dysfunction does. `thr`: the infarcted share from which the
+  // tissue counts as dead.
+  const transientUntil = (pairs: [string, string][], thr = 0.3) =>
+    input.flowReturnsH != null && !bilateral((r) => infarcted(r, thr), pairs) ? input.flowReturnsH : undefined;
   const clears = (h: number | undefined) =>
     h === undefined
       ? { zh: '', en: '' }
@@ -1234,6 +1236,25 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const tegmentalComa = bilateral(acute, PONS_TEG_ROSTRAL) || bilateral(acute, MIDBRAIN_PARAMEDIAN);
   // locked-in once the ventral pons is infarcted on both sides; with less, an incomplete picture
   const classicalRisk = bilateral((r) => infarcted(r, 0.4), PONS_BASIS);
+  // extensive damage to the tegmentum of both sides: a disorder of consciousness follows the coma
+  // from two weeks on (clinical.ts comaBecomes, the same threshold; C3-F2)
+  const persistentDoc = bilateral((r) => infarcted(r, 0.5), PONS_TEG_ROSTRAL) || bilateral((r) => infarcted(r, 0.5), MIDBRAIN_PARAMEDIAN);
+  // The ventral pons counts as dead on both sides from the level at which its lasting signs, and the
+  // locked-in labels, appear (the symptom threshold, 0.25): an infarct that leaves an incomplete
+  // locked-in syndrome does not "resolve" with the reopening (R5-4)
+  const SIGNS_THR = 0.25 - 1e-6;
+  const basesInfarcted = bilateral((r) => infarcted(r, SIGNS_THR), PONS_BASIS);
+  const baseUntil = transientUntil(PONS_BASIS, SIGNS_THR);
+  // smaller infarcts of both halves: the perilesional swelling of the first days can bring their
+  // bilateral signs (and the incomplete locked-in label) back for a while (R5-3)
+  const swellingNote: L =
+    baseUntil !== undefined && bilateral((r) => infarcted(r, LOCKED_IN_BASES_FLOOR - 1e-6), PONS_BASIS)
+      ? {
+          zh: '兩側仍留下小梗塞：頭幾天梗塞周圍的水腫可能讓四肢無力與無法說話暫時回來，水腫在 1–3 週內消退後再減輕。',
+          en: ' Small infarcts are left on both sides: in the first days the swelling around them can bring the weakness of all four limbs and the loss of speech back for a while, easing as it subsides over 1–3 weeks.',
+        }
+      : { zh: '', en: '' };
+  const baseNote: L = { zh: clears(baseUntil).zh + swellingNote.zh, en: clears(baseUntil).en + swellingNote.en };
   // Locked-in syndrome: Bauer G et al. J Neurol 1979;221:77–91 (classical, incomplete, total);
   // comatose first: Laureys S et al. Prog Brain Res 2005;150:495–511; prognosis and care: Patterson
   // JR, Grabois M. Stroke 1986;17:758–764 (139 cases, mortality 60 %, lung care and a communication
@@ -1242,42 +1263,69 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     zh: '早年 139 例文獻回顧的死亡率約 60%：要積極照護呼吸與肺部（吸入、肺炎），並及早建立溝通方式（眨眼或眼動字母表、眼控電腦）。恢復差異很大：一個早期密集復健的小型選擇性系列（14 人）中，42% 恢復吞嚥、28% 恢復說話；病情穩定後可存活數十年。',
     en: ' Mortality was about 60% in an early review of 139 cases: breathing and lung care (aspiration, pneumonia) and an early communication system (an eye-coded or blink alphabet, eye-controlled computers) are essential. Recovery varies widely: in a small selected series of 14 patients after early intensive rehabilitation 42% regained swallowing and 28% speech; once medically stable, people can live for decades.',
   };
+  const LOCKED_IN_TITLE = {
+    risk: { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' },
+    classical: { zh: '雙側橋腦腹側受損：閉鎖症候群', en: 'Bilateral ventral pons: locked-in syndrome' },
+    incomplete: { zh: '雙側橋腦腹側部分受損：不完全閉鎖（雙側橋腦症候群）', en: 'Bilateral ventral pons, partly: incomplete locked-in (bilateral pontine syndrome)' },
+  };
   if (lockedIn && tegmentalComa) {
-    const until = transientUntil(PONS_BASIS);
-    const note = clears(until);
+    // the coma lasts until the reopening clears it, or until two weeks, when the region's coma is
+    // listed as what follows it (clinical.ts, C3-F2); that state has its own event (R5-5)
     events.push({
       id: 'basilar_coma',
       kind: 'secondary',
       severity: 'danger',
       onsetH: 0,
-      ...(until !== undefined ? { endH: until } : {}),
+      endH: baseUntil ?? DELAYED_ONSET_H,
       title: { zh: '雙側橋腦腹側與被蓋受損：昏迷合併四肢癱瘓', en: 'Bilateral ventral pons and tegmentum: coma with quadriplegia' },
       desc: {
-        zh: `四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。${LIS_CARE.zh}${note.zh}`,
-        en: `Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation. Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.${LIS_CARE.en}${note.en}`,
+        zh: `四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。${baseNote.zh}`,
+        en: `Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation. Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.${baseNote.en}`,
       },
       regions: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => acute(r)),
     });
+    if (baseUntil === undefined && persistentDoc) {
+      events.push({
+        id: 'pontine_doc',
+        kind: 'secondary',
+        severity: 'danger',
+        onsetH: DELAYED_ONSET_H,
+        title: { zh: '基底動脈昏迷之後：意識障礙或閉鎖', en: 'After basilar coma: disorder of consciousness or locked-in' },
+        desc: {
+          zh: `昏迷之後眼睛會睜開、恢復睡醒週期，但可能沒有覺察（無反應覺醒症候群）、時有時無（最小意識狀態），也可能其實完全清醒、只是被癱瘓閉鎖住（閉鎖症候群）。這幾種狀態外觀相近、常被誤判；閉鎖症候群平均要 2.5 個月以上才被診斷，常是家屬先發現病人是清醒的：要反覆請病人用上下看或眨眼回答問題。${LIS_CARE.zh}`,
+          en: `The coma has given way to eye opening and sleep–wake cycles, but awareness may be absent (unresponsive wakefulness syndrome), may come and go (minimally conscious state), or may be fully present behind the paralysis (locked-in syndrome). The states look alike and are often confused; locked-in syndrome took over 2.5 months to diagnose on average, and it is often the family who first notices that the person is aware: ask repeatedly for answers by looking up or blinking.${LIS_CARE.en}`,
+        },
+        regions: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => infarcted(r, SIGNS_THR)),
+      });
+    } else if (baseUntil === undefined && basesInfarcted) {
+      // the person wakes from the coma locked-in
+      const partial = !classicalRisk;
+      events.push({
+        id: 'locked_in',
+        kind: 'secondary',
+        severity: 'danger',
+        onsetH: DELAYED_ONSET_H,
+        title: partial ? LOCKED_IN_TITLE.incomplete : LOCKED_IN_TITLE.classical,
+        desc: {
+          zh: `昏迷已經過去：病人醒著、有意識，但四肢與臉部${partial ? '嚴重無力' : '完全癱瘓'}、無法說話吞嚥，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。因為接在昏迷之後、外觀又像昏迷，很容易被忽略：要反覆請病人用上下看或眨眼回答問題。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}`,
+          en: `The coma has lifted: the person is awake and aware, but with ${partial ? 'severe weakness' : 'total paralysis'} of limbs and face and no speech or swallowing, communicating by vertical eye movements and blinking (the midbrain gaze centres are spared). Because it follows a coma and looks like one, it is easily missed: ask repeatedly for answers by looking up or blinking. With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}`,
+        },
+        regions: PONS_BASIS.flat().filter((r) => infarcted(r, SIGNS_THR)),
+      });
+    }
   } else if (lockedIn) {
-    const until = transientUntil(PONS_BASIS);
-    const note = clears(until);
-    const partial = until === undefined && !classicalRisk;
+    const partial = baseUntil === undefined && !classicalRisk;
     events.push({
       id: 'locked_in',
       kind: 'secondary',
       severity: 'danger',
       onsetH: 0,
-      ...(until !== undefined ? { endH: until } : {}),
+      ...(baseUntil !== undefined ? { endH: baseUntil } : {}),
       // reopened in time: a passing risk; infarcted on both sides: locked-in; less: incomplete
-      title:
-        until !== undefined
-          ? { zh: '雙側橋腦腹側受損：閉鎖症候群風險', en: 'Bilateral ventral pons: risk of locked-in syndrome' }
-          : classicalRisk
-            ? { zh: '雙側橋腦腹側受損：閉鎖症候群', en: 'Bilateral ventral pons: locked-in syndrome' }
-            : { zh: '雙側橋腦腹側部分受損：不完全閉鎖（雙側橋腦症候群）', en: 'Bilateral ventral pons, partly: incomplete locked-in (bilateral pontine syndrome)' },
+      title: baseUntil !== undefined ? LOCKED_IN_TITLE.risk : classicalRisk ? LOCKED_IN_TITLE.classical : LOCKED_IN_TITLE.incomplete,
       desc: {
-        zh: `${partial ? '兩側都受損但不完全：' : '一開始常是'}四肢與臉部${partial ? '嚴重' : '完全'}癱瘓、無法說話吞嚥，但意識清楚，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}${note.zh}`,
-        en: `${partial ? 'Both sides, but not completely: severe' : 'Often at first total'} paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}${note.en}`,
+        zh: `${partial ? '兩側都受損但不完全：' : '一開始常是'}四肢與臉部${partial ? '嚴重' : '完全'}癱瘓、無法說話吞嚥，但意識清楚，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。${LIS_CARE.zh}${baseNote.zh}`,
+        en: `${partial ? 'Both sides, but not completely: severe' : 'Often at first total'} paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.${LIS_CARE.en}${baseNote.en}`,
       },
       regions: PONS_BASIS.flat().filter((r) => acute(r)),
     });
@@ -1850,7 +1898,6 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // consciousness from two weeks on (C3-F2, the same threshold): acting out dreams, and telling of
   // them, needs a person who is awake between them.
   const rbd = REGIONS.filter((r) => /^(pons|medulla)_/.test(r.baseId) && finalLevel(r.id) >= 0.25 - 1e-6);
-  const persistentDoc = bilateral((r) => infarcted(r, 0.5), PONS_TEG_ROSTRAL) || bilateral((r) => infarcted(r, 0.5), MIDBRAIN_PARAMEDIAN);
   if (rbd.length && !persistentDoc) {
     events.push({
       id: 'rbd',

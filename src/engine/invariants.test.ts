@@ -103,7 +103,7 @@ describe('output invariants', () => {
  */
 describe('syndromes and events agree with the symptoms', () => {
   /** every scenario at every displayed time, plus single occlusions that reach the gated labels */
-  const EXTRA: [string, Occlusion[], CollateralGrade][] = [
+  const EXTRA: [string, Occlusion[], CollateralGrade, number?][] = [
     ['aca_a2_r poor', [{ vessel: 'aca_a2_r', severity: 1 }], 'poor'],
     ['aca_pericallosal_r moderate', [{ vessel: 'aca_pericallosal_r', severity: 1 }], 'moderate'],
     ['mca_post_parietal_r poor', [{ vessel: 'mca_post_parietal_r', severity: 1 }], 'poor'],
@@ -150,6 +150,25 @@ describe('syndromes and events agree with the symptoms', () => {
       ],
       'good',
     ],
+    // R5-1, R5-10: both paramedian midbrain halves infarcted, the peduncles recovering
+    ['basilar_tip good', [{ vessel: 'basilar_tip', severity: 1 }], 'good'],
+    ['basilar_tip moderate reopened 6 h', [{ vessel: 'basilar_tip', severity: 1 }], 'moderate', 6],
+    ['basilar_tip poor reopened 2 h', [{ vessel: 'basilar_tip', severity: 1 }], 'poor', 2],
+    // R5-3: both caudal tegmenta infarcted, the ventral pons only partly
+    ['basilar_mid poor reopened 2 h', [{ vessel: 'basilar_mid', severity: 1 }], 'poor', 2],
+    ['basilar_mid moderate reopened 6 h', [{ vessel: 'basilar_mid', severity: 1 }], 'moderate', 6],
+    // R5-4, R5-5: reopened after the ventral pons has infarcted on both sides
+    ['basilar_mid good reopened 24 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 24],
+    ['basilar_upper moderate reopened 6 h', [{ vessel: 'basilar_upper', severity: 1 }], 'moderate', 6],
+    ['basilar_upper good reopened 8 h', [{ vessel: 'basilar_upper', severity: 1 }], 'good', 8],
+    [
+      'both mesencephalic perforators',
+      [
+        { vessel: 'mesencephalic_perf_r', severity: 1 },
+        { vessel: 'mesencephalic_perf_l', severity: 1 },
+      ],
+      'good',
+    ],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -159,7 +178,7 @@ describe('syndromes and events agree with the symptoms', () => {
       const extra = EXTRA.find((e) => e[0] === name);
       got = STOPS.map((tH) =>
         extra
-          ? simulate({ occlusions: extra[1], variants: [], collateral: extra[2], map: 93, tH, reperfusionH: null, decompression: false })
+          ? simulate({ occlusions: extra[1], variants: [], collateral: extra[2], map: 93, tH, reperfusionH: extra[3] ?? null, decompression: false })
           : simulate(inputOf(name, { tH })),
       );
       memo.set(name, got);
@@ -227,11 +246,44 @@ describe('syndromes and events agree with the symptoms', () => {
   it.each(CASES)('%s: no bilateral lesion is named as two one-sided crossed brainstem syndromes', (name) => {
     series(name).forEach((r, i) => {
       // C7-F6: both medial medullae are one bilateral medial medullary infarction, not two Dejerine;
-      // MERGE: nor two anteromedial pontine syndromes (C3-F4)
-      for (const id of ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'dejerine']) {
+      // MERGE: nor two anteromedial pontine syndromes (C3-F4); R5-1: nor two Claude or Weber
+      // syndromes; R5-3: nor two one-and-a-half syndromes (that is a horizontal gaze palsy to both sides)
+      for (const id of ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'dejerine', 'claude', 'weber_benedikt', 'one_and_half']) {
         const sides = r.syndromes.filter((m) => m.def.id === id).map((m) => m.side);
         expect(sides.length, `${name} ${STOPS[i]} h: ${id} ${sides.join('+')}`).toBeLessThan(2);
       }
+      // R5-1, R5-10: nor a Weber on one side and a Claude on the other
+      const midbrain = new Set(r.syndromes.filter((m) => m.def.id === 'claude' || m.def.id === 'weber_benedikt').map((m) => m.side));
+      expect(midbrain.size, `${name} ${STOPS[i]} h: crossed midbrain syndromes on both sides`).toBeLessThan(2);
+    });
+  });
+
+  it.each(CASES)('%s: a one-and-a-half syndrome has no limb weakness and a horizontal gaze palsy to one side only (R5-3)', (name) => {
+    series(name).forEach((r, i) => {
+      for (const m of r.syndromes.filter((x) => x.def.id === 'one_and_half')) {
+        const where = `${name} ${STOPS[i]} h: one_and_half_${m.side}`;
+        expect(r.symptoms.some((s) => s.id === 'arm_weak' || s.id === 'leg_weak'), where).toBe(false);
+        expect(r.symptoms.filter((s) => s.id === 'gaze_palsy_horizontal').map((s) => s.side), where).toEqual([m.side]);
+      }
+    });
+  });
+
+  // R5-7: what cannot be shown or examined in a stuporous or comatose patient, or in a disorder of
+  // consciousness, is not listed then; an emotional facial paresis needs a face that moves on command
+  const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism', 'emotional_facial_paresis', 'holmes_tremor'];
+  it.each(CASES)('%s: no sign that needs an awake patient while stuporous, comatose or in a disorder of consciousness (R5-2, R5-7)', (name) => {
+    series(name).forEach((r, i) => {
+      const unaware = r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness');
+      const holmesUnaware = r.symptoms.some((s) => s.id === 'coma' || s.id === 'disorder_of_consciousness');
+      for (const s of r.symptoms) {
+        if (s.id === 'holmes_tremor') expect(holmesUnaware, `${name} ${STOPS[i]} h: holmes_tremor`).toBe(false);
+        else if (NEEDS_AWAKE.includes(s.id)) expect(unaware, `${name} ${STOPS[i]} h: ${s.id}`).toBe(false);
+      }
+      for (const e of r.symptoms.filter((s) => s.id === 'emotional_facial_paresis'))
+        expect(
+          r.symptoms.some((s) => (s.id === 'face_weak' || s.id === 'face_weak_peripheral') && (s.side === e.side || s.side === 'both')),
+          `${name} ${STOPS[i]} h: emotional_facial_paresis_${e.side} with a weak face on that side`,
+        ).toBe(false);
     });
   });
 

@@ -145,6 +145,8 @@ const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_sc
  * evidence does not support), and does not fade (redundancy EXEMPT).
  */
 const SPASTICITY_PARESIS = ['arm_weak', 'leg_weak', 'arm_weak_proximal'];
+/** non-lateralised symptoms that only an awake, cooperating patient can show or be examined for (R5-7) */
+const NEEDS_AWAKE = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism'];
 const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
 
 export function aggregateSymptoms(
@@ -381,7 +383,20 @@ export function aggregateSymptoms(
   if (map.has('coma|') || map.has('disorder_of_consciousness|')) {
     del('peduncular_hallucinosis', null);
     for (const fs of ['r', 'l'] as Side[]) del('visual_release_hallucinations', fs);
+    // a tremor of the arm the person moves, not of an unconscious one (R5-2)
+    for (const fs of ['r', 'l'] as Side[]) del('holmes_tremor', fs);
   }
+  // what only an awake, cooperating patient can show or be examined for (behaviour, executive
+  // function, gait, word finding, emotional expression) is not listed while the patient is
+  // stuporous or comatose (NIHSS 1a ≥ 2) or in a disorder of consciousness (R5-7)
+  if ((get('coma', null)?.sev ?? 0) >= 2 || map.has('disorder_of_consciousness|')) {
+    for (const id of NEEDS_AWAKE) del(id, null);
+    for (const fs of ['r', 'l'] as Side[]) del('emotional_facial_paresis', fs);
+  }
+  // an emotional facial paresis is a face that moves normally on command: not on a side whose face
+  // is weak on command (R5-7)
+  for (const fs of ['r', 'l'] as Side[])
+    if (['face_weak', 'face_weak_peripheral'].some((id) => get(id, fs) || get(id, 'both'))) del('emotional_facial_paresis', fs);
   // misaligned eyes see double; a skew deviation gives vertical double vision (C3-F5)
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino', 'skew_deviation'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {

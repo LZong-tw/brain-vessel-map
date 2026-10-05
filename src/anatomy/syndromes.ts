@@ -24,6 +24,11 @@ import type { L, Side } from './types';
 export interface SyndromeCtx {
   /** dysfunctional fraction (0–1) of region `base` on `side` */
   f(base: string, side: Side): number;
+  /**
+   * dysfunctional fraction of region `base` on `side` at the onset of the ischaemic event (core and
+   * penumbra in its first hour; 0 before it): what the vascular pattern was at its widest
+   */
+  acute(base: string, side: Side): number;
   has(base: string, side: Side, thr?: number): boolean;
   hasAny(bases: string[], side: Side, thr?: number): boolean;
   both(base: string, thr?: number): boolean;
@@ -152,6 +157,17 @@ const otherBasesSpared = (c: SyndromeCtx, s: Side) => {
   const o: Side = s === 'r' ? 'l' : 'r';
   return !c.has('pons_rostral_basis', o, 0.25) && !c.has('pons_caudal_basis', o, 0.25);
 };
+/**
+ * the region floor of the incomplete locked-in label, below the symptom threshold (0.25): swelling
+ * around smaller infarcts of both ventral pontine halves can bring their bilateral signs back for
+ * days to weeks, and the label follows those signs (`requires`), whatever the infarct (R5-3)
+ */
+export const LOCKED_IN_BASES_FLOOR = 0.15;
+/**
+ * the other paramedian midbrain half is spared (below the symptom threshold): a crossed midbrain
+ * syndrome is one-sided; both halves are one bilateral picture (R5-1, as `otherBasesSpared` for the pons)
+ */
+const otherMidbrainSpared = (c: SyndromeCtx, s: Side) => !c.has('midbrain_paramedian', other(s), 0.25);
 /** what a bilateral ventral pontine label hides: the one-sided pontine and lateral syndromes */
 const PONTINE_ONE_SIDED = ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'];
 
@@ -353,8 +369,8 @@ export const SYNDROMES: SyndromeDef[] = [
     // first week in 36 % (Nasreddine ZS, Saver JL. Neurology 1997;48:1196-1199, PMID 9153442); the
     // central_pain symptom is listed as possible from 2 weeks (C10-F1, F2)
     desc: {
-      zh: '視丘下外側（視丘膝狀體動脈）區：對側半身（臉、手、腳）所有感覺減退，加上運動失調，起初常有輕微、數週內消失的無力。之後可能出現頑固的燒灼痛（視丘痛）：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一，右側病灶比較常見；約三分之一在第一週就開始，其他在幾週到幾個月後。',
-      en: 'Inferolateral (thalamogeniculate) territory: loss of all sensation over the opposite half of the body (face, arm, leg) with ataxia, and at first often a mild weakness that passes within weeks. Intractable burning pain (thalamic pain) may follow: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic territory, more often after right-sided lesions; about a third start in the first week, the rest weeks to months later.',
+      zh: '視丘下外側（視丘膝狀體動脈）區：對側半身（臉、手、腳）所有感覺減退，加上運動失調，起初常有輕微、數週內消失的無力。之後可能出現頑固的燒灼痛（視丘痛）：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一，已發表的病例中右側病灶較多（可能有報告偏差）；約三分之一在第一週就開始，其他在幾週到幾個月後。',
+      en: 'Inferolateral (thalamogeniculate) territory: loss of all sensation over the opposite half of the body (face, arm, leg) with ataxia, and at first often a mild weakness that passes within weeks. Intractable burning pain (thalamic pain) may follow: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic territory, and among published cases right-sided lesions are more frequent (possibly reporting bias); about a third start in the first week, the rest weeks to months later.',
     },
     // the inferolateral (thalamogeniculate) territory: hemisensory loss, hemiparesis, hemiataxia
     // and pain (Schmahmann JD. Stroke 2003;34:2264-2278, PMID 12933968); one branch alone is a
@@ -400,7 +416,8 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'When the same paramedian artery also feeds the upper midbrain, thalamus and midbrain infarct together: drowsiness, amnesia and vertical gaze palsy plus a same-side oculomotor palsy and opposite-side ataxia (midbrain). A tremor of the opposite arm may follow weeks to months later.',
     },
     test: (c, s) => c.has('thalamus_paramedian', s, 0.3) && c.has('midbrain_paramedian', s, 0.3),
-    supersedes: ['claude'],
+    // the one-sided midbrain pieces of the same infarct (R5-10)
+    supersedes: ['claude', 'weber_benedikt'],
   },
   {
     id: 'thalamic_posterior_choroidal',
@@ -460,11 +477,18 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '中腦與視丘旁正中（意識改變、垂直眼動障礙、瞳孔異常、記憶障礙）加上枕葉（視野缺損、皮質盲）。可能出現鮮明的幻覺與夢境般的行為（大腦腳幻覺症，Caplan 1980）。意識障礙通常要兩側都受損，單側病灶偶爾也會造成昏迷。常由心因性或椎動脈來源的栓子卡在基底動脈分叉處造成。',
       en: 'Midbrain and paramedian thalami (altered consciousness, vertical gaze and pupil abnormalities, amnesia) plus occipital lobes (field loss, cortical blindness). Vivid hallucinations and dreamlike behaviour can occur (peduncular hallucinosis; Caplan 1980). Reduced consciousness usually needs damage on both sides, though a one-sided lesion occasionally causes coma. Usually an embolus lodged at the basilar bifurcation.',
     },
-    test: (c) =>
-      (c.both('midbrain_paramedian', 0.3) || c.both('thalamus_paramedian', 0.3)) &&
-      (c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'r', 0.2) ||
-        c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'l', 0.2) ||
-        c.both('midbrain_peduncle', 0.3)),
+    // the paramedian midbrain or thalami of both sides, in an event that also reached the occipital
+    // lobes or both cerebral peduncles; that second part is read at the event's widest (onset), so the
+    // label stays while the paramedian infarcts do, rather than turning into one-sided pieces when the
+    // peduncles recover (R5-10)
+    test: (c) => {
+      const wide = (base: string, side: Side, thr: number) => Math.max(c.f(base, side), c.acute(base, side)) >= thr;
+      const occipital = (side: Side) => ['cuneus', 'lingual', 'occipital_pole'].some((b) => wide(b, side, 0.2));
+      return (
+        (c.both('midbrain_paramedian', 0.3) || c.both('thalamus_paramedian', 0.3)) &&
+        (occipital('r') || occipital('l') || (wide('midbrain_peduncle', 'r', 0.3) && wide('midbrain_peduncle', 'l', 0.3)))
+      );
+    },
     supersedes: [
       'thalamic_paramedian_bilateral',
       'thalamomesencephalic_bilateral',
@@ -492,7 +516,8 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱：典型的「交叉性」腦幹中風。只傷到大腦腳與動眼神經束是 Weber；紅核也受損時對側再加上運動失調，以及在數週到數月後才出現的顫抖與不自主運動（霍姆斯顫抖），稱為 Benedikt。本模型的中腦分區無法把紅核和動眼神經束完全分開。',
       en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral ataxia is added, and tremor and involuntary movements (Holmes tremor) follow weeks to months later (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
     },
-    test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25),
+    // one-sided: with the other paramedian midbrain half involved the lesion is bilateral (R5-1)
+    test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25) && otherMidbrainSpared(c, s),
     requires: (q, s) => q.on('cn3_palsy', s) && ['face_weak', 'arm_weak', 'leg_weak'].some((id) => q.on(id, other(s))),
     supersedes: ['claude'],
   },
@@ -505,7 +530,8 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '同側動眼神經麻痺＋對側運動失調（紅核與上小腦腳傳出纖維），沒有偏癱。對側手臂的顫抖（霍姆斯顫抖）可能在數週到數月後才出現。',
       en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis. A tremor of the opposite arm (Holmes tremor) may follow weeks to months later.',
     },
-    test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3),
+    // one-sided: with the other paramedian midbrain half involved the lesion is bilateral (R5-1)
+    test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3) && otherMidbrainSpared(c, s),
     // the rubral tremor of a midbrain lesion is the delayed Holmes tremor (C3-F7)
     requires: (q, s) => q.on('cn3_palsy', s) && ['ataxia_limb', 'tremor', 'holmes_tremor'].some((id) => q.on(id, other(s))),
   },
@@ -548,8 +574,8 @@ export const SYNDROMES: SyndromeDef[] = [
     // Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol
     // 1979;221:77-91 (PMID 92545): classical locked-in is total immobility except vertical eye
     // movements and blinking; any other movement left makes it incomplete. Both ventral pontine
-    // halves damaged from the threshold at which their bilateral signs (anarthria, weakness on
-    // both sides) appear: one bilateral picture, not two crossed syndromes (C5-F2, C3-F1).
+    // halves damaged, with their bilateral signs (anarthria, weakness on both sides): one bilateral
+    // picture, not two crossed syndromes (C5-F2, C3-F1), nor two one-and-a-half syndromes (R5-3).
     id: 'locked_in_incomplete',
     group: 'brainstem',
     lateral: false,
@@ -558,7 +584,7 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '兩側橋腦腹側都受損，但還有一些動作：四肢無力仍能稍微動、幾乎不能說話、吞嚥嚴重困難，意識清楚。Bauer（1979）把除了垂直眼動與眨眼以外還能動的閉鎖症候群稱為「不完全」；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成這樣。孤立橋腦梗塞中約 11% 是雙側，可在發作時短暫失去意識，留下四肢無力與假性延髓麻痺（Kumral 2002）。照護重點與閉鎖症候群相同：呼吸與肺部照護、及早建立溝通方式。這是一個雙側的表現，不是兩個單側的交叉性症候群。',
       en: 'Both sides of the ventral pons are damaged, but some movement is left: weak limbs that still move a little, little or no speech and severe swallowing difficulty, with consciousness preserved. Bauer (1979) calls locked-in syndrome incomplete when anything besides vertical eye movements and blinking remains; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months. About 11% of isolated pontine infarcts are bilateral; they can begin with a transient loss of consciousness and leave tetraparesis and pseudobulbar palsy (Kumral 2002). Care is as for locked-in syndrome: breathing and lung care and an early communication system. It is one bilateral picture, not two one-sided crossed syndromes.',
     },
-    test: (c) => bothBases(c, 0.25) && !unaware(c) && !classicalLockedIn(c),
+    test: (c) => bothBases(c, LOCKED_IN_BASES_FLOOR) && !unaware(c) && !classicalLockedIn(c),
     requires: (q) => q.has('anarthria') && weakOn(q, 'r') && weakOn(q, 'l'),
     supersedes: PONTINE_ONE_SIDED,
   },
@@ -643,7 +669,9 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Abducens nucleus/PPRF plus MLF: neither eye looks towards the lesion, and looking away only the opposite eye abducts ("one-and-a-half"); add the ipsilateral facial genu and it becomes "eight-and-a-half" (1½ + 7). No limb weakness.',
     },
     test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && !c.has('pons_caudal_basis', s, 0.3),
-    requires: (q, s) => q.on('gaze_palsy_horizontal', s),
+    // named for its signs: a gaze palsy towards the lesion only (the other eye still abducts; palsies
+    // to both sides are a bilateral horizontal gaze palsy) and no limb weakness on either side (R5-3)
+    requires: (q, s) => q.on('gaze_palsy_horizontal', s) && !q.on('gaze_palsy_horizontal', other(s)) && !weakOn(q, 'r') && !weakOn(q, 'l'),
     supersedes: ['pontine_anteromedial'],
   },
   {

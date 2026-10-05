@@ -19,7 +19,9 @@ import { SCIENTIFIC_REFERENCES } from '../anatomy/sources';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { aggregateSymptoms, type SymptomItem } from './clinical';
-import type { Occlusion } from './hemodynamics';
+import type { Side } from '../anatomy';
+import type { CascadeEvent } from './cascade';
+import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
 const base: SimInput = { occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false };
@@ -37,6 +39,11 @@ const scenario = (id: string, tH: number) => {
     decompression: sc.decompression ?? false,
   });
 };
+/** the paramedian and the SCA branches of one side: nearly the whole upper pontine tegmentum (R5-6) */
+const ROSTRAL_TEGMENTUM_L: Occlusion[] = [
+  { vessel: 'pontine_paramedian_rostral_l', severity: 1 },
+  { vessel: 'sca_l', severity: 1 },
+];
 const BOTH_ROSTRAL: Occlusion[] = [
   { vessel: 'pontine_paramedian_rostral_r', severity: 1 },
   { vessel: 'pontine_paramedian_rostral_l', severity: 1 },
@@ -162,10 +169,10 @@ describe('C3-F2: coma and drowsiness have their own time course', () => {
   });
 });
 
-describe('C3-F3 (S1): a one-sided upper pontine tegmental lesion lowers arousal when it is extensive', () => {
-  it('an extensive one-sided rostral pontine tegmental infarct: drowsiness (NIHSS 1a 1), not coma', () => {
-    const r = one('pontine_paramedian_rostral_l', 24);
-    expect(r.regions.pons_rostral_tegmentum_l.dys).toBeGreaterThan(0.5);
+describe('C3-F3 (S1): a one-sided upper pontine tegmental lesion lowers arousal only when nearly complete (a model assumption, R5-6)', () => {
+  it('nearly the whole upper pontine tegmentum of one side: drowsiness (NIHSS 1a 1), not coma', () => {
+    const r = occ(ROSTRAL_TEGMENTUM_L, 24);
+    expect(r.regions.pons_rostral_tegmentum_l.dys).toBeGreaterThan(0.85);
     expect(ids(r)).toContain('somnolence');
     expect(ids(r)).not.toContain('coma');
     expect(r.nihss.items['1a']).toBe(1);
@@ -332,7 +339,7 @@ describe('C3-F9 (S2): central hyperthermia risk after extensive bilateral pontin
   });
 
   it('one side: no event, but drowsiness', () => {
-    const r = one('pontine_paramedian_rostral_l', 24);
+    const r = occ(ROSTRAL_TEGMENTUM_L, 24);
     expect(event(r, 'central_hyperthermia')).toBeUndefined();
     expect(ids(r)).toContain('somnolence');
   });
@@ -444,5 +451,253 @@ describe('C3: the new labels are part of the locked-in family everywhere', () =>
   it('only one label of the family at a time', () => {
     for (const r of [one('basilar_upper', 24), one('basilar_upper', 2160), scenario('basilar_mid', 24), scenario('basilar_mid', 2160), one('basilar_lower', 24)])
       expect(syn(r).filter((s) => LOCKED_IN_FAMILY.includes(s))).toHaveLength(1);
+  });
+});
+
+/**
+ * Review of the brainstem outputs (R5): a lesion of both sides is one bilateral picture, not two
+ * one-sided crossed syndromes (R5-1, R5-3, R5-10); the delayed Holmes tremor is a possibility (R5-2);
+ * the locked-in and basilar-coma events follow what the labels show (R5-4, R5-5); one ordinary
+ * paramedian pontine infarct does not lower consciousness (R5-6).
+ */
+/** an event shown at `tH` */
+const activeAt = (e: CascadeEvent, tH: number) => e.onsetH <= tH && tH < (e.endH ?? Infinity);
+const crossedMidbrain = (r: SimResult) => syn(r).filter((s) => /^(claude|weber_benedikt)_/.test(s));
+const THALAMIC_PIECES = ['thalamic_sensory', 'thalamic_tuberothalamic', 'thalamomesencephalic', 'thalamic_paramedian_unilateral'];
+
+describe('R5-1, R5-10: both paramedian midbrain halves are one bilateral picture, not two one-sided crossed syndromes', () => {
+  it('basilar tip with good collaterals, with or without the absent left PComm: the top-of-the-basilar label stays and hides the one-sided pieces', () => {
+    for (const variants of [[], ['pcomm_absent_l']])
+      for (const tH of [24, 48, 336, 720, 2160, 4320]) {
+        const r = one('basilar_tip', tH, { variants });
+        const where = `${variants.join() || 'no variant'} ${tH} h`;
+        expect(crossedMidbrain(r), where).toEqual([]);
+        expect(syn(r), where).toContain('top_of_basilar');
+        expect(syn(r).filter((s) => THALAMIC_PIECES.some((p) => s.startsWith(p))), where).toEqual([]);
+      }
+  });
+
+  it('reopened after the midbrain has infarcted on both sides: never a crossed midbrain syndrome on each side', () => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const)
+      for (const reperfusionH of [2, 4.5, 6, 8, 12, 24])
+        for (const tH of [6, 24, 336, 4320]) {
+          const sides = new Set(crossedMidbrain(one('basilar_tip', tH, { collateral, reperfusionH })).map((s) => s.slice(-1)));
+          expect(sides.size, `${collateral} reopened ${reperfusionH} h, ${tH} h`).toBeLessThan(2);
+        }
+  });
+
+  it('one paramedian midbrain half keeps its crossed syndrome', () => {
+    for (const tH of [24, 4320]) expect(syn(one('mesencephalic_perf_l', tH)), `${tH} h`).toEqual(['weber_benedikt_l']);
+  });
+
+  it('a paramedian thalamomesencephalic infarct also hides a Weber label of its side', () => {
+    expect(SYNDROMES.find((s) => s.id === 'thalamomesencephalic')!.supersedes).toEqual(expect.arrayContaining(['claude', 'weber_benedikt']));
+  });
+});
+
+describe('R5-2: the Holmes tremor is a possible, mild late symptom, not listed in a disorder of consciousness', () => {
+  it('is named as possible, in a minority, months later', () => {
+    const n = SYMPTOM_BY_ID.holmes_tremor.name;
+    expect(n.en).toMatch(/^Possible: Holmes \(rubral\) tremor/);
+    expect(n.en).toMatch(/months later, a minority/);
+    expect(n.zh).toMatch(/^可能出現：/);
+    expect(n.zh).toContain('少數人');
+  });
+
+  it('the paramedian midbrain gives it at severity 1', () => {
+    const d = REGION_DEFS.find((x) => x.id === 'midbrain_paramedian')!.deficits.find((x) => x.s === 'holmes_tremor')!;
+    expect(d.sev).toBe(1);
+    for (const tH of [2160, 4320]) expect(sym(one('mesencephalic_perf_l', tH), 'holmes_tremor').map((s) => [s.side, s.sev]), `${tH} h`).toEqual([['r', 1]]);
+  });
+
+  it('not while the patient is comatose or in a disorder of consciousness after it', () => {
+    const both: Occlusion[] = [
+      { vessel: 'mesencephalic_perf_r', severity: 1 },
+      { vessel: 'mesencephalic_perf_l', severity: 1 },
+    ];
+    for (const r of [scenario('basilar_tip', 2160), scenario('basilar_tip', 4320), occ(both, 4320), one('basilar_tip', 4320)]) {
+      expect(ids(r).some((id) => id === 'coma' || id === 'disorder_of_consciousness')).toBe(true);
+      expect(ids(r)).not.toContain('holmes_tremor');
+    }
+    // awake (hypersomnia after a Percheron infarct with the midbrain): listed, on both sides, mild
+    expect(sym(scenario('percheron_midbrain', 4320), 'holmes_tremor').map((s) => [s.side, s.sev])).toEqual([
+      ['l', 1],
+      ['r', 1],
+    ]);
+  });
+});
+
+describe('R5-3: one-and-a-half only with its signs; both caudal tegmenta are one bilateral picture', () => {
+  const REOPENED: [CollateralGrade, number][] = [
+    ['poor', 2],
+    ['moderate', 6],
+    ['good', 18],
+  ];
+  it('mid-basilar occlusion reopened early: never a one-and-a-half label on each side, never one beside limb weakness', () => {
+    for (const [collateral, reperfusionH] of REOPENED)
+      for (const tH of [6, 24, 168, 336, 2160, 4320]) {
+        const r = one('basilar_mid', tH, { collateral, reperfusionH });
+        const where = `${collateral} reopened ${reperfusionH} h, ${tH} h`;
+        const oah = syn(r).filter((s) => s.startsWith('one_and_half'));
+        expect(oah.length, where).toBeLessThan(2);
+        if (oah.length) expect(ids(r).some((id) => id === 'arm_weak' || id === 'leg_weak'), where).toBe(false);
+      }
+  });
+
+  it('weakness of all four limbs with anarthria, awake: incomplete locked-in syndrome', () => {
+    for (const [collateral, reperfusionH] of REOPENED)
+      for (const tH of [24, 168]) {
+        const r = one('basilar_mid', tH, { collateral, reperfusionH });
+        const where = `${collateral} reopened ${reperfusionH} h, ${tH} h`;
+        expect(ids(r), where).toContain('anarthria');
+        expect(syn(r), where).toEqual(['locked_in_incomplete']);
+      }
+  });
+
+  it('a one-sided lesion of the dorsal caudal pons keeps the label', () => {
+    for (const tH of [24, 4320]) expect(syn(one('pontine_circumferential_l', tH)), `${tH} h`).toContain('one_and_half_l');
+  });
+
+  it('the label needs the other eye to keep its horizontal movement and no limb weakness', () => {
+    const def = SYNDROMES.find((s) => s.id === 'one_and_half')!;
+    const q = (list: [string, Side | null][]) => ({
+      has: (id: string) => list.some(([x]) => x === id),
+      on: (id: string, side: Side) => list.some(([x, s]) => x === id && s === side),
+      from: () => false,
+    });
+    expect(def.requires!(q([['gaze_palsy_horizontal', 'l']]), 'l')).toBe(true);
+    expect(def.requires!(q([['gaze_palsy_horizontal', 'l'], ['gaze_palsy_horizontal', 'r']]), 'l')).toBe(false);
+    expect(def.requires!(q([['gaze_palsy_horizontal', 'l'], ['arm_weak', 'r']]), 'l')).toBe(false);
+    expect(def.requires!(q([['gaze_palsy_horizontal', 'l'], ['leg_weak', 'l']]), 'l')).toBe(false);
+  });
+});
+
+describe('R5-4: the locked-in event does not say the state resolves while a locked-in label stays', () => {
+  it.each([24, 26, 28, 30])('mid-basilar occlusion reopened at %s h: an open-ended "incomplete" event, like the label at 6 months', (reperfusionH) => {
+    const r = one('basilar_mid', 4320, { reperfusionH });
+    expect(syn(r)).toContain('locked_in_incomplete');
+    const e = event(r, 'locked_in')!;
+    expect(e.endH).toBeUndefined();
+    expect(e.title.en).toMatch(/incomplete locked-in/);
+    expect(e.desc.en).not.toMatch(/resolves then/);
+    expect(e.desc.zh).not.toContain('這個狀態隨之解除');
+  });
+
+  it('upper basilar occlusion reopened at 6 h: the coma does not "resolve" at 6 h; from two weeks the locked-in state has its event', () => {
+    const late = one('basilar_upper', 4320, { reperfusionH: 6 });
+    expect(syn(late)).toContain('locked_in_incomplete');
+    for (const e of late.cascade.events.filter((x) => x.id === 'basilar_coma' || x.id === 'locked_in')) {
+      expect(e.desc.en, e.id).not.toMatch(/resolves then/);
+      expect(e.desc.zh, e.id).not.toContain('這個狀態隨之解除');
+    }
+    expect(event(late, 'basilar_coma')!.endH).toBe(336);
+    // comatose again at 2 days (swelling around the infarcts): the coma event is still running
+    const day2 = one('basilar_upper', 48, { reperfusionH: 6 });
+    expect(syn(day2)).toContain('basilar_coma');
+    expect(activeAt(event(day2, 'basilar_coma')!, 48)).toBe(true);
+  });
+
+  it('reopened before the pons infarcts on both sides, it still resolves at the reopening', () => {
+    for (const reperfusionH of [1, 3]) {
+      const e = event(one('basilar_mid', 4320, { reperfusionH }), 'locked_in')!;
+      expect(e.endH).toBe(reperfusionH);
+      expect(e.desc.en).toMatch(/resolves then/);
+    }
+  });
+
+  it('small infarcts left on both sides: the event says the swelling around them can bring the weakness and loss of speech back for a while', () => {
+    const e = event(one('basilar_mid', 4320, { collateral: 'poor', reperfusionH: 2 }), 'locked_in')!;
+    expect(e.endH).toBe(2);
+    expect(e.desc.en).toMatch(/swelling around them/);
+    expect(e.desc.zh).toContain('周圍的水腫');
+    // nothing infarcted on both sides: no such sentence
+    expect(event(one('basilar_mid', 4320, { reperfusionH: 1 }), 'locked_in')!.desc.en).not.toMatch(/swelling around them/);
+  });
+});
+
+describe('R5-5: the basilar coma ends when it is relabelled, and the state that follows has its own event', () => {
+  it('upper basilar occlusion reopened at 8 or 24 h: awake and locked-in from two weeks, with the locked-in event, not the coma event', () => {
+    for (const reperfusionH of [8, 24])
+      for (const tH of [336, 720, 4320]) {
+        const r = one('basilar_upper', tH, { reperfusionH });
+        const where = `reopened ${reperfusionH} h, ${tH} h`;
+        expect(ids(r), where).not.toContain('coma');
+        expect(syn(r).some((s) => s === 'locked_in' || s === 'locked_in_incomplete'), where).toBe(true);
+        expect(activeAt(event(r, 'basilar_coma')!, tH), where).toBe(false);
+        const li = event(r, 'locked_in')!;
+        expect(li, where).toBeDefined();
+        expect(li.onsetH, where).toBe(336);
+        expect(activeAt(li, tH), where).toBe(true);
+        expect(li.desc.en, where).toMatch(/60%/);
+      }
+    // classical (nothing moves) when reopened at 24 h; incomplete at 8 h
+    expect(event(one('basilar_upper', 4320, { reperfusionH: 24 }), 'locked_in')!.title.en).toBe('Bilateral ventral pons: locked-in syndrome');
+    expect(event(one('basilar_upper', 4320, { reperfusionH: 8 }), 'locked_in')!.title.en).toMatch(/incomplete locked-in/);
+  });
+
+  it('untreated: a disorder of consciousness from two weeks, with an event that says so; the coma event has ended', () => {
+    for (const tH of [336, 4320]) {
+      const r = one('basilar_upper', tH);
+      expect(syn(r), `${tH} h`).toContain('pontine_doc');
+      expect(activeAt(event(r, 'basilar_coma')!, tH), `${tH} h`).toBe(false);
+      const after = event(r, 'pontine_doc')!;
+      expect(after.onsetH).toBe(336);
+      expect(activeAt(after, tH), `${tH} h`).toBe(true);
+      expect(after.title.en).toMatch(/disorder of consciousness or locked-in/);
+      expect(after.desc.en).toMatch(/looking up or blinking/);
+      expect(after.desc.zh).toContain('眨眼');
+      expect(after.desc.en).toMatch(/60%/);
+    }
+    // while comatose the coma event says so, and what may follow
+    const acute = event(one('basilar_upper', 24), 'basilar_coma')!;
+    expect(acute.endH).toBe(336);
+    expect(acute.desc.en).toMatch(/comatose now/);
+  });
+
+  it('no coma event is ever active without coma (or a disorder of consciousness) in the list', () => {
+    for (const reperfusionH of [null, 6, 8, 12, 24])
+      for (const tH of [24, 48, 168, 336, 720, 2160, 4320]) {
+        const r = one('basilar_upper', tH, { reperfusionH });
+        const e = event(r, 'basilar_coma');
+        if (e && activeAt(e, tH) && tH >= 336) expect(ids(r).some((id) => id === 'coma' || id === 'disorder_of_consciousness'), `${reperfusionH} ${tH}`).toBe(true);
+      }
+  });
+});
+
+describe('R5-6: one paramedian upper pontine perforator does not lower consciousness', () => {
+  it('a one-sided rostral paramedian pontine infarct (basilar branch disease): no drowsiness, NIHSS 1a 0, also as a short TIA', () => {
+    for (const s of ['l', 'r']) {
+      const r = one(`pontine_paramedian_rostral_${s}`, 24);
+      expect(syn(r)).toEqual([`pontine_anteromedial_${s}`]);
+      expect(ids(r)).not.toContain('somnolence');
+      expect(r.nihss.items['1a'] ?? 0).toBe(0);
+    }
+    const tia = occ([{ vessel: 'pontine_paramedian_rostral_l', severity: 1, toH: 5 / 60 }], 0.05);
+    expect(ids(tia)).not.toContain('somnolence');
+  });
+
+  it('the whole upper pontine tegmentum of one side (paramedian and SCA branches): drowsiness, as a model assumption', () => {
+    const r = occ(
+      [
+        { vessel: 'pontine_paramedian_rostral_l', severity: 1 },
+        { vessel: 'sca_l', severity: 1 },
+      ],
+      24,
+    );
+    expect(r.regions.pons_rostral_tegmentum_l.dys).toBeGreaterThan(0.85);
+    expect(ids(r)).toContain('somnolence');
+    expect(r.nihss.items['1a']).toBe(1);
+  });
+
+  it('the coma and drowsiness texts call the one-sided drowsiness a model assumption and keep the 2 of 9', () => {
+    const coma = SYMPTOM_BY_ID.coma.desc;
+    expect(coma.en).toMatch(/2 of 9/);
+    expect(coma.en).toMatch(/model assumption/);
+    expect(coma.en).not.toMatch(/when extensive, can cause drowsiness instead/);
+    expect(coma.zh).toContain('模型的假設');
+    const som = SYMPTOM_BY_ID.somnolence.desc;
+    expect(som.en).toMatch(/model assumption/);
+    expect(som.en).not.toMatch(/possible with an extensive one-sided upper pontine tegmental infarct/);
+    expect(som.zh).toContain('模型的假設');
   });
 });

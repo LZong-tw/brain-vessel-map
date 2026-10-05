@@ -32,8 +32,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'coma',
     name: { zh: '意識障礙／昏迷', en: 'Reduced consciousness / coma' },
     desc: {
-      zh: '維持清醒的網狀活化系統（腦幹上部、雙側視丘）受損，可能叫不醒。通常要兩側都受損；單側的上橋腦或中腦被蓋病灶偶爾也會造成昏迷（一項腦幹中風研究的昏迷病人 9 位中有 2 位是單側），範圍大時也可能只是嗜睡。昏迷很少超過約兩週：之後會醒來，模型改列接下來的狀態——視丘或範圍有限的中腦病灶之後是長期嗜睡；兩側上橋腦或中腦被蓋大範圍梗塞之後，是意識障礙（或其實清醒、但被閉鎖）。',
-      en: 'The arousal network (upper brainstem reticular formation, both thalami) is damaged; the person may be unrousable. It usually takes damage on both sides; a one-sided upper pontine or midbrain tegmental lesion occasionally causes coma (2 of 9 comatose patients in a study of brainstem strokes) and, when extensive, can cause drowsiness instead. Coma rarely lasts more than about two weeks: the person then wakes, and the model lists what follows — persistent hypersomnia after thalamic or limited midbrain lesions, and after extensive damage to the upper pontine or midbrain tegmentum on both sides a disorder of consciousness (or awareness hidden by a locked-in state).',
+      zh: '維持清醒的網狀活化系統（腦幹上部、雙側視丘）受損，可能叫不醒。通常要兩側都受損；單側的上橋腦或中腦被蓋病灶偶爾也會造成昏迷（一項腦幹中風研究的昏迷病人 9 位中有 2 位是單側）；單側大範圍病灶只讓人嗜睡，是模型的假設。昏迷很少超過約兩週：之後會醒來，模型改列接下來的狀態——視丘或範圍有限的中腦病灶之後是長期嗜睡；兩側上橋腦或中腦被蓋大範圍梗塞之後，是意識障礙（或其實清醒、但被閉鎖）。',
+      en: 'The arousal network (upper brainstem reticular formation, both thalami) is damaged; the person may be unrousable. It usually takes damage on both sides; a one-sided upper pontine or midbrain tegmental lesion occasionally causes coma (2 of 9 comatose patients in a study of brainstem strokes); that a large one-sided lesion only lowers alertness (drowsiness) is a model assumption. Coma rarely lasts more than about two weeks: the person then wakes, and the model lists what follows — persistent hypersomnia after thalamic or limited midbrain lesions, and after extensive damage to the upper pontine or midbrain tegmentum on both sides a disorder of consciousness (or awareness hidden by a locked-in state).',
     },
     system: 'consciousness',
     lateralised: false,
@@ -61,11 +61,15 @@ export const SYMPTOMS: SymptomDef[] = [
     nihss: { item: '1a', pts: [1, 2, 3] },
   },
   {
+    // One-sided pontine infarcts: among 150 isolated pontine infarcts, (transient) loss of
+    // consciousness was described only with bilateral ones (Kumral E et al. J Neurol
+    // 2002;249:1659–1670); drowsiness after a nearly complete one-sided upper pontine tegmental
+    // infarct is a model assumption (regions.ts, R5-6).
     id: 'somnolence',
     name: { zh: '嗜睡、反應遲鈍', en: 'Drowsiness / hypersomnolence' },
     desc: {
-      zh: '一直想睡、叫醒後很快又睡著，常見於視丘旁正中或中腦受損，單側上橋腦被蓋大範圍梗塞也可能出現。這是急性期的表現：約兩週後仍持續的睡眠需求增加，改列為「長期嗜睡」。',
-      en: 'Excessive sleepiness, drifting off after being roused; typical of paramedian thalamic or midbrain lesions, and possible with an extensive one-sided upper pontine tegmental infarct. This is the acute picture: a raised need for sleep that persists beyond about two weeks is listed as persistent hypersomnia instead.',
+      zh: '一直想睡、叫醒後很快又睡著，常見於視丘旁正中或中腦受損。單側的橋腦梗塞通常不會：150 例孤立橋腦梗塞中，只有雙側梗塞被描述有（短暫的）意識喪失。模型在單側上橋腦被蓋幾乎整個梗塞（旁正中支與小腦上動脈支都阻塞）時列出嗜睡，這是模型的假設。這是急性期的表現：約兩週後仍持續的睡眠需求增加，改列為「長期嗜睡」。',
+      en: 'Excessive sleepiness, drifting off after being roused; typical of paramedian thalamic or midbrain lesions. A one-sided pontine infarct usually does not cause it: among 150 isolated pontine infarcts, loss of consciousness (transient) was described only with bilateral ones. The model lists drowsiness when nearly the whole upper pontine tegmentum of one side is infarcted (paramedian and superior cerebellar branches both blocked), which is a model assumption. This is the acute picture: a raised need for sleep that persists beyond about two weeks is listed as persistent hypersomnia instead.',
     },
     system: 'consciousness',
     lateralised: false,
@@ -345,12 +349,18 @@ export const SYMPTOMS: SymptomDef[] = [
     // the lesion to the tremor, 7 days to 228 months; levodopa helped 13 of 24). Castaigne P et al.
     // Ann Neurol 1981;10:127–148 (paramedian thalamopeduncular infarcts: abnormal movements always
     // delayed). Deuschl G, Bain P, Brin M. Mov Disord 1998;13 Suppl 3:2–23 (Holmes tremor as a
-    // tremor syndrome of its own, apart from cerebellar tremor).
+    // tremor syndrome of its own, apart from cerebellar tremor). Uncommon: none of the 29 movement
+    // disorders among 2500 first strokes was described as a Holmes (rubral) tremor (Ghika-Schmid F
+    // et al. J Neurol Sci 1997;146:109–116, PMID 9077506), so it is a possibility, mild, and not
+    // listed in coma or a disorder of consciousness (clinical.ts; R5-2).
     id: 'holmes_tremor',
-    name: { zh: '霍姆斯（Holmes）顫抖（紅核性顫抖，數週至數月後）', en: 'Holmes (rubral) tremor (weeks to months later)' },
+    name: {
+      zh: '可能出現：霍姆斯（Holmes）顫抖（紅核性顫抖，數月後，少數人）',
+      en: 'Possible: Holmes (rubral) tremor (months later, a minority)',
+    },
     desc: {
-      zh: '中腦紅核一帶（或視丘）受損後，對側手臂出現緩慢、不規則的抖動，靜止、維持姿勢和動作時都會抖，動作時最明顯。它不是一開始就出現：中位數約在受損後 2 個月（7 天到數年都有），常合併無力或運動失調。約一半的病人用 levodopa 有幫助；模型讓它只自行減輕一點，這是假設。',
-      en: 'After damage around the red nucleus in the midbrain (or the thalamus), the arm on the opposite side develops a slow, irregular tremor at rest, when holding a posture and during movement, worst with movement. It does not start at once: a median of about 2 months after the lesion (from 7 days to years), often with weakness or ataxia. Levodopa helps about half; the model lets it settle only a little by itself, which is an assumption.',
+      zh: '中腦紅核一帶（或視丘）受損後，對側手臂可能出現緩慢、不規則的抖動，靜止、維持姿勢和動作時都會抖，動作時最明顯。它不是一開始就出現：中位數約在受損後 2 個月（7 天到數年都有），常合併無力或運動失調。只有少數人會出現（一個 2500 位首次中風的登錄中，29 位有不自主運動，沒有一位被描述為霍姆斯顫抖），所以列為「可能」，不是預測；病人昏迷或處於意識障礙時不列出。約一半的病人用 levodopa 有幫助；模型讓它只自行減輕一點，這是假設。',
+      en: 'After damage around the red nucleus in the midbrain (or the thalamus), the arm on the opposite side may develop a slow, irregular tremor at rest, when holding a posture and during movement, worst with movement. It does not start at once: a median of about 2 months after the lesion (from 7 days to years), often with weakness or ataxia. Only a minority develop it (in a registry of 2,500 first strokes, none of the 29 people with a movement disorder was described as having a Holmes tremor), so it is listed as possible, not predicted, and not while the person is comatose or in a disorder of consciousness. Levodopa helps about half; the model lets it settle only a little by itself, which is an assumption.',
     },
     system: 'motor',
     lateralised: true,
