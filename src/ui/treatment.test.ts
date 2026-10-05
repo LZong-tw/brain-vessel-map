@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { REPERFUSION_STOPS } from '../anatomy/timeline';
 import { simulate } from '../engine/simulate';
-import { RECANALISATION_EVIDENCE, type SiteGroup } from '../anatomy/recanalisation';
+import { RECANALISATION_EVIDENCE, siteGroupOf, type SiteGroup } from '../anatomy/recanalisation';
 import { DEFAULT_TREATMENT, type TreatmentOptions } from '../engine/treatment';
-import { distalOptions, evidenceRows, reopenedVesselIds, treatmentWarnings } from './treatment';
+import { distalOptions, evidenceRows, isThrombectomyTarget, reopenedVesselIds, sitesOf, treatmentWarnings } from './treatment';
 
 /**
  * The settings panel works out which arteries a treatment reopens from the store alone; the
@@ -225,5 +225,140 @@ describe('C2-F9: distal and new-territory emboli', () => {
     expect(n.note).toMatch(/ICA 5%, MCA 25%, vertebrobasilar 57%/);
     expect(n.note).toMatch(/88\.3%/);
     expect(evRows(['m1'], 'ivt').some((r) => r.key === 'distal' || r.key === 'newTerritory')).toBe(false);
+  });
+});
+
+// ── review of the audit fixes (group R4): timing, scope and wording of the treatment warnings ──
+
+const warnFor = (method: TreatmentOptions['method'], delayH: number, reopened: string[], lang: 'en' | 'zh-TW' = 'en') =>
+  treatmentWarnings({ ...DEFAULT_TREATMENT, method }, delayH, sitesOf(reopened, siteGroupOf), RECANALISATION_EVIDENCE, lang, reopened);
+
+describe('R4-2: IV thrombolysis that reopens the artery within 1 h of onset', () => {
+  it('is flagged as faster than thrombolysis usually achieves', () => {
+    for (const h of [0.25, 0.5, 1]) {
+      expect(keys(warn('ivt', h, ['m1'])), `${h} h`).toContain('ivtTooEarly');
+      expect(keys(warn('ivt', h, ['other'])), `${h} h other`).toContain('ivtTooEarly');
+    }
+    const t = warn('ivt', 0.5, ['m1']).find((x) => x.key === 'ivtTooEarly')!.text;
+    expect(t).toMatch(/30 min after onset/);
+    expect(t).toMatch(/faster than IV thrombolysis usually achieves/);
+    expect(t).toMatch(/1–3 h/);
+    expect(warn('ivt', 0.5, ['m1'], 'zh-TW').find((x) => x.key === 'ivtTooEarly')!.text).toMatch(/比靜脈血栓溶解通常能做到的更快/);
+  });
+
+  it('is not raised later, nor for thrombectomy or bridging (thrombectomy reopens the artery)', () => {
+    expect(keys(warn('ivt', 2, ['m1']))).not.toContain('ivtTooEarly');
+    for (const method of ['evt', 'bridging'] as const) expect(keys(warn(method, 0.5, ['m1'])), method).not.toContain('ivtTooEarly');
+  });
+});
+
+describe('R4-4: the MeVO warning does not call DISTAL’s haemorrhage higher', () => {
+  it('attributes the haemorrhage figures and says DISTAL’s authors judged them similar', () => {
+    const en = warn('evt', 3, ['m2']).find((x) => x.key === 'evtMevo')!.text;
+    expect(en).not.toMatch(/more symptomatic haemorrhage/);
+    expect(en).toMatch(/5\.4% vs 2\.2% in ESCAPE-MeVO/);
+    expect(en).toMatch(/judged similar by its authors/);
+    expect(en).toMatch(/higher mortality only in ESCAPE-MeVO/);
+    const zh = warn('evt', 3, ['m2'], 'zh-TW').find((x) => x.key === 'evtMevo')!.text;
+    expect(zh).not.toMatch(/症狀性出血較多/);
+    expect(zh).toMatch(/作者認為相近/);
+  });
+});
+
+describe('R4-5: thrombectomy for a perforator, the ophthalmic or a communicating artery', () => {
+  it('is said not to apply, instead of being "an individual decision"', () => {
+    for (const vessel of ['lenticulostriate_l', 'ophthalmic_r', 'acha_l', 'thalamogeniculate_l', 'pontine_paramedian_caudal_l', 'acomm', 'pcomm_r']) {
+      for (const method of ['evt', 'bridging'] as const) {
+        const w = warnFor(method, 3, [vessel]);
+        expect(keys(w), `${vessel} ${method}`).toContain('evtNotApplicable');
+        expect(keys(w), `${vessel} ${method}`).not.toContain('evtNoTrial');
+      }
+      expect(keys(warnFor('ivt', 3, [vessel])), vessel).not.toContain('evtNotApplicable');
+    }
+    const en = warnFor('evt', 3, ['lenticulostriate_l']).find((x) => x.key === 'evtNotApplicable')!.text;
+    expect(en).toMatch(/Thrombectomy does not treat this kind of artery/);
+    expect(en).toMatch(/IV thrombolysis/);
+    expect(en).not.toMatch(/individual decision/);
+    expect(warnFor('evt', 3, ['ophthalmic_r'], 'zh-TW').find((x) => x.key === 'evtNotApplicable')!.text).toMatch(/取栓不處理這類動脈/);
+  });
+
+  it('the cerebellar trunks, the cervical ICA and V4 keep the "not tested in trials" warning', () => {
+    for (const vessel of ['pica_r', 'aica_l', 'sca_r', 'ica_cervical_r', 'va_v4_prox_r']) {
+      const w = warnFor('evt', 3, [vessel]);
+      expect(keys(w), vessel).toContain('evtNoTrial');
+      expect(keys(w), vessel).not.toContain('evtNotApplicable');
+    }
+    // a trial site reopened as well: neither
+    expect(keys(warnFor('evt', 3, ['mca_m1_l', 'lenticulostriate_l']))).toEqual([]);
+  });
+
+  it('the settings panel passes the reopened arteries', () => {
+    expect(isThrombectomyTarget('lenticulostriate_l')).toBe(false);
+    expect(isThrombectomyTarget('ophthalmic_r')).toBe(false);
+    expect(isThrombectomyTarget('pica_r')).toBe(true);
+    expect(isThrombectomyTarget('mca_m1_l')).toBe(true);
+  });
+});
+
+describe('R4-7: the late-thrombolysis trials are not shown as basilar data', () => {
+  it('basilar IV thrombolysis late in the day gets no late-thrombolysis row', () => {
+    expect(evRows(['basilar'], 'ivt', 'en', 8).some((r) => r.key === 'lateIvt')).toBe(false);
+    expect(evRows(['basilar'], 'ivt', 'zh-TW', 8).some((r) => r.key === 'lateIvt')).toBe(false);
+    // an anterior site reopened as well keeps it
+    expect(evRows(['basilar', 'm1'], 'ivt', 'en', 8).some((r) => r.key === 'lateIvt')).toBe(true);
+    expect(evRows(['m1'], 'ivt', 'en', 8).some((r) => r.key === 'lateIvt')).toBe(true);
+  });
+});
+
+describe('R4-8: the 4.5 h window is about the drug start, which comes 1–3 h before flow returns', () => {
+  it('IV thrombolysis with flow back at up to 5.5 h fits a drug start within 4.5 h: a note, no warning, no late-trial row', () => {
+    for (const h of [4.6, 5, 5.5]) {
+      const w = warn('ivt', h, ['m1']);
+      expect(keys(w), `${h} h`).not.toContain('ivtWindow');
+      expect(keys(w), `${h} h`).toContain('ivtWindowFits');
+      expect(w.find((x) => x.key === 'ivtWindowFits')!.level, `${h} h`).toBe('note');
+      expect(evRows(['m1'], 'ivt', 'en', h).some((r) => r.key === 'lateIvt'), `${h} h`).toBe(false);
+    }
+    const t = warn('ivt', 5, ['m1']).find((x) => x.key === 'ivtWindowFits')!.text;
+    expect(t).toMatch(/5 h after onset/);
+    expect(t).toMatch(/within 4\.5 h/);
+    expect(warn('ivt', 5, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindowFits')!.text).toMatch(/4\.5 小時內開始用藥相符/);
+    // later, the warning and the late trials
+    for (const h of [6, 8]) {
+      expect(keys(warn('ivt', h, ['m1'])), `${h} h`).toContain('ivtWindow');
+      expect(evRows(['m1'], 'ivt', 'en', h).some((r) => r.key === 'lateIvt'), `${h} h`).toBe(true);
+    }
+    // within 4.5 h nothing about the window
+    expect(keys(warn('ivt', 4, ['m1']))).toEqual(['ivtLargeVessel']);
+  });
+
+  it('the warning gives the drug start implied by the flow-return time', () => {
+    expect(warn('ivt', 6, ['m1']).find((x) => x.key === 'ivtWindow')!.text).toMatch(/about 3–5 h after onset/);
+    expect(warn('ivt', 6, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text).toMatch(/發作後約 3–5 小時/);
+  });
+
+  it('bridging: thrombectomy sets the time, so no window warning and no late-trial row, only a neutral note', () => {
+    for (const h of [5, 6, 8]) {
+      const w = warn('bridging', h, ['m1']);
+      expect(keys(w), `${h} h`).not.toContain('ivtWindow');
+      expect(keys(w), `${h} h`).not.toContain('ivtWindowConsensus');
+      expect(keys(w), `${h} h`).toContain('bridgingDrugStart');
+      expect(w.find((x) => x.key === 'bridgingDrugStart')!.level).toBe('note');
+      expect(evRows(['m1'], 'bridging', 'en', h).some((r) => r.key === 'lateIvt'), `${h} h`).toBe(false);
+    }
+    const t = warn('bridging', 6, ['m1']).find((x) => x.key === 'bridgingDrugStart')!.text;
+    expect(t).toMatch(/within 4\.5 h of onset/);
+    expect(t).toMatch(/when thrombectomy restores flow/);
+    expect(warn('bridging', 6, ['m1'], 'zh-TW').find((x) => x.key === 'bridgingDrugStart')!.text).toMatch(/取栓恢復血流的時間/);
+    // a basilar bridging case names the consensus window, other sites do not
+    expect(warn('bridging', 8, ['basilar']).find((x) => x.key === 'bridgingDrugStart')!.text).toMatch(/ESO\/ESMINT.*24 h/);
+    expect(t).not.toMatch(/ESO|consensus/);
+    expect(warn('bridging', 8, ['basilar', 'm1']).find((x) => x.key === 'bridgingDrugStart')!.text).not.toMatch(/ESO|consensus/);
+    // within 4.5 h, nothing
+    expect(keys(warn('bridging', 3, ['m1']))).toEqual([]);
+  });
+
+  it('warnings are warnings unless marked as notes', () => {
+    expect(warn('ivt', 8, ['m1']).find((x) => x.key === 'ivtWindow')!.level).toBeUndefined();
   });
 });

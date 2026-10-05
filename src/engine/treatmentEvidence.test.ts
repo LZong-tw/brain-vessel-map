@@ -212,7 +212,8 @@ describe('C2-F6: medium/distal vessel occlusions', () => {
     expect(d.en).toMatch(/DISTAL/);
     expect(d.en).toMatch(/5\.4% vs 2\.2%/);
     expect(d.en).toMatch(/5\.9% vs 2\.6%/);
-    expect(d.en).toMatch(/higher mortality in ESCAPE-MeVO \(13\.3% vs 8\.4%\)/);
+    // R4-4: mortality was higher in ESCAPE-MeVO only
+    expect(d.en).toMatch(/mortality higher only in ESCAPE-MeVO \(13\.3% vs 8\.4%\)/);
     expect(d.en).toMatch(/excluded from DISTAL/);
     expect(d.zh).toMatch(/13\.3%/);
   });
@@ -264,5 +265,59 @@ describe('C2-F10: basilar prognosis from the trials', () => {
       expect(d.zh, id).toMatch(/37%/);
       expect(d.zh, id).toMatch(/約 2%/);
     }
+  });
+});
+
+describe('R4-2: IV thrombolysis that reopens the artery very early', () => {
+  const M1 = (reperfusionH: number) => withT(scenario('l_m1', { reperfusionH, tH: 24 }), { method: 'ivt' });
+  const note = (reperfusionH: number) => eventOf(M1(reperfusionH), 'reperfusion')!.desc;
+
+  it('flow back within 1 h of onset is called faster than thrombolysis usually achieves, not a drug started before the stroke', () => {
+    for (const h of [0.5, 1]) {
+      const d = note(h);
+      expect(d.en, `${h} h`).not.toMatch(/started about 1–3 h earlier/);
+      expect(d.en, `${h} h`).toMatch(/faster than IV thrombolysis usually achieves/);
+      expect(d.en, `${h} h`).toMatch(/median of about 2 h/);
+      expect(d.zh, `${h} h`).not.toMatch(/早 1–3 小時就已開始/);
+      expect(d.zh, `${h} h`).toMatch(/比靜脈血栓溶解通常能做到的更快/);
+    }
+  });
+
+  it('later, the note gives the implied drug start after onset', () => {
+    expect(note(2).en).toMatch(/started within about 1 h of onset/);
+    expect(note(2).zh).toMatch(/發作後約 1 小時內就開始用藥/);
+    expect(note(6).en).toMatch(/started about 3–5 h after onset/);
+    expect(note(6).zh).toMatch(/發作後約 3–5 小時開始用藥/);
+    for (const h of [2, 6]) expect(note(h).en).not.toMatch(/faster than IV thrombolysis/);
+  });
+
+  it('the haemorrhage text says the model starts the risk when flow returns', () => {
+    const d = eventOf(M1(0.5), 'hemorrhagic_transformation')!.desc;
+    expect(d.en).toMatch(/starts this risk when flow returns/);
+    expect(d.en).not.toMatch(/starts this risk at the treatment/);
+    expect(d.zh).toMatch(/從血流恢復時（選擇的治療時間）開始算/);
+  });
+});
+
+describe('R4-4: DISTAL reported similar symptomatic haemorrhage', () => {
+  it('the MeVO window text attributes the haemorrhage figures and calls DISTAL’s similar', () => {
+    const d = windowText(run('l_m2_sup'));
+    expect(d.en).not.toMatch(/more symptomatic haemorrhage/);
+    expect(d.en).toMatch(/5\.4% vs 2\.2% in ESCAPE-MeVO/);
+    expect(d.en).toMatch(/5\.9% vs 2\.6% in DISTAL \(judged similar by its authors\)/);
+    expect(d.en).toMatch(/mortality higher only in ESCAPE-MeVO \(13\.3% vs 8\.4%\)/);
+    expect(d.zh).not.toMatch(/症狀性出血較多/);
+    expect(d.zh).toMatch(/DISTAL 5\.9% vs 2\.6%（作者認為相近）/);
+    expect(d.zh).toMatch(/只有 ESCAPE-MeVO 的死亡率較高（13\.3% vs 8\.4%）/);
+  });
+});
+
+describe('R4-2: the implied drug start is counted from the onset of the occlusion that is reopened', () => {
+  it('an occlusion that begins at 24 h and reopens with IV thrombolysis at 24.5 h is too early, not 21.5–23.5 h', () => {
+    const input: SimInput = { ...scenario('l_m1'), occlusions: [{ vessel: 'mca_m1_l', severity: 1, fromH: 24 }], reperfusionH: 24.5, tH: 48 };
+    const r = withT(input, { method: 'ivt' });
+    const d = eventOf(r, 'reperfusion')!.desc;
+    expect(d.en).toMatch(/only 30 min after onset/);
+    expect(d.en).not.toMatch(/21\.5/);
   });
 });

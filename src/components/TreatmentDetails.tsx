@@ -81,7 +81,7 @@ export function TreatmentDetails({
   if (reperfusionH === null) return null;
   const sites = sitesOf(reopened, siteGroupOf);
   const delayH = treatmentDelayH(occlusions, reperfusionH, reopened);
-  const warnings = treatmentWarnings(tx, delayH, sites, evidence, lang);
+  const warnings = treatmentWarnings(tx, delayH, sites, evidence, lang, reopened, siteGroupOf);
   // a lacunar (single-branch) occlusion in effect then: thrombolysis applies, the model does not reopen it
   const lacunar = occlusions.some((o) => o.branch && o.severity >= 1 && inWindow(o, reperfusionH));
   const listed = [...distal.downstream, ...distal.newTerritory];
@@ -185,7 +185,7 @@ export function TreatmentDetails({
       </div>
       <p className="muted small">{s.noReflowHint}</p>
       {warnings.map((w) => (
-        <p key={w.key} className="callout warn" role="status">
+        <p key={w.key} className={w.level === 'note' ? 'callout note' : 'callout warn'} role="status">
           {w.text}
         </p>
       ))}

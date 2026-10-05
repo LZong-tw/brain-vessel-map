@@ -34,7 +34,7 @@ import { SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { formatHours } from '../anatomy/timeline';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
-import { isTreatable } from './schedule';
+import { isTreatable, reopenedByTreatment, startOf } from './schedule';
 
 export type EventKind = 'mechanism' | 'imaging' | 'treatment' | 'secondary' | 'complication' | 'recovery';
 export type EventSeverity = 'info' | 'warn' | 'danger' | 'good';
@@ -217,23 +217,48 @@ const hoursEn = (h: number) => `${+h.toFixed(1)} h`;
 const lowerFirst = (n: string) => (/^[A-Z][a-z]/.test(n) ? n.charAt(0).toLowerCase() + n.slice(1) : n);
 
 /**
+ * What the chosen time means after IV thrombolysis alone: it is when flow returns, and the artery
+ * usually reopens gradually over 1–3 h after the drug is started (INTERRSeCT: recanalisation
+ * assessed a median of 132.5 min after alteplase was started, Menon BK et al. JAMA
+ * 2018;320:1017–1026; Seners P et al. Stroke 2016;47:2409–2412). So the drug was started about
+ * t − 3 to t − 1 h after onset; flow back within 1 h of onset would put the drug start at or
+ * before the onset, which thrombolysis does not achieve (R4-2).
+ */
+function ivtTimingNote(t: number): L {
+  // t: hours from the onset of the reopened occlusion to the return of flow
+  const head = {
+    zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例。',
+    en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused. ',
+  };
+  const latest = t - 1;
+  if (latest <= 1e-6)
+    return {
+      zh: `${head.zh}這個時間是血流恢復的時間，發作後才 ${t < 1 ? `${Math.round(t * 60)} 分鐘` : hoursZh(t)}：比靜脈血栓溶解通常能做到的更快，因為用藥後動脈通常在 1–3 小時內才逐漸打通；一個大型世代研究中，從開始用藥到評估再通的中位數約 2 小時）`,
+      en: `${head.en}This is when flow returns, only ${t < 1 ? `${Math.round(t * 60)} min` : hoursEn(t)} after onset: faster than IV thrombolysis usually achieves, since after the drug the artery usually reopens gradually over 1–3 h; in one large cohort recanalisation was assessed a median of about 2 h after the drug was started)`,
+    };
+  const earliest = Math.max(0, t - 3);
+  const n = (h: number) => `${+h.toFixed(1)}`;
+  return earliest <= 1e-6
+    ? {
+        zh: `${head.zh}這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以是在發作後約 ${n(latest)} 小時內就開始用藥）`,
+        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started within about ${n(latest)} h of onset)`,
+      }
+    : {
+        zh: `${head.zh}這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以是在發作後約 ${n(earliest)}–${n(latest)} 小時開始用藥）`,
+        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about ${n(earliest)}–${n(latest)} h after onset)`,
+      };
+}
+
+/**
  * The recanalisation event when the treatment details differ from the default: it names the
  * method and the eTICI grade, says how much of the territory got its flow back, and says so when
  * the attempt failed.
  */
-function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number): CascadeEvent {
+function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number, delayH: number): CascadeEvent {
   const m = METHOD_NAME[t.method];
   const g = GRADE_MEANING[t.grade];
   // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
-  const ivtNote: L =
-    t.method === 'ivt'
-      ? {
-          // the window refers to drug start; recanalisation after alteplase accrues over 1–3 h
-          // (INTERRSeCT: Menon BK et al. JAMA 2018;320:1017–1026; Seners P et al. Stroke 2016;47:2409–2412)
-          zh: '（eTICI 是血管攝影的分級；只打靜脈血栓溶解時，這裡代表下游區域恢復灌流的比例。這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以藥物大約早 1–3 小時就已開始）',
-          en: ' (eTICI is graded on angiography; after IV thrombolysis alone it stands for how much of the territory is reperfused. This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about 1–3 h earlier)',
-        }
-      : { zh: '', en: '' };
+  const ivtNote: L = t.method === 'ivt' ? ivtTimingNote(delayH) : { zh: '', en: '' };
   if (t.failed) {
     return {
       id: 'reperfusion',
@@ -628,10 +653,10 @@ function treatmentWindowDesc(w: WindowStory): L {
   if (w.mevo) {
     // ESCAPE-MeVO (Goyal M et al. 2025), DISTAL (Psychogios M et al. 2025)
     zh.push(
-      '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療。2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後，症狀性出血較多（5.4% vs 2.2%；5.9% vs 2.6%），ESCAPE-MeVO 的死亡率也較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
+      '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療。2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後；症狀性出血 ESCAPE-MeVO 5.4% vs 2.2%、DISTAL 5.9% vs 2.6%（作者認為相近），只有 ESCAPE-MeVO 的死亡率較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
     );
     en.push(
-      'This is a medium/distal vessel occlusion: IV thrombolysis is standard. Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials, with more symptomatic haemorrhage (5.4% vs 2.2%; 5.9% vs 2.6%) and higher mortality in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
+      'This is a medium/distal vessel occlusion: IV thrombolysis is standard. Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), and mortality higher only in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
     );
   }
   if (!w.anterior && !w.basilar && !w.cervicalIsolated && !w.v4 && !w.mevo) {
@@ -834,7 +859,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // the brain-tissue reperfusion story (penumbra saved, in mL) does not fit an eye or inner-ear
   // infarct, whose end organ the brain volumes do not count
   if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable && treatment) {
-    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume));
+    // hours from the onset of the (most recent) reopened occlusion, as in the settings panel
+    const starts = input.occlusions.filter((o) => reopenedByTreatment(o, reperfusionH)).map(startOf);
+    const delayH = starts.length ? reperfusionH - Math.max(...starts) : reperfusionH;
+    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume, delayH));
     pushTreatmentComplications(events, treatment, reperfusionH);
   } else if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
@@ -1161,13 +1189,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           `壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內（用了血栓溶解劑會更早）。梗塞越大、再通越晚、使用血栓溶解劑，風險越高。大多沒有症狀（ECASS III 任何顱內出血 27.0% vs 安慰劑 17.6%）；只有第 2 型實質血腫明顯改變病程（ECASS I：早期惡化 OR 32.3、3 個月死亡 OR 18.0）。` +
           `靜脈血栓溶解後的症狀性出血約 2–7%，是在最初 24–36 小時內計算的（Cochrane 定義算到 7 天）。` +
           (lytic
-            ? `${methodZh}血栓溶解後的症狀性出血來得早：從開始用藥算起中位數約 8 小時，症狀性出血的病人約一半死亡。模型把這段風險從治療時開始算，風險等級最多調高一級。`
+            ? `${methodZh}血栓溶解後的症狀性出血來得早：從開始用藥算起中位數約 8 小時，症狀性出血的病人約一半死亡。模型把這段風險從血流恢復時（選擇的治療時間）開始算，而不是從開始用藥算，風險等級最多調高一級。`
             : ''),
         en:
           'Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days (earlier after a thrombolytic). Larger infarcts, late recanalisation and thrombolytics raise the risk. Most of it causes no symptoms (any intracranial haemorrhage in ECASS III: 27.0% vs 17.6% with placebo); only a parenchymal haematoma type 2 clearly changes the course (ECASS I: odds ratio 32.3 for early deterioration, 18.0 for death at 3 months). ' +
           'Symptomatic haemorrhage after IV thrombolysis is roughly 2–7%, counted in the first 24–36 h (up to 7 days with the Cochrane definition).' +
           (lytic
-            ? `${methodEn} Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk at the treatment and raises its level by one step at most.`
+            ? `${methodEn} Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk when flow returns (the time chosen for the treatment), not when the drug is started, and raises its level by one step at most.`
             : ''),
       },
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex' || REGION_BY_ID[r]?.category === 'deep'),

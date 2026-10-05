@@ -710,6 +710,11 @@ input[type='range'] {
   border: 1px solid rgba(240, 161, 50, 0.4);
   color: #ffdca8;
 }
+.callout.note {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
 .callout.danger {
   background: rgba(229, 72, 77, 0.13);
   border: 1px solid rgba(229, 72, 77, 0.45);
