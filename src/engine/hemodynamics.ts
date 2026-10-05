@@ -180,12 +180,30 @@ const PIAL_ANAST = 0.02;
  * later, was associated with good outcome, whereas favourable collaterals benefited even after
  * 6 h (Alemseged F et al. Response to late-window endovascular revascularization is associated
  * with collateral status in basilar artery occlusion. Stroke 2019;50:1415–1422). BATMAN combines
- * thrombus burden with collaterals, so it is not a pure collateral grade. With 0.5 the
- * paramedian pons sits at about a third of normal flow (low penumbra): reopening within a few
- * hours saves part of it, the benefit fades towards 12 h and is gone at 24 h. Good and moderate
- * keep the common factors, so their calibration is unchanged.
+ * thrombus burden with collaterals, so it is not a pure collateral grade. The target applies to
+ * every basilar segment (the evidence concerns basilar artery occlusion in general): the
+ * paramedian pons cut off by a lower, mid or upper basilar occlusion sits at about a third of
+ * normal flow (low penumbra), so reopening within a few hours saves part of it, the benefit
+ * fades towards 12 h and is gone at 24 h. 0.5 meets it for the caudal group (mid basilar); see
+ * PIAL_POOR_BY_GROUP for the others. Good and moderate keep the common factors, so their
+ * calibration is unchanged.
  */
 const PIAL_GRADE: Record<CollateralGrade, number> = { ...COLL_GRADE, poor: 0.5 };
+/**
+ * TODO(medical-review): the poor-grade factor of the perforator groups for which 0.5 misses the
+ * PIAL_GRADE target. In this network the inferior paramedian perforators (cut off by a lower
+ * basilar occlusion) and the rostral ones (upper basilar) receive less through their donors at
+ * the same factor than the caudal group: with 0.5 they sat at about 28 % of normal flow, below
+ * the core threshold, so reopening a lower or upper basilar occlusion with poor collaterals saved
+ * nothing even at 15 min. With these factors they sit at about a third of normal flow, like the
+ * caudal group. A calibration, not a measurement; good and moderate are unchanged.
+ */
+const PIAL_POOR_BY_GROUP: Record<string, number> = {
+  'pontine_paramedian_inferior_{s}': 0.75,
+  'pontine_paramedian_rostral_{s}': 0.75,
+};
+const pialGrade = (perforator: string, collateral: CollateralGrade) =>
+  collateral === 'poor' ? PIAL_POOR_BY_GROUP[perforator] ?? PIAL_GRADE.poor : PIAL_GRADE[collateral];
 /** TODO(medical-review): fixed series limit of the surface-to-perforator entry (same units) */
 const PIAL_ENTRY = 0.015;
 /**
@@ -226,6 +244,17 @@ export const pialPressureFactor = (map: number) => (map <= MAP_REF ? 1 : Math.po
  * symptoms are more frequent above 40–50 mmHg: Labropoulos N et al. Prevalence and impact of the
  * subclavian steal syndrome. Ann Surg 2010;252:166–170). With a hypoplastic or occluded opposite
  * vertebral artery the carotids still have to feed the basilar artery, which then reverses.
+ *
+ * The same links are also the collateral supply of a common carotid or brachiocephalic occlusion
+ * (R4-6). After a common carotid occlusion the cervical ICA is often patent, fed through a
+ * reversed external carotid artery from the thyrocervical or costocervical trunk and the superior
+ * thyroid artery (16 of 16 patients: Wang J et al. Four collateral circulation pathways were
+ * observed after common carotid artery occlusion. BMC Neurol 2019;19:201): here the cca_bif link.
+ * Around a brachiocephalic occlusion the aortic link feeds the reversed right subclavian artery,
+ * which feeds the right common carotid. With them these occlusions are much better compensated
+ * than without (with poor collaterals, 24 h: NIHSS 0 and about 5 mL instead of 9 points and
+ * 34 mL for a right CCA occlusion; pinned in haemodynamicCalibration.test.ts). The model still
+ * shows a slightly reversed cervical ICA where the patients had it antegrade.
  */
 const ARM_COLLATERALS: { from: string; g: number }[] = [
   { from: 'arch', g: 1.8 },
@@ -449,7 +478,7 @@ function brainstemPialLinks(
       // both arteries must exist in this anatomy, and a donor's mid-course node must be in the network
       if (!perf || !(q > 0) || !((vesselG.get(perf.id) ?? 0) > 0)) continue;
       if (!donor || (mid && !midNeeded.has(donor)) || !((vesselG.get(donor) ?? 0) > 0)) continue;
-      const gAnast = PIAL_GRADE[collateral] * PIAL_ANAST * q;
+      const gAnast = pialGrade(l.perforator, collateral) * PIAL_ANAST * q;
       const gEntry = PIAL_ENTRY * q;
       const g = (l.share * gAnast * gEntry) / (gAnast + gEntry);
       links.push({ id: `pial:${a}>${perf.id}`, a, b: `${perf.id}@mid`, g });

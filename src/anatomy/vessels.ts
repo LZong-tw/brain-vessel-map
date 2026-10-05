@@ -2037,7 +2037,15 @@ export const VESSEL_DEFS: VesselDef[] = [
       [32, -48, -42],
     ],
     pathMode: 'surface',
-    collStrength: 0.08,
+    // R4-3: a little stronger than the other cerebellar links (0.08). Once the left–right PICA
+    // link was weakened (lepto_pica_crossed, C7-F2), a whole-PICA occlusion lost the supply it got
+    // across the midline: with good collaterals its territory fell below the core threshold, so
+    // collaterals and reopening even at 30 min no longer changed the infarct. The PICA trunk
+    // territory is now held through the hemispheric anastomoses with the AICA and the SCA instead
+    // (this one and lepto_pica_sca_lateral): with good collaterals it sits just above the core
+    // threshold, as before C7-F2, while the medial and the lateral branch alone still infarct
+    // their territories. TODO(medical-review): strength
+    collStrength: 0.105,
   }),
   bi({
     id: 'lepto_aica_sca',
@@ -2073,7 +2081,8 @@ export const VESSEL_DEFS: VesselDef[] = [
       [42, -70, -28],
     ],
     pathMode: 'surface',
-    collStrength: 0.08,
+    // R4-3: see lepto_pica_aica. TODO(medical-review): strength
+    collStrength: 0.105,
   }),
   bi({
     id: 'lepto_pica_sca_vermian',
