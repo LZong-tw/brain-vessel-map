@@ -7,6 +7,8 @@
  *   • malignant MCA infarction: DWI volume > 145 mL (Oppenheim et al., Stroke 2000);
  *     decompressive hemicraniectomy pooled analysis (Vahedi et al., Lancet Neurol 2007)
  *   • space-occupying cerebellar infarction (Wijdicks et al., AHA/ASA statement, Stroke 2014)
+ *   • ischaemic cascade: energy failure, excitotoxicity, peri-infarct depolarisations,
+ *     inflammation (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
  *   • crossed cerebellar diaschisis (Pantano, Baron et al., Brain 1986)
  *   • Wallerian degeneration on MRI (Kuhn et al., Radiology 1989; Thomalla et al., NeuroImage 2004)
  *   • hypertrophic olivary degeneration (Goto & Kaneko 1981; Kitajima et al., Radiology 1994)
@@ -420,6 +422,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   if (eyeOnly) pushEyeEvents(events);
   else if (noInfarct) pushNoInfarctEvents(events);
   else if (anyIschemia) {
+    // energy failure → excitotoxicity → calcium, free radicals, inflammation
+    // (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
     events.push({
       id: 'ischemic_cascade',
       kind: 'mechanism',

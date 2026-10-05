@@ -255,16 +255,18 @@ export const RECANALISATION_EVIDENCE: RecanalisationEvidence = {
         high: 0.93,
         note: {
           zh:
-            '基底動脈阻塞取栓後成功再灌流（mTICI ≥ 2b）。ATTENTION 試驗 93.0%（該組 31% 也接受靜脈血栓溶解；數值引自 ATTENTION 研究者的事後分析）；' +
+            '基底動脈阻塞取栓後成功再灌流（mTICI ≥ 2b）。ATTENTION 試驗 93.0%（該組 31% 也接受靜脈血栓溶解）；同一試驗的事後分析自行計數為 92.0%（208/226）。' +
+            '再灌流不等於預後良好：病前沒有失能、且成功再灌流的病人中，48.1% 在 90 天仍未達 mRS 0–3（「無效再通」；整個取栓組達 mRS 0–3 的是 46%）。' +
             'VERITAS 四項隨機試驗（ATTENTION、BEST、BAOCHE、BASICS）匯總中直接取栓者 73%（182 位，部分血管攝影資料缺漏）；' +
             'ESO 指引統合觀察性研究中直接取栓 80.1%（604/754）。',
           en:
-            'Successful reperfusion (mTICI ≥ 2b) after thrombectomy for basilar-artery occlusion. ATTENTION trial 93.0% (31% of that arm also had IV thrombolysis; figure as restated by the ATTENTION investigators); ' +
+            'Successful reperfusion (mTICI ≥ 2b) after thrombectomy for basilar-artery occlusion. ATTENTION trial 93.0% (31% of that arm also had IV thrombolysis); a post hoc analysis of the same trial counted 92.0% (208/226). ' +
+            'Reperfusion is not the same as a good outcome: of the reperfused patients with no disability before the stroke, 48.1% still did not reach mRS 0–3 at 90 days ("futile recanalisation"; in the whole thrombectomy arm 46% reached mRS 0–3). ' +
             'VERITAS pooled 4 RCTs (ATTENTION, BEST, BAOCHE, BASICS): 73% (182 patients) with thrombectomy alone, with angiographic data missing for some; ' +
             'ESO guideline pooling of observational studies: direct thrombectomy 80.1% (604/754).',
         },
         source:
-          'Tao C et al. N Engl J Med 2022;387:1361–1372 (ATTENTION), as restated in Yi T et al. Front Neurol 2023;14:1308036; Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS); Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT)',
+          'Tao C et al. N Engl J Med 2022;387:1361–1372 (ATTENTION: 31% IV thrombolysis and 46% mRS 0–3 from its abstract; 93.0% as restated in the introduction of Yi et al.); Yi T et al. Front Neurol 2023;14:1308036 (post hoc ATTENTION analysis: 92.0% reperfused, 48.1% futile recanalisation); Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS); Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT)',
       },
       bridging: {
         low: 0.67,

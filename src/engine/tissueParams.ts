@@ -11,7 +11,7 @@ import type { Bed } from '../anatomy';
 export interface TissueParams {
   /** relative flow below which tissue is ischaemic core */
   coreRel: number;
-  /** relative flow below which tissue is penumbra (electrically silent, at risk) */
+  /** relative flow below which tissue is penumbra (functionally impaired, at risk; a model calibration) */
   penumbraRel: number;
   /** relative flow below which tissue is oligaemic (functioning, not at risk) */
   oligemiaRel: number;

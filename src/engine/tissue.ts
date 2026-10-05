@@ -4,8 +4,16 @@
  * Relative CBF thresholds (fraction of normal):
  *   < 0.30   ischaemic core — irreversible within minutes (CT-perfusion rCBF < 30 %;
  *            Campbell et al. Stroke 2011)
- *   < 0.55   penumbra — electrically silent (symptomatic) but salvageable; converts to infarct
- *            over hours, faster the lower the flow (Astrup, Siesjö & Symon, Stroke 1981)
+ *   < 0.55   penumbra — functionally impaired (symptomatic) but salvageable; converts to infarct
+ *            over hours, faster the lower the flow. The concept is Astrup, Siesjö & Symon's
+ *            (Stroke 1981): tissue whose electrical function has failed while its ion pumps still
+ *            work, viable for hours. The 0.55 bound is a model calibration of the operational
+ *            (perfusion-imaging) penumbra, not an Astrup number: the classic absolute thresholds
+ *            are about 20 (electrical failure) and 10 (infarction) mL/100 g/min (as summarised by
+ *            Regenhardt et al., Front Neurol 2017; Astrup's own figures not checked against its
+ *            full text), i.e. about 0.44 and 0.22 of this model's 45 mL cortex baseline. Reversible
+ *            paralysis below about 23 mL/100 g/min in awake monkeys (about 0.5 of 45) is closer to
+ *            the bound used here (Jones et al., J Neurosurg 1981).
  *   < 0.85   benign oligaemia — functioning, not at risk unless flow falls further
  *
  * Untreated penumbra does not all die: the lower its flow, the more of it is eventually lost

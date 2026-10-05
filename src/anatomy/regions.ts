@@ -5,7 +5,7 @@
  * functional subdivisions (e.g. the leg area of the motor strip). Their arterial supply is
  * derived voxel-by-voxel from the Liu et al. (2023) arterial territory atlas — see
  * `territories.ts`. Deep, brainstem and cerebellar regions carry hand-authored supply based
- * on Tatu et al. (1996, 1998), Schmahmann (2003) and Fiester et al. (2019).
+ * on Tatu et al. (1996, 1998), Schmahmann (2003) and the brainstem review of Sciacca et al. (2019).
  *
  * Deficit laterality: 'contra' = body side opposite the lesion, 'ipsi' = same side.
  * TODO(medical-review): simplified for lay education.

@@ -1,8 +1,10 @@
 /**
  * Named stroke syndromes, detected from which regions are dysfunctional (not merely from
  * which vessel is blocked — the same vessel can produce different syndromes depending on
- * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Fiester et al.,
- * RadioGraphics 2019 (brainstem syndromes); Schmahmann, Stroke 2003 (thalamus).
+ * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Tatu et al., Neurology 1996
+ * (brainstem territories); Sciacca et al., Radiographics 2019 (general review of brainstem
+ * anatomy and syndromes; its full text was not checked rule by rule); Schmahmann, Stroke 2003
+ * (thalamus).
  * TODO(medical-review)
  */
 

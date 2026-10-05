@@ -11,10 +11,13 @@
  *     first days, then pseudonormalises at ~1–2 weeks (Schlaug et al., Neurology 1997; Lansberg
  *     et al., AJNR 2001).
  *   • ionic oedema — while some blood still reaches the ischaemic tissue, sodium and water are
- *     drawn in FROM THE BLOOD across an intact barrier: a net gain of a few per cent over the
- *     first hours (CT hypodensity, sulcal effacement; Simard et al., Lancet Neurol 2007; CT net
- *     water uptake: Minnerup et al., Ann Neurol 2016). Restoring flow to already-dead tissue
- *     supplies more water and can transiently worsen oedema.
+ *     drawn in FROM THE BLOOD across an intact barrier over the first hours (CT hypodensity,
+ *     sulcal effacement; Simard et al., Lancet Neurol 2007). On CT the lesion's net water uptake
+ *     rises with time: 11.5 % separated scans within 4.5 h of onset from later ones (Minnerup et
+ *     al., Ann Neurol 2016). The model's ionic term (ION_MAX, at most 4 % of the infarct's volume)
+ *     is deliberately smaller than that density-based measure, because here it only adds volume
+ *     and so drives mass effect; raising it would break the midline-shift calibration below.
+ *     Restoring flow to already-dead tissue supplies more water and can transiently worsen oedema.
  *   • vasogenic oedema — the blood–brain barrier breaks down from ~6–12 h and plasma leaks into
  *     the infarct; mass effect peaks around days 2–5 and resorbs over ~2–3 weeks (cytotoxic vs
  *     vasogenic: Klatzo, J Neuropathol Exp Neurol 1967; review: Ayata & Ropper, J Clin Neurosci

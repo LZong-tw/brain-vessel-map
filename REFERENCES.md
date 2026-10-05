@@ -68,7 +68,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 ### 血流、組織與臨床模型 · Flow, tissue and clinical model
 
 - Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)
-- Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.
+- Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725. (The penumbra concept.)
 - Campbell BCV et al. Cerebral blood flow is the optimal CT perfusion parameter for assessing infarct core. Stroke 2011;42:3435–3440.
 - Saver JL. Time is brain—quantified. Stroke 2006;37:263–266.
 - Albers GW et al. Magnetic resonance imaging profiles predict clinical response to early reperfusion: the DEFUSE study. Ann Neurol 2006;60:508–517.
@@ -87,16 +87,16 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Krabbe-Hartkamp MJ et al. Circle of Willis: morphologic variation on three-dimensional time-of-flight MR angiograms. Radiology 1998;207:103–111.
 - Hindenes LB et al. Variations in the circle of Willis in a large population sample using 3D TOF angiography: the Tromsø Study. PLoS One 2020;15:e0241373.
 - Dirnagl U, Iadecola C, Moskowitz MA. Pathobiology of ischaemic stroke: an integrated view. Trends Neurosci 1999;22:391–397.
-- Pantano P, Baron JC et al. Crossed cerebellar diaschisis. Brain 1986;109:677–694.
+- Pantano P, Baron JC, Samson Y, Bousser MG, Derouesne C, Comar D. Crossed cerebellar diaschisis. Further studies. Brain 1986;109(Pt 4):677–694.
 - Kuhn MJ et al. Wallerian degeneration after cerebral infarction: evaluation with sequential MR imaging. Radiology 1989;172:179–182.
 - Thomalla G et al. DTI detects early Wallerian degeneration of the pyramidal tract after ischemic stroke. NeuroImage 2004;22:1767–1774.
 - Goto N, Kaneko M. Olivary enlargement: chronological and morphometric analyses. Acta Neuropathol 1981;54:275–282.
 - Kitajima M et al. Hypertrophic olivary degeneration: MR imaging and pathologic findings. Radiology 1994;192:539–543.
-- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of the human brain. Neurology 1998;50:1699–1708 (and brainstem & cerebellum, Neurology 1996;47:1125–1135).
+- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of the human brain: cerebral hemispheres. Neurology 1998;50:1699–1708.
+- Tatu L, Moulin T, Bogousslavsky J, Duvernoy H. Arterial territories of human brain: brainstem and cerebellum. Neurology 1996;47:1125–1135.
 - Schmahmann JD. Vascular syndromes of the thalamus. Stroke 2003;34:2264–2278.
-- Fiester P, Rao D, Soule E et al. Anatomic, functional, and radiographic review of the brainstem. RadioGraphics 2019 (brainstem syndrome framing, also used by neuroaxis-atlas, MIT).
-- Brott T et al. Measurements of acute cerebral infarction: a clinical examination scale (NIHSS). Stroke 1989;20:864–870.
-- Donnan GA et al. Striatocapsular infarction: clinical and radiological features. Brain 1991;114:51–70.
+- Brott T et al. Measurements of acute cerebral infarction: a clinical examination scale. Stroke 1989;20:864–870. (The original 15-item scale.)
+- Donnan GA, Bladin PF, Berkovic SF, Longley WA, Saling MM. The stroke syndrome of striatocapsular infarction. Brain 1991;114(Pt 1A):51–70.
 - Fisher CM. Lacunar strokes and infarcts: a review. Neurology 1982;32:871–876.
 - Bamford J et al. Classification and natural history of clinically identifiable subtypes of cerebral infarction. Lancet 1991;337:1521–1526.
 - Parvizi J, Damasio AR. Neuroanatomical correlates of brainstem coma. Brain 2003;126:1524–1536.
@@ -110,7 +110,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Alemseged F et al. The basilar artery on computed tomography angiography prognostic score (BATMAN). Stroke 2017;48:631–637.
 - Ferbert A, Brückmann H, Drummen R. Clinical features of proven basilar artery occlusion. Stroke 1990;21:1135–1142.
 - von Campe G, Regli F, Bogousslavsky J. Heralding manifestations of basilar artery occlusion with lethal or severe stroke. J Neurol Neurosurg Psychiatry 2003;74:1621–1626.
-- Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol 1979;220:191–198.
+- Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol 1979;221:77–91.
 - Patterson JR, Grabois M. Locked-in syndrome: a review of 139 cases. Stroke 1986;17:758–764.
 - Casanova E et al. Locked-in syndrome: improvement in the prognosis after an early intensive multidisciplinary rehabilitation. Arch Phys Med Rehabil 2003;84:862–867.
 - Plum F, Posner JB. The Diagnosis of Stupor and Coma (breathing patterns in brainstem lesions).
@@ -133,7 +133,7 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - LeCouffe NE et al. A randomized trial of intravenous alteplase before endovascular treatment for stroke (MR CLEAN-NO IV). N Engl J Med 2021;385:1833–1844.
 - Knapen RRMM et al. Cardiovasc Intervent Radiol 2025;48:1869–1877 (VERITAS pooled analysis of basilar artery occlusion trials).
 - Strbian D et al. Eur Stroke J 2024;9:835–884 (ESO/ESMINT guideline on basilar artery occlusion).
-- Yi T et al. Front Neurol 2023;14:1308036 (ATTENTION reperfusion figures).
+- Yi T et al. Predictors of futile recanalization in basilar artery occlusion patients undergoing endovascular treatment: a post hoc analysis of the ATTENTION trial. Front Neurol 2023;14:1308036.
 - Bhatia R et al. Low rates of acute recanalization with intravenous recombinant tissue plasminogen activator in ischemic stroke: real-world experience and a call for action. Stroke 2010;41:2254–2258.
 - Menon BK et al. JAMA 2018;320:1017–1026 (INTERRSeCT: recanalisation after intravenous thrombolysis by occlusion site).
 - Seners P et al. Stroke 2016;47:2409–2412 (early recanalisation after intravenous thrombolysis by occlusion site).
@@ -151,6 +151,10 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).
 
 ### 臨床細節審查（B）· Clinical-detail audit (B): treatment, haemodynamics, brainstem and thalamus, acute course
+
+- Lyden P, Brott T, Tilley B, Welch KM, Mascha EJ, Levine S, Haley EC, Grotta J, Marler J. Improved reliability of the NIH Stroke Scale using video training. NINDS TPA Stroke Study Group. Stroke 1994;25:2220–2226. (The NIHSS as used in the NINDS t-PA trial, with video certification.)
+- Regenhardt RW, Das AS, Stapleton CJ, Chandra RV, Rabinov JD, Patel AB, Hirsch JA, Leslie-Mazwi TM. Blood pressure and penumbral sustenance in stroke from large vessel occlusion. Front Neurol 2017;8:317. (Astrup's penumbra: infarction below about 10, viable for hours between 10 and 20 mL/100 g/min.)
+- Sciacca S, Lynch J, Davagnanam I, Barker R. Midbrain, pons, and medulla: anatomy and syndromes. Radiographics 2019;39:1110–1125. (General review of brainstem anatomy and syndromes.)
 
 ### 中風後常見、但與病灶部位關聯有限的問題 · Common after stroke, weakly tied to the lesion site
 

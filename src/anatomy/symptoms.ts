@@ -4,7 +4,10 @@
  * NIHSS mapping: `pts` gives the item score for [mild, moderate, severe] involvement.
  * These are EDUCATIONAL approximations used to illustrate relative severity; the real
  * NIHSS is a bedside examination and cannot be derived from a lesion map.
- * Reference: Brott T, et al. Stroke. 1989;20:864-870.
+ * References: the scale goes back to Brott T, et al. Stroke. 1989;20:864-870, the
+ * original 15-item scale (it still had a pupil item). The item codes used here (1a … 11) and their
+ * point ranges follow the NIHSS as used in the NINDS t-PA trial
+ * (Lyden P et al. Stroke. 1994;25:2220-2226) and the current NIH Stroke Scale form (NINDS).
  */
 
 import type { SymptomDef } from './types';
@@ -126,7 +129,7 @@ export const SYMPTOMS: SymptomDef[] = [
       zh: '雙側橋腦腹側的皮質延髓徑一起受損，發聲與構音的肌肉完全癱瘓：清醒、聽得懂，卻連一個音也發不出來，是閉鎖症候群的特徵。與構音障礙（口齒不清但仍能發聲）不同，這是完全的失聲。',
       en: 'Both corticobulbar tracts in the ventral pons are cut, paralysing the muscles of speech entirely: the person is awake and understands language but cannot produce any sound at all — the hallmark of locked-in syndrome. This is not merely worse dysarthria (slurred but present speech); it is a total loss of speech output.',
     },
-    // Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol. 1979;220:191-198.
+    // Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol. 1979;221:77-91.
     // Patterson JR, Grabois M. Locked-in syndrome: a review of 139 cases. Stroke. 1986;17:758-764.
     system: 'motor',
     lateralised: false,
