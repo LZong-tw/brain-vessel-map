@@ -506,7 +506,8 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis. A tremor of the opposite arm (Holmes tremor) may follow weeks to months later.',
     },
     test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3),
-    requires: (q, s) => q.on('cn3_palsy', s) && ['ataxia_limb', 'tremor'].some((id) => q.on(id, other(s))),
+    // the rubral tremor of a midbrain lesion is the delayed Holmes tremor (C3-F7)
+    requires: (q, s) => q.on('cn3_palsy', s) && ['ataxia_limb', 'tremor', 'holmes_tremor'].some((id) => q.on(id, other(s))),
   },
   {
     id: 'parinaud',

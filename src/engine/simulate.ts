@@ -459,21 +459,30 @@ function startCredits(input: SimInput, course: Course, finalH: number, other: Co
 }
 
 /**
- * The TIA story for each complete occlusion that began before the index onset, reopened by
- * itself and left no infarct while it made brain tissue ischaemic (such as the prodromal attack of
- * a progressive basilar thrombosis: Ferbert A et al. Stroke 1990;21:1135–1142; von Campe G et al.
- * J Neurol Neurosurg Psychiatry 2003;74:1621–1626). Each story is cut off where the next complete
- * occlusion begins. Simulation clock (C3-F8).
+ * The TIA story for each attack that began before the index onset, reopened by itself and left no
+ * infarct while it made brain tissue ischaemic (such as the prodromal attack of a progressive
+ * basilar thrombosis: Ferbert A et al. Stroke 1990;21:1135–1142; von Campe G et al. J Neurol
+ * Neurosurg Psychiatry 2003;74:1621–1626). An attack is a complete occlusion (C3-F8) or one of a
+ * single branch, which the flow model does not see but whose tissue stops working while it is shut
+ * (C6-F2): the crescendo of capsular or pontine attacks before a lacunar stroke (Donnan GA et al.
+ * Neurology 1993;43:957–962) is a run of TIAs, each an emergency. Each story is cut off where the
+ * next attack begins. Simulation clock.
  */
 function prodromalEvents(input: SimInput, course: Course, finalH: number, onsetH: number, other: Course | null, x: number): CascadeEvent[] {
   const credit = startCredits(input, course, finalH, other, x);
-  const completeStarts = [...new Set(input.occlusions.filter(isTreatable).map(startOf))].sort((a, b) => a - b);
+  const attack = (o: Occlusion) => isTreatable(o) || (!!o.branch && o.severity >= 1);
+  const attackStarts = [...new Set(input.occlusions.filter(attack).map(startOf))].sort((a, b) => a - b);
+  // a single branch shut at `h` whose tissue the brain story covers (as for lacuneIschaemia)
+  const branchIschaemicAt = (h: number) =>
+    [...course.lacunes].some(
+      ([rid, list]) => (BRAIN.has(REGION_BY_ID[rid].category) || REGION_BY_ID[rid].category === 'ear') && list.some((o) => startOf(o) === h && inWindow(o, h)),
+    );
   const out: CascadeEvent[] = [];
-  for (const s of completeStarts) {
+  for (const s of attackStarts) {
     if (s >= onsetH) break;
-    const reopens = input.occlusions.some((o) => isTreatable(o) && startOf(o) === s && endOf(o) !== null);
-    if (!reopens || (credit.get(s) ?? 0) >= ONSET_MIN_ML || !ischaemicAt(course, s)) continue;
-    const next = completeStarts.find((h) => h > s) ?? onsetH;
+    const reopens = input.occlusions.some((o) => attack(o) && startOf(o) === s && endOf(o) !== null);
+    if (!reopens || (credit.get(s) ?? 0) >= ONSET_MIN_ML || !(ischaemicAt(course, s) || branchIschaemicAt(s))) continue;
+    const next = attackStarts.find((h) => h > s) ?? onsetH;
     out.push(...noInfarctEvents(s, next));
   }
   return out;

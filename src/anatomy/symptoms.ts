@@ -356,6 +356,9 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: true,
     sideWord: 'body',
     delayed: true,
+    // listed from its median onset, as the other late symptoms are from theirs (C10-F2): about
+    // 2 months (Raina 2016), not the generic two weeks
+    onsetH: 1440,
   },
   {
     // Ghika-Schmid F, Ghika J, Regli F, Bogousslavsky J. J Neurol Sci 1997;146:109–116 (Lausanne

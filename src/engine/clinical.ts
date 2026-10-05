@@ -376,8 +376,12 @@ export function aggregateSymptoms(
     del('skew_deviation', 'r');
     del('skew_deviation', 'l');
   }
-  // hallucinations are reported by a drowsy, not a comatose patient (C3-F10)
-  if (map.has('coma|') || map.has('disorder_of_consciousness|')) del('peduncular_hallucinosis', null);
+  // hallucinations are reported by a drowsy, not a comatose patient (C3-F10) — the release
+  // hallucinations of a blind half-field (C1-F11) as much as the peduncular ones
+  if (map.has('coma|') || map.has('disorder_of_consciousness|')) {
+    del('peduncular_hallucinosis', null);
+    for (const fs of ['r', 'l'] as Side[]) del('visual_release_hallucinations', fs);
+  }
   // misaligned eyes see double; a skew deviation gives vertical double vision (C3-F5)
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino', 'skew_deviation'];
   if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {

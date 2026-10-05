@@ -1813,9 +1813,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // coeruleus to the medulla (Odd H et al. Neuroimage Clin 2025;45:103751, PMID 39954565); case
   // reports describe pontine lesions (Kimura K et al. Neurology 2000;55:894-895; Xi Z, Luning W.
   // Sleep Med 2009;10:143-146). So any
-  // pontine or medullary infarct, as a possibility from about 1 month (the study asked at 3 months)
+  // pontine or medullary infarct, as a possibility from about 1 month (the study asked at 3 months).
+  // Not after extensive damage to the tegmentum of both sides, which leaves a disorder of
+  // consciousness from two weeks on (C3-F2, the same threshold): acting out dreams, and telling of
+  // them, needs a person who is awake between them.
   const rbd = REGIONS.filter((r) => /^(pons|medulla)_/.test(r.baseId) && finalLevel(r.id) >= 0.25 - 1e-6);
-  if (rbd.length) {
+  const persistentDoc = bilateral((r) => infarcted(r, 0.5), PONS_TEG_ROSTRAL) || bilateral((r) => infarcted(r, 0.5), MIDBRAIN_PARAMEDIAN);
+  if (rbd.length && !persistentDoc) {
     events.push({
       id: 'rbd',
       kind: 'complication',

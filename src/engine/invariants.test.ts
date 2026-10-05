@@ -127,6 +127,20 @@ describe('syndromes and events agree with the symptoms', () => {
     ['pontine_circumferential_l', [{ vessel: 'pontine_circumferential_l', severity: 1 }], 'good'],
     ['mesencephalic_perf_l', [{ vessel: 'mesencephalic_perf_l', severity: 1 }], 'good'],
     ['brachiocephalic moderate', [{ vessel: 'brachiocephalic', severity: 1 }], 'moderate'],
+    // MERGE: the second chain's brainstem labels (C3-F1, C3-F4): coma and the disorder of
+    // consciousness after it, and a one-sided paramedian upper pontine infarct
+    [
+      'both rostral pontine perforator groups',
+      [
+        { vessel: 'pontine_paramedian_rostral_r', severity: 1 },
+        { vessel: 'pontine_paramedian_rostral_l', severity: 1 },
+      ],
+      'good',
+    ],
+    ['pontine_paramedian_rostral_l', [{ vessel: 'pontine_paramedian_rostral_l', severity: 1 }], 'good'],
+    // MERGE: the thalamic territory labels of C9-F2 are vascular-pattern labels (C5-F2)
+    ['thalamoperforator_r', [{ vessel: 'thalamoperforator_r', severity: 1 }], 'good'],
+    ['posterior_choroidal_l', [{ vessel: 'posterior_choroidal_l', severity: 1 }], 'good'],
     // C7-F6: both medial medullae
     [
       'both ASA roots',
@@ -181,6 +195,10 @@ describe('syndromes and events agree with the symptoms', () => {
         // C1-F6, C1-F7
         'man_in_barrel',
         'cortical_blindness',
+        // the second audit chain's brainstem labels, gated the same way (MERGE: C3-F1, C3-F4 × C5-F2)
+        'basilar_coma',
+        'pontine_doc',
+        'pontine_anteromedial',
       ]),
     );
     // a label is either named for its signs or for its vascular pattern
@@ -208,8 +226,9 @@ describe('syndromes and events agree with the symptoms', () => {
 
   it.each(CASES)('%s: no bilateral lesion is named as two one-sided crossed brainstem syndromes', (name) => {
     series(name).forEach((r, i) => {
-      // C7-F6: both medial medullae are one bilateral medial medullary infarction, not two Dejerine
-      for (const id of ['pontine_ventral', 'pontine_lacunar', 'foville', 'dejerine']) {
+      // C7-F6: both medial medullae are one bilateral medial medullary infarction, not two Dejerine;
+      // MERGE: nor two anteromedial pontine syndromes (C3-F4)
+      for (const id of ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'dejerine']) {
         const sides = r.syndromes.filter((m) => m.def.id === id).map((m) => m.side);
         expect(sides.length, `${name} ${STOPS[i]} h: ${id} ${sides.join('+')}`).toBeLessThan(2);
       }
