@@ -105,6 +105,8 @@ export const DATA_SOURCES: DataSource[] = [
 ];
 
 export const SCIENTIFIC_REFERENCES: string[] = [
+  // ── localised non-motor symptoms (sleep, emotional expression, temperature regulation, taste, bladder) ──
+  // ── flow, tissue and clinical model ──
   'Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)',
   'Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.',
   'Campbell BCV et al. Cerebral blood flow is the optimal CT perfusion parameter for assessing infarct core. Stroke 2011;42:3435–3440.',
@@ -187,6 +189,7 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Wong GJ et al. Stroke 2021;52:2241–2249 (embolic evidence on MRI before and after thrombectomy).',
   'Ng FC et al. Neurology 2022;98:e790–e801 (no-reflow after successful reperfusion).',
   'ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).',
+  // ── common problems after stroke that the lesion site does not determine (postStrokeRisks.ts) ──
 ];
 
 export const INSPIRATIONS: { name: string; licence: string; url: string; note: L }[] = [

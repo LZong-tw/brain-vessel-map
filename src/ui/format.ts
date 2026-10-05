@@ -115,7 +115,10 @@ export const SYSTEM_ORDER: SymptomSystem[] = [
   'cranial',
   'balance',
   'cognition',
+  'mood',
+  'sleep',
   'autonomic',
+  'thermo',
   'limb',
 ];
 
@@ -129,7 +132,10 @@ export const SYSTEM_LABEL: Record<SymptomSystem, L> = {
   cranial: { zh: '腦神經（臉、吞嚥、聽覺）', en: 'Cranial nerves (face, swallowing, hearing)' },
   balance: { zh: '平衡與協調', en: 'Balance & coordination' },
   cognition: { zh: '認知與行為', en: 'Cognition & behaviour' },
+  mood: { zh: '情緒與情感表達', en: 'Mood & emotional expression' },
+  sleep: { zh: '睡眠與睡眠中的呼吸', en: 'Sleep & breathing in sleep' },
   autonomic: { zh: '自主神經', en: 'Autonomic' },
+  thermo: { zh: '體溫調節與出汗', en: 'Temperature regulation & sweating' },
   limb: { zh: '肢體血流', en: 'Limb circulation' },
 };
 

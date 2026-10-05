@@ -257,7 +257,13 @@ export type SymptomSystem =
   | 'balance'
   | 'language'
   | 'cognition'
+  /** emotional expression and mood that a lesion site produces (pathological crying/laughing …) */
+  | 'mood'
+  /** sleep and breathing during sleep */
+  | 'sleep'
   | 'autonomic'
+  /** temperature regulation and sweating (the hypothalamus itself is not modelled) */
+  | 'thermo'
   | 'limb';
 
 export type NihssItem =

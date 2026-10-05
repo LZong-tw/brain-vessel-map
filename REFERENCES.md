@@ -28,6 +28,12 @@ Licensing details are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 Thresholds, time courses and syndrome definitions in `src/engine/` and `src/anatomy/` are simplified from:
 
+### 可定位的非運動症狀 · Localised non-motor symptoms
+
+Sleep, emotional expression, temperature regulation and sweating, taste and bladder control (`src/anatomy/symptoms.ts`, `src/anatomy/regions.ts`):
+
+### 血流、組織與臨床模型 · Flow, tissue and clinical model
+
 - Alastruey J, Parker KH, Peiró J, Byrd SM, Sherwin SJ. Modelling the circle of Willis to assess the effects of anatomical variations and occlusions on cerebral flows. J Biomech 2007;40:1794–1805. (Vessel dimensions; also the openBF implementation, Apache-2.0.)
 - Astrup J, Siesjö BK, Symon L. Thresholds in cerebral ischemia – the ischemic penumbra. Stroke 1981;12:723–725.
 - Campbell BCV et al. Cerebral blood flow is the optimal CT perfusion parameter for assessing infarct core. Stroke 2011;42:3435–3440.
@@ -110,6 +116,10 @@ Thresholds, time courses and syndrome definitions in `src/engine/` and `src/anat
 - Wong GJ et al. Stroke 2021;52:2241–2249 (embolic evidence on MRI before and after thrombectomy).
 - Ng FC et al. Neurology 2022;98:e790–e801 (no-reflow after successful reperfusion).
 - ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).
+
+### 中風後常見、但與病灶部位關聯有限的問題 · Common after stroke, weakly tied to the lesion site
+
+Shown as population figures next to the outcome, never as symptoms of the simulated case (`src/anatomy/postStrokeRisks.ts`):
 
 ## 參考的開源專案（未複製程式碼）· Open-source projects consulted (no code copied)
 
