@@ -477,3 +477,49 @@ describe("R6-15: the PICA + SCA template gives the model's volume as the model's
   });
 });
 
+
+describe("R6-6: a stroke's coma and late signs follow the age of its own lesion, not the first stroke's clock", () => {
+  const stack = (a: string, ta: number, b: string, tb: number, tH: number) =>
+    simulate({
+      occlusions: [
+        { vessel: a, severity: 1, fromH: ta },
+        { vessel: b, severity: 1, fromH: tb },
+      ],
+      variants: [],
+      collateral: 'poor',
+      map: 93,
+      tH,
+      reperfusionH: null,
+      decompression: false,
+    });
+  const basilarAlone = (tH: number) => plain(occl('basilar_upper'), tH);
+
+  it('a basilar occlusion a month after an M1 stroke: comatose first, a disorder of consciousness only two weeks later', () => {
+    for (const tH of [721, 744, 900]) {
+      const r = stack('mca_m1_l', 0, 'basilar_upper', 720, tH);
+      expect(r.schedule.onsetH, `${tH} h`).toBe(0);
+      expect(sev(r, 'coma'), `${tH} h`).toBe(sev(basilarAlone(tH - 720), 'coma'));
+      expect(sev(r, 'coma'), `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(sev(r, 'disorder_of_consciousness'), `${tH} h`).toBe(0);
+      // the spasticity of the new pontine lesion (left body) has not begun; the M1's (right) has
+      expect(r.symptoms.some((s) => s.id === 'spasticity' && s.side === 'l'), `${tH} h`).toBe(false);
+      expect(r.symptoms.some((s) => s.id === 'spasticity' && s.side === 'r'), `${tH} h`).toBe(true);
+    }
+    const later = stack('mca_m1_l', 0, 'basilar_upper', 720, 720 + 340);
+    expect(sev(later, 'coma')).toBe(0);
+    expect(sev(later, 'disorder_of_consciousness')).toBeGreaterThan(0);
+  });
+
+  it('an M1 stroke a month after a basilar occlusion: the earlier coma is relabelled on its own clock, as without the M1', () => {
+    for (const tH of [340, 720]) {
+      const r = stack('basilar_upper', 0, 'mca_m1_l', 720, tH);
+      expect(r.schedule.onsetH).toBe(720);
+      expect(sev(r, 'coma'), `${tH} h`).toBe(0);
+      expect(sev(basilarAlone(tH), 'coma'), `${tH} h`).toBe(0);
+      // (its severity can differ: the earlier lesion's perilesional swelling still runs on the index
+      // clock, a documented approximation of stacked strokes)
+      expect(sev(r, 'disorder_of_consciousness'), `${tH} h`).toBeGreaterThan(0);
+      expect(sev(basilarAlone(tH), 'disorder_of_consciousness'), `${tH} h`).toBeGreaterThan(0);
+    }
+  });
+});

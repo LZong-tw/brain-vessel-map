@@ -168,6 +168,12 @@ export function aggregateSymptoms(
    * for what the early picture predicts (spasticity, C10-F1); left out, the levels at `tH` are used
    */
   acuteDys?: Record<string, number>,
+  /**
+   * hours since each region became ischaemic, when that differs from `tH` (an occlusion that
+   * starts after the index event, R6-6): a region's late symptoms, the relabelling of its coma and
+   * drowsiness and its compensation follow the age of its own lesion. Regions left out use `tH`.
+   */
+  regionAgeH?: Record<string, number>,
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
@@ -192,8 +198,11 @@ export function aggregateSymptoms(
   const earlyParesis: Record<Side, number> = { r: 0, l: 0 };
   const earlySensory: Record<Side, boolean> = { r: false, l: false };
 
+  /** the age of a region's lesion (R6-6) */
+  const ageOf = (rid: string) => regionAgeH?.[rid] ?? tH;
   for (const r of REGIONS) {
     const def = DEF_BY_BASE[r.baseId];
+    const age = ageOf(r.id);
     // a region whose dysfunction lies mainly in its ACA–MCA border-zone beds does what that
     // strip does (C1-F6), at the level of those beds
     const b = def.borderDeficits ? border[r.id] : undefined;
@@ -222,11 +231,11 @@ export function aggregateSymptoms(
       const level = byInfarct ? inf : dys;
       const thr = Math.max(DYS_THR, d.minLevel ?? 0);
       if (!reaches(level, thr)) continue;
-      // each late symptom from its own onset (C10-F2)
-      if (tH < symptomOnsetH(sym)) continue;
+      // each late symptom from its own onset (C10-F2), counted from the region's own lesion (R6-6)
+      if (age < symptomOnsetH(sym)) continue;
       // drowsiness is the acute picture: a raised need for sleep that lasts beyond two weeks is
       // listed as persistent hypersomnia (C3-F2)
-      if (d.s === 'somnolence' && tH >= COMA_RELABEL_H) continue;
+      if (d.s === 'somnolence' && age >= COMA_RELABEL_H) continue;
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
@@ -241,20 +250,20 @@ export function aggregateSymptoms(
       // from two weeks on a region's coma is listed as what follows it (C3-F2)
       let id = d.s;
       let shownDelayed = delayed;
-      if (d.s === 'coma' && tH >= COMA_RELABEL_H) {
+      if (d.s === 'coma' && age >= COMA_RELABEL_H) {
         const next = comaBecomes(r.baseId, r.side, regionInf);
         if (!next) continue;
         id = next;
         shownDelayed = !!SYMPTOM_BY_ID[next]?.delayed;
       }
-      const peak = sym.peakH && tH >= sym.peakH[0] && tH < sym.peakH[1] ? 1 : 0;
+      const peak = sym.peakH && age >= sym.peakH[0] && age < sym.peakH[1] ? 1 : 0;
       const raw = ((d.sev ?? 2) + peak) * (0.35 + 0.65 * Math.min(1, level / 0.8));
       let sevEff = raw;
       // the hypersomnia that follows coma is a sleep disorder, never worse than moderate
       if (id === 'hypersomnia' && d.s === 'coma') sevEff = Math.min(sevEff, 2);
       // weeks–months later, spared pathways take over part of what the dead tissue did; a coma
       // that became a disorder of consciousness keeps the arousal system's (coma's) redundancy
-      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, tH, d.fast, Math.round(raw) >= 3);
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
@@ -330,7 +339,7 @@ export function aggregateSymptoms(
       for (const s of components) {
         const c = aphasiaRaw.get(s.id);
         if (!c) continue;
-        const rec = symptomCompensation('aphasia_global', c.r, c.level, c.inf, lesions, tH);
+        const rec = symptomCompensation('aphasia_global', c.r, c.level, c.inf, lesions, ageOf(c.r.id));
         const v = c.raw * (1 - rec.compensated);
         if (v > best) {
           best = v;

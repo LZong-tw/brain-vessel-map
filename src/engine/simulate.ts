@@ -16,7 +16,9 @@
  * produces most of the final infarct (if nothing dies: the first start that causes ischaemia).
  * The cascade is shifted back onto the simulation clock for display. Approximations:
  *   • one index event: infarcts from other episodes add to the volumes and the oedema, but
- *     swell and evolve on the index clock (nothing before the index onset);
+ *     swell and evolve on the index clock (nothing before the index onset); only each region's
+ *     late symptoms, compensation and coma relabelling count from when that region itself became
+ *     ischaemic (R6-6);
  *   • the final infarct is taken FINAL_H after the last occlusion start or reopening;
  *   • the acute deficit pattern and the flow the cascade sees are those of the index onset, and
  *     "reperfusion" for the oedema model is the first reopening (treatment or spontaneous) of
@@ -120,6 +122,11 @@ export interface BedTimeState {
   rel: number;
   /** volume fractions by tissue state */
   frac: Record<TissueState, number>;
+  /**
+   * share of the bed whose penumbra has stabilised on collaterals (counted as oligaemia in
+   * `frac`) and is still silent while it regains function (R6-11)
+   */
+  regaining: number;
   /** infarcted fraction including secondary infarcts */
   infarct: number;
   /** dysfunctional fraction (core + penumbra + compressed) */
@@ -319,13 +326,26 @@ function blendHemo(a: HemoResult, b: HemoResult, x: number): HemoResult {
 }
 
 /**
+ * Penumbra that survives on its collaterals without reperfusion regains its function over about
+ * this many hours after it stabilises, rather than at once: an illustrative spread, so that a
+ * region whose penumbra stabilises just before the perilesional oedema of the following days
+ * silences it again does not lose and regain its deficit within a day (R6-11).
+ */
+const REGAIN_H = 12;
+const smoothstep = (e0: number, e1: number, x: number) => {
+  const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return u * u * (3 - 2 * u);
+};
+
+/**
  * Add one share of a unit's tissue state at time t to its bed; `frac` is the share's fraction of
  * the bed (the unit's fraction times the share). Of the tissue that survives reperfusion, only
  * `saved` (per unit of this share) is "salvaged".
  */
 function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], saved: number, tH: number, p: TissueParams): void {
-  const { f, rest } = tissueCourse(history, tH, p);
+  const { f, rest, stabilisedH } = tissueCourse(history, tH, p);
   bs.frac.core += f * frac;
+  if (stabilisedH !== undefined) bs.regaining += (1 - f) * frac * (1 - smoothstep(0, REGAIN_H, stabilisedH));
   if (rest === 'salvaged') {
     // "salvaged" is only what treatment saved (would have died untreated); the rest of the
     // reperfused tissue would have survived on its collaterals anyway and is simply perfused
@@ -629,6 +649,11 @@ interface Model {
    * branch is closed then, at its level): the early picture that predicts late consequences
    */
   regionAcute: Record<string, number>;
+  /**
+   * per region, the occlusion starts (simulation clock) at which it became ischaemic, when the
+   * schedule has more than one start; null otherwise (every lesion then dates from the index onset)
+   */
+  regionStarts: Record<string, number[]> | null;
 }
 
 const modelCache = new Map<string, Model>();
@@ -770,6 +795,7 @@ function modelFor(input: SimInput): Model {
     shownCascade: shownCascadeOf(cascade, onsetH, onsetH > 0 ? prodromalEvents(input, course, finalH, onsetH, untreated, x) : []),
     hemoAt: hemoAtT,
     regionAcute: acuteDys,
+    regionStarts: regionIschaemiaStarts(input, course, hemoAtT),
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -867,6 +893,45 @@ function herniationFollowsShift(cascade: CascadeOutput, input: CascadeInput, mod
   return computeCascade({ ...input, shift: { ...primary, ...herniationShifts(model, next, decompression, still) } });
 }
 
+/**
+ * When each region became ischaemic (R6-6): the occlusion starts of the input schedule at which
+ * its acutely dysfunctional share (core + penumbra; a lacune whose branch closes) rises from below
+ * the symptom threshold to above it. Only for a schedule with more than one start: with one, every
+ * lesion dates from the index onset.
+ */
+function regionIschaemiaStarts(input: SimInput, course: Course, hemoAt: (tH: number) => HemoResult): Record<string, number[]> | null {
+  const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
+  if (starts.length <= 1) return null;
+  const ischaemic = (h: number): Record<string, number> => {
+    if (h < 0) return {};
+    const hemo = hemoAt(h);
+    const acute: Record<string, number> = {};
+    for (const u of course.units) if ((hemo.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
+    const out = regionAgg(acute);
+    for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, h)) out[rid] = Math.max(out[rid] ?? 0, LACUNE_DYSFUNCTION);
+    return out;
+  };
+  const THR = 0.25;
+  const out: Record<string, number[]> = {};
+  for (const s of starts) {
+    const before = ischaemic(s - 1e-6);
+    const now = ischaemic(s);
+    for (const [rid, v] of Object.entries(now)) if (v >= THR - 1e-6 && (before[rid] ?? 0) < THR - 1e-6) (out[rid] ??= []).push(s);
+  }
+  return out;
+}
+
+/** hours since each region last became ischaemic, at `tAbs` (simulation clock; R6-6) */
+function regionAgesAt(starts: Record<string, number[]> | null, tAbs: number): Record<string, number> | undefined {
+  if (!starts) return undefined;
+  const out: Record<string, number> = {};
+  for (const [rid, list] of Object.entries(starts)) {
+    const s = list.filter((h) => h <= tAbs).pop();
+    if (s !== undefined) out[rid] = tAbs - s;
+  }
+  return out;
+}
+
 /** the cascade on the simulation clock, with the TIA stories of earlier, reopened attacks */
 function shownCascadeOf(cascade: CascadeOutput, onsetH: number, earlier: CascadeEvent[]): CascadeOutput {
   const shown = onsetH === 0 ? cascade : shiftTimes(cascade, onsetH);
@@ -924,6 +989,7 @@ function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null): Ti
     beds[b.id] = {
       rel: hemo?.bedRel[b.id] ?? 1,
       frac: { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 },
+      regaining: 0,
       infarct: 0,
       dys: 0,
       effect: null,
@@ -964,6 +1030,7 @@ function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null): Ti
     for (const bid of REGION_BY_ID[rid].beds) {
       const bs = beds[bid];
       for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - xl - p;
+      bs.regaining *= 1 - xl - p;
       bs.frac.core += xl;
       bs.frac.penumbra += p;
       bs.infarct += xl * (1 - bs.infarct);
@@ -1027,7 +1094,7 @@ export function simulate(input: SimInput): SimResult {
   const edemaBeds: Record<string, EdemaBedInput> = {};
   for (const b of BEDS) {
     const bs = beds[b.id];
-    primaryDys[b.id] = bs.frac.core + bs.frac.penumbra;
+    primaryDys[b.id] = bs.frac.core + bs.frac.penumbra + bs.regaining;
     const effects = effectsAt(cascade, b.id, t);
     const eff = EFFECT_PRIORITY.find((k) => effects.some((e) => e.kind === k)) ?? null;
     edemaBeds[b.id] = edemaBedOf(model, b.id, bs, effects);
@@ -1035,15 +1102,19 @@ export function simulate(input: SimInput): SimResult {
     if (eff === 'secondary') {
       bs.infarct = 1;
       bs.frac = { normal: 0, oligemia: 0, penumbra: 0, core: 1, salvaged: 0 };
+      bs.regaining = 0;
     }
   }
   const edema = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression: input.decompression, beds: edemaBeds, cascade });
   const recoveryBeds: Record<string, RecoveryBedInput> = {};
-  for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra };
-  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss });
+  // (the stabilised penumbra still regaining function is silent, as the penumbra is)
+  for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra + beds[b.id].regaining };
+  // each region's lesion has its own age when a later occlusion caused it (R6-6)
+  const regionAgeH = regionAgesAt(model.regionStarts, tAbs);
+  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss, regionAgeH });
   for (const b of BEDS) {
     const bs = beds[b.id];
-    bs.dys = Math.min(1, bs.frac.core + bs.frac.penumbra + (recovery.extraDys[b.id] ?? 0));
+    bs.dys = Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining + (recovery.extraDys[b.id] ?? 0));
   }
 
   // ── per-region ──
@@ -1157,7 +1228,7 @@ export function simulate(input: SimInput): SimResult {
     }
     if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
   }
-  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute);
+  const symptoms = aggregateSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute, regionAgeH);
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);
 

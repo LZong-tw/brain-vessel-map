@@ -117,12 +117,13 @@ describe('temporary dysfunction (oedema, diaschisis)', () => {
   it('silences surviving tissue while the oedema lasts, and is gone by 1 month', () => {
     const d3 = sim({ ...L_M1, tH: 72 });
     expect(maxOf(d3.recovery.extraDys)).toBeGreaterThan(0.05);
-    // it is dysfunction on top of the core and penumbra, of tissue that is alive
+    // it is dysfunction on top of the core, the penumbra and the stabilised penumbra still
+    // regaining function (R6-11), of tissue that is alive
     for (const b of BEDS) {
       const bs = d3.beds[b.id];
       const x = d3.recovery.extraDys[b.id] ?? 0;
-      expect(bs.dys, b.id).toBeCloseTo(Math.min(1, bs.frac.core + bs.frac.penumbra + x), 9);
-      expect(x, b.id).toBeLessThanOrEqual(Math.max(0, 1 - bs.infarct - bs.frac.penumbra) + 1e-9);
+      expect(bs.dys, b.id).toBeCloseTo(Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining + x), 9);
+      expect(x, b.id).toBeLessThanOrEqual(Math.max(0, 1 - bs.infarct - bs.frac.penumbra - bs.regaining) + 1e-9);
     }
     const m1 = sim({ ...L_M1, tH: 720 });
     expect(maxOf(m1.recovery.extraDys)).toBeLessThan(0.02);
@@ -184,10 +185,11 @@ describe('the hyperacute phase is unchanged', () => {
       expect(r.recovery.extraDys).toEqual({});
       expect(r.recovery.compensated).toEqual({});
       expect(r.recovery.progress).toBe(0);
-      // dysfunction is exactly core + penumbra, as before the recovery model
+      // dysfunction is exactly core + penumbra (with the stabilised penumbra still regaining its
+      // function, R6-11), as before the recovery model
       for (const b of BEDS) {
         const bs = r.beds[b.id];
-        expect(bs.dys).toBe(Math.min(1, bs.frac.core + bs.frac.penumbra));
+        expect(bs.dys).toBe(Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining));
       }
       for (const s of r.symptoms) expect(s.recovery?.compensated ?? 0).toBe(0);
     }

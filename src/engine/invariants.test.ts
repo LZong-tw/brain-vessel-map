@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { REGION_BY_ID } from '../anatomy';
+import { REGION_BY_ID, VESSELS } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { symptomsAddedAt } from './cascade';
 import { aggregateSymptoms } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
-import { simulate, type SimInput, type SimResult } from './simulate';
+import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
 
@@ -73,6 +73,42 @@ describe('output invariants', () => {
         }
       }
     }
+  });
+
+  // R6-11: the same over the whole course, for single occlusions too. A symptom may go and come
+  // back only for a reason the model has: a sign that needs an awake patient is not listed while
+  // the patient is stuporous, comatose or in a disorder of consciousness (R5-7), and the sparing of
+  // central vision is lost while the oedema of days 1–2 weeks silences the occipital pole too
+  const ALL_STOPS = TIME_STOPS.map((s) => s.h);
+  const AWAKE_ONLY = ['disinhibition', 'executive', 'ataxia_gait', 'aphasia_thalamic', 'emotionalism', 'emotional_facial_paresis', 'holmes_tremor'];
+  const unaware = (r: SimResult) => r.symptoms.some((x) => (x.id === 'coma' && x.sev >= 2) || x.id === 'disorder_of_consciousness');
+  const oedema = (r: SimResult, tH: number) => r.cascade.events.some((e) => e.id === 'vasogenic_edema' && e.onsetH <= tH && tH < (e.endH ?? Infinity));
+  const CONSCIOUSNESS = ['coma', 'somnolence', 'disorder_of_consciousness', 'hypersomnia'];
+  const noUnexplainedReturn = (name: string, runs: SimResult[]) => {
+    const keys = new Set(runs.flatMap((r) => r.symptoms.filter((x) => !CONSCIOUSNESS.includes(x.id)).map((x) => `${x.id}|${x.side}`)));
+    for (const key of keys) {
+      const id = key.split('|')[0];
+      const on = runs.map((r) => r.symptoms.some((x) => `${x.id}|${x.side}` === key));
+      const first = on.indexOf(true);
+      const last = on.lastIndexOf(true);
+      for (let i = first + 1; i < last; i++) {
+        if (on[i]) continue;
+        const why = AWAKE_ONLY.includes(id) ? unaware(runs[i]) : id === 'macular_sparing' ? oedema(runs[i], ALL_STOPS[i]) : false;
+        expect(why, `${name}: ${key} is ${on.map((x) => (x ? '■' : '□')).join('')}`).toBe(true);
+      }
+    }
+  };
+  it.each(untreatedSingleOnset.map((s) => [s.id]))('%s: no symptom switches off and back on over the whole course without a reason (R6-11)', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const)
+      noUnexplainedReturn(`${id} ${collateral}`, ALL_STOPS.map((tH) => simulate(inputOf(id, { collateral, reperfusionH: null, tH }))));
+  });
+  const SINGLE = VESSELS.filter((v) => isOccludable(v.id)).map((v) => v.id);
+  it.each(SINGLE.map((v) => [v]))('%s alone: no symptom switches off and back on over the whole course without a reason (R6-11)', (vessel) => {
+    for (const collateral of ['good', 'poor'] as const)
+      noUnexplainedReturn(
+        `${vessel} ${collateral}`,
+        ALL_STOPS.map((tH) => simulate({ occlusions: [{ vessel, severity: 1 }], variants: [], collateral, map: 93, tH, reperfusionH: null, decompression: false })),
+      );
   });
 
   // the two halves of that artefact, pinned directly (no scenario sits exactly on the line now)
