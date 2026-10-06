@@ -125,13 +125,13 @@ export const SCENARIOS: Scenario[] = [
     group: 'anterior',
     title: { zh: '暫時性腦缺血發作（TIA）：左 MCA 上分支 5 分鐘', en: 'Transient ischaemic attack (TIA): left MCA superior division for 5 minutes' },
     summary: {
-      zh: '小栓子卡住左中大腦動脈上分支，約 5 分鐘後自行溶解。發作當下說不出話（布洛卡型失語），右臉與右手無力、麻木；血流一恢復症狀就消失（把時間軸從「發生時」往後拉）。範本假設側枝循環中等：側枝很好時，運動皮質可能還有足夠血流，就只出現失語與麻木、沒有無力。依組織學定義，TIA 不留下梗塞；若缺血期間已有組織壞死（擴散加權 MRI 看得到），就算是小中風——模型會不會留下病灶，取決於組織能撐多久的參數。TIA 後幾天內中風風險最高，要當急症處理。',
-      en: 'A small embolus lodges in the left MCA superior division and breaks up after about 5 minutes. During the attack speech fails (Broca-type aphasia) and the right face and arm go weak and numb; once flow returns the symptoms are gone (move the timeline on from "Onset"). The template assumes moderate collaterals: with good ones the motor cortex may keep enough flow, leaving aphasia and numbness without weakness. By the tissue-based definition a TIA leaves no infarct; if tissue died during the ischaemia (visible on diffusion MRI) it is a minor stroke — whether the model leaves a lesion depends on how long its tissue parameters let ischaemic tissue survive. Stroke risk is highest in the days after a TIA, so it is an emergency.',
+      zh: '小栓子卡住左中大腦動脈上分支，約 5 分鐘後自行溶解。發作當下說不出話（布洛卡型失語），右臉與右手無力、麻木；血流一恢復症狀就消失（把時間軸從「發生時」往後拉）。依組織學定義，TIA 不留下梗塞；若缺血期間已有組織壞死（擴散加權 MRI 看得到），就算是小中風——模型會不會留下病灶，取決於組織能撐多久的參數。TIA 後幾天內中風風險最高，要當急症處理。',
+      en: 'A small embolus lodges in the left MCA superior division and breaks up after about 5 minutes. During the attack speech fails (Broca-type aphasia) and the right face and arm go weak and numb; once flow returns the symptoms are gone (move the timeline on from "Onset"). By the tissue-based definition a TIA leaves no infarct; if tissue died during the ischaemia (visible on diffusion MRI) it is a minor stroke — whether the model leaves a lesion depends on how long its tissue parameters let ischaemic tissue survive. Stroke risk is highest in the days after a TIA, so it is an emergency.',
     },
     occlusions: [{ vessel: 'mca_m2_sup_l', severity: 1, fromH: 0, toH: 1 / 12 }],
-    // moderate, so that the attack shows the classic superior-division picture, face and arm
-    // weakness with a Broca aphasia (Y2-4); with good collaterals the model keeps the motor strip
-    // above the symptom threshold and only the aphasia and the numbness are seen
+    // moderate (Y2-4): the attack shows the classic superior-division picture, face and arm weakness
+    // with a Broca aphasia. Since the motor strip gets the collateral blood of its neighbours
+    // (Z1-15) it does so with good collaterals too, so the summary no longer says otherwise
     collateral: 'moderate',
     tH: 0,
     view: 'left',

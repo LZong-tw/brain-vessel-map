@@ -1853,7 +1853,15 @@ export const VESSEL_DEFS: VesselDef[] = [
       [42, -13, 58],
     ],
     pathMode: 'surface',
-    collStrength: 0.6,
+    // An anastomosis's capacity scales with the mean baseline flow of the two arteries it joins
+    // (hemodynamics.ts). Its ACA end is the callosomarginal artery, whose whole territory is about
+    // three times the precentral artery's, so at 0.6 the motor strip got about 1.7 times the
+    // collateral capacity per mL/min of its own territory of its neighbours on the same ACA–MCA
+    // border (the central and anterior parietal anastomoses, from the paracentral artery): with
+    // moderate collaterals an occlusion of the precentral branch left no deficit at all, and with
+    // good ones a superior-division occlusion gave a Broca aphasia without weakness (Z1-15, Z1-1).
+    // 0.35 gives it their capacity per mL/min of the territory it feeds.
+    collStrength: 0.35,
   }),
   bi({
     id: 'lepto_aca_mca_central',

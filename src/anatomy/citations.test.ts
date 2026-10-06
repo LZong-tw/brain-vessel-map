@@ -218,3 +218,22 @@ describe('C8: haemodynamics, variants and tissue calibration', () => {
     expect(TISSUE_PARAMS_SRC).toContain('Hayreh SS');
   });
 });
+
+describe('Z1-7: the deep white-matter course', () => {
+  it.each([
+    ['Kaesmacher J, Kaesmacher M', 'Stroke 2021;52:1570–1579'],
+    ['Kleine JF, Kaesmacher M', 'Stroke 2017;48:2776–2783'],
+    ['Kleine JF, Beller E', 'J Neurointerv Surg 2017;9:234–239'],
+  ])('lists %s (%s) once, in the flow and tissue section', (author, where) => {
+    const r = ref(author);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toContain(where);
+    const at = REFERENCES_MD.indexOf('### 血流、組織與臨床模型');
+    expect(REFERENCES_MD.slice(at, REFERENCES_MD.indexOf('\n### ', at + 5))).toContain(`- ${r[0]}`);
+  });
+  it('cites them next to the tissue parameters', () => {
+    expect(TISSUE_PARAMS_SRC).toContain('Kaesmacher J');
+    expect(TISSUE_PARAMS_SRC).toMatch(/Stroke\s+(\*\s+)?2021;52:1570–1579/);
+    expect(TISSUE_PARAMS_SRC).toMatch(/Stroke\s+(\*\s+)?2017;48:2776–2783/);
+  });
+});

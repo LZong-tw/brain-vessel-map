@@ -27,10 +27,11 @@
 import { describe, expect, it } from 'vitest';
 import type { CollateralGrade } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
-import { BEDS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
+import { BED_BY_ID, BEDS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import { getUnits } from './hemodynamics';
-import { infarctFraction } from './tissue';
-import { BASILAR_BRAINSTEM_TISSUE, DEFAULT_TISSUE, PERFORATOR_TISSUE, RETINA_TISSUE, tissueParamsForBed, tissueParamsForUnit } from './tissueParams';
+import { infarctFraction, ischaemicHours } from './tissue';
+import TISSUE_PARAMS_SRC from './tissueParams.ts?raw';
+import { BASILAR_BRAINSTEM_TISSUE, DEEP_WHITE_MATTER_TISSUE, DEFAULT_TISSUE, PERFORATOR_TISSUE, RETINA_TISSUE, tissueParamsForBed, tissueParamsForUnit } from './tissueParams';
 
 const sim = (over: Partial<SimInput>) =>
   simulate({ occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false, ...over });
@@ -153,22 +154,78 @@ describe('end arteries keep the fast course; the calibrated beds keep their cons
     expect(BASILAR_BRAINSTEM_TISSUE).toEqual({ ...FORMER, penumbraTauMinH: 3, penumbraSurvivalMax: 0.4 });
   });
 
-  it('a unit fed by a perforator gets the perforator course, unless its bed has its own', () => {
+  it('a unit fed by a perforator gets the perforator course (the deep white matter its own, Z1-7), unless its bed has its own', () => {
     const units = getUnits([], 'good');
     let perforators = 0;
+    let whiteMatter = 0;
     for (const u of units) {
       const own = tissueParamsForBed(u.bed);
       const p = tissueParamsForUnit(u);
       if (own !== DEFAULT_TISSUE) expect(p, u.id).toBe(own);
       else if (VESSEL_BY_ID[u.vessel]?.kind === 'perforator') {
-        expect(p, u.id).toBe(PERFORATOR_TISSUE);
-        perforators++;
+        const deepWhite = ['ic_anterior_limb', 'ic_genu', 'ic_posterior_limb', 'corona_radiata'].includes(REGION_BY_ID[BED_BY_ID[u.bed].region].baseId);
+        expect(p, u.id).toBe(deepWhite ? DEEP_WHITE_MATTER_TISSUE : PERFORATOR_TISSUE);
+        if (deepWhite) whiteMatter++;
+        else perforators++;
       } else expect(p, u.id).toBe(DEFAULT_TISSUE);
     }
     expect(perforators).toBeGreaterThan(10);
+    expect(whiteMatter).toBeGreaterThan(10);
     // the lenticulostriate part of the putamen is an end-artery territory
     expect(tissueParamsForUnit(units.find((u) => u.id === 'putamen_l#lenticulostriate_l')!)).toBe(PERFORATOR_TISSUE);
     // every bed with its own constants is brainstem or retina
     for (const b of BEDS) if (tissueParamsForBed(b.id) !== DEFAULT_TISSUE) expect(['brainstem', 'eye']).toContain(REGION_BY_ID[b.region].category);
+  });
+});
+
+describe('Z1-7: the deep white matter beside the striatum is lost over hours', () => {
+  const wm = (rel: number, tH: number) => infarctFraction(rel, tH, null, 1, DEEP_WHITE_MATTER_TISSUE);
+
+  it('without flow: nothing in the first 2 h, about half by 4 h (half of the capsules at 3.9 h), most by 6 h, all in the end', () => {
+    expect(wm(0, 2)).toBe(0);
+    expect(wm(0, 4)).toBeGreaterThan(0.4);
+    expect(wm(0, 4)).toBeLessThan(0.7);
+    expect(wm(0, 5)).toBeGreaterThan(0.7);
+    expect(wm(0, 6)).toBeGreaterThan(0.8);
+    expect(wm(0, 72)).toBeGreaterThan(0.999);
+    // the striatum beside it (end-artery grey matter) is gone within a quarter of an hour
+    expect(infarctFraction(0, 0.25, null, 1, PERFORATOR_TISSUE)).toBeGreaterThan(0.8);
+  });
+
+  it('the less flow, the faster: deeper ischaemia is never lost more slowly', () => {
+    for (const tH of [2.5, 3, 4, 6, 12, 48]) {
+      let prev = 1;
+      for (let rel = 0; rel < DEEP_WHITE_MATTER_TISSUE.penumbraRel; rel += 0.01) {
+        const f = wm(rel, tH);
+        expect(f, `rel ${rel.toFixed(2)} at ${tH} h`).toBeLessThanOrEqual(prev + 1e-12);
+        prev = f;
+      }
+    }
+  });
+
+  it('after reopening it regains its function at the pace of the end-artery tissue around it, not at once', () => {
+    const history = [
+      { fromH: 0, rel: 0 },
+      { fromH: 1, rel: 1 },
+    ];
+    expect(ischaemicHours(history, 1, DEEP_WHITE_MATTER_TISSUE)).toBeCloseTo(ischaemicHours(history, 1, PERFORATOR_TISSUE), 12);
+    expect(ischaemicHours(history, 1, DEEP_WHITE_MATTER_TISSUE)).toBeGreaterThan(0.8);
+  });
+});
+
+describe('Z1-5: the basilar brainstem keeps the course it was calibrated with', () => {
+  it('at equal flow it is lost at least as fast as the hemispheric tissue that collaterals reach (the slower one since Y1-0)', () => {
+    for (const tH of [0.5, 1, 3, 6, 12, 24])
+      for (let rel = 0; rel < DEFAULT_TISSUE.penumbraRel; rel += 0.05)
+        expect(infarctFraction(rel, tH, null, 1, BASILAR_BRAINSTEM_TISSUE), `rel ${rel.toFixed(2)} at ${tH} h`).toBeGreaterThanOrEqual(
+          infarctFraction(rel, tH, null, 1, DEFAULT_TISSUE) - 1e-12,
+        );
+  });
+
+  it('its rationale no longer claims the opposite, and says the cerebellum and medulla are not calibrated on their own', () => {
+    const doc = TISSUE_PARAMS_SRC.slice(TISSUE_PARAMS_SRC.indexOf(' * Brainstem supplied by the basilar artery'), TISSUE_PARAMS_SRC.indexOf('export const BASILAR_BRAINSTEM_TISSUE'));
+    expect(doc).not.toMatch(/far longer than the hemispheric penumbra of this model would allow/);
+    expect(doc).toMatch(/Since Y1-0 the hemispheric tissue that collaterals reach \(DEFAULT_TISSUE\) is the slower one/);
+    expect(doc).toMatch(/TODO\(medical-review\): the time course of the cerebellum and of the parts of the medulla/);
   });
 });

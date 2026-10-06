@@ -72,12 +72,17 @@ describe('C4-F2: consciousness follows the midline shift (Ropper 1986)', () => {
     expect(item1a(s)).toBe(1);
   });
 
-  it('a moderate mass effect under 4 mm leaves the patient alert (left M1, 3.1–3.8 mm)', () => {
+  // Z1-15: the motor strip no longer gets more collateral blood than its neighbours, so the
+  // untreated left M1 template ends at about 165 mL instead of 147 and its shift peaks at about
+  // 4.7 mm on days 3–4 (was 3.1–3.8 mm throughout: alert)
+  it('a moderate mass effect under 4 mm leaves the patient alert, 4–6 mm makes them drowsy (left M1)', () => {
     for (const tH of [24, 48, 72, 96, 168]) {
       const s = scenario('l_m1', tH);
-      expect(s.edema.midlineShiftMm, `${tH} h`).toBeLessThan(4);
-      expect(item1a(s), `${tH} h`).toBe(0);
+      const shift = s.edema.midlineShiftMm;
+      expect(shift, `${tH} h`).toBeLessThan(6);
+      expect(item1a(s), `${tH} h: ${shift.toFixed(1)} mm`).toBe(shift < 4 ? 0 : 1);
     }
+    expect(scenario('l_m1', 48).edema.midlineShiftMm).toBeLessThan(4);
   });
 
   it('the malignant-oedema event no longer adds a fixed drowsiness: after decompression the patient stays alert', () => {

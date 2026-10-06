@@ -44,9 +44,10 @@ const custom = (vessel: string, collateral: SimInput['collateral']): SimInput =>
 const item = (input: SimInput, tH: number, key: string) => simulate({ ...input, tH }).nihss.items[key] ?? 0;
 
 describe('a plegic arm from a corticospinal infarct where the tract converges stays weak', () => {
+  // (Z1-7: l_m1_thrombectomy is no longer one of them: reopened at 2 h, the capsule beside the
+  // infarcted striatum is spared and the arm recovers; capsularWhiteMatter.test.ts)
   it.each([
     ['l_m1', scenario('l_m1'), 'r'],
-    ['l_m1_thrombectomy', scenario('l_m1_thrombectomy'), 'r'],
     ['l_acha', scenario('l_acha'), 'r'],
     ['l_lsa', scenario('l_lsa'), 'r'],
     ['l_pontine (basis pontis)', scenario('l_pontine'), 'r'],

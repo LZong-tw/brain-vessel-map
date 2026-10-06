@@ -3,9 +3,10 @@
  *
  * Relative CBF thresholds (fraction of normal):
  *   < 0.30   ischaemic core (CT-perfusion rCBF < 30 %; Campbell et al. Stroke 2011) — all of it is
- *            lost if flow never returns, but not at once: an end-artery territory without any
- *            flow within about half an hour, tissue that collaterals reach over hours, the faster
- *            the less flow it gets (tissueParams.ts, Y1-0)
+ *            lost if flow never returns, but not at once: the grey matter of an end-artery
+ *            territory without any flow within about half an hour, the deep white matter beside it
+ *            from about 2½ h on (Z1-7), tissue that collaterals reach over hours, the faster the
+ *            less flow it gets (tissueParams.ts, Y1-0)
  *   < 0.55   penumbra — functionally impaired (symptomatic) but salvageable; converts to infarct
  *            over hours, faster the lower the flow. The concept is Astrup, Siesjö & Symon's
  *            (Stroke 1981): tissue whose electrical function has failed while its ion pumps still
@@ -170,10 +171,12 @@ export function tissueCourse(
 /**
  * Hours of ischaemia (flow below the penumbra threshold) before phase `end`, beyond the lag: the
  * time in which the tissue was dying, added up over every ischaemic phase. Nothing counts within
- * the lag, so a TIA of minutes gives 0.
+ * the lag, so a TIA of minutes gives 0. The lag here is `reflowLagH` where a tissue has one (the
+ * deep white matter, whose infarction starts late but whose function fails, and returns, with the
+ * end-artery grey matter around it: tissueParams.DEEP_WHITE_MATTER_TISSUE, Z1-7).
  */
 export function ischaemicHours(history: readonly FlowPhase[], end: number, p: TissueParams = DEFAULT_TISSUE): number {
-  let budget = p.lagH;
+  let budget = p.reflowLagH ?? p.lagH;
   let h = 0;
   for (let i = 0; i < end && i + 1 < history.length; i++) {
     if (!(history[i].rel < p.penumbraRel)) continue;

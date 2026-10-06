@@ -49,6 +49,34 @@ describe('output invariants', () => {
     }
   });
 
+  // Z1-7: what a reopening saves shrinks with every hour of delay, in every region, and so does
+  // what it spares of a limb (the internal capsule beside an infarcted striatum was lost within
+  // 30 min, so reopening at 30 min, 6 h or never left the same arm)
+  const LATER: [string, Occlusion[]][] = [
+    ...withComplete.map((s) => [s.id, s.occlusions] as [string, Occlusion[]]),
+    ...['mca_m1_l', 'ica_terminal_r', 'lenticulostriate_l', 'acha_r', 'mca_m2_sup_r', 'mca_precentral_l'].map((v) => [v, [{ vessel: v, severity: 1 }]] as [string, Occlusion[]]),
+  ];
+  it.each(LATER.map(([name, occ]) => [name, occ] as const))('%s: a later reopening never leaves less infarct in any region, nor a stronger arm or leg', (name, occlusions) => {
+    const sc = SCENARIOS.find((s) => s.id === name);
+    const limbs = (r: SimResult) => ['5r', '5l', '6r', '6l'].map((k) => r.nihss.items[k] ?? 0);
+    for (const collateral of ['good', 'moderate', 'poor'] as const) {
+      let prev: SimResult[] | null = null;
+      let prevH: number | null = null;
+      for (const reperfusionH of [...REPERFUSION_STOPS, null]) {
+        const now = [2160, 4320].map((tH) =>
+          simulate({ occlusions, variants: sc?.variants ?? [], collateral, map: sc?.map ?? 93, tH, reperfusionH, decompression: sc?.decompression ?? false }),
+        );
+        if (prev) {
+          const where = `${name} ${collateral}: reopened at ${prevH} h, then ${reperfusionH ?? 'never'}`;
+          for (const [k, v] of Object.entries(now[1].regions)) expect(v.infarct, `${where}: ${k}`).toBeGreaterThanOrEqual((prev[1].regions[k]?.infarct ?? 0) - 0.005);
+          for (const i of [0, 1]) limbs(now[i]).forEach((x, j) => expect(x, `${where}: limb item ${j} at ${[3, 6][i]} months`).toBeGreaterThanOrEqual(limbs(prev![i])[j]));
+        }
+        prev = now;
+        prevH = reperfusionH;
+      }
+    }
+  });
+
   it('a left M1 with poor collaterals opened at 1 h is not worse than untreated (border-zone rounding)', () => {
     const run = (reperfusionH: number | null) =>
       simulate({ occlusions: [{ vessel: 'mca_m1_l', severity: 1 }], variants: [], collateral: 'poor', map: 93, tH: 72, reperfusionH, decompression: false });
@@ -298,6 +326,14 @@ describe('syndromes and events agree with the symptoms', () => {
       'moderate',
     ],
     ['mca_m1_r reopened 2 h', [{ vessel: 'mca_m1_r', severity: 1 }], 'good', 2],
+    // Z1-7: the capsule spared by an early reopening, partly lost by a later one; the whole
+    // lenticulostriate group reopened while the capsule is still alive
+    ['mca_m1_l poor reopened 1 h', [{ vessel: 'mca_m1_l', severity: 1 }], 'poor', 1],
+    ['mca_m1_l moderate reopened 4.5 h', [{ vessel: 'mca_m1_l', severity: 1 }], 'moderate', 4.5],
+    ['lenticulostriate_l reopened 1 h', [{ vessel: 'lenticulostriate_l', severity: 1 }], 'good', 1],
+    // Z1-15, Z1-1: the precentral branch with moderate collaterals; the superior division with good ones
+    ['mca_precentral_r moderate', [{ vessel: 'mca_precentral_r', severity: 1 }], 'moderate'],
+    ['mca_m2_sup_l good', [{ vessel: 'mca_m2_sup_l', severity: 1 }], 'good'],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -558,10 +594,13 @@ describe('syndromes and events agree with the symptoms', () => {
         // (a herniation coma lasts while the midline shift is in the coma range, C4-F1, R6-5; a
         // level of consciousness that follows a swelling, for its own part of the event, R6-1)
         for (const s of symptomsAddedAt(e, tH, r.edema.massEffectMm)) {
-          // drowsiness is listed as coma when the patient is also comatose
+          // drowsiness is listed as coma when the patient is also comatose; an aphasia is one type at
+          // a time, combined from every source (the subcortical aphasia of a striatocapsular infarct
+          // within the global aphasia of a cortex that is still ischaemic: Z1-7 brought such a case)
           const ids = s.id === 'somnolence' ? ['somnolence', 'coma'] : [s.id];
+          const aphasia = s.id.startsWith('aphasia_');
           expect(
-            r.symptoms.some((x) => ids.includes(x.id)),
+            r.symptoms.some((x) => ids.includes(x.id) || (aphasia && x.id.startsWith('aphasia_'))),
             `${name} ${tH} h: event ${e.id} adds ${s.id}`,
           ).toBe(true);
         }

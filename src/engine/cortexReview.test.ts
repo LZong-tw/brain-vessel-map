@@ -65,7 +65,9 @@ describe('R1-1: a score of 3 on item 9 is a mute patient who follows no command'
       expect(r.nihss.items['10'], `${name} 10`).toBe(2);
     }
     expect(mute).toBeGreaterThan(10);
-    expect(scenario('l_m1', 24).nihss.total).toBe(23);
+    // Z1-15: 24 (was 23): with the motor strip no longer the best-collateralised part of the
+    // territory, the right arm is plegic at 24 h (5r: 3 → 4)
+    expect(scenario('l_m1', 24).nihss.total).toBe(24);
   });
 });
 

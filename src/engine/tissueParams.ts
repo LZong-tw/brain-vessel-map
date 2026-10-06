@@ -2,13 +2,14 @@
  * Parameters of the tissue-fate model (see tissue.ts), per perfusion unit (the part of a bed fed
  * by one artery).
  *
- * A unit uses its bed's own entry if the bed has one (the basilar brainstem, the retina), else
- * PERFORATOR_TISSUE when an end-artery perforator feeds it, else DEFAULT_TISSUE (tissue that
- * collaterals can reach): this is where regional differences in ischaemic tolerance or in how
- * fast the core and the penumbra are lost are calibrated.
+ * A unit uses its bed's own entry if the bed has one (the basilar brainstem, the retina), else,
+ * when an end-artery perforator feeds it, DEEP_WHITE_MATTER_TISSUE in the internal capsule and
+ * corona radiata and PERFORATOR_TISSUE elsewhere, else DEFAULT_TISSUE (tissue that collaterals can
+ * reach): this is where regional differences in ischaemic tolerance or in how fast the core and
+ * the penumbra are lost are calibrated.
  */
 
-import { BEDS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
+import { BEDS, BED_BY_ID, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import type { Bed } from '../anatomy';
 
 export interface TissueParams {
@@ -33,6 +34,13 @@ export interface TissueParams {
   penumbraSurvivalMax: number;
   /** hours of ischaemia before any tissue is lost (0 = loss starts at once) */
   lagH: number;
+  /**
+   * hours of ischaemia that do not count towards how slowly the rescued tissue regains its
+   * function once blood returns (tissue.ischaemicHours, silentAfterReflow); absent: `lagH`.
+   * Differs from it only where infarction starts late but function fails as early as in the
+   * tissue around it (DEEP_WHITE_MATTER_TISSUE)
+   */
+  reflowLagH?: number;
 }
 
 /**
@@ -100,7 +108,9 @@ export const DEFAULT_TISSUE: TissueParams = {
 /**
  * End-artery perforator territories (the lenticulostriate, thalamic, choroidal and brainstem
  * perforators; anatomy/vessels.ts kind 'perforator'), and every lacune: no collateral reaches
- * them, so behind an occlusion they get no flow at all and keep the former fast course (Y1-0).
+ * them, so behind an occlusion they get no flow at all and keep the former fast course (Y1-0);
+ * the deep white matter of the hemisphere they feed has its own, slower one
+ * (DEEP_WHITE_MATTER_TISSUE, Z1-7).
  * In rats the lateral striatum, supplied by end arteries, was infarcted after 30 min of MCA
  * occlusion, the cortex only after 60 min (Memezawa H et al. Stroke 1992;23:552–559); with a
  * permanent occlusion irreversible change appears first in the caudoputamen and then spreads to
@@ -111,6 +121,45 @@ export const DEFAULT_TISSUE: TissueParams = {
 export const PERFORATOR_TISSUE: TissueParams = { ...FAST_CORE };
 
 /**
+ * The deep white matter of the hemisphere behind an end-artery perforator: the internal capsule
+ * (anterior limb, genu, posterior limb) and the corona radiata where the lenticulostriate,
+ * Heubner, anterior or posterior choroidal arteries feed them (Z1-7). White matter tolerates
+ * ischaemia better than grey matter, and its infarction commonly begins later (Kleine JF et al.
+ * Tissue-selective salvage of the white matter by successful endovascular stroke therapy. Stroke
+ * 2017;48:2776–2783), so behind a proximal MCA occlusion the striatum (PERFORATOR_TISSUE) is lost
+ * early but the capsule beside it only over hours: in 92 patients reopened by thrombectomy all had
+ * striatal ischaemia, only 45 (48.9 %) the corticospinal part of the capsule; each hour from onset
+ * to reperfusion of the lenticulostriate arteries (median 234 min) raised the odds of capsular
+ * infarction 3.47-fold, beyond 5 h it was likely (> 80 %), the collateral grade made no
+ * difference, and sparing the capsule meant less arm weakness and more independence (Kaesmacher J
+ * et al. Early thrombectomy protects the internal capsule in patients with proximal middle
+ * cerebral artery occlusion. Stroke 2021;52:1570–1579).
+ *
+ * TODO(medical-review): fitted (least squares over 2–6 h, rounded) to a logistic curve of the
+ * probability of capsular infarction by time to reperfusion with that cohort's odds ratio (3.47
+ * per hour) and its 50 % point at the median time (3.9 h, when about half had it), read as the
+ * share of the capsule that is lost — the model has one typical patient, not a distribution:
+ * nothing is lost in the first 2½ h, then tissue without flow is lost with a 1¾ h time constant
+ * (about 58 % by 4 h, 76 % by 5 h and 86 % by 6 h, against 53 %, 80 % and 93 % on the curve).
+ * Untreated it all dies in the end, as before. Function fails at once and, after reopening,
+ * returns at the pace of the end-artery tissue around it (`reflowLagH` of the perforators), so a
+ * capsule rescued at 1 h is still silent for some hours. Below the core threshold the flow makes
+ * no difference (as in FAST_CORE); the penumbra is lost no faster than the core. Lacunes keep the
+ * fast course of a single perforator (PERFORATOR_TISSUE): this calibration is about the whole
+ * perforator group behind a trunk occlusion.
+ */
+export const DEEP_WHITE_MATTER_TISSUE: TissueParams = {
+  ...FAST_CORE,
+  coreTauH: 1.75,
+  penumbraTauMinH: 1.75,
+  lagH: 2.5,
+  reflowLagH: FAST_CORE.lagH,
+};
+
+/** the deep white matter of the hemisphere (DEEP_WHITE_MATTER_TISSUE where a perforator feeds it) */
+const DEEP_WHITE_MATTER = new Set(['ic_anterior_limb', 'ic_genu', 'ic_posterior_limb', 'corona_radiata']);
+
+/**
  * Brainstem supplied by the basilar artery (pons and midbrain).
  *
  * A calibration to what is seen in basilar artery occlusion, not measured physiological
@@ -119,12 +168,11 @@ export const PERFORATOR_TISSUE: TissueParams = { ...FAST_CORE };
  * them and is kept as it was when the collateral-fed tissue was slowed down (Y1-0).
  *
  * TODO(medical-review): penumbra lost half as fast as in the former single model (from 3 h
- * instead of 1.5 h just above the core threshold; the collateral-fed DEFAULT_TISSUE now starts
- * from 8 h, but loses tissue without flow far more slowly than the brainstem here).
- * Thrombectomy was clearly beneficial both within 12 h of onset (ATTENTION: Tao C et al.
- * N Engl J Med 2022;387:1361–1372) and 6–24 h after onset (BAOCHE: Jovin TG et al. N Engl J Med
- * 2022;387:1373–1384), i.e. salvageable brainstem often persists for many hours, far longer than
- * the hemispheric penumbra of this model would allow at the same flow. Proposed reasons are the
+ * instead of 1.5 h just above the core threshold). Thrombectomy was clearly beneficial both within
+ * 12 h of onset (ATTENTION: Tao C et al. N Engl J Med 2022;387:1361–1372) and 6–24 h after onset
+ * (BAOCHE: Jovin TG et al. N Engl J Med 2022;387:1373–1384), i.e. salvageable brainstem often
+ * persists for many hours, far longer than the former single model allowed at the same flow; the
+ * slower penumbra was fitted to that, on the former single model. Proposed reasons are the
  * collateral network of the posterior circulation, retrograde filling of the distal basilar
  * artery and residual flow past a thrombus that grows stepwise, keeping the brainstem
  * perforators marginally patent (Lindsberg PJ et al. Time window for recanalization in basilar
@@ -132,6 +180,12 @@ export const PERFORATOR_TISSUE: TissueParams = { ...FAST_CORE };
  * captures the collaterals (hemodynamics.ts, BRAINSTEM_PIAL) but not the fluctuating residual
  * flow, for which this slower loss stands in. How long the tissue lasts still depends on the
  * residual flow, i.e. on the collaterals.
+ *
+ * Since Y1-0 the hemispheric tissue that collaterals reach (DEFAULT_TISSUE) is the slower one:
+ * without flow it loses a fifth in the first hour where the basilar brainstem here loses
+ * everything within half an hour, and its penumbra starts from 8 h, not 3 h. The basilar
+ * calibration was kept as fitted (its time windows are pinned in posterior.test.ts), not because
+ * the brainstem is known to tolerate ischaemia less than the cortex (Z1-5).
  *
  * TODO(medical-review): less of the untreated penumbra survives in the end (at most 40 % instead
  * of 85 %). Without recanalisation a good outcome of basilar artery occlusion is rare: in a
@@ -145,8 +199,14 @@ export const PERFORATOR_TISSUE: TissueParams = { ...FAST_CORE };
  * because that is what the calibration is about: the medulla (vertebral arteries, PICA, anterior
  * spinal artery) and the cerebral peduncle (partly fed by the anterior choroidal artery) keep
  * the general parameters (PERFORATOR_TISSUE where a perforator feeds them, else
- * DEFAULT_TISSUE). So does the cerebellum: nothing here calibrates a different cerebellar time
- * course.
+ * DEFAULT_TISSUE). So does the cerebellum.
+ *
+ * TODO(medical-review): the time course of the cerebellum and of the parts of the medulla that
+ * no perforator feeds is not calibrated on its own: it is the general course of tissue that
+ * collaterals reach (DEFAULT_TISSUE, Y1-0), so at equal flow they now outlast the pons (a PICA
+ * occlusion with poor collaterals has no core at 15 min, where the former single model had
+ * about 28 mL, and reopened at 1 h it ends with about 6 mL instead of 34). No study here gives
+ * the time to infarction of the cerebellum, or of the medulla, after an occlusion (Z1-5).
  */
 export const BASILAR_BRAINSTEM_TISSUE: TissueParams = {
   ...FAST_CORE,
@@ -196,8 +256,13 @@ export const tissueParamsForBed = (bedId: string): TissueParams => BED_TISSUE[be
 
 /**
  * The parameters of one perfusion unit (the part of a bed fed by one artery): its bed's own if it
- * has them, else those of an end-artery perforator when that is what feeds it, else the default
- * (Y1-0).
+ * has them, else, when an end-artery perforator feeds it, those of the deep white matter (Z1-7)
+ * or of the other perforator territories, else the default (Y1-0).
  */
-export const tissueParamsForUnit = (u: { bed: string; vessel: string }): TissueParams =>
-  BED_TISSUE[u.bed] ?? (VESSEL_BY_ID[u.vessel]?.kind === 'perforator' ? PERFORATOR_TISSUE : DEFAULT_TISSUE);
+export const tissueParamsForUnit = (u: { bed: string; vessel: string }): TissueParams => {
+  const own = BED_TISSUE[u.bed];
+  if (own) return own;
+  if (VESSEL_BY_ID[u.vessel]?.kind !== 'perforator') return DEFAULT_TISSUE;
+  const region = REGION_BY_ID[BED_BY_ID[u.bed]?.region ?? ''];
+  return region && DEEP_WHITE_MATTER.has(region.baseId) ? DEEP_WHITE_MATTER_TISSUE : PERFORATOR_TISSUE;
+};

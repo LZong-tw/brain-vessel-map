@@ -140,3 +140,24 @@ describe('what the READMEs say about the acute course', () => {
     expect(readmeZh).toMatch(/很可能死亡/);
   });
 });
+
+describe('what the READMEs say about tissue timing (Z1)', () => {
+  it('the internal capsule is lost hours after the striatum beside it, in both languages (Z1-7)', () => {
+    expect(readmeEn).toMatch(/the internal capsule and corona radiata\) holds out longer: nothing is lost for about 2½ hours/);
+    expect(readmeZh).toMatch(/內囊與放射冠）撐得比較久：約 2\.5 小時內不會壞死/);
+    expect(roadmap).toMatch(/internal capsule and corona radiata lost hours after the striatum/);
+    expect(roadmap).toMatch(/內囊與放射冠比旁邊的紋狀體晚幾小時才壞死/);
+  });
+
+  it('the cerebellum and medulla have no time course of their own, and the basilar calibration was kept as fitted (Z1-5)', () => {
+    expect(readmeEn).toMatch(/The cerebellum and the parts of the medulla that no perforator feeds follow the general course[^.]*no calibration of their own/);
+    expect(readmeZh).toMatch(/小腦與延髓中沒有穿通支供應的部分沿用側枝供應組織的一般時程，沒有自己的校正/);
+    expect(roadmap).toMatch(/time course of the cerebellum and the medulla/);
+    expect(roadmap).toMatch(/小腦與延髓的壞死時程/);
+  });
+
+  it('the strengths of the leptomeningeal anastomoses are stated as hand-set, with the branches they leave silent (Z1-15)', () => {
+    expect(readmeEn).toMatch(/Each leptomeningeal anastomosis has a hand-set strength/);
+    expect(readmeZh).toMatch(/每一條軟腦膜側枝的強度是手動設定的/);
+  });
+});

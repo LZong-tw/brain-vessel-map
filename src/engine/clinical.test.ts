@@ -66,11 +66,14 @@ describe('NIHSS item rules', () => {
     expect(items({ id: 'arm_weak', side: 'r', sev: 1 }, { id: 'leg_weak', side: 'r', sev: 1 })).toMatchObject({ '5r': 1, '6r': 1 });
     // the moderate and severe grades keep their meaning: no effort against gravity, no movement
     expect(items({ id: 'arm_weak', side: 'l', sev: 2 }, { id: 'leg_weak', side: 'l', sev: 3 })).toMatchObject({ '5l': 3, '6l': 4 });
-    // through the engine: a sev-1 weakness three months after a left superior-division stroke is
-    // drift (Y1-1: after a left M1 stroke the arm, cut in the internal capsule, stays moderately weak)
-    const m3 = scenario('l_m2_sup', 2160);
+    // through the engine: a sev-1 weakness three months after a pure motor lacune is drift (Y1-1:
+    // after a left M1 stroke the arm, cut in the internal capsule, stays moderately weak; Z1-15: the
+    // superior-division template, which used to show the drift here, now loses most of the motor
+    // strip and keeps a moderate weakness)
+    const m3 = scenario('l_lacune', 2160);
     expect(m3.symptoms.find((s) => s.id === 'arm_weak' && s.side === 'r')?.sev).toBe(1);
     expect(m3.nihss.items['5r']).toBe(1);
+    expect(m3.nihss.items['6r']).toBe(1);
   });
 
   it('ataxia is not scored in a stuporous patient (1a = 2)', () => {

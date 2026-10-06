@@ -240,8 +240,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '中大腦動脈下分支症候群', en: 'MCA inferior-division syndrome' },
     desc: {
-      zh: '通常沒有明顯無力；若有偏癱，表示深部的豆紋動脈區（殼核、內囊）也梗塞了，例如 M1 阻塞早期打通之後（見「紋狀體內囊梗塞」）。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
-      en: "Usually little weakness; a hemiparesis means the deep (lenticulostriate) territory — putamen, internal capsule — is infarcted too, as after an M1 occlusion reopened early (see the striatocapsular label). Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
+      zh: '通常沒有明顯無力；若有偏癱，表示深部的豆紋動脈區（殼核、內囊）也梗塞了，例如 M1 阻塞過了兩、三個小時才打通之後（見「紋狀體內囊梗塞」）。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
+      en: "Usually little weakness; a hemiparesis means the deep (lenticulostriate) territory — putamen, internal capsule — is infarcted too, as after an M1 occlusion reopened only after the first two or three hours (see the striatocapsular label). Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
     },
     test: (c, s) =>
       c.hasAny(['superior_temporal_posterior', 'angular'], s, 0.3) && !c.has('precentral_face_arm', s, 0.3),
@@ -869,8 +869,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '紋狀體內囊梗塞', en: 'Striatocapsular infarction' },
     desc: {
-      zh: '整群豆紋動脈（或 M1 阻塞而皮質靠側枝撐住，或 M1 早期打通時深部核團已經壞死、皮質大多救回）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）；部分皮質（如腦島、顳葉）也可能梗塞，另以它自己的標籤標示。最常見的是以手臂為主的對側偏癱，合併皮質徵象（左側失語、右側忽略、失用）：急性期來自皮質灌流不足，之後則歸因於遠隔效應（diaschisis）。只有手臂或手臂加臉無力、沒有皮質徵象時，通常恢復得很好。',
-      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals, or an M1 occlusion reopened early, after the deep nuclei have died but while most of the cortex could be saved) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm); part of the cortex (insula, temporal lobe) may be infarcted too, named by its own label. Most often an arm-predominant contralateral hemiparesis with cortical signs (aphasia on the left, neglect on the right, dyspraxia): acutely from cortical hypoperfusion, later attributed to diaschisis. With arm or arm-and-face weakness alone and no cortical signs, recovery is usually excellent — Donnan et al., Brain 1991.',
+      zh: '整群豆紋動脈（或 M1 阻塞而皮質靠側枝撐住，或 M1 打通時深部核團已經壞死、皮質大多救回）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）；旁邊內囊的白質能撐幾個小時，所以 M1 在兩小時左右內打通時，通常只有紋狀體梗塞、內囊保住，也就沒有偏癱；部分皮質（如腦島、顳葉）也可能梗塞，另以它自己的標籤標示。最常見的是以手臂為主的對側偏癱，合併皮質徵象（左側失語、右側忽略、失用）：急性期來自皮質灌流不足，之後則歸因於遠隔效應（diaschisis）。只有手臂或手臂加臉無力、沒有皮質徵象時，通常恢復得很好。',
+      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals, or an M1 occlusion reopened after the deep nuclei have died but while most of the cortex could be saved) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm); the white matter of the capsule beside them holds out for a few hours, so an M1 reopened within about two hours usually leaves the striatum infarcted but the capsule, and the arm, spared; part of the cortex (insula, temporal lobe) may be infarcted too, named by its own label. Most often an arm-predominant contralateral hemiparesis with cortical signs (aphasia on the left, neglect on the right, dyspraxia): acutely from cortical hypoperfusion, later attributed to diaschisis. With arm or arm-and-face weakness alone and no cortical signs, recovery is usually excellent — Donnan et al., Brain 1991.',
     },
     // the deep (comma-shaped) pattern with the cortex not infarcted to the extent of a complete
     // MCA syndrome (fewer than four of its cortical areas, which mca_complete needs). Some cortex

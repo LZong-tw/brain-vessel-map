@@ -255,14 +255,18 @@ describe('every new symptom can occur', () => {
  * neglect clears), and the fresh-eyes review, Y2 (2: the deep infarct of an early M1 reopening is
  * named a striatocapsular infarct; 8: item 7 counts ataxic limbs, a moderate hemiataxia two), Y1
  * (0: the infarct grows over hours; 1: a plegic arm from where the corticospinal tract converges
- * stays moderately weak; 12: rescued tissue regains its function over hours to days).
+ * stays moderately weak; 12: rescued tissue regains its function over hours to days) and Z1 (7: the
+ * internal capsule is lost hours after the striatum; 15: the motor strip gets the collateral blood
+ * of its neighbours).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
   // right neglect after a left-hemisphere stroke (11: 0 → 1); C1-F1: Gerstmann cannot be tested
   // with a global aphasia, so it is not named (was 19, ['gerstmann_l', 'mca_complete_l']);
   // R1-1: item 9 = 3 is a mute patient who follows no command (1c: 1 → 2, 10: 1 → 2; was 21)
-  'l_m1@24': [23, { '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 2, 9: 3, 10: 2, 11: 1 }, ['mca_complete_l']],
+  // Z1-15: the motor strip no longer gets more collateral blood per mL/min of its territory than
+  // its neighbours, so more of it is lost and the arm is plegic at 24 h (5r: 3 → 4; was 23)
+  'l_m1@24': [24, { '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5r': 4, '6r': 3, 8: 2, 9: 3, 10: 2, 11: 1 }, ['mca_complete_l']],
   // C5-F1 drift: was 14 (5r 2, 6r 2); C1-F1: the global aphasia is graded from its compensated
   // components (sev 1): 9: 3 → 2, 1b: 2 → 1, 1c: 1 → 0 (was 12). R1-2: a mild global aphasia is
   // no longer global but a mild Wernicke type (9: 2 → 1); R1-6: the parietal optic radiation
@@ -278,13 +282,19 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // (was 58), mostly the end-artery deep territory; Y1-12: by 24 h most of the rescued cortex works
   // again: a milder aphasia (9: 2 → 1, 1b: 2 → 1, 1c: 1 → 0) and too little cortical infarct for the
   // inferior-division label (was 15, ['mca_inferior_l', 'striatocapsular_l'])
-  'l_m1_thrombectomy@24': [12, { '1b': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 1, 10: 1 }, ['striatocapsular_l']],
+  // Z1-7: the internal capsule and corona radiata beside the infarcted striatum are lost only from
+  // about 2½ h on, so the reopening at 2 h spares them: by 24 h the face, arm and leg work again and
+  // the sensory loss has gone (4, 5r, 6r, 8: → 0); without a hemiparesis the infarct of the striatum
+  // alone is not named a striatocapsular infarct (C5-F2; was 12, ['striatocapsular_l'])
+  'l_m1_thrombectomy@24': [3, { '1b': 1, 9: 1, 10: 1 }, []],
   // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was
   // 10); Y2-2: as at 24 h (was ['mca_inferior_l'])
   // Y1-0: no lasting aphasia from the smaller cortical infarct (9: 1 → 0, 1b: 1 → 0), no
   // inferior-division label; Y1-1: the arm, cut in the posterior limb, stays moderately weak (5r: 1
   // → 3); still 7
-  'l_m1_thrombectomy@2160': [7, { 4: 1, '5r': 3, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']],
+  // Z1-7: the capsule is spared (see @24): only the dysarthria of the striatal infarct is left (was
+  // 7, ['striatocapsular_l'])
+  'l_m1_thrombectomy@2160': [1, { 10: 1 }, []],
   // C1-F2: hemianopia (3: 1 → 2); C4-F2: consciousness follows the midline shift, 3.4 mm at 24 h
   // (alert), not a fixed drowsiness (1a: 1 → 0); was 17
   'r_m1_malignant@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
@@ -305,7 +315,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C5-F1 drift: was 6 (5r 2); C1-F5: the right neglect of a large supramarginal infarct is still
   // there (11: 0 → 1; was 5). R1-7: neglect after a left-hemisphere stroke clears within weeks
   // (11: 1 → 0; was 6)
-  'l_m2_sup@2160': [5, { '1b': 1, 4: 1, '5r': 1, 8: 1, 9: 1 }, ['mca_superior_l']],
+  // Z1-15: with moderate collaterals 78 % of the motor strip is lost (was 58 %): a moderate arm
+  // weakness and a dysarthria remain (5r: 1 → 3, 10: 0 → 1; was 5)
+  'l_m2_sup@2160': [8, { '1b': 1, 4: 1, '5r': 3, 8: 1, 9: 1, 10: 1 }, ['mca_superior_l']],
   // C1-F2: hemianopia (3: 1 → 2); C1-F5: right neglect (11: 0 → 1); C1-F1: no Gerstmann label
   // with a Wernicke aphasia (was 7, ['gerstmann_l', 'mca_inferior_l'])
   'l_m2_inf@24': [9, { '1b': 2, '1c': 1, 3: 2, 9: 2, 10: 1, 11: 1 }, ['mca_inferior_l']],

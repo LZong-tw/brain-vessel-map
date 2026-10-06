@@ -126,7 +126,8 @@ describe('collateral grade matters in basilar occlusion (goal 4)', () => {
 
 describe('the anterior circulation is unchanged (goal 5)', () => {
   // (per bed; within any other bed, the part an end-artery perforator feeds keeps the former fast
-  // course: tissueParamsForUnit, Y1-0)
+  // course, except in the deep white matter, which is lost over hours: tissueParamsForUnit, Y1-0,
+  // Z1-7)
   it('only brainstem beds fed entirely by the basilar artery (and the retina, C8-F1) have their own tissue parameters', () => {
     for (const b of BEDS) {
       if (tissueParamsForBed(b.id) === DEFAULT_TISSUE) continue;
@@ -140,16 +141,21 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
   // final infarct (mL) of every scenario outside the posterior group before the posterior
   // calibration; the small shifts allowed come from the ischaemic lag (goal 7)
   const BEFORE: Record<string, number> = {
-    l_m1: 148.916,
+    // Z1-15: the motor strip no longer gets more collateral blood per mL/min of its territory than
+    // its neighbours, so more of it is lost (was 148.916)
+    l_m1: 165.518,
     // X3-0: the pial arteries of the hemispheres are mirrored in the flow model (was 60.198). Y1-0:
     // tissue that collaterals reach is lost over hours, not minutes, so the reopening at 2 h leaves
     // the end-artery (striatocapsular) territory and little cortex (was 58.046; the untreated final
-    // volumes do not change)
-    l_m1_thrombectomy: 33.65,
+    // volumes do not change). Z1-7: the internal capsule and the corona radiata beside the striatum
+    // are lost only over hours, so the reopening at 2 h spares them (−6.3 mL); Z1-15: a little more
+    // motor strip (+2.1 mL; was 33.65)
+    l_m1_thrombectomy: 29.517,
     r_m1_malignant: 485.138,
     r_m1_decompression: 296.726,
     r_ica_t: 493.241,
-    l_m2_sup: 124.637,
+    // Z1-15: as l_m1, more of the motor strip (was 124.637)
+    l_m2_sup: 135.689,
     l_m2_inf: 58.628,
     r_aca: 135.779,
     l_acha: 8.621,

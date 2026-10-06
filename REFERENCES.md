@@ -260,6 +260,9 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Nijland RH, van Wegen EE, Harmeling-van der Wel BC, Kwakkel G. Presence of finger extension and shoulder abduction within 72 hours after stroke predicts functional recovery: early prediction of functional outcome after stroke: the EPOS cohort study. Stroke 2010;41:745–750.
 - Stinear CM, Byblow WD, Ackerley SJ, Smith MC, Borges VM, Barber PA. PREP2: a biomarker-based algorithm for predicting upper limb function after stroke. Ann Clin Transl Neurol 2017;4:811–820.
 - Byblow WD, Stinear CM, Barber PA, Petoe MA, Ackerley SJ. Proportional recovery after stroke depends on corticomotor integrity. Ann Neurol 2015;78:848–859.
+- Kaesmacher J, Kaesmacher M, Berndt M, et al. Early thrombectomy protects the internal capsule in patients with proximal middle cerebral artery occlusion. Stroke 2021;52:1570–1579. (All 92 patients had striatal ischaemia, 45 the corticospinal part of the internal capsule; the odds rose 3.47-fold per hour to reperfusion of the lenticulostriate arteries: the course of the deep white matter.)
+- Kleine JF, Kaesmacher M, Wiestler B, Kaesmacher J. Tissue-selective salvage of the white matter by successful endovascular stroke therapy. Stroke 2017;48:2776–2783. (White matter infarction commonly begins later than grey matter infarction.)
+- Kleine JF, Beller E, Zimmer C, Kaesmacher J. Lenticulostriate infarctions after successful mechanical thrombectomy in middle cerebral artery occlusion. J Neurointerv Surg 2017;9:234–239. (Behind occluded lenticulostriate arteries thrombectomy rarely averts the striatal infarct.)
 
 ### 臨床細節審查（B）· Clinical-detail audit (B): treatment, haemodynamics, brainstem and thalamus, acute course
 
