@@ -152,12 +152,12 @@ const zh: OutcomeStrings = {
       '基底動脈阻塞沒有打通、又有木僵、昏迷或意識障礙時，常會致命：兩個取栓試驗中只接受內科治療的對照組，90 天死亡率是 55%（ATTENTION）與 42%（BAOCHE）；一個病例系列的系統性分析中，沒有再通的病人幾乎沒有好的預後（約 2%）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果。',
   },
   fatalBilateral:
-    '兩側大腦半球幾乎整個梗塞，又有未減壓的天幕切跡疝脫：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字（55 位病人中 78% 死亡：Hacke 1996；未手術的一年存活率 29%：Vahedi 2007）講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在植物人狀態，最好也只是最小意識狀態（Adams 2000；Multi-Society Task Force 1994）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是這樣一位存活者的結果。',
+    '兩側大腦半球大多梗塞（至少兩側的中大腦動脈區大多梗塞），又有未減壓的天幕切跡疝脫：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字（55 位病人中 78% 死亡：Hacke 1996；未手術的一年存活率 29%：Vahedi 2007）講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在植物人狀態，最好也只是最小意識狀態（Adams 2000；Multi-Society Task Force 1994）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是這樣一位存活者的結果。',
   fatalCentral:
     '兩側大腦半球一起腫脹、把腦往下擠的中央型天幕切跡疝脫，未減壓時通常致命。常引用的數字（完整中大腦動脈區梗塞的 55 位病人中 78% 因疝脫與腦死而死亡：Hacke 1996；未手術的一年存活率 29%：Vahedi 2007）講的是一側，不是兩側；兩側同時大範圍梗塞通常後果嚴重。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果。',
   survival: {
     bilateral_hemispheres:
-      '兩側大腦半球幾乎整個梗塞。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在意識障礙：植物人狀態，最好也只是最小意識狀態（Adams 2000）；非外傷造成的植物人狀態超過 3 個月後恢復極為罕見，多數病人的餘命約 2–5 年（Multi-Society Task Force 1994）。下面 3 個月與 6 個月的 NIHSS 是這樣一位存活者的結果，不是確定的結局。',
+      '兩側大腦半球大多梗塞，至少兩側的中大腦動脈區大多梗塞，連同大腦皮質和視丘之間很大一部分的白質連結。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在意識障礙：植物人狀態，最好也只是最小意識狀態（Adams 2000）；非外傷造成的植物人狀態超過 3 個月後恢復極為罕見，多數病人的餘命約 2–5 年（Multi-Society Task Force 1994）。下面 3 個月與 6 個月的 NIHSS 是這樣一位存活者的結果，不是確定的結局。',
     locked_in:
       '閉鎖症候群的死亡率不低：早年 139 例的文獻回顧中報告的死亡率約 60%，血管性病因的存活預後比非血管性的差，呼吸與肺部照護不可少。這不是「通常致命」，但下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果，不是確定的結局。',
     bilateral_medulla:
@@ -241,12 +241,12 @@ const en: OutcomeStrings = {
       'A basilar-artery occlusion that is not reopened, with stupor, coma or a disorder of consciousness, is often fatal: in the control arms of two thrombectomy trials, with medical care alone, 90-day mortality was 55% (ATTENTION) and 42% (BAOCHE); in a systematic analysis of case series a good outcome without recanalisation was close to nil (about 2%). The model does not represent death: the 3- and 6-month NIHSS below are those of a patient who survives.',
   },
   fatalBilateral:
-    'Both hemispheres are infarcted almost entirely, with transtentorial herniation and no decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere (78% of 55 patients died: Hacke 1996; 1-year survival 29% without surgery: Vahedi 2007) describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating. A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a vegetative or at best a minimally conscious state (Adams 2000; Multi-Society Task Force 1994). The model does not represent death: the 3- and 6-month NIHSS below are those of such a survivor.',
+    'Both hemispheres are mostly infarcted (at least both MCA territories), with transtentorial herniation and no decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere (78% of 55 patients died: Hacke 1996; 1-year survival 29% without surgery: Vahedi 2007) describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating. A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a vegetative or at best a minimally conscious state (Adams 2000; Multi-Society Task Force 1994). The model does not represent death: the 3- and 6-month NIHSS below are those of such a survivor.',
   fatalCentral:
     'Central transtentorial herniation, both hemispheres swelling together and pushing the brain down, is usually fatal without decompression. The figures usually quoted (78% of 55 patients with complete MCA-territory infarction died of herniation and brain death: Hacke 1996; 1-year survival 29% without surgery: Vahedi 2007) describe one hemisphere, not both; extensive infarction of both hemispheres at once is usually devastating. The model does not represent death: the 3- and 6-month NIHSS below are those of a patient who survives.',
   survival: {
     bilateral_hemispheres:
-      'Both hemispheres are infarcted almost entirely. A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a disorder of consciousness, a vegetative or at best a minimally conscious state (Adams 2000); recovery from a vegetative state of non-traumatic cause after 3 months is exceedingly rare, and life expectancy is mostly 2–5 years (Multi-Society Task Force 1994). The 3- and 6-month NIHSS below are those of such a survivor, not a certain outcome.',
+      'Both hemispheres are mostly infarcted, at least both MCA territories, with much of the white matter that links the cortex to the thalamus. A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a disorder of consciousness, a vegetative or at best a minimally conscious state (Adams 2000); recovery from a vegetative state of non-traumatic cause after 3 months is exceedingly rare, and life expectancy is mostly 2–5 years (Multi-Society Task Force 1994). The 3- and 6-month NIHSS below are those of such a survivor, not a certain outcome.',
     locked_in:
       'Locked-in syndrome carries a substantial mortality: the reported mortality was about 60% in an early review of 139 cases, with a worse outlook for survival when the cause was vascular than when it was not, and pulmonary care is essential. It is not "usually fatal", but the 3- and 6-month NIHSS below are those of a patient who survives, not a certain outcome.',
     bilateral_medulla:

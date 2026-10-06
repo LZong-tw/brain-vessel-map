@@ -141,10 +141,9 @@ describe('Z3-4 with stacked occlusions: each hemisphere swells from its own lesi
 });
 
 describe('Z3-12: survivors of the destruction of both hemispheres', () => {
-  // (V1-4: both M1 arteries, or the right one two days after the left, no longer destroy both
-  // hemispheres: two hemispheres that swell alike herniate downward, with no secondary infarcts, and
-  // the right hemisphere whose own push across never reaches the coma range does not herniate to
-  // its side. Both carotid T arteries do, with or without a herniation's infarcts)
+  // (V1-4, U1-0: two hemispheres that swell alike herniate downward together; each keeps the
+  // secondary infarcts its own swelling causes. U1-4: both MCA territories mostly infarcted, two-thirds
+  // or more of each, are enough, with or without a herniation's infarcts)
   const Z28 = input([o('ica_terminal_l', 0), o('ica_terminal_r', 48)], 'moderate');
   const BOTH_ICAT = input([o('ica_terminal_r'), o('ica_terminal_l')], 'good');
   // the right M1, then the left one a week later (poor): each herniates to its own side
@@ -215,7 +214,8 @@ describe('Z3-12: survivors of the destruction of both hemispheres', () => {
   it('one hemisphere, or two that are not destroyed, keep the picture they had', () => {
     for (const [i, tH] of [
       [scenario('r_m1_malignant'), 2160],
-      [input([o('mca_m1_r'), o('mca_m1_l')], 'poor', { decompression: true }), 2160],
+      // (both M1 arteries with good collaterals infarct about half of each MCA territory: U1-4)
+      [input([o('mca_m1_r'), o('mca_m1_l')], 'good', { decompression: true }), 2160],
       [input([o('mca_m2_sup_r'), o('mca_m2_sup_l')], 'good'), 2160],
     ] as [SimInput, number][]) {
       expect(has(at(i, tH), 'disorder_of_consciousness')).toBe(false);

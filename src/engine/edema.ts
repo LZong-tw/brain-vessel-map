@@ -62,6 +62,13 @@ export interface EdemaBedInput {
   onsetH?: number;
   /** fraction infarcted by the arterial occlusion itself (incl. lacunes), before secondary effects */
   infarct: number;
+  /**
+   * the fraction that the arterial occlusions infarct in the end (before secondary effects): with
+   * lesions on more than one clock, each lesion's swelling is sized by the lesions swelling with it
+   * (lesionSizes), not at once by the hemisphere's final infarct, which counts a lesion that begins
+   * later (U1-2). Left out, the compartment's final infarct (cascade.volumes) sizes every lesion
+   */
+  final?: number;
   /** fraction still in the penumbra (ischaemic, alive) */
   penumbra: number;
   /** fraction rescued by reperfusion */
@@ -213,6 +220,13 @@ export function atrophyCurve(a: number): number {
 /** water supply for ionic oedema: slower where (almost) no blood arrives */
 const delivery = (rel: number) => 0.5 + 0.5 * clamp(rel / CORE_REL, 0, 1);
 
+/**
+ * how long (h) after a lesion began a later one of the same compartment still swells together with
+ * it: until the earlier one's swelling has largely resolved (its swelling events run from day 1 to
+ * two weeks)
+ */
+const LESION_OVERLAP_H = 312;
+
 /** large lesions (as a share of their compartment) swell disproportionately — malignant course */
 const sizeFactor = (share: number) => 0.3 + 0.7 * smoothstep(0.05, 0.5, share);
 
@@ -230,6 +244,49 @@ const COMPARTMENT_ML = (() => {
 type Compartment = Side | 'infra';
 
 /**
+ * The size factor of each compartment's lesion on each clock at time `t` (compartment → bed onset →
+ * factor), from the beds' final infarct. Lesions of a compartment that swell at the same time make
+ * one larger swollen lesion, which swells as one (the size factor: large lesions swell
+ * disproportionately): a lesion is sized with those of the compartment that began before it and are
+ * still swelling (within LESION_OVERLAP_H), and with those that begin after it as they swell
+ * themselves (by their own barrier breakdown, vasoRise), never before they begin (U1-2: a left M2
+ * infarct's swelling jumped by a third at the very moment a second left occlusion began, before any
+ * of its tissue had died, because it was sized by the hemisphere's final infarct with the new
+ * lesion's). Null when the beds do not give their final infarct, or when every infarcted bed is on
+ * one clock (the compartment's final infarct, cascade.volumes, then sizes it, as it always did). The
+ * compartments are counted as the cascade counts them: the supratentorial midline with the right
+ * hemisphere, the brainstem with the cerebellum.
+ */
+function lesionSizes(beds: Record<string, EdemaBedInput>, t: number): Map<Compartment, Map<number, number>> | null {
+  const ml = new Map<Compartment, Map<number, number>>();
+  const onsets = new Set<number>();
+  for (const b of BEDS) {
+    const st = beds[b.id];
+    if (!st || st.final === undefined || !(st.final > 0)) continue;
+    const reg = REGION_BY_ID[b.region];
+    if (reg.compartment === 'none') continue;
+    const comp: Compartment = reg.compartment === 'infra' ? 'infra' : reg.side === 'm' ? 'r' : reg.side;
+    const onset = st.onsetH ?? 0;
+    onsets.add(onset);
+    let m = ml.get(comp);
+    if (!m) ml.set(comp, (m = new Map()));
+    m.set(onset, (m.get(onset) ?? 0) + st.final * b.volume);
+  }
+  if (onsets.size <= 1) return null;
+  const out = new Map<Compartment, Map<number, number>>();
+  for (const [comp, m] of ml) {
+    const sized = new Map<number, number>();
+    for (const o of m.keys()) {
+      let v = 0;
+      for (const [o2, v2] of m) if (Math.abs(o - o2) < LESION_OVERLAP_H) v += o2 <= o ? v2 : v2 * vasoRise(t - o2);
+      sized.set(o, sizeFactor(v / (COMPARTMENT_ML[comp] || 1)));
+    }
+    out.set(comp, sized);
+  }
+  return out;
+}
+
+/**
  * Oedema / swelling at time `tH` from the per-bed tissue state simulate() has computed.
  * Per-bed maps are sparse: beds without any change are left out (read them with `?? 0`).
  */
@@ -241,6 +298,18 @@ export function computeEdema(input: EdemaInput): EdemaState {
     r: sizeFactor(vol.supra.r / (COMPARTMENT_ML.r || 1)),
     l: sizeFactor(vol.supra.l / (COMPARTMENT_ML.l || 1)),
     infra: sizeFactor((vol.cerebellum.r + vol.cerebellum.l + vol.brainstem) / (COMPARTMENT_ML.infra || 1)),
+  };
+  // With lesions on more than one clock, each lesion is sized by the lesions swelling with it, a later
+  // one only as it swells (lesionSizes, U1-2): a left M2 infarct swelled at once by a third more, its
+  // midline shift jumping from 1.6 to 3.4 mm, as a second left occlusion began a week later, before
+  // any of its tissue had died, because the size was read from the hemisphere's final infarct with
+  // the new lesion's. The secondary infarcts of a herniation swell by the largest size in their
+  // compartment.
+  const sizeOn = lesionSizes(beds, t);
+  const sizeOf = (comp: Compartment, onset: number) => sizeOn?.get(comp)?.get(onset) ?? (sizeOn ? sizeFactor(0) : size[comp]);
+  const secondarySize = (comp: Compartment) => {
+    const m = sizeOn?.get(comp);
+    return m && m.size ? Math.max(...m.values()) : size[comp];
   };
 
   // time curves shared by all primary lesions of the same onset (their clock starts at that onset;
@@ -318,7 +387,7 @@ export function computeEdema(input: EdemaInput): EdemaState {
     // ── primary infarct ──
     const pulse = reflowed ? reperfPulse : 0;
     const ion = ION_MAX * ionProg * resolve;
-    const vaso = VASO_MAX * size[comp] * rise * resolve + REPERF_BOOST * pulse;
+    const vaso = VASO_MAX * sizeOf(comp, own) * rise * resolve + REPERF_BOOST * pulse;
     const pi = primaryOn ? inf : 0;
     let sw = pi * (ion + vaso - atrophy);
     let cy = pi * dwi;
@@ -337,7 +406,7 @@ export function computeEdema(input: EdemaInput): EdemaState {
       const rest = 1 - inf;
       const r2 = resolveCurve(a2);
       const ion2 = ION_MAX * (1 - Math.exp(-(delivery(0) * a2) / ION_TAU_H)) * r2;
-      const vaso2 = SECONDARY_VASO * VASO_MAX * size[comp] * vasoRise(a2) * r2;
+      const vaso2 = SECONDARY_VASO * VASO_MAX * secondarySize(comp) * vasoRise(a2) * r2;
       const atro2 = atrophyCurve(a2);
       sw += rest * (ion2 + vaso2 - atro2);
       cy += rest * dwiCurve(a2);
@@ -423,6 +492,12 @@ export function computeEdema(input: EdemaInput): EdemaState {
   // hemisphere's: a model choice, equal to the midline shift when only one hemisphere swells.
   let massEffectMm = Math.min(SHIFT_MAX_MM, SHIFT_MM_PER_ML * Math.max(0, push.r + push.l - SHIFT_RESERVE_ML));
   if (decompressed) massEffectMm *= DECOMPRESSION_SHIFT;
+  // ── each hemisphere's own push: the shift its swelling alone would give (U1-0) ──
+  const ownShiftMm = { r: 0, l: 0 };
+  for (const sd of ['r', 'l'] as Side[]) {
+    ownShiftMm[sd] = Math.min(SHIFT_MAX_MM, SHIFT_MM_PER_ML * Math.max(0, push[sd] - SHIFT_RESERVE_ML));
+    if (decompressed) ownShiftMm[sd] *= DECOMPRESSION_SHIFT;
+  }
 
   // ── ventricles ──
   // supratentorial swelling compresses the lateral ventricle(s) …
@@ -451,6 +526,7 @@ export function computeEdema(input: EdemaInput): EdemaState {
     midlineShiftMm,
     shiftFrom,
     massEffectMm,
+    ownShiftMm,
     ventricleChange,
   };
 }

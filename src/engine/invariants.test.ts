@@ -457,6 +457,53 @@ describe('syndromes and events agree with the symptoms', () => {
     // reopened at 4.5 h, its neglect compensated by 3 months
     ['ica_cervical_r 90 % at MAP 60', [{ vessel: 'ica_cervical_r', severity: 0.9 }], 'good', null, 60],
     ['mca_m1_r reopened 4.5 h', [{ vessel: 'mca_m1_r', severity: 1 }], 'good', 4.5],
+    // U1-0: a malignant right M1 (poor) or carotid T (good) infarct beside a smaller infarct of the
+    // other hemisphere; U1-4: both M1 arteries (poor), together and the left two days later; U1-3:
+    // a left A2 a week after a left M1 that herniated; U1-14: the right carotid T a week after it, and a
+    // left M1 three months after a right one (good); U1-2: a left P2 a week after a left M2 infarct
+    ['mca_m1_r + mca_m2_sup_l poor', [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m2_sup_l', severity: 1 }], 'poor'],
+    ['ica_terminal_r + mca_m1_l good', [{ vessel: 'ica_terminal_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], 'good'],
+    ['both M1 poor', [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], 'poor'],
+    [
+      'mca_m1_r, then mca_m1_l at 48 h, poor',
+      [
+        { vessel: 'mca_m1_r', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 48 },
+      ],
+      'poor',
+    ],
+    [
+      'mca_m1_l, then aca_a2_l at 1 week, moderate',
+      [
+        { vessel: 'mca_m1_l', severity: 1, fromH: 0 },
+        { vessel: 'aca_a2_l', severity: 1, fromH: 168 },
+      ],
+      'moderate',
+    ],
+    [
+      'mca_m1_l, then ica_terminal_r at 1 week, moderate',
+      [
+        { vessel: 'mca_m1_l', severity: 1, fromH: 0 },
+        { vessel: 'ica_terminal_r', severity: 1, fromH: 168 },
+      ],
+      'moderate',
+    ],
+    [
+      'mca_m1_r, then mca_m1_l at 3 months, good',
+      [
+        { vessel: 'mca_m1_r', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 2000 },
+      ],
+      'good',
+    ],
+    [
+      'mca_m2_inf_l, then pca_p2_l at 1 week, moderate',
+      [
+        { vessel: 'mca_m2_inf_l', severity: 1, fromH: 0 },
+        { vessel: 'pca_p2_l', severity: 1, fromH: 168 },
+      ],
+      'moderate',
+    ],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -1111,6 +1158,141 @@ describe('syndromes and events agree with the symptoms', () => {
       const infarctOpen = r.recanalized && !r.cascade.events.some((e) => e.id === 'ischemia_no_infarct');
       if (treated || infarctOpen) expect(active, `${name} ${tH} h`).not.toContain('treatment_window');
     });
+  });
+
+  /**
+   * U1: adding an occlusion and the course of the swelling. Classes of contradiction: an occlusion
+   * added that leaves less infarct, in all or in any region, than either occlusion alone (U1-0: a
+   * smaller swelling of the other hemisphere took a malignant infarct's herniation and its 188 mL
+   * of secondary infarct away); the core falling from one stop to the next or as a later occlusion
+   * begins (U1-3: tissue a herniation had killed came back as penumbra); an event of the swelling
+   * course that has begun removed, retitled or ended before a later occlusion began (U1-14, U1-2);
+   * and a survivor of both MCA territories mostly infarcted scored awake (U1-4). Over every
+   * scenario and the cases above, and these stacked pairs: [first, second, collaterals, when the
+   * second begins (h)].
+   */
+  describe('adding an occlusion and the swelling course (U1)', () => {
+    const PAIRS: [string, string, CollateralGrade, number][] = [
+      // a malignant infarct beside a smaller infarct of the other hemisphere, and two alike
+      ['mca_m1_r', 'mca_m2_sup_l', 'poor', 0],
+      ['ica_terminal_r', 'mca_m1_l', 'good', 0],
+      ['mca_m1_r', 'mca_m1_l', 'poor', 0],
+      ['mca_m1_r', 'mca_m1_l', 'good', 0],
+      ['ica_cervical_r', 'ica_cervical_l', 'moderate', 0],
+      ['mca_m2_sup_r', 'mca_m2_sup_l', 'poor', 0],
+      ['mca_m1_r', 'pca_p2_l', 'poor', 0],
+      ['ica_terminal_r', 'aca_a2_l', 'moderate', 0],
+      // a later occlusion of the same hemisphere, the other one or the posterior fossa
+      ['mca_m1_l', 'aca_a2_l', 'moderate', 168],
+      ['mca_m1_r', 'pca_p2_r', 'moderate', 168],
+      ['ica_terminal_r', 'pca_p2_r', 'moderate', 168],
+      ['ica_terminal_r', 'ica_cervical_l', 'moderate', 168],
+      ['mca_m1_l', 'ica_terminal_r', 'moderate', 168],
+      ['mca_m1_r', 'va_v4_dist_l', 'moderate', 168],
+      ['mca_m1_r', 'mca_m1_l', 'good', 2000],
+      ['mca_m1_r', 'mca_m1_l', 'poor', 48],
+      ['mca_m1_r', 'mca_m1_l', 'good', 168],
+      ['mca_m1_r', 'mca_m1_l', 'poor', 720],
+      ['mca_m2_inf_l', 'pca_p2_l', 'moderate', 168],
+      ['mca_m2_inf_l', 'mca_m2_sup_l', 'moderate', 168],
+      ['mca_m2_sup_r', 'mca_m1_r', 'moderate', 168],
+      ['aca_a2_l', 'mca_m1_l', 'poor', 168],
+      ['mca_m2_inf_l', 'mca_m1_r', 'moderate', 168],
+      ['pica_r', 'sca_l', 'moderate', 168],
+      ['mca_m1_l', 'mca_m2_sup_r', 'moderate', 24],
+    ];
+    const occ = (vessel: string, fromH: number): Occlusion => (fromH ? { vessel, severity: 1, fromH } : { vessel, severity: 1 });
+    const inputs = new Map<string, SimInput>();
+    const pairName = ([a, b, c, t]: (typeof PAIRS)[number]) => `${a} + ${b}${t ? ` at ${t} h` : ''}, ${c}`;
+    for (const p of PAIRS) {
+      const [a, b, c, t] = p;
+      inputs.set(pairName(p), { occlusions: [occ(a, 0), occ(b, t)], variants: [], collateral: c, map: 93, tH: 0, reperfusionH: null, decompression: false });
+    }
+    const end = new Map<string, SimResult>();
+    const endOfCase = (key: string, input: SimInput) => {
+      let r = end.get(key);
+      if (!r) end.set(key, (r = simulate({ ...input, tH: STOPS[STOPS.length - 1] })));
+      return r;
+    };
+    const single = (vessel: string, c: CollateralGrade, fromH: number) =>
+      endOfCase(`${vessel}@${fromH} ${c}`, { occlusions: [occ(vessel, fromH)], variants: [], collateral: c, map: 93, tH: 0, reperfusionH: null, decompression: false });
+
+    /** the dead tissue of each hemisphere (mL) */
+    const hemisphere = (r: SimResult, side: 'r' | 'l') =>
+      BEDS.reduce((a, b) => (REGION_BY_ID[b.region].compartment === 'supra' && REGION_BY_ID[b.region].side === side ? a + r.beds[b.id].frac.core * b.volume : a), 0);
+    // (a region's share may fall by a little: in a flow network, closing one artery can raise the
+    // pressure that feeds a collateral elsewhere, and a bed that the added lesion has mostly
+    // infarcted counts as its primary infarct, whose surviving rest a herniation does not kill; the
+    // herniation infarcts that U1-0 took away were whole regions)
+    it.each(PAIRS.map((p) => [pairName(p), p] as const))('%s: no less infarct, in all, in either hemisphere or in any region, than either occlusion alone', (name, [a, b, c, t]) => {
+      const both = endOfCase(name, inputs.get(name)!);
+      for (const alone of [single(a, c, 0), single(b, c, t)]) {
+        const what = alone.input.occlusions[0].vessel;
+        expect(both.volumes.finalInfarct, `${name}: than ${what} alone`).toBeGreaterThanOrEqual(alone.volumes.finalInfarct - 0.5);
+        for (const side of ['r', 'l'] as const) expect(hemisphere(both, side), `${name}: ${side} hemisphere than ${what} alone`).toBeGreaterThanOrEqual(hemisphere(alone, side) - 2);
+        for (const [rid, st] of Object.entries(alone.regions)) expect(both.regions[rid].infarct, `${name}: ${rid} than ${what} alone`).toBeGreaterThanOrEqual(st.infarct - 0.1);
+      }
+    });
+
+    /** the events of the swelling course: a hemisphere's oedema, its herniation and the fatal event, the cerebellar swelling */
+    const SWELLING = /^(malignant_edema|mass_effect)_[rl](_\d+)?$|^(subfalcine|uncal)_[rl]$|^central_herniation$|^herniation_fatal_(r|l|central)$|^cerebellar_edema(_\d+)?$/;
+    const STAGED_CASES: [string, SimInput][] = [
+      ...SCENARIOS.filter((sc) => sc.occlusions.some((x) => startOf(x) > 0)).flatMap((sc) =>
+        (['good', 'moderate', 'poor'] as const).map((c) => [`${sc.id} ${c}`, inputOf(sc.id, { collateral: c })] as [string, SimInput]),
+      ),
+      ...EXTRA.filter((e) => e[1].some((x) => startOf(x) > 0)).map(
+        ([n, o, c, rh, map]) => [n, { occlusions: o, variants: [], collateral: c, map: map ?? 93, tH: 0, reperfusionH: rh ?? null, decompression: false }] as [string, SimInput],
+      ),
+      ...[...inputs].filter(([, i]) => i.occlusions.some((x) => startOf(x) > 0)),
+    ];
+    it.each(STAGED_CASES)('%s: as a later occlusion begins, the core does not fall and the swelling course begun stays: not removed, retitled or ended before then', (name, input) => {
+      for (const s of [...new Set(input.occlusions.map(startOf))].filter((h) => h > 0)) {
+        const before = simulate({ ...input, tH: s - 0.01 });
+        const now = simulate({ ...input, tH: s });
+        expect(now.volumes.core, `${name} at ${s} h`).toBeGreaterThanOrEqual(before.volumes.core - 0.5);
+        for (const e of before.cascade.events.filter((x) => SWELLING.test(x.id) && x.onsetH < s - 1e-9)) {
+          const where = `${name} at ${s} h: ${e.id}`;
+          const kept = now.cascade.events.find((x) => x.id === e.id);
+          expect(kept, where).toBeDefined();
+          expect(kept!.title, where).toEqual(e.title);
+          expect(kept!.onsetH, where).toBeCloseTo(e.onsetH, 6);
+          expect(kept!.endH ?? Infinity, where).toBeGreaterThanOrEqual(Math.min(e.endH ?? Infinity, s) - 1e-6);
+        }
+      }
+    });
+
+    it.each([...inputs])('%s: the core never shrinks from one stop to the next', (name, input) => {
+      let prev = 0;
+      for (const tH of STOPS) {
+        const core = simulate({ ...input, tH }).volumes.core;
+        expect(core, `${name} ${tH} h`).toBeGreaterThanOrEqual(prev - 0.5);
+        prev = core;
+      }
+    });
+
+    /** the share of a hemisphere's MCA territory (its cortical branches and the lenticulostriate arteries) that is dead */
+    const mcaDead = (r: SimResult, side: 'r' | 'l') => {
+      let all = 0;
+      let dead = 0;
+      for (const b of BEDS) {
+        const reg = REGION_BY_ID[b.region];
+        if (reg.compartment !== 'supra' || reg.side !== side) continue;
+        const mca = b.supply.reduce((a, x) => a + (/^(mca_|lenticulostriate_)/.test(x.v) ? x.share : 0), 0);
+        all += mca * b.volume;
+        dead += mca * r.beds[b.id].frac.core * b.volume;
+      }
+      return dead / (all || 1);
+    };
+    it.each([...CASES.map(([n]) => [n, null] as [string, SimInput | null]), ...inputs])(
+      '%s: both MCA territories mostly infarcted end in a disorder of consciousness, scored as unresponsive',
+      (name, input) => {
+        const r = input ? endOfCase(name, input) : series(name)[STOPS.length - 1];
+        if (mcaDead(r, 'r') < 0.67 || mcaDead(r, 'l') < 0.67) return;
+        expect(r.symptoms.find((x) => x.id === 'disorder_of_consciousness')?.sev, name).toBe(3);
+        expect(r.nihss.items['1a'], name).toBe(3);
+        expect(r.cascade.survivalCaveat, name).toContain('bilateral_hemispheres');
+      },
+    );
   });
 
   /**

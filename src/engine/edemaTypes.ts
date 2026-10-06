@@ -49,6 +49,12 @@ export interface EdemaState {
    * across, so it adds up here while the midline hardly moves.
    */
   massEffectMm: number;
+  /**
+   * the midline shift each hemisphere's own swelling would give if the other did not swell (mm): what
+   * decides whether that hemisphere herniates, and when, so that the swelling of the other one never
+   * takes its herniation away (U1-0). Equal to the midline shift when only one hemisphere swells
+   */
+  ownShiftMm: Record<Side, number>;
   /** relative change of ventricle size: < 0 compressed by swelling, > 0 enlarged (hydrocephalus / ex vacuo) */
   ventricleChange: number;
 }
@@ -64,5 +70,6 @@ export const NO_EDEMA: EdemaState = {
   midlineShiftMm: 0,
   shiftFrom: null,
   massEffectMm: 0,
+  ownShiftMm: { r: 0, l: 0 },
   ventricleChange: 0,
 };

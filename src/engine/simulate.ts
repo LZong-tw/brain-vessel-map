@@ -71,6 +71,9 @@ import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy
 import type { DeficitRef, Side } from '../anatomy';
 import {
   COMA_SHIFT_MM,
+  HERNIATION_EVENT,
+  SUBFALCINE_LEAD_H,
+  SWELLING_EVENT,
   UNCAL_ONSET_H,
   attackWindow,
   computeCascade,
@@ -677,6 +680,68 @@ function startCredits(input: SimInput, course: Course, finalH: number, other: Co
   return credit;
 }
 
+/**
+ * What the untreated course `u` infarcts of each bed in the end from the occlusions begun by `h`
+ * (clinical clock; `onsetH` is the index onset): each unit's loss in each phase of its flow history
+ * credited to the occlusion start at or before that phase began, as startCredits credits it, and
+ * counted when that start is at or before `h`; a lacune counts when all of its region's lacunar
+ * occlusions have begun. From the last start on it is `all`, the untreated final infarct. A
+ * herniation that strikes at `h` compresses only what is alive then (U1-3).
+ */
+function untreatedFinalBy(input: SimInput, u: Course, finalH: number, onsetH: number, all: Record<string, number>): (h: number) => Record<string, number> {
+  const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
+  const last = starts[starts.length - 1] ?? 0;
+  const memo = new Map<number, Record<string, number>>();
+  return (h: number) => {
+    const abs = onsetH + h;
+    if (abs >= last - 1e-9) return all;
+    const known = starts.filter((s) => s <= abs + 1e-9).length;
+    let out = memo.get(known);
+    if (out) return out;
+    const credited = (from: number) => {
+      let s = starts[0];
+      for (const x of starts) if (x <= from) s = x;
+      return s;
+    };
+    out = {};
+    u.units.forEach((unit, i) => {
+      const hist = u.histories[i];
+      let prev = 0;
+      let f = 0;
+      lossSteps(hist, finalH, tissueParamsForUnit(unit)).forEach((v, k) => {
+        if (v > prev && credited(hist[k].fromH) <= abs + 1e-9) f += v - prev;
+        prev = v;
+      });
+      out![unit.bed] = (out![unit.bed] ?? 0) + f * unit.frac;
+    });
+    for (const [rid, list] of u.lacunes) {
+      if (!list.every((o) => startOf(o) <= abs + 1e-9)) continue;
+      const x = lacuneFraction(u, rid) * lacuneLossAt(u, rid, finalH);
+      for (const bid of REGION_BY_ID[rid].beds) out[bid] = (out[bid] ?? 0) + x * (1 - (out[bid] ?? 0));
+    }
+    memo.set(known, out);
+    return out;
+  };
+}
+
+/**
+ * The swelling course as the schedule known just before its last occlusion began showed it (W2-3:
+ * the result at that time): its events of the swelling begun by then, on this model's clinical
+ * clock (`onsetH` is this model's index onset), and when that occlusion begins. Undefined with one
+ * start. The model of the schedule so far keeps its own earlier course in turn.
+ */
+function priorSwelling(input: SimInput, onsetH: number): { startH: number; events: CascadeEvent[] } | undefined {
+  const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
+  if (starts.length <= 1) return undefined;
+  const last = starts[starts.length - 1];
+  const known = knownAt({ ...input, tH: last - 1e-6 });
+  if (!known || !known.known.occlusions.length) return undefined;
+  const before = modelFor(known.known);
+  const shift = before.onsetH - onsetH;
+  const events = before.cascade.events.filter((e) => SWELLING_EVENT.test(e.id) && e.onsetH + before.onsetH < last - 1e-9);
+  return { startH: last - onsetH, events: shiftTimes(events, shift) };
+}
+
 /** when each lesion began, on the clinical clock (see lesionOnsetsOf) */
 interface LesionOnsets {
   /** per bed: the start credited with most of its loss (beds that lose nothing are left out) */
@@ -994,6 +1059,8 @@ interface Model {
   bedOnsetH: Record<string, number>;
   /** when each hemisphere's and the posterior fossa's lesion began, on the clinical clock (V1-1) */
   hemiOnsetH: Partial<Record<Side | 'infra', number>>;
+  /** what the arterial occlusions infarct of each bed in the end: each lesion swells by its own size (U1-2) */
+  bedFinal: Record<string, number>;
 }
 
 const modelCache = new Map<string, Model>();
@@ -1137,6 +1204,11 @@ function modelFor(input: SimInput): Model {
   for (const [rid, list] of Object.entries(ischaemiaStarts)) regionOnsetH[rid] = list[0] - onsetH;
   cascadeInput.regionOnsetH = regionOnsetH;
   cascadeInput.hemiOnsetH = lesions.compartment;
+  cascadeInput.untreatedFinalBy = untreatedFinalBy(input, untreated ?? course, finalH, onsetH, bedFinalUntreated);
+  cascadeInput.bedOnsetH = lesions.bed;
+  // the swelling course begun before the last occlusion, as the schedule known then showed it (U1-2, U1-14)
+  const prior = priorSwelling(input, onsetH);
+  if (prior) cascadeInput.prior = prior;
   // each region's early lesion is measured 14 h after its own onset (Z3-4): the other hemisphere
   // occluded two days after the index onset had "≈ 0 mL within 14 h" beside the malignant course
   // of its own final infarct
@@ -1161,7 +1233,7 @@ function modelFor(input: SimInput): Model {
   const { cascade, input: shiftedInput } = herniationFollowsShift(
     computeCascade(cascadeInput),
     cascadeInput,
-    { course, untreated, x, unitSaved, hemoAcute, hemoAfter, onsetH, edemaReperfusionH, bedOnsetH: lesions.bed, hemiOnsetH: lesions.compartment },
+    { course, untreated, x, unitSaved, hemoAcute, hemoAfter, onsetH, edemaReperfusionH, bedOnsetH: lesions.bed, hemiOnsetH: lesions.compartment, bedFinal },
     input.decompression,
   );
   const prodromes = onsetH > 0 ? prodromalAttacks(input, course, finalH, onsetH, untreated, x) : [];
@@ -1193,6 +1265,7 @@ function modelFor(input: SimInput): Model {
     cordFinal: BEDS.reduce((a, b) => a + (REGION_BY_ID[b.region].category === SPINAL ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0),
     bedOnsetH: lesions.bed,
     hemiOnsetH: lesions.compartment,
+    bedFinal,
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -1596,7 +1669,7 @@ function brainstemCourse(input: SimInput, model: Model): BrainstemCourse | null 
 }
 
 /** what the oedema model needs of a model to give the midline shift at any time */
-type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH' | 'edemaReperfusionH' | 'bedOnsetH' | 'hemiOnsetH'>;
+type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH' | 'edemaReperfusionH' | 'bedOnsetH' | 'hemiOnsetH' | 'bedFinal'>;
 
 /**
  * the oedema model's mass effect (mm: the swelling of both hemispheres together as the midline
@@ -1604,12 +1677,17 @@ type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH'
  * the side it pushes from: the side of the midline shift, or both when the hemispheres swell alike
  * and the midline stays in place, `t` h after the index onset
  */
-function shiftAt(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, t: number): { mm: number; lateral: number; from: Side | 'both' | null } {
+function shiftAt(
+  model: ShiftModel,
+  cascade: CascadeOutput,
+  decompression: boolean,
+  t: number,
+): { mm: number; lateral: number; from: Side | 'both' | null; own: Record<Side, number> } {
   const { beds } = tissueAt(model, t + model.onsetH, null);
   const edemaBeds: Record<string, EdemaBedInput> = {};
   for (const b of BEDS) edemaBeds[b.id] = edemaBedOf(model, b.id, beds[b.id], effectsAt(cascade, b.id, t));
   const e = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression, beds: edemaBeds, cascade });
-  return { mm: e.massEffectMm, lateral: e.midlineShiftMm, from: e.shiftFrom ?? (e.massEffectMm > 0 ? 'both' : null) };
+  return { mm: e.massEffectMm, lateral: e.midlineShiftMm, from: e.shiftFrom ?? (e.massEffectMm > 0 ? 'both' : null), own: e.ownShiftMm };
 }
 
 /** the shift is sampled this often (h, clinical clock) up to the horizon, and the crossings refined to about 0.1 h */
@@ -1619,10 +1697,17 @@ const SHIFT_BISECT = 6;
 
 /**
  * For each side whose oedema may herniate (a malignant one, or one with a moderate mass effect:
- * W2-1): the largest mass effect, when it first reaches the coma range pushing from that side (or
- * from both, Y2-13), when, after the herniation began, it falls below it again (cascade.CascadeInput.shift;
- * R6-5, R6-2), and the largest midline shift pushing from that side (V1-4); each side over the
- * weeks after its own lesion began (V1-1). With both sides, the same for the swelling of both
+ * W2-1), over the weeks after its own lesion began (V1-1): when the shift its own swelling would give
+ * alone first reaches the coma range, and when, after its herniation began, it falls below it again
+ * (cascade.CascadeInput.shift; R6-5, R6-2). Whether a hemisphere herniates, and when, is its own
+ * swelling's: a smaller swelling of the other hemisphere, which pushes back, never takes it away
+ * (U1-0: a right M1 infarct that herniated with its secondary infarcts herniated downward without
+ * them beside a left M2 infarct, as their net push across stayed under the coma range). Also the
+ * largest mass effect (the swelling of both hemispheres together, from whichever side: the level of
+ * consciousness), the largest the side's own swelling gives, the largest midline shift pushing from
+ * that side, and the midline shift pushing from it as its herniation begins (the subfalcine
+ * herniation's onset), which tells whether it herniates to its side or, the other hemisphere
+ * swelling alike, downward with it (V1-4). With both sides, the course of the swelling of both
  * together, from whichever side it pushes (the central herniation, V1-4).
  */
 function herniationShifts(
@@ -1631,63 +1716,80 @@ function herniationShifts(
   decompression: boolean,
   sides: Side[],
 ): { sides: Partial<Record<Side, HerniationShift>>; central: HerniationShift | null } {
-  const memo = new Map<number, { mm: number; lateral: number; from: Side | 'both' | null }>();
+  const memo = new Map<number, ReturnType<typeof shiftAt>>();
   const at = (t: number) => {
     let v = memo.get(t);
     if (!v) memo.set(t, (v = shiftAt(model, cascade, decompression, t)));
     return v;
   };
   /** the course of one swelling: `inComa` decides, over the weeks from `from` (clinical clock), the herniation from `floor` on */
-  const course = (inComa: (t: number) => boolean, from: number, floor: number, pushes: (t: number) => boolean): HerniationShift => {
+  const course = (inComa: (t: number) => boolean, from: number, floor: number, side: Side | null): HerniationShift => {
     const horizon = from + SHIFT_HORIZON_H;
-    // the first time in (a, b] with the value inComa(b) has, where inComa(a) differs from it
-    const edge = (a: number, b: number) => {
-      const before = inComa(a);
+    // the first time in (a, b] with the value pred(b) has, where pred(a) differs from it
+    const edgeOf = (pred: (t: number) => boolean, a: number, b: number) => {
+      const before = pred(a);
       for (let k = 0; k < SHIFT_BISECT; k++) {
         const m = (a + b) / 2;
-        if (inComa(m) === before) a = m;
+        if (pred(m) === before) a = m;
         else b = m;
       }
       return b;
     };
+    const edge = (a: number, b: number) => edgeOf(inComa, a, b);
+    // when `pred`, true as the herniation begins at `onset`, turns false (null: not within the horizon)
+    const untilOf = (pred: (t: number) => boolean, onset: number): number | null => {
+      if (!pred(onset)) return onset;
+      for (let t = from + Math.ceil((onset - from) / SHIFT_STEP_H) * SHIFT_STEP_H; t <= horizon; t += SHIFT_STEP_H)
+        if (t > onset && !pred(t)) return edgeOf(pred, Math.max(onset, t - SHIFT_STEP_H), t);
+      return null;
+    };
     let peakMm = 0;
     let peakT = from;
+    let ownPeakMm = 0;
     let lateralPeakMm = 0;
     let comaFromH: number | null = null;
+    // (a side's herniation told alone, the other hemisphere's swelling too small to be told, is also
+    // held by the swelling of both together pushing from this side, or from both: as the coma is)
+    const held = (t: number) => inComa(t) || (side !== null && (at(t).from === side || at(t).from === 'both') && at(t).mm >= COMA_SHIFT_MM);
+    let heldFromH: number | null = null;
+    const look = (t: number) => {
+      const v = at(t);
+      if (side && v.own[side] > ownPeakMm) ownPeakMm = v.own[side];
+      if (side && v.from === side && v.lateral > lateralPeakMm) lateralPeakMm = v.lateral;
+      return v;
+    };
     // (the peak of the mass effect, from whichever side: when the other hemisphere pushes harder,
     // the text says it herniates instead)
     for (let t = from + SHIFT_STEP_H; t <= horizon; t += SHIFT_STEP_H) {
-      const v = at(t);
+      const v = look(t);
       if (v.from !== null && v.mm > peakMm) [peakMm, peakT] = [v.mm, t];
-      if (pushes(t) && v.lateral > lateralPeakMm) lateralPeakMm = v.lateral;
       if (comaFromH === null && inComa(t)) comaFromH = edge(t - SHIFT_STEP_H, t);
+      if (side && heldFromH === null && held(t)) heldFromH = edgeOf(held, t - SHIFT_STEP_H, t);
     }
     // the peak between the samples, near enough for the text (a tenth of a millimetre)
     if (peakT > from)
       for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) {
-        const v = at(peakT + d);
+        const v = look(peakT + d);
         if (v.from !== null && v.mm > peakMm) peakMm = v.mm;
-        if (pushes(peakT + d) && v.lateral > lateralPeakMm) lateralPeakMm = v.lateral;
       }
     let comaUntilH: number | null = null;
+    let acrossMm: number | undefined;
     if (comaFromH !== null) {
       const onset = Math.max(floor, comaFromH);
-      if (!inComa(onset)) comaUntilH = onset;
-      else
-        for (let t = from + Math.ceil((onset - from) / SHIFT_STEP_H) * SHIFT_STEP_H; t <= horizon; t += SHIFT_STEP_H)
-          if (t > onset && !inComa(t)) {
-            comaUntilH = edge(Math.max(onset, t - SHIFT_STEP_H), t);
-            break;
-          }
+      comaUntilH = untilOf(inComa, onset);
+      if (side) {
+        const v = look(onset - SUBFALCINE_LEAD_H);
+        acrossMm = v.from === side ? v.lateral : 0;
+      }
     }
-    return { peakMm, comaFromH, comaUntilH, lateralPeakMm };
+    const heldUntilH = heldFromH === null ? null : untilOf(held, Math.max(floor, heldFromH));
+    return side
+      ? { peakMm, comaFromH, comaUntilH, lateralPeakMm, ownPeakMm, ...(acrossMm === undefined ? {} : { acrossMm }), alone: { comaFromH: heldFromH, comaUntilH: heldUntilH } }
+      : { peakMm, comaFromH, comaUntilH, lateralPeakMm: 0 };
   };
   const onsetOf = (sd: Side) => model.hemiOnsetH[sd] ?? 0;
   const out: Partial<Record<Side, HerniationShift>> = {};
-  for (const s of sides) {
-    const pushes = (t: number) => at(t).from === s || at(t).from === 'both';
-    out[s] = course((t) => pushes(t) && at(t).mm >= COMA_SHIFT_MM, onsetOf(s), onsetOf(s) + UNCAL_ONSET_H, (t) => at(t).from === s);
-  }
+  for (const s of sides) out[s] = course((t) => at(t).own[s] >= COMA_SHIFT_MM, onsetOf(s), onsetOf(s) + UNCAL_ONSET_H, s);
   // both hemispheres together: from the first lesion's onset, the herniation from day 3 of the newer
   const central =
     sides.includes('r') && sides.includes('l')
@@ -1695,17 +1797,17 @@ function herniationShifts(
           (t) => at(t).from !== null && at(t).mm >= COMA_SHIFT_MM,
           Math.min(onsetOf('r'), onsetOf('l')),
           Math.max(onsetOf('r'), onsetOf('l')) + UNCAL_ONSET_H,
-          () => false,
+          null,
         )
       : null;
   return { sides: out, central };
 }
 
 /**
- * The cascade with its uncal herniations timed by the oedema model's midline shift: none without
- * a shift into the coma range, later when the shift gets there later, ending when it leaves it
- * (R6-5, R6-2). Whether it herniates is read from the swelling of the infarct itself (without the
- * herniation's own secondary infarcts); the timing, once it does, from the swelling with them.
+ * The cascade with its herniations timed by the oedema model: none without a swelling in the coma
+ * range, later when it gets there later, ending when it leaves it (R6-5, R6-2). Whether a side
+ * herniates, and how, is read from the swelling of the infarct itself (without the herniation's own
+ * secondary infarcts); the timing, once it does, from the swelling with them.
  */
 function herniationFollowsShift(
   cascade: CascadeOutput,
@@ -1717,21 +1819,21 @@ function herniationFollowsShift(
   // whose swelling may still reach the coma range and then herniates too (W2-1)
   const sides = (['r', 'l'] as Side[]).filter((s) => cascade.events.some((e) => e.id === `uncal_${s}` || e.id === `mass_effect_${s}`));
   if (!sides.length) return { cascade, input };
-  const herniation = /^(uncal|subfalcine)_/;
   const bedEffects: Record<string, BedEffect[]> = {};
-  for (const [id, list] of Object.entries(cascade.bedEffects)) bedEffects[id] = list.filter((e) => !herniation.test(e.event));
+  for (const [id, list] of Object.entries(cascade.bedEffects)) bedEffects[id] = list.filter((e) => !HERNIATION_EVENT.test(e.event));
   const primary = herniationShifts(model, { ...cascade, bedEffects }, decompression, sides);
   const firstInput: CascadeInput = { ...input, shift: primary.sides, ...(primary.central ? { centralShift: primary.central } : {}) };
   const next = computeCascade(firstInput);
-  const still = sides.filter((s) => next.events.some((e) => e.id === `uncal_${s}`));
+  const still = next.herniated ?? [];
   if (!still.length) return { cascade: next, input: firstInput };
   // the input is returned too, so that the second pass (R3-1) keeps the same herniation timing
-  // (whether one side herniates or both herniate centrally is decided on the first timing: a
-  // central herniation adds no secondary infarct)
-  const timed = herniationShifts(model, next, decompression, still).sides;
+  // (whether one side herniates, and to its side or downward with the other, is decided on the first
+  // timing; so is a central herniation without secondary infarcts, whose timing they do not change)
+  const timed = herniationShifts(model, next, decompression, still);
   const shift = { ...primary.sides };
-  for (const s of still) shift[s] = { ...timed[s]!, lateralPeakMm: primary.sides[s]!.lateralPeakMm };
-  const finalInput: CascadeInput = { ...firstInput, shift };
+  for (const s of still) shift[s] = { ...timed.sides[s]!, lateralPeakMm: primary.sides[s]!.lateralPeakMm, acrossMm: primary.sides[s]!.acrossMm };
+  const central = primary.central && still.length === 2 && timed.central ? { ...timed.central } : primary.central;
+  const finalInput: CascadeInput = { ...firstInput, shift, ...(central ? { centralShift: central } : {}) };
   return { cascade: computeCascade(finalInput), input: finalInput };
 }
 
@@ -1923,10 +2025,11 @@ const effectsAt = (cascade: CascadeOutput, bedId: string, t: number) =>
   (cascade.bedEffects[bedId] ?? []).filter((e) => e.onsetH <= t && t < (e.endH ?? Infinity));
 
 /** one bed's input to the oedema model, from its tissue before secondary infarcts overwrite it */
-const edemaBedOf = (model: Pick<Model, 'hemoAcute' | 'hemoAfter' | 'bedOnsetH'>, bedId: string, bs: BedTimeState, effects: BedEffect[]): EdemaBedInput => ({
-  // (each lesion swells on its own clock: V1-1)
+const edemaBedOf = (model: Pick<Model, 'hemoAcute' | 'hemoAfter' | 'bedOnsetH' | 'bedFinal'>, bedId: string, bs: BedTimeState, effects: BedEffect[]): EdemaBedInput => ({
+  // (each lesion swells on its own clock: V1-1, and by its own size: U1-2)
   onsetH: model.bedOnsetH[bedId] ?? 0,
   infarct: bs.infarct,
+  final: model.bedFinal[bedId] ?? 0,
   // (the surviving tissue past the time it is at risk still takes up water as before: W2-10)
   penumbra: bs.frac.penumbra + bs.holding,
   salvaged: bs.frac.salvaged,

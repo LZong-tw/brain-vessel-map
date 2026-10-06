@@ -511,6 +511,31 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     expect(n2.textContent).not.toContain('most survivors still reach mRS 0–4');
   });
 
+  // U1-4: both MCA territories destroyed, the left two days after the right: not the outcome of the
+  // survivors of one hemisphere, but the note that a survivor stays in a disorder of consciousness;
+  // and the same note, without a fatal risk, when both are decompressed
+  it('both MCA territories destroyed, one after the other or decompressed: the survivor’s own note, not one hemisphere’s outcome', () => {
+    useApp.setState({
+      occlusions: [
+        { vessel: 'mca_m1_r', severity: 1 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 48 },
+      ],
+      collateral: 'poor',
+      rightTab: 'final',
+    });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    expect((nihss.querySelector('.callout.danger') as HTMLElement).textContent).toBe(OUTCOME_UI['zh-TW'].fatalBilateral);
+    expect(nihss.textContent).not.toContain('存活者多數仍可達 mRS 0–4');
+    cleanup();
+    useApp.setState({ occlusions: [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], decompression: true, lang: 'en' });
+    const dec = render(<RightPanel sim={simOf()} />);
+    const n2 = dec.container.querySelector('.outcome-nihss') as HTMLElement;
+    expect(n2.querySelector('.callout.danger')).toBeNull();
+    expect((n2.querySelector('.callout.warn') as HTMLElement).textContent).toBe(OUTCOME_UI.en.survival.bilateral_hemispheres);
+    expect(n2.textContent).not.toContain('most survivors still reach mRS 0–4');
+  });
+
   // Y3-11: a locked-in syndrome is not "usually fatal", but its 3- and 6-month NIHSS is a survivor's
   it('a locked-in syndrome: a lighter caveat with its own mortality, and the NIHSS as if the patient survives', () => {
     useApp.getState().loadScenario('basilar_mid');
