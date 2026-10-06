@@ -253,15 +253,41 @@ describe('最終 tab', () => {
     render(<RightPanel sim={simOf()} />);
     screen.getByText('沒有留下症狀。');
     screen.getByText('沒有腦區留下梗塞。');
-    // the 5-minute reopening does not make the course "unsettled"
-    expect(screen.queryByText(/病程還沒有完全穩定/)).toBeNull();
+    // the 5-minute reopening does not make the course "unsettled", nor needs a note
+    expect(screen.queryByText(/病程還沒有穩定/)).toBeNull();
+    expect(screen.queryByText(/最終梗塞在最後一次血管變化後 6 個月評估/)).toBeNull();
   });
 
-  it('warns that a late event has not settled by 6 months', () => {
+  // V3-13: a course still changing after the 6-month stop (a second occlusion at 125 days, whose
+  // sensory loss still improves) is warned of with the exact offset and what still changes
+  it('warns that a late event has not settled by 6 months, with the exact offset (V3-13)', () => {
+    useApp.setState({ occlusions: [{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 3000 }], rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const warn = [...container.querySelectorAll('.callout.warn')].find((e) => /病程還沒有穩定/.test(e.textContent ?? ''));
+    expect(warn?.textContent).toBe(OUTCOME_UI['zh-TW'].unsettled('125 天', { infarct: false, deficits: true }));
+    expect(warn?.textContent).toContain('比時間軸上的 6 個月晚 125 天');
+    expect(warn?.textContent).toContain('缺損還在變化');
+  });
+
+  // V3-13: the stuttering basilar template was told "evaluated at 6 months: at 6 months the course
+  // has not fully settled", with its infarct fixed since the first week and nothing else changing
+  it.each(['zh-TW', 'en'] as const)('the stuttering basilar template states its 3-day offset and that nothing changes in it (V3-13, %s)', (lang) => {
+    useApp.getState().loadScenario('basilar_stuttering');
+    useApp.setState({ rightTab: 'final', lang });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/病程還沒有|has not settled|not fully settled/);
+    const note = OUTCOME_UI[lang].settledLate(lang === 'en' ? '3 days' : '3 天');
+    expect(text).toContain(note);
+    expect(note).toMatch(lang === 'en' ? /3 days after the timeline's 6-month stop/ : /比時間軸上的 6 個月晚 3 天/);
+    expect(container.querySelector('.callout.warn')?.textContent ?? '').not.toContain(note);
+  });
+
+  it('an occlusion at 1 month: the onset note, and the offset of the final evaluation (V3-13)', () => {
     useApp.setState({ occlusions: [{ vessel: 'mca_m1_l', severity: 1, fromH: 720 }], rightTab: 'final' });
     render(<RightPanel sim={simOf()} />);
-    screen.getByText(/最後一次血管變化在 1 個月，最終梗塞要到 7 個月 .*病程還沒有完全穩定/);
     screen.getByText(/主要發作在 1 個月/);
+    screen.getByText(/比時間軸上的 6 個月晚 1 個月/);
   });
 
   it('lists late events and final regions; a region opens its details', () => {

@@ -12,7 +12,7 @@ import { RISKS_UI } from '../i18n/uiRisks';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
-import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutcome';
+import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, UNSETTLED_SLACK_H, finalOutcome } from '../ui/finalOutcome';
 import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, pctShare, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
 import { COMPENSATION_SHOWN, bottleneckSites, compensatedShare, hasNoBackup, symptomBackup, unexaminableHeading } from '../ui/recoveryFormat';
 import { formatPrevalence, postStrokeRisksFor } from '../ui/postStrokeRisks';
@@ -89,7 +89,12 @@ export function FinalOutcome() {
           {o.jump6m}
         </button>
       </div>
-      {out.unsettled && <p className="callout warn">{o.unsettled(formatClock(out.finalH - H_6M, lang), formatHours(out.finalH, lang))}</p>}
+      {/* the final evaluation after the 6-month stop: warned of only when something shown still changes by then (V3-13) */}
+      {out.unsettled ? (
+        <p className="callout warn">{o.unsettled(formatClock(out.lateBy, lang), out.changesAfter)}</p>
+      ) : (
+        out.lateBy > UNSETTLED_SLACK_H && <p className="muted small">{o.settledLate(formatClock(out.lateBy, lang))}</p>
+      )}
 
       <div className="stat-row">
         <div className="stat">

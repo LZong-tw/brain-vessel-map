@@ -19,7 +19,14 @@ export interface OutcomeStrings {
   when: string;
   /** the index onset is later than 0: where the timeline's 6 months fall on the patient's clock */
   whenOnset: (onset: string, since: string) => string;
-  unsettled: (lastChange: string, finalAt: string) => string;
+  /**
+   * the final infarct is evaluated after the timeline's 6-month stop (by `lastChange`, the time of
+   * the last change of the vessels, as the evaluation is 6 months after it) and what the Outcome
+   * shows still changes in between: the infarct, the deficits or both (V3-13)
+   */
+  unsettled: (lastChange: string, changes: { infarct: boolean; deficits: boolean }) => string;
+  /** … and nothing it shows changes in between: the exact offset (V3-13) */
+  settledLate: (lastChange: string) => string;
   jump6m: string;
   // ── numbers ──
   finalInfarct: string;
@@ -101,8 +108,12 @@ const zh: OutcomeStrings = {
   finalLink: (ml) => `最終梗塞 ${ml} mL · 看最終結果 →`,
   when: '這裡看的是病程的結尾，與目前顯示的時間無關：時間軸最後兩站（3 個月、6 個月）的狀態；最終梗塞在最後一次血管變化（阻塞開始或再通）後 6 個月評估。',
   whenOnset: (onset, since) => `主要發作在 ${onset}，所以時間軸上的「6 個月」是發作後約 ${since}。`,
-  unsettled: (lastChange, finalAt) =>
-    `最後一次血管變化在 ${lastChange}，最終梗塞要到 ${finalAt} 才評估：到時間軸上的 6 個月時，病程還沒有完全穩定，組織與代償都可能繼續變化。`,
+  unsettled: (lastChange, c) =>
+    `最終梗塞在最後一次血管變化後 6 個月評估；最後一次變化在 ${lastChange}，所以比時間軸上的 6 個月晚 ${lastChange}。到時間軸上的 6 個月時病程還沒有穩定：${
+      c.infarct && c.deficits ? '梗塞還在擴大，缺損也還在變化' : c.infarct ? '梗塞還在擴大' : '缺損還在變化'
+    }。`,
+  settledLate: (lastChange) =>
+    `最終梗塞在最後一次血管變化後 6 個月評估；最後一次變化在 ${lastChange}，所以比時間軸上的 6 個月晚 ${lastChange}。這段期間梗塞與列出的缺損（連同嚴重度與分組）都不變。`,
   jump6m: '跳到 6 個月',
   finalInfarct: '最終梗塞',
   finalCordNote: (ml) => `其中上段頸髓約 ${ml} mL`,
@@ -182,8 +193,12 @@ const en: OutcomeStrings = {
   finalLink: (ml) => `Final infarct ${ml} mL · See the outcome →`,
   when: "This is the end of the course, whatever time is displayed: the state at the timeline's last two stops (3 and 6 months); the final infarct is evaluated 6 months after the last change of the vessels (an occlusion starting or reopening).",
   whenOnset: (onset, since) => `The index onset is at ${onset}, so "6 months" on the timeline is about ${since} after onset.`,
-  unsettled: (lastChange, finalAt) =>
-    `The last change of the vessels is at ${lastChange} and the final infarct is evaluated at ${finalAt}: at 6 months on the timeline the course has not fully settled — tissue and compensation may still change.`,
+  unsettled: (lastChange, c) =>
+    `The final infarct is evaluated 6 months after the last change of the vessels, which is at ${lastChange}: ${lastChange} after the timeline's 6-month stop. At that stop the course has not settled: ${
+      c.infarct && c.deficits ? 'the infarct is still growing and the deficits are still changing' : c.infarct ? 'the infarct is still growing' : 'the deficits are still changing'
+    }.`,
+  settledLate: (lastChange) =>
+    `The final infarct is evaluated 6 months after the last change of the vessels, which is at ${lastChange}: ${lastChange} after the timeline's 6-month stop. In between, the infarct and the deficits listed (with their severity and group) stay the same.`,
   jump6m: 'Jump to 6 months',
   finalInfarct: 'Final infarct',
   finalCordNote: (ml) => `of which ${ml} mL in the upper cervical cord`,

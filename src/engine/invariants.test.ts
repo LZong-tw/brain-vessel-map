@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BEDS, REGION_BY_ID, VESSELS } from '../anatomy';
 import { LACUNE_SITES } from '../anatomy/lacunes';
 import { SCENARIOS } from '../anatomy/scenarios';
-import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
+import { SYNDROMES, haemodynamicSetting, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { consciousnessFromShift, symptomsAddedAt } from './cascade';
 import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
@@ -12,8 +12,8 @@ import { endOf, progressed, startOf, successorOf } from './schedule';
 import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
-import { regionComposition } from '../ui/format';
-import { finalRegions } from '../ui/finalOutcome';
+import { fmtMl, pctShare, regionComposition } from '../ui/format';
+import { deficitGroup, finalOutcome, finalRegions } from '../ui/finalOutcome';
 import { regionFunctionGroup, regionRecovery } from '../ui/recoveryFormat';
 
 /** Relations between outputs that must hold for every scenario at every displayed time. */
@@ -453,6 +453,10 @@ describe('syndromes and events agree with the symptoms', () => {
     ['mca_m1_l + pica_l moderate', [{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pica_l', severity: 1 }], 'moderate'],
     ['heubner_r lacune', [{ vessel: 'heubner_r', severity: 1, branch: true }], 'good'],
     ['pontine_paramedian_inferior_l lacune', [{ vessel: 'pontine_paramedian_inferior_l', severity: 1, branch: true }], 'good'],
+    // V3-2: the right mirror of the tight carotid stenosis at a low blood pressure; V3-14: a right M1
+    // reopened at 4.5 h, its neglect compensated by 3 months
+    ['ica_cervical_r 90 % at MAP 60', [{ vessel: 'ica_cervical_r', severity: 0.9 }], 'good', null, 60],
+    ['mca_m1_r reopened 4.5 h', [{ vessel: 'mca_m1_r', severity: 1 }], 'good', 4.5],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -950,6 +954,97 @@ describe('syndromes and events agree with the symptoms', () => {
       expect(d.name.en, d.id).not.toMatch(/\((M1|M2|A1|A2|P1|P2|V4)\)/);
       expect(d.name.zh, d.id).not.toMatch(/（(M1|M2|A1|A2|P1|P2|V4)）/);
     }
+  });
+
+  /**
+   * V3: the labels and the Outcome text agree with what is shown. Classes of contradiction: a label
+   * of the whole MCA territory for a haemodynamic border-zone picture of that territory (V3-2: which
+   * one the circle of Willis decided, by how much of the ACA territory of that side it left
+   * underperfused); an MCA division label without any of the signs it names (V3-14); and a course
+   * called unsettled at the 6-month stop although nothing the Outcome shows changes by its final
+   * evaluation, or not called so although something does (V3-13).
+   */
+  /**
+   * a border-zone picture of the MCA territory (the primary pattern, as the engine reads it): of the
+   * affected mL within the MCA territory and its borders at least 4 mL and 35 % in the border zones,
+   * and the ACA's and the PCA's own beds affected at most half as densely as the border zones
+   */
+  const mcaBorderZones = (r: SimResult, side: 'r' | 'l') => {
+    const mca = { border: 0, total: 0 };
+    const dens = { border: [0, 0], ACA: [0, 0], PCA: [0, 0] };
+    for (const b of BEDS) {
+      if (!b.region.endsWith(`_${side}`) || !['cortex', 'deep', 'brainstem', 'cerebellum'].includes(REGION_BY_ID[b.region].category)) continue;
+      const x = r.beds[b.id];
+      const v = (x.frac.core + x.frac.penumbra + x.regaining + x.holding) * b.volume;
+      const key = b.terr.length === 2 ? 'border' : b.terr[0] === 'ACA' ? 'ACA' : b.terr[0]?.startsWith('PCA') ? 'PCA' : null;
+      if (key) {
+        dens[key][0] += v;
+        dens[key][1] += b.volume;
+      }
+      if (!b.terr.some((t) => t.startsWith('MCA') || t === 'LLS')) continue;
+      mca.total += v;
+      if (b.terr.length === 2) mca.border += v;
+    }
+    const d = (k: keyof typeof dens) => (dens[k][1] > 0 ? dens[k][0] / dens[k][1] : 0);
+    return { ...mca, picture: mca.border >= 4 && mca.border / mca.total >= 0.35 && Math.max(d('ACA'), d('PCA')) <= 0.5 * d('border') };
+  };
+  it.each(CASES)('%s: no complete-MCA label for a haemodynamic border-zone picture of the MCA territory (V3-2)', (name) => {
+    series(name).forEach((r, i) => {
+      // (a secondary infarct overwrites the primary pattern the labels read)
+      if (Object.values(r.beds).some((b) => b.effect === 'secondary')) return;
+      for (const m of r.syndromes.filter((x) => x.def.id === 'mca_complete')) {
+        const side = m.side!;
+        if (!haemodynamicSetting(r.input.map, r.input.occlusions.filter((o) => startOf(o) <= STOPS[i]), side)) continue;
+        const z = mcaBorderZones(r, side);
+        expect(z.picture, `${name} ${STOPS[i]} h: ${side}, ${z.border.toFixed(1)} of ${z.total.toFixed(1)} mL in the border zones`).toBe(false);
+      }
+    });
+  });
+
+  // what each MCA division label names (its text): the superior division face and arm weakness and
+  // sensory loss, gaze deviation and on the left an expressive aphasia; the inferior division on the
+  // left a fluent aphasia with poor comprehension or repetition, on the right left neglect and
+  // visuospatial problems, on either side often a field defect
+  const DIVISION_SIGNS: Record<string, string[]> = {
+    mca_superior_l: ['face_weak', 'arm_weak', 'arm_weak_proximal', 'sens_face_arm', 'gaze_deviation', 'aphasia_broca', 'aphasia_tc_motor'],
+    mca_superior_r: ['face_weak', 'arm_weak', 'arm_weak_proximal', 'sens_face_arm', 'gaze_deviation'],
+    mca_inferior_l: ['aphasia_wernicke', 'aphasia_conduction', 'aphasia_tc_sensory', 'hemianopia', 'quadrant_sup', 'quadrant_inf'],
+    mca_inferior_r: ['neglect', 'visuospatial', 'hemianopia', 'quadrant_sup', 'quadrant_inf'],
+  };
+  it.each(CASES)('%s: an MCA division label is shown only beside one of the signs it names, listed or not examinable (V3-14)', (name) => {
+    series(name).forEach((r, i) => {
+      for (const m of r.syndromes) {
+        const signs = DIVISION_SIGNS[`${m.def.id}_${m.side ?? ''}`];
+        if (!signs) continue;
+        const there = [...r.symptoms, ...r.unexaminable].some(
+          (s) => signs.includes(s.id) && !s.delayed && s.sources.some((src) => REGION_BY_ID[src]?.side === m.side),
+        );
+        expect(there, `${name} ${STOPS[i]} h: ${m.def.id}_${m.side}`).toBe(true);
+      }
+    });
+  });
+
+  /** what the Outcome shows of the infarct and of the deficits at one time */
+  const outcomeShows = (r: SimResult) => ({
+    infarct: [fmtMl(r.volumes.core), ...finalRegions(r).map((x) => `${x.id}:${fmtMl(x.ml)}:${pctShare(x.infarct)}`)].join('|'),
+    deficits: [
+      `NIHSS ${r.nihss.total}`,
+      ...r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
+      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
+      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${x.why}`),
+    ]
+      .sort()
+      .join('|'),
+  });
+  it.each(CASES)('%s: called unsettled at the 6-month stop exactly when what the Outcome shows still changes by the final evaluation (V3-13)', (name) => {
+    const m6 = series(name)[STOPS.length - 1];
+    const out = finalOutcome(m6.input, { m6 });
+    expect(out.lateBy, name).toBeCloseTo(Math.max(0, m6.schedule.finalH - 4320), 6);
+    if (out.lateBy === 0) return expect(out.unsettled, name).toBe(false);
+    const now = outcomeShows(m6);
+    const end = outcomeShows(simulate({ ...m6.input, tH: out.finalH }));
+    expect(out.changesAfter, name).toEqual({ infarct: now.infarct !== end.infarct, deficits: now.deficits !== end.deficits });
+    expect(out.unsettled, name).toBe(now.infarct !== end.infarct || now.deficits !== end.deficits);
   });
 
   /**

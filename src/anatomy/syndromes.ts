@@ -34,8 +34,8 @@ export interface SyndromeCtx {
   both(base: string, thr?: number): boolean;
   occluded(base: string, side?: Side | 'm'): boolean;
   reversed(base: string, side?: Side | 'm'): boolean;
-  /** affected mL in border-zone beds of a hemisphere and in total */
-  border(side: Side): { border: number; total: number; kinds: string[] };
+  /** affected mL in border-zone beds of a hemisphere and in total (see BorderPicture) */
+  border(side: Side): BorderPicture;
   /**
    * a haemodynamic setting for a border-zone infarct on this side (haemodynamicSetting, Z4-14): a
    * low blood pressure, or a tight stenosis or occlusion of the carotid or M1 on this side begun by
@@ -60,6 +60,12 @@ export interface SyndromeCtx {
    * listed for both sides counts for each), or its highest severity anywhere when `side` is left out
    */
   sym(id: string, side?: Side): number;
+  /**
+   * a current, non-delayed symptom `id` produced by a region on side `lesionSide` of the brain,
+   * listed or there but not examinable at the patient's level of consciousness (which has not gone:
+   * X1-2): a sign a label names (V3-14)
+   */
+  signFrom(id: string, lesionSide: Side): boolean;
 }
 
 /** one single-branch (lacunar) occlusion of a perforator bundle (SyndromeCtx.branchEpisodes) */
@@ -139,6 +145,23 @@ const DIVISION_APHASIA = {
   neither: ['aphasia_global', 'aphasia_mixed_tc'],
 };
 
+/** a field defect of the opposite half-field */
+const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf'];
+/**
+ * The signs the inferior-division label names (V3-14), by lesion side: on the left a fluent aphasia
+ * with poor comprehension or repetition (DIVISION_APHASIA), on the right left neglect and
+ * visuospatial problems, on either side often a field defect (Meyer's loop, the deep parietal
+ * radiation). The label is shown only beside one of them (SyndromeCtx.signFrom), listed or not
+ * examinable, as the superior division's lasts as long as its deficits do (W3-9): a right M1
+ * reopened at 4.5 h with good collaterals keeps 32 % of the posterior superior temporal gyrus
+ * infarcted, its neglect compensated by 3 months, and was still named an inferior-division
+ * syndrome at 3 and 6 months beside a hemiparesis, abulia and memory loss alone.
+ */
+const INFERIOR_SIGNS: Record<Side, string[]> = {
+  l: [...DIVISION_APHASIA.inferior, ...FIELD_DEFECTS],
+  r: ['neglect', 'visuospatial', ...FIELD_DEFECTS],
+};
+
 /** perforator bundles whose single-branch attacks make up a capsular or pontine warning syndrome */
 const WARNING_BUNDLES = ['lenticulostriate', 'acha', 'pontine_paramedian_rostral', 'pontine_paramedian_caudal', 'pontine_paramedian_inferior'];
 /** a second attack within this many hours of one that cleared (Paul 2012: all within 24 h) */
@@ -167,11 +190,56 @@ function crescendo(episodes: BranchEpisode[], tH: number): boolean {
 }
 
 /**
+ * The affected volume (mL, primary vascular pattern) of a hemisphere: in its border-zone beds
+ * (`border`, of the kinds `kinds`) and in all (`total`); the same within the MCA territory and its
+ * borders (`mca`: the beds of an MCA division or of the lateral lenticulostriate arteries, and the
+ * border-zone beds between them and a neighbouring territory); and the affected share of the
+ * border-zone beds' volume and of the ACA's or the PCA's own beds, the higher of the two
+ * (`density`).
+ */
+export interface BorderPicture {
+  border: number;
+  total: number;
+  kinds: string[];
+  mca: { border: number; total: number };
+  density: { border: number; neighbourCore: number };
+}
+
+/** a territory code of the MCA (its divisions, the insula, the lateral lenticulostriate arteries) */
+export const isMcaTerritory = (t: string) => t.startsWith('MCA') || t === 'LLS';
+
+/**
  * A hemisphere whose dysfunction is a border-zone (watershed) picture: at least 4 mL in border-zone
  * beds, and at least 35 % of all its dysfunctional tissue. The watershed label uses it, and so does
  * the border-zone motor pattern of the motor strip (simulate → clinical.aggregateSymptoms).
  */
 export const isWatershedPicture = (b: { border: number; total: number }) => b.border >= 4 && b.border / Math.max(b.total, 1e-6) >= 0.35;
+
+/**
+ * The haemodynamic picture of the MCA territory (V3-2): its damage reaches across the territory
+ * (four of its cortical areas, as the complete-MCA label needs); within the territory and its
+ * borders it lies as a border-zone picture (isWatershedPicture of BorderPicture.mca); and the cores
+ * of the neighbouring territories are spared, as a watershed infarct spares the cores of the
+ * territories that meet there: the ACA's and the PCA's own beds affected at most half as densely
+ * as the border zones (NEIGHBOUR_CORE_SHARE). The share of the whole hemisphere alone let the circle
+ * of Willis decide: a tight right carotid stenosis at a low blood pressure left more of the right
+ * ACA territory itself underperfused (16 mL, 15 % of it, against 5 mL on the left; the circle is
+ * not mirrored), so 33 % of the hemisphere's damage lay in the border zones against 36 % on the
+ * left, and the same picture of the MCA territory (37–38 % in its border zones, which are half
+ * affected) was named a complete MCA syndrome on the right and watershed on the left. Not for the
+ * border-zone motor pattern, nor without the reach across the MCA territory or the spared
+ * neighbouring cores: within the MCA territory and its borders an ACA infarct, or the residue of an
+ * M1 reopened early (the striatum and the internal border zone beside it), lies mostly in
+ * border-zone beds, and behind both carotids occluded the ACA territories themselves are infarcted
+ * almost as densely as the border zones (45 % against 53 %), a territorial infarct of both
+ * carotids that the ICA-territory label names.
+ */
+const mcaBorderZonePicture = (c: SyndromeCtx, s: Side) => {
+  const b = c.border(s);
+  return isWatershedPicture(b.mca) && mcaCount(c, s) >= 4 && b.density.neighbourCore <= NEIGHBOUR_CORE_SHARE * b.density.border;
+};
+/** the cores of the ACA and PCA territories at most this share as densely affected as the border zones (V3-2). TODO(medical-review): 0.5 */
+const NEIGHBOUR_CORE_SHARE = 0.5;
 
 /** below this mean arterial pressure (mmHg) the whole brain is underperfused (also the case summary's "hypoperfusion") */
 export const LOW_MAP = 70;
@@ -302,11 +370,13 @@ export const SYNDROMES: SyndromeDef[] = [
     },
     // W3-9: at the symptoms' own threshold, as the superior division; on the left, not beside an
     // aphasia of the anterior kind (12 h after an M1 thrombectomy the whole territory regaining its
-    // function, with an expressive aphasia, was named for the receptive one)
+    // function, with an expressive aphasia, was named for the receptive one). V3-14: and only beside
+    // one of the signs it names (INFERIOR_SIGNS)
     test: (c, s) =>
       c.hasAny(['superior_temporal_posterior', 'angular'], s) &&
       !c.has('precentral_face_arm', s) &&
-      !(s === 'l' && DIVISION_APHASIA.superior.concat(DIVISION_APHASIA.neither).some((id) => c.sym(id) > 0)),
+      !(s === 'l' && DIVISION_APHASIA.superior.concat(DIVISION_APHASIA.neither).some((id) => c.sym(id) > 0)) &&
+      INFERIOR_SIGNS[s].some((id) => c.signFrom(id, s)),
   },
   {
     id: 'aca',
@@ -1115,7 +1185,9 @@ export const SYNDROMES: SyndromeDef[] = [
     // 12 %, 75 % with ICA occlusion or tight stenosis plus a haemodynamic factor
     // Z4-14: only in a haemodynamic setting (haemodynamicSetting): a distal branch occluded by an
     // embolus is a branch-territory infarct, also where it lies in border-zone beds
-    test: (c, s) => isWatershedPicture(c.border(s)) && c.haemodynamic(s),
+    // V3-2: or a border-zone picture of the MCA territory across it, whatever the ACA territory of
+    // that side does (mcaBorderZonePicture)
+    test: (c, s) => (isWatershedPicture(c.border(s)) || mcaBorderZonePicture(c, s)) && c.haemodynamic(s),
     // a border-zone picture is not the whole territory's (W3-9: a tight carotid stenosis at a low
     // blood pressure, whose infarcts lie in the border zones from day 5, was named a complete MCA
     // syndrome beside it)

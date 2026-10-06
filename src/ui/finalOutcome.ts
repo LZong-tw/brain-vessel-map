@@ -12,6 +12,7 @@ import { SYMPTOM_BY_ID, isQualifier } from '../anatomy/symptoms';
 import type { CascadeEvent, FatalRisk, SurvivalCaveat } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
 import { simulate, type SimInput, type SimResult } from '../engine/simulate';
+import { fmtMl, pctShare } from './format';
 
 export type OutcomeInput = Omit<SimInput, 'tH'>;
 
@@ -24,10 +25,13 @@ export const H_6M = TIME_STOPS[I_6M].h;
 
 /**
  * The final infarct is evaluated 6 months after the last occlusion start or reopening
- * (`schedule.finalH`). A course whose last change comes later than the start of the timeline
- * has not settled by the timeline's 6-month stop. The slack keeps a TIA that reopens after five
- * minutes (finalH = 4320 h 5 min) from being called "unsettled" — nothing changes in its last
- * five minutes — while any change a day or more after onset is reported.
+ * (`schedule.finalH`), so a course whose last change comes later than the start of the timeline is
+ * evaluated that long after the timeline's 6-month stop. It is called unsettled only when what the
+ * Outcome shows still changes in between (changesAfter, V3-13: the stuttering basilar template was
+ * told "evaluated at 6 months: at 6 months the course has not fully settled" with its infarct fixed
+ * since the first week and nothing else changing in its last 3 days). Otherwise the Outcome states
+ * the offset, from this much on: a TIA that reopens after five minutes (finalH = 4320 h 5 min) needs
+ * no note.
  */
 export const UNSETTLED_SLACK_H = 24;
 
@@ -161,7 +165,18 @@ export interface FinalOutcome {
   onsetH: number;
   /** when the final infarct is evaluated (h on the simulation clock) */
   finalH: number;
-  /** the course has not settled by the timeline's 6-month stop (a late event) */
+  /**
+   * how long after the timeline's 6-month stop the final infarct is evaluated (h; 0 when not after
+   * it): the time of the last change of the vessels, as the evaluation is 6 months after it
+   */
+  lateBy: number;
+  /**
+   * what the Outcome shows that still changes between the 6-month stop and the final evaluation
+   * (V3-13): the infarct (its volume, the regions listed), the deficits (the NIHSS, the labels, each
+   * deficit listed with its severity and group, those that cannot be examined)
+   */
+  changesAfter: { infarct: boolean; deficits: boolean };
+  /** the course has not settled by the timeline's 6-month stop: something it shows still changes (changesAfter) */
   unsettled: boolean;
   /** the case as set usually ends in death (course.fatal): the 3- and 6-month results assume survival */
   fatal: FatalRisk[];
@@ -186,17 +201,46 @@ export function courseEnd(input: OutcomeInput, known?: { m3?: SimResult; m6?: Si
   return { m3, m6, finalInfarct: m6.volumes.finalInfarct, lasting: definite.length, fatal: m6.cascade.fatalRisk, caveats: m6.cascade.survivalCaveat };
 }
 
+/**
+ * What the Outcome shows at one time, at the resolution it shows it (V3-13): the infarct (its volume
+ * and the regions listed) and the deficits (the NIHSS, the labels, every deficit listed with its
+ * severity and its group, and those that cannot be examined). The share of a deficit that other
+ * pathways have taken over still creeps up by about a point a month at 6 months; it counts when it
+ * moves the deficit to another group.
+ */
+function shownAt(sim: SimResult): { infarct: string; deficits: string } {
+  const infarct = [fmtMl(sim.volumes.core), ...finalRegions(sim).map((r) => `${r.id}:${fmtMl(r.ml)}:${pctShare(r.infarct)}`)];
+  const deficits = [
+    `NIHSS ${sim.nihss.total}`,
+    ...sim.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
+    ...sim.symptoms.map((s) => `${s.id}/${s.side ?? ''}:${s.sev}${s.delayed ? 'd' : ''}:${deficitGroup(s)}`),
+    ...sim.unexaminable.map((s) => `?${s.id}/${s.side ?? ''}:${s.sev}:${s.why}`),
+  ].sort();
+  return { infarct: infarct.join('|'), deficits: deficits.join('|') };
+}
+
+/** what the Outcome shows of the 6-month stop `m6` that still changes by the final evaluation at `finalH` (V3-13) */
+function changesAfter(input: OutcomeInput, m6: SimResult, finalH: number): { infarct: boolean; deficits: boolean } {
+  if (finalH <= H_6M) return { infarct: false, deficits: false };
+  const now = shownAt(m6);
+  const end = shownAt(simulate({ ...input, tH: finalH }));
+  return { infarct: now.infarct !== end.infarct, deficits: now.deficits !== end.deficits };
+}
+
 /** Everything the Outcome tab shows, from one simulation input (the displayed time is ignored). */
 export function finalOutcome(input: OutcomeInput, known?: { m3?: SimResult; m6?: SimResult }): FinalOutcome {
   const course = courseEnd(input, known);
   const untreated = input.reperfusionH !== null ? courseEnd({ ...input, reperfusionH: null, treatment: undefined }) : null;
   const { onsetH, finalH } = course.m6.schedule;
+  const changes = changesAfter(input, course.m6, finalH);
   return {
     course,
     untreated,
     onsetH,
     finalH,
-    unsettled: finalH > H_6M + UNSETTLED_SLACK_H,
+    lateBy: Math.max(0, finalH - H_6M),
+    changesAfter: changes,
+    unsettled: changes.infarct || changes.deficits,
     fatal: course.fatal,
     caveats: course.caveats,
     centralHerniation: course.m6.cascade.events.some((e) => e.id === 'central_herniation'),

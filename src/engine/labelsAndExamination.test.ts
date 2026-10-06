@@ -372,6 +372,80 @@ describe('W3-9: the MCA territory labels agree with the signs listed beside them
   });
 });
 
+/**
+ * V3-2: a tight carotid stenosis at a low blood pressure leaves, from about day 5, partial infarcts
+ * of 20–45 % across the MCA territory, densest in its border zones. The left one was named watershed
+ * and the right one a complete MCA syndrome, whose text calls it the whole territory: the share of
+ * the hemisphere's damage in the border zones was 36 % on the left and 33 % on the right, because
+ * the circle of Willis (not mirrored) leaves more of the right ACA territory itself underperfused
+ * (16 mL of it against 5 mL). Within the MCA territory and its borders the two sides are the same
+ * picture (37–38 % in the border zones).
+ */
+describe('V3-2: a haemodynamic border-zone picture of the MCA territory is named watershed on either side', () => {
+  it.each([
+    ['ica_cervical', 'l'],
+    ['ica_cervical', 'r'],
+    ['cca', 'l'],
+    ['cca', 'r'],
+  ] as const)('%s_%s 90 %% at MAP 60, good collaterals: watershed from day 5, never the complete MCA syndrome', (vessel, side) => {
+    for (const tH of STOPS.filter((h) => h >= 120)) {
+      const r = run([{ vessel: `${vessel}_${side}`, severity: 0.9 }], tH, 'good', { map: 60 });
+      expect(labels(r), `${tH} h`).toContain(`watershed_${side}`);
+      expect(labels(r), `${tH} h`).not.toContain(`mca_complete_${side}`);
+    }
+  });
+
+  it('an M1 occlusion, and a carotid occlusion with poor collaterals, keep their territory labels', () => {
+    for (const side of ['l', 'r'] as const) {
+      expect(labels(run(occl(`mca_m1_${side}`), 2160)), side).toContain(`mca_complete_${side}`);
+      expect(labels(run(occl(`mca_m1_${side}`), 2160)), side).not.toContain(`watershed_${side}`);
+      const ica = labels(run([{ vessel: `ica_cervical_${side}`, severity: 0.9 }], 2160, 'poor', { map: 60 }));
+      expect(ica, side).toContain(`ica_territory_${side}`);
+    }
+    // both carotids occluded: the ACA territories themselves are infarcted almost as densely as the
+    // border zones, a territorial infarct of both carotids, not a watershed one
+    for (const tH of [168, 2160]) {
+      const both = labels(run(occl('ica_cervical_r', 'ica_cervical_l'), tH));
+      expect(both, `${tH} h`).toEqual(expect.arrayContaining(['ica_territory_r', 'ica_territory_l']));
+      expect(both.filter((l) => l.startsWith('watershed')), `${tH} h`).toEqual([]);
+    }
+  });
+});
+
+/**
+ * V3-14: the inferior-division label names its signs (on the right left neglect, visuospatial
+ * problems and often a field defect; on the left a receptive aphasia and often a field defect). A
+ * right M1 thrombectomy at 4.5 h with good collaterals keeps 32 % of the posterior superior temporal
+ * gyrus infarcted, and its neglect is compensated by 3 months: the label stayed at 3 and 6 months
+ * with none of its signs listed.
+ */
+describe('V3-14: the MCA inferior-division label is shown only with one of the signs it names', () => {
+  const RIGHT_SIGNS = ['neglect', 'visuospatial', 'hemianopia', 'quadrant_sup', 'quadrant_inf'];
+  const TX = { method: 'evt' as const, grade: '3' as const, reocclusionAfterH: null, distalEmbolus: null, noReflow: 0 };
+  /** one of the signs the right label names, listed or not examinable, from the right hemisphere */
+  const rightSign = (r: SimResult) =>
+    [...r.symptoms, ...r.unexaminable].some((s) => RIGHT_SIGNS.includes(s.id) && !s.delayed && s.sources.some((src) => REGION_BY_ID[src]?.side === 'r'));
+  it.each(['evt', 'ivt'] as const)('the right M1 reopened by %s at 4.5 h with good collaterals: no label once the neglect is compensated', (method) => {
+    for (const tH of STOPS) {
+      const r = run(occl('mca_m1_r'), tH, 'good', { reperfusionH: 4.5, treatment: { ...TX, method } });
+      if (labels(r).includes('mca_inferior_r')) expect(rightSign(r), `${tH} h`).toBe(true);
+    }
+    const m3 = run(occl('mca_m1_r'), 2160, 'good', { reperfusionH: 4.5, treatment: { ...TX, method } });
+    expect(rightSign(m3)).toBe(false);
+    expect(labels(m3)).not.toContain('mca_inferior_r');
+    // the deep infarct keeps its own label
+    expect(labels(m3)).toContain('striatocapsular_r');
+  });
+
+  it('the right inferior division keeps its label with its neglect and field defect', () => {
+    for (const tH of [24, 2160, 4320]) {
+      const r = run(occl('mca_m2_inf_r'), tH);
+      expect(rightSign(r), `${tH} h`).toBe(true);
+      expect(labels(r), `${tH} h`).toContain('mca_inferior_r');
+    }
+  });
+});
+
 describe('V2-10: limb ataxia and the clumsy hand are not examined in a paralysed limb', () => {
   // NIHSS: ataxia is absent in a patient who is paralysed, and the scale's item 7 already leaves it
   // out on a side whose arm cannot move against gravity or whose leg cannot move at all; the list

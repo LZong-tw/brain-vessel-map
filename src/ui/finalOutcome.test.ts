@@ -11,8 +11,8 @@ import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { SymptomItem } from '../engine/clinical';
 import type { Occlusion } from '../engine/hemodynamics';
-import { simulate } from '../engine/simulate';
-import { pctShare } from './format';
+import { simulate, type SimResult } from '../engine/simulate';
+import { fmtMl, pctShare } from './format';
 import {
   FINAL_REGION_MIN,
   FINAL_REGION_SHARE_OF_INFARCT,
@@ -24,6 +24,7 @@ import {
   PARTIAL_FROM,
   deficitGroup,
   finalOutcome,
+  finalRegions,
   groupDeficits,
   type OutcomeInput,
 } from './finalOutcome';
@@ -254,16 +255,74 @@ describe('late course', () => {
 });
 
 describe('a late event is not settled at 6 months', () => {
-  it('flags an occlusion that starts at 1 month', () => {
-    const late = finalOutcome(plain([{ vessel: 'mca_m1_l', severity: 1, fromH: 720 }]));
-    expect(late.finalH).toBe(720 + 4320);
-    expect(late.unsettled).toBe(true);
-  });
-
   it('does not flag one that starts at onset', () => {
     const early = finalOutcome(plain([{ vessel: 'mca_m1_l', severity: 1 }]));
     expect(early.finalH).toBe(4320);
+    expect(early.lateBy).toBe(0);
     expect(early.unsettled).toBe(false);
+  });
+});
+
+/**
+ * V3-13: the final infarct is evaluated 6 months after the last change of the vessels, so a course
+ * whose last change comes after the start of the timeline is evaluated that long after the
+ * timeline's 6-month stop. It is called unsettled only when what the Outcome shows of it still
+ * changes in between: the infarct (its volume and the regions listed) or the deficits (the NIHSS,
+ * the labels, each deficit listed with its severity and its group, and those that cannot be
+ * examined). The stuttering basilar template was called unsettled at "6 months" with a 2.8 mL
+ * infarct fixed since its first week and nothing else changing in the 3 days.
+ */
+describe('V3-13: called unsettled only when the infarct or the deficits still change after the 6-month stop', () => {
+  /** what the Outcome shows of the infarct and of the deficits at one time */
+  const shown = (r: SimResult) => ({
+    infarct: [fmtMl(r.volumes.core), ...finalRegions(r).map((x) => `${x.id}:${fmtMl(x.ml)}:${pctShare(x.infarct)}`)],
+    deficits: [
+      `NIHSS ${r.nihss.total}`,
+      ...r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
+      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
+      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${x.why}`),
+    ].sort(),
+  });
+  const LATE: [string, OutcomeInput][] = [
+    ['the stuttering basilar template', scenarioInput('basilar_stuttering')],
+    ['right M1, left P2 at 2 days', plain([{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'pca_p2_l', severity: 1, fromH: 48 }])],
+    ['left M1 reopening by itself at 3 days', plain([{ vessel: 'mca_m1_l', severity: 1, toH: 72 }])],
+    ['left M1 at 1 month', plain([{ vessel: 'mca_m1_l', severity: 1, fromH: 720 }])],
+    ['left M1, right P2 at 125 days', plain([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 3000 }])],
+    ['left inferior division a day before the 6-month stop', plain([{ vessel: 'mca_m2_inf_l', severity: 1, fromH: 4296 }])],
+    ['a left M1 TIA at 4000 h', plain([{ vessel: 'mca_m1_l', severity: 1, fromH: 4000, toH: 4000.25 }])],
+  ];
+
+  it.each(LATE)('%s: unsettled exactly when the infarct or the deficits shown differ at the final evaluation', (_, input) => {
+    const out = finalOutcome(input);
+    expect(out.lateBy).toBeCloseTo(out.finalH - H_6M, 6);
+    const now = shown(out.course.m6);
+    const end = shown(simulate({ ...input, tH: out.finalH }));
+    const infarct = now.infarct.join('|') !== end.infarct.join('|');
+    const deficits = now.deficits.join('|') !== end.deficits.join('|');
+    expect(out.changesAfter).toEqual({ infarct, deficits });
+    expect(out.unsettled).toBe(infarct || deficits);
+  });
+
+  it('the stuttering basilar template is settled 3 days before its final evaluation', () => {
+    const out = finalOutcome(scenarioInput('basilar_stuttering'));
+    expect(out.lateBy).toBe(72);
+    expect(out.course.finalInfarct).toBeGreaterThan(1);
+    expect(out.unsettled).toBe(false);
+    expect(out.changesAfter).toEqual({ infarct: false, deficits: false });
+  });
+
+  it('a second occlusion at 125 days still changes the deficits after the 6-month stop', () => {
+    const out = finalOutcome(plain([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 3000 }]));
+    expect(out.unsettled).toBe(true);
+    expect(out.changesAfter).toEqual({ infarct: false, deficits: true });
+  });
+
+  it('an occlusion a day before the 6-month stop is still growing there', () => {
+    const out = finalOutcome(plain([{ vessel: 'mca_m2_inf_l', severity: 1, fromH: 4296 }]));
+    expect(out.unsettled).toBe(true);
+    expect(out.changesAfter.infarct).toBe(true);
+    expect(out.course.m6.volumes.core).toBeLessThan(out.course.finalInfarct - 1);
   });
 });
 

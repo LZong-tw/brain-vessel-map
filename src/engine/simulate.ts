@@ -139,7 +139,7 @@ import {
 import { LACUNE_DYSFUNCTION, LACUNE_ML, canBeLacunar, lacuneSiteOf } from '../anatomy/lacunes';
 import { DELAYED_ONSET_H } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { LOCKED_IN_BASES_FLOOR, haemodynamicSetting, isWatershedPicture } from '../anatomy/syndromes';
+import { LOCKED_IN_BASES_FLOOR, haemodynamicSetting, isMcaTerritory, isWatershedPicture, type BorderPicture } from '../anatomy/syndromes';
 import { NEURONS_PER_ML, infarctFractionOf, ischaemicHours, lossSteps, silentAfterReflow, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
@@ -1970,7 +1970,7 @@ interface Levels {
   lacuneLoss: Record<string, number>;
   lacuneIsch: Record<string, number>;
   lacuneOnly: string[];
-  borderBySide: Record<Side, { border: number; total: number; kinds: string[] }>;
+  borderBySide: Record<Side, BorderPicture>;
   /** every region with border-zone deficits (C1-F6), whatever the picture of its hemisphere */
   border: Record<string, BorderBeds>;
 }
@@ -2055,10 +2055,15 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
     rSteady[rid] = Math.max(rSteady[rid] ?? 0, share * (lacuneLoss[rid] + lacuneIsch[rid]));
     rInf[rid] = Math.max(rInf[rid] ?? 0, dead);
   }
-  // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern)
-  const borderOf = (side: Side) => {
+  // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern),
+  // the same within the MCA territory and its borders, and how densely the border zones and the
+  // ACA's and PCA's own territories are affected (V3-2)
+  const borderOf = (side: Side): BorderPicture => {
     let border = 0;
     let total = 0;
+    let borderVol = 0;
+    const mca = { border: 0, total: 0 };
+    const core: Record<'ACA' | 'PCA', { v: number; vol: number }> = { ACA: { v: 0, vol: 0 }, PCA: { v: 0, vol: 0 } };
     const kinds = new Set<string>();
     for (const b of BEDS) {
       if (!b.region.endsWith(`_${side}`)) continue;
@@ -2066,12 +2071,31 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
       if (!BRAIN.has(reg.category)) continue;
       const v = primaryDys[b.id] * b.volume;
       total += v;
-      if (b.terr.length === 2 && v > 0) {
-        border += v;
-        kinds.add(b.terr.join('|'));
+      const ofMca = b.terr.some(isMcaTerritory);
+      if (ofMca) mca.total += v;
+      if (b.terr.length === 2) {
+        borderVol += b.volume;
+        if (v > 0) {
+          border += v;
+          if (ofMca) mca.border += v;
+          kinds.add(b.terr.join('|'));
+        }
+      } else if (b.terr.length === 1) {
+        const n = b.terr[0] === 'ACA' ? core.ACA : b.terr[0].startsWith('PCA') ? core.PCA : null;
+        if (n) {
+          n.v += v;
+          n.vol += b.volume;
+        }
       }
     }
-    return { border, total, kinds: [...kinds] };
+    const density = (x: { v: number; vol: number }) => (x.vol > 0 ? x.v / x.vol : 0);
+    return {
+      border,
+      total,
+      kinds: [...kinds],
+      mca,
+      density: { border: borderVol > 0 ? border / borderVol : 0, neighbourCore: Math.max(density(core.ACA), density(core.PCA)) },
+    };
   };
   const borderBySide = { r: borderOf('r'), l: borderOf('l') };
   const border: Record<string, BorderBeds> = {};
@@ -2376,6 +2400,8 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       symptoms
         .filter((x) => x.id === id && !x.delayed && (side === undefined || x.side === side || x.side === 'both'))
         .reduce((m, x) => Math.max(m, x.sev), 0),
+    signFrom: (id, lesionSide) =>
+      [...symptoms, ...unexaminable].some((x) => x.id === id && !x.delayed && x.sources.some((src) => REGION_BY_ID[src]?.side === lesionSide)),
   }, symptoms, unexaminable);
 
   // ── volumes ──
