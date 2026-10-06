@@ -27,8 +27,11 @@ describe('region details while the patient is comatose (X1-2)', () => {
     const input = { occlusions, variants: [], map: 93, collateral: 'moderate' as const, reperfusionH: null, decompression: false };
     const sim = simulate({ ...input, tH: 48 });
     expect(sim.nihss.items['1a']).toBe(3);
-    // the angular gyrus is the source of the alexia listed at 1 day
-    expect(simulate({ ...input, tH: 24 }).symptoms.find((s) => s.id === 'alexia')?.sources).toContain('angular_l');
+    // the angular gyrus is the source of the alexia there at 1 day (not examinable then either, but
+    // because the global aphasia leaves too little comprehension to test reading: Z3-16)
+    const day1 = simulate({ ...input, tH: 24 });
+    expect(day1.unexaminable.find((s) => s.id === 'alexia')?.why).toBe('aphasia');
+    expect(day1.unexaminable.find((s) => s.id === 'alexia')?.sources).toContain('angular_l');
     useApp.setState({ ...input, selected: { kind: 'region', id: 'angular_l' }, rightTab: 'details', tIndex: i, lang });
     const { container } = render(<RightPanel sim={sim} />);
     const recovered = container.querySelector('.func-group.recovered')?.textContent ?? '';

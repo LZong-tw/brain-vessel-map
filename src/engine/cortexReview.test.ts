@@ -260,7 +260,9 @@ describe('R1-9: "alexia without agraphia" is named only without agraphia', () =>
     for (const v of ['mca_angular_l', 'mca_m2_inf_l'])
       for (const tH of [24, 2160]) {
         const r = sim(occl('pca_p2_l', v), tH, { collateral: 'poor' });
-        expect(sym(r), `${v} ${tH} h`).toContain('agraphia(-)');
+        // (beside a Wernicke aphasia that leaves too little comprehension the agraphia is there but
+        // named apart, as tested through language: Z3-16)
+        expect([...r.symptoms, ...r.unexaminable].map((s) => `${s.id}(${s.side ?? '-'})`), `${v} ${tH} h`).toContain('agraphia(-)');
         expect(labels(r), `${v} ${tH} h`).not.toContain('alexia_without_agraphia_l');
       }
   });

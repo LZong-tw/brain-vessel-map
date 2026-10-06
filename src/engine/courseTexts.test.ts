@@ -248,8 +248,13 @@ describe('Y3-6: the posterior-circulation caveat follows the circulation and nee
         const want = r.nihss.total <= 6 && r.symptoms.length + r.unexaminable.length > 0;
         expect(r.nihss.posteriorCaveat, `${id} ${h} h (NIHSS ${r.nihss.total})`).toBe(want);
       }
-      expect(at(input, 0).nihss.posteriorCaveat, id).toBe(true);
     }
+    // (Z3-17: the stuporous Percheron patient performs at most one command, 1c = 1, so its NIHSS is
+    // 7 in the first week and the caveat comes once it falls to 6 or less, at 2 weeks; was 6 with
+    // the caveat from onset)
+    expect(at(inputOf('l_thalamic'), 0).nihss.posteriorCaveat).toBe(true);
+    expect(at(inputOf('percheron'), 0).nihss.total).toBe(7);
+    expect(at(inputOf('percheron'), 336).nihss.posteriorCaveat).toBe(true);
   });
 
   it('a vertebral or PICA stroke keeps it', () => {

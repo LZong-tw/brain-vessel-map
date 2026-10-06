@@ -944,6 +944,14 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'arm_weak', lat: 'contra', sev: 3 },
       { s: 'leg_weak', lat: 'contra', sev: 3 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // The oculomotor fascicles leave the midbrain through the medial part of the peduncle, which
+      // the mesencephalic (interpeduncular) perforators supply (Weber syndrome: a third-nerve palsy
+      // with a crossed hemiparesis); a lesion of its lateral part, the anterior choroidal and
+      // posterior cerebral shares (0.6 of the region here), spares them. So only a lesion of most of
+      // the peduncle — three-quarters, more than its lateral part — cuts them: the whole peduncle
+      // that a transtentorial herniation infarcts keeps the third-nerve palsy after the compression
+      // of the nerve has ended (Z3-12). The paramedian tegmentum (the nucleus) gives it otherwise.
+      { s: 'cn3_palsy', lat: 'ipsi', sev: 3, minLevel: 0.75 },
     ],
     compartment: 'infra',
   }),

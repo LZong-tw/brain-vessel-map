@@ -27,9 +27,10 @@ export interface SymptomItem {
 /**
  * Why a sign the lesion gives cannot be examined now: the level of consciousness (stupor, coma, a
  * disorder of consciousness: X1), blindness (no sight to test recognition, reading or reaching by:
- * Y2-14), or akinetic mutism (an awake patient without spontaneous action or speech: Y2-15).
+ * Y2-14), akinetic mutism (an awake patient without spontaneous action or speech: Y2-15), or an
+ * aphasia that leaves too little comprehension to test what is tested through language (Z3-16).
  */
-export type UnexaminableWhy = 'consciousness' | 'blind' | 'akinetic';
+export type UnexaminableWhy = 'consciousness' | 'blind' | 'akinetic' | 'aphasia';
 
 export interface NihssResult {
   total: number;
@@ -309,6 +310,39 @@ export const NEEDS_SIGHT = ['prosopagnosia', 'visual_agnosia', 'simultanagnosia'
 export const AKINETIC_OBSERVED = ['akinetic_mutism', 'disinhibition', 'emotionalism', 'emotional_facial_paresis', 'abulia', 'emotional'];
 const APHASIA_TYPES = [...Object.keys(APHASIA_FEATURES), 'aphasia_thalamic'];
 /**
+ * What is tested through language (Z3-16): reading, writing, calculation and naming the fingers on
+ * request, verbal memory, the awareness of a deficit asked about, and what only the patient can
+ * report. In a patient who does not understand speech (a global, Wernicke or mixed transcortical
+ * aphasia of moderate or severe degree: the patient who "does not comprehend" on NIHSS item 1b,
+ * estimateNihss) none of them can be told apart from the aphasia, as the Gerstmann tetrad cannot
+ * (syndromes.ts, C1-F1): they are named apart, as for reduced consciousness, and listed again as
+ * comprehension returns. Praxis is not among them: ideomotor apraxia is tested by imitating the
+ * examiner's gestures, which needs no language, and in left-hemisphere patients it was found
+ * nearly always together with an aphasia, yet correlated only loosely with it (De Renzi E et al.
+ * Arch Neurol 1980;37:6-10, PMID 7350907). Nor is what the examiner sees (a field defect by
+ * threat, a weakness, a gaze palsy, behaviour) or scores by the patient's reaction (the NIHSS
+ * scores sensation in an aphasic patient by the grimace or withdrawal).
+ */
+export const NEEDS_LANGUAGE = [
+  'alexia',
+  'agraphia',
+  'acalculia',
+  'finger_agnosia',
+  'amnesia',
+  'anosognosia',
+  'vertigo',
+  'diplopia',
+  'hearing_loss',
+  'taste_loss',
+  'monocular_blind',
+  'macular_sparing',
+  'proprio_loss',
+  'central_pain',
+  'central_pain_face',
+];
+/** a listed aphasia that leaves too little comprehension to test through language (moderate or severe) */
+const comprehensionLost = (symptoms: SymptomItem[]) => symptoms.some((s) => !s.delayed && POOR_COMPREHENSION_APHASIA.includes(s.id) && s.sev >= 2);
+/**
  * the severity of a listed (non-delayed) akinetic mutism in an awake patient, 0 without one (in
  * stupor, coma or a disorder of consciousness it cannot be examined, and the scale's own rules for
  * those states apply)
@@ -340,8 +374,9 @@ function consciousnessItem(symptoms: SymptomItem[]): number {
 /**
  * Why a sign cannot be examined in a patient whose lesion gives `symptoms` (the symptom list it
  * would join), or null when it can: the level of consciousness (NEEDS_AWAKE, SPEECH_SIGNS,
- * ATTENTION_SIGNS and NEEDS_ALERT), blindness (NEEDS_SIGHT) or akinetic mutism (see
- * AKINETIC_OBSERVED). The first reason that applies is given.
+ * ATTENTION_SIGNS and NEEDS_ALERT), blindness (NEEDS_SIGHT), akinetic mutism (see
+ * AKINETIC_OBSERVED) or an aphasia of comprehension (NEEDS_LANGUAGE). The first reason that applies
+ * is given.
  */
 export function examinability(id: string, symptoms: SymptomItem[]): UnexaminableWhy | null {
   const doc = symptoms.some((s) => s.id === 'disorder_of_consciousness');
@@ -360,6 +395,7 @@ export function examinability(id: string, symptoms: SymptomItem[]): Unexaminable
     if (APHASIA_TYPES.includes(id)) return 'akinetic';
     if (akinetic >= 3 && SPEECH_SIGNS.includes(id)) return 'akinetic';
   }
+  if (NEEDS_LANGUAGE.includes(id) && comprehensionLost(symptoms)) return 'aphasia';
   return null;
 }
 
@@ -787,7 +823,14 @@ export function lesionSymptoms(
       del('ino', fs);
     }
   }
-  if (map.has('coma|')) del('somnolence', null);
+  // a disorder of consciousness is what follows a coma (the eyes open again, with sleep–wake
+  // cycles): while a coma at least as deep is listed it is the coma, and a lighter coma (a stupor)
+  // beside a deeper disorder of consciousness is that disorder (the destruction of both hemispheres
+  // as a herniation's coma lifts: Z3-12)
+  const docNow = map.get('disorder_of_consciousness|');
+  const comaNow = map.get('coma|');
+  if (docNow && comaNow) del(comaNow.sev >= docNow.sev ? 'disorder_of_consciousness' : 'coma', null);
+  if (map.has('coma|') || map.has('disorder_of_consciousness|')) del('somnolence', null);
   // a sleep disorder cannot be told apart from coma or from a disorder of consciousness (C3-F2)
   if (map.has('coma|') || map.has('disorder_of_consciousness|')) del('hypersomnia', null);
   // central sleep apnoea after a one-sided lateral medullary lesion is the mild end of what
@@ -950,7 +993,8 @@ export function estimateNihss(symptoms: SymptomItem[], posteriorCirculation = fa
   // Akinetic mutism (Y2-15): awake (1a = 0), but almost no speech and no response to commands. The
   // scale scores what the patient does: severe, mute, so item 9 is 3 ("mute"; 1c and 10 follow from
   // it below) and, unable to speak for a reason other than aphasia, 1b is 1; moderate, little speech
-  // (9 = 2) and only one of the two commands performed (1c = 1). (Torab-Miandoab 2020, Appendix 3:
+  // (9 = 2), at most one question answered (1b = 1, from item 9 below: Z3-17) and only one of the two
+  // commands performed (1c = 1). (Torab-Miandoab 2020, Appendix 3:
   // 1b scores 1 for a patient who cannot speak for any reason not secondary to aphasia, 2 only for
   // an aphasic or stuporous patient who does not comprehend; 1c is scored on what is performed.)
   if (akinetic >= 3) {
@@ -967,9 +1011,19 @@ export function estimateNihss(symptoms: SymptomItem[], posteriorCirculation = fa
     set('1c', 2, 2);
     set('10', 2, 2);
   }
-  // a stuporous patient does not comprehend the questions: 2. The scale gives no such rule for
-  // the commands (1c), which can still be shown by pantomime, so 1c keeps what language gives it.
-  if ((items['1a'] ?? 0) === 2) set('1b', 2, 2);
+  // a stuporous patient does not comprehend the questions: 2. The commands (1c) can still be shown
+  // by pantomime, but a patient who "requires repeated stimulation to attend" (1a = 2) and does not
+  // comprehend the questions does not perform both of them: at most one (1c ≥ 1, Z3-17; was left
+  // to what language gave it, so a patient scored as not comprehending the questions was scored as
+  // obeying both commands)
+  if ((items['1a'] ?? 0) === 2) {
+    set('1b', 2, 2);
+    set('1c', 1, 2);
+  }
+  // a severe aphasia (item 9 = 2: "all communication is through fragmentary expression"), or the
+  // little speech of a moderate akinetic mutism, answers at most one of the two questions (1b ≥ 1,
+  // Z3-17: the scale scores the answers given; was 0, both answered correctly, beside 9 = 2)
+  if ((items['9'] ?? 0) >= 2) set('1b', 1, 2);
   // unable to answer aloud because speech is unintelligible or absent (item 10 = 2: severe
   // dysarthria or anarthria): 1. Eye opening and closing still works as a command, so 1c is not
   // touched (a locked-in patient can follow it).

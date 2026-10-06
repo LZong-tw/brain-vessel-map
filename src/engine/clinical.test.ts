@@ -104,10 +104,12 @@ describe('NIHSS item rules', () => {
     expect(items({ id: 'leg_weak', side: 'l', sev: 3 }, { id: 'ataxia_limb', side: 'r', sev: 1 })['7']).toBe(1);
   });
 
-  it('a stuporous patient scores 2 on the questions (1b); the commands item has no stupor rule', () => {
+  // Z3-17: a patient who requires repeated stimulation to attend and does not comprehend the
+  // questions does not perform both commands either (was: no stupor rule for 1c, so 1c = 0)
+  it('a stuporous patient scores 2 on the questions (1b) and performs at most one command (1c = 1)', () => {
     const st = items({ id: 'coma', side: null, sev: 2 });
     expect(st['1b']).toBe(2);
-    expect(st['1c'] ?? 0).toBe(0);
+    expect(st['1c']).toBe(1);
     const per = scenario('percheron', 24);
     expect(per.nihss.items['1b']).toBe(2);
   });

@@ -16,7 +16,10 @@
  * produces most of the final infarct (if nothing dies: the first start that causes ischaemia).
  * The cascade is shifted back onto the simulation clock for display. Approximations:
  *   • one index event: infarcts from other episodes add to the volumes and the oedema, but
- *     swell and evolve on the index clock (nothing before the index onset); only each region's
+ *     swell and evolve on the index clock (nothing before the index onset), except that a
+ *     hemisphere whose own lesion begins after the index onset has its early (14 h) volume and its
+ *     oedema events from that lesion's onset (Z3-4), and a basilar occlusion's fatal risk starts
+ *     with the coma it causes itself, never before it closes (Z3-2); only each region's
  *     late symptoms, compensation and coma relabelling count from when that region itself became
  *     ischaemic (R6-6), and the brainstem consciousness events follow the labels these give, so
  *     they run on that clock too (brainstemCourse, X2-11); so do the warnings that follow the
@@ -856,6 +859,18 @@ function modelFor(input: SimInput): Model {
   const regionOnsetH: Record<string, number> = {};
   for (const [rid, list] of Object.entries(ischaemiaStarts)) regionOnsetH[rid] = list[0] - onsetH;
   cascadeInput.regionOnsetH = regionOnsetH;
+  // each region's early lesion is measured 14 h after its own onset (Z3-4): the other hemisphere
+  // occluded two days after the index onset had "≈ 0 mL within 14 h" beside the malignant course
+  // of its own final infarct
+  const earlyAt = new Map<number, Record<string, number>>();
+  const earlyBeds = (h: number) => {
+    let m = earlyAt.get(h);
+    if (!m) earlyAt.set(h, (m = addLacunes(bedInfarctAt(course, h + 14, untreated, x), course, h + 14)));
+    return m;
+  };
+  const bedEarly: Record<string, number> = {};
+  for (const b of BEDS) bedEarly[b.id] = earlyBeds((ischaemiaStarts[b.region] ?? []).find((h) => h >= onsetH - 1e-9) ?? onsetH)[b.id] ?? 0;
+  cascadeInput.bedEarly = bedEarly;
   cascadeInput.basilarNotReopened = basilarNotReopened(input, plan);
   // first pass: everything but what reads the symptom list (the aspiration warning and the
   // cardiac severity carry no symptoms, so the list sampled below is the same with either pass),
@@ -1023,14 +1038,25 @@ const BASILAR_TRUNK = ['basilar_lower', 'basilar_mid', 'basilar_upper', 'basilar
  * artery closed again
  */
 function basilarNotReopened(input: SimInput, plan: TreatmentPlan | null): boolean {
-  return input.occlusions.some(
-    (o) =>
-      BASILAR_TRUNK.includes(o.vessel) &&
-      o.severity >= 1 &&
-      !o.branch &&
-      endOf(o) === null &&
-      !(plan && !plan.failed && plan.reocclusionH === null && plan.reopened.includes(o)),
-  );
+  return input.occlusions.some((o) => unreopenedBasilar(o, plan));
+}
+const unreopenedBasilar = (o: Occlusion, plan: TreatmentPlan | null) =>
+  BASILAR_TRUNK.includes(o.vessel) &&
+  o.severity >= 1 &&
+  !o.branch &&
+  endOf(o) === null &&
+  !(plan && !plan.failed && plan.reocclusionH === null && plan.reopened.includes(o));
+
+/**
+ * The regions whose stupor, coma or disorder of consciousness is the basilar lesion's own (Z3-2):
+ * the brainstem and the thalamus, while their tissue, not the swelling of a herniation that
+ * compresses them (or the secondary infarct it leaves), makes them dysfunctional. The coma of a
+ * swollen hemisphere is listed without a region, or from the midbrain it compresses.
+ */
+function ownBasilarSource(model: Model, src: string, t: number): boolean {
+  const reg = REGION_BY_ID[src];
+  if (!reg || !(reg.category === 'brainstem' || reg.baseId.startsWith('thalamus'))) return false;
+  return !reg.beds.some((b) => effectsAt(model.cascade, b, t).some((e) => e.kind === 'compressed' || e.kind === 'secondary'));
 }
 
 /**
@@ -1125,7 +1151,24 @@ function listedCourse(input: SimInput, model: Model): ListedCourse {
   const immobile: ListedCourse['immobile'] = [];
   for (const [a, b] of mergeIntervals(lesionStarts.map((l) => [l + DVT_FROM_H, l + DVT_UNTIL_H])))
     for (const r of runs(immobileAt, a, b)) if (r.v) immobile.push({ fromH: r.from - onsetH, untilH: r.until - onsetH });
-  return { swallow, windows, immobile };
+  // the first stupor, coma or disorder of consciousness that a basilar occlusion never reopened
+  // causes itself, from when it begins (Z3-2): one from a swollen hemisphere, before or after it,
+  // is not the comatose basilar occlusion of the trials
+  const basilarStarts = input.occlusions.filter((x) => unreopenedBasilar(x, model.plan)).map(startOf);
+  let basilarComaFromH: number | null = null;
+  if (basilarStarts.length) {
+    const from = Math.min(...basilarStarts);
+    const basilarComaAt = (tAbs: number) => listAt(tAbs).some((x) => comaLike(x) && x.sources.some((src) => ownBasilarSource(model, src, tAbs - onsetH)));
+    for (const [a, b] of mergeIntervals(lesionStarts.map((l) => [l, l + LISTED_WINDOW_H]))) {
+      if (b <= from) continue;
+      const first = runs(basilarComaAt, Math.max(a, from), b).find((r) => r.v);
+      if (first) {
+        basilarComaFromH = first.from - onsetH;
+        break;
+      }
+    }
+  }
+  return { swallow, windows, immobile, basilarComaFromH };
 }
 
 /** the labels of the bilateral ventral pons and the state of the brainstem course each names (cascade.brainstemEvents) */

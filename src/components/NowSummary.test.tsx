@@ -46,7 +46,10 @@ describe('"what is happening now" when the patient falls into a coma (X1-2)', ()
   const i = at(48);
 
   it.each(['zh-TW', 'en'] as Lang[])('%s: executive function, reading and writing are not "better than at 1 day"; they cannot be examined', (lang) => {
-    expect(series[i - 1].symptoms.map((s) => s.id)).toEqual(expect.arrayContaining(['executive', 'alexia', 'agraphia']));
+    // (at 1 day reading and writing are already named apart, as tested through language beside
+    // the global aphasia: Z3-16)
+    expect(series[i - 1].symptoms.map((s) => s.id)).toContain('executive');
+    expect(series[i - 1].unexaminable.filter((s) => s.why === 'aphasia').map((s) => s.id)).toEqual(expect.arrayContaining(['alexia', 'agraphia']));
     expect(series[i].nihss.items['1a']).toBe(3);
     useApp.setState({ lang, tIndex: i });
     const { container } = render(<NowSummary sim={series[i]} series={series} />);
@@ -63,11 +66,15 @@ describe('"what is happening now" when the patient falls into a coma (X1-2)', ()
     expect(line!.textContent).toContain(`+${hidden.length - 5}`);
   });
 
-  it('awake again two weeks later, the line is gone', () => {
+  // Z3-16: awake, what the coma hid is listed again, except what is tested through language while
+  // the global aphasia leaves too little comprehension: the line now gives that reason
+  it('awake again two weeks later, the line no longer names the level of consciousness', () => {
     useApp.setState({ lang: 'en', tIndex: at(336) });
     const { container } = render(<NowSummary sim={series[at(336)]} series={series} />);
     expect(series[at(336)].symptoms.map((s) => s.id)).toContain('executive');
-    expect(container.querySelector('.now-symptoms.unexaminable')).toBeNull();
+    expect(series[at(336)].unexaminable.every((s) => s.why === 'aphasia')).toBe(true);
+    const line = container.querySelector('.now-symptoms.unexaminable');
+    expect(line?.textContent ?? '').not.toMatch(/level of consciousness/);
   });
 });
 

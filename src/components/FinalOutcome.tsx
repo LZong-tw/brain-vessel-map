@@ -55,6 +55,7 @@ export function FinalOutcome() {
   const series = useSimSeries();
   // `st` keeps its identity while these fields do (useShallow), like the series
   const out = useMemo(() => finalOutcome(st, { m3: series[I_3M], m6: series[I_6M] }), [st, series]);
+  const bothDestroyed = out.caveats.includes('bilateral_hemispheres');
   if (!st.occlusions.length && st.map >= 70) return <p className="muted">{t.noOcclusion}</p>;
 
   const { course, untreated } = out;
@@ -188,13 +189,14 @@ export function FinalOutcome() {
       <section className="nihss outcome-nihss">
         <h3>{o.nihssTitle}</h3>
         {/* the course usually or often ends in death, which the model does not represent (C4-F1, Y3-11) */}
+        {/* (both hemispheres destroyed: not the figures of one hemisphere, and who survives: Z3-12) */}
         {out.fatal.map((k) => (
           <p key={k} className="callout danger">
-            {o.fatal[k]}
+            {k === 'herniation' && bothDestroyed ? o.fatalBilateral : o.fatal[k]}
           </p>
         ))}
         {/* a state with a substantial mortality of its own: the figures are a survivor's (Y3-11) */}
-        {out.caveats.map((k) => (
+        {out.caveats.filter((k) => !(k === 'bilateral_hemispheres' && out.fatal.includes('herniation'))).map((k) => (
           <p key={k} className="callout warn">
             {o.survival[k]}
           </p>

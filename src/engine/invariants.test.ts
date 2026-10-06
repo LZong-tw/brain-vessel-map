@@ -346,6 +346,43 @@ describe('syndromes and events agree with the symptoms', () => {
     // 12 h, when both caudal tegmenta are about a quarter infarcted
     ['basilar_mid good reopened 4.5 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 4.5],
     ['basilar_mid good reopened 12 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 12],
+    // Z3-2: a basilar occlusion before or after a swollen hemisphere's coma, and with it
+    [
+      'mca_m1_r, then basilar_mid at 1 month, poor',
+      [
+        { vessel: 'mca_m1_r', severity: 1, fromH: 0 },
+        { vessel: 'basilar_mid', severity: 1, fromH: 720 },
+      ],
+      'poor',
+    ],
+    [
+      'basilar_mid, then mca_m1_r at 1 month, poor',
+      [
+        { vessel: 'basilar_mid', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_r', severity: 1, fromH: 720 },
+      ],
+      'poor',
+    ],
+    [
+      'mca_m1_l, then basilar_lower at 1 month, good',
+      [
+        { vessel: 'mca_m1_l', severity: 1, fromH: 0 },
+        { vessel: 'basilar_lower', severity: 1, fromH: 720 },
+      ],
+      'good',
+    ],
+    // Z3-4: two hemispheres infarcted outside the MCA territory; Z3-12: both MCA territories, the
+    // second two days after the first
+    ['both A2 poor', [{ vessel: 'aca_a2_r', severity: 1 }, { vessel: 'aca_a2_l', severity: 1 }], 'poor'],
+    ['pca_p2_r + aca_a2_l poor', [{ vessel: 'pca_p2_r', severity: 1 }, { vessel: 'aca_a2_l', severity: 1 }], 'poor'],
+    [
+      'mca_m1_l, then mca_m1_r at 48 h, moderate',
+      [
+        { vessel: 'mca_m1_l', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_r', severity: 1, fromH: 48 },
+      ],
+      'moderate',
+    ],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -625,6 +662,71 @@ describe('syndromes and events agree with the symptoms', () => {
     }
   });
 
+  // Z3-2: the basilar "often fatal" risk is that of an unreopened basilar occlusion with a coma it
+  // causes itself: never before that occlusion starts, and with a coma from the brainstem or the
+  // thalamus listed when it begins
+  it.each(CASES)('%s: the basilar fatal risk starts with a brainstem coma, never before the basilar artery closes (Z3-2)', (name) => {
+    const r = series(name)[STOPS.length - 1];
+    const e = r.cascade.events.find((x) => x.id === 'basilar_fatal');
+    if (!e) return;
+    const starts = r.input.occlusions.filter((x) => /^basilar_(lower|mid|upper|tip)$/.test(x.vessel) && x.severity >= 1).map((x) => x.fromH ?? 0);
+    expect(starts.length, name).toBeGreaterThan(0);
+    expect(e.onsetH, name).toBeGreaterThanOrEqual(Math.min(...starts));
+    const then = simulate({ ...r.input, tH: e.onsetH + 0.01 });
+    expect(
+      then.symptoms.some((s) => ['coma', 'disorder_of_consciousness'].includes(s.id) && s.sources.some((src) => REGION_BY_ID[src]?.category === 'brainstem' || /^thalamus_/.test(src))),
+      name,
+    ).toBe(true);
+  });
+
+  // Z3-12: a survivor of the destruction of both hemispheres is never scored awake, and a cerebral
+  // peduncle mostly infarcted (its medial part, which the oculomotor fascicles cross, included)
+  // keeps the third-nerve palsy of that side
+  it.each(CASES)('%s: no alert survivor of both hemispheres destroyed, and no infarcted peduncle without its third-nerve palsy (Z3-12)', (name) => {
+    series(name).forEach((r, i) => {
+      const where = `${name} ${STOPS[i]} h`;
+      const destroyed = r.cascade.events.find((e) => e.id === 'hemispheres_destroyed');
+      if (destroyed && STOPS[i] >= destroyed.onsetH - 1e-9) expect(r.nihss.items['1a'], where).toBe(3);
+      for (const side of ['r', 'l'] as const) {
+        if ((r.regions[`midbrain_peduncle_${side}`]?.infarct ?? 0) < 0.75) continue;
+        expect([...r.symptoms, ...r.unexaminable].some((s) => s.id === 'cn3_palsy' && s.side === side), `${where} ${side}`).toBe(true);
+      }
+    });
+  });
+
+  // Z3-4: the malignant-oedema text never quotes the 145 mL threshold beside a smaller volume of the
+  // hemisphere it names (a side at risk only together with the other says so)
+  it.each(CASES)('%s: the malignant-oedema text quotes the 145 mL threshold only beside a volume that reaches it (Z3-4)', (name) => {
+    const r = series(name)[STOPS.length - 1];
+    for (const e of r.cascade.events.filter((x) => x.id.startsWith('malignant_edema'))) {
+      for (const m of e.desc.en.matchAll(/≈ (\d+) mL within 14 h \(> 145 mL carries high risk\)/g)) expect(Number(m[1]), `${name} ${e.id}`).toBeGreaterThanOrEqual(145);
+      for (const m of e.desc.zh.matchAll(/約 (\d+) mL（> 145 mL 為惡性水腫高風險）/g)) expect(Number(m[1]), `${name} ${e.id}`).toBeGreaterThanOrEqual(145);
+    }
+  });
+
+  // Z3-16: reading, writing, calculation, finger naming, verbal memory and what only the patient
+  // can report are tested through language: not listed beside an aphasia that leaves too little
+  // comprehension (moderate or severe global, Wernicke or mixed transcortical)
+  it.each(CASES)('%s: nothing tested through language is listed beside a moderate or severe aphasia of comprehension (Z3-16)', (name) => {
+    series(name).forEach((r, i) => {
+      if (!r.symptoms.some((s) => ['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'].includes(s.id) && s.sev >= 2 && !s.delayed)) return;
+      const listed = r.symptoms.filter((s) => ['alexia', 'agraphia', 'acalculia', 'finger_agnosia', 'amnesia', 'diplopia', 'vertigo', 'taste_loss', 'proprio_loss'].includes(s.id)).map((s) => s.id);
+      expect(listed, `${name} ${STOPS[i]} h`).toEqual([]);
+    });
+  });
+
+  // Z3-17: the consciousness items of the NIHSS agree: a stuporous patient (1a = 2), who does not
+  // comprehend the questions (1b = 2), performs at most one command; severe aphasia or little speech
+  // (item 9 ≥ 2) answers at most one question
+  it.each(CASES)('%s: the NIHSS consciousness items agree with each other (Z3-17)', (name) => {
+    series(name).forEach((r, i) => {
+      const items = r.nihss.items;
+      const where = `${name} ${STOPS[i]} h`;
+      if ((items['1a'] ?? 0) >= 2) expect([items['1b'], (items['1c'] ?? 0) >= 1], where).toEqual([2, true]);
+      if ((items['9'] ?? 0) >= 2) expect(items['1b'] ?? 0, where).toBeGreaterThanOrEqual(1);
+    });
+  });
+
   it.each(CASES)('%s: every active cascade event that adds a symptom has it in the symptom list', (name) => {
     series(name).forEach((r, i) => {
       const tH = STOPS[i];
@@ -635,7 +737,14 @@ describe('syndromes and events agree with the symptoms', () => {
           // drowsiness is listed as coma when the patient is also comatose; an aphasia is one type at
           // a time, combined from every source (the subcortical aphasia of a striatocapsular infarct
           // within the global aphasia of a cortex that is still ischaemic: Z1-7 brought such a case)
-          const ids = s.id === 'somnolence' ? ['somnolence', 'coma'] : [s.id];
+          // (Z3-12: a coma and the disorder of consciousness that follows it are one state, listed as
+          // the deeper of the two)
+          const ids =
+            s.id === 'somnolence'
+              ? ['somnolence', 'coma', 'disorder_of_consciousness']
+              : s.id === 'coma' || s.id === 'disorder_of_consciousness'
+                ? ['coma', 'disorder_of_consciousness']
+                : [s.id];
           const aphasia = s.id.startsWith('aphasia_');
           expect(
             r.symptoms.some((x) => ids.includes(x.id) || (aphasia && x.id.startsWith('aphasia_'))),

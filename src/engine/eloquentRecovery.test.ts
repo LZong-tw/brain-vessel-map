@@ -104,9 +104,13 @@ describe('a neglect after near-total destruction of the right hemisphere stays s
   });
 
   it('the gaze deviation of a one-sided hemispheric infarct passes as it did, whatever its size (the other frontal eye field takes over)', () => {
+    // (item 2 also scores an isolated third-nerve palsy, which the right ICA-T keeps from the cerebral
+    // peduncle its herniation infarcted, Z3-12: no gaze deviation is listed then)
     for (const input of [scenario('r_ica_t'), one('ica_terminal_l', 'moderate'), scenario('l_m1')]) {
       expect(items(input, 336)['2'] ?? 0).toBeLessThanOrEqual(1);
-      expect(items(input, 720)['2'] ?? 0).toBe(0);
+      const m1 = simulate({ ...input, tH: 720 });
+      expect(m1.symptoms.filter((s) => s.id === 'gaze_deviation' || s.id === 'gaze_paresis_bilateral')).toEqual([]);
+      expect(m1.nihss.items['2'] ?? 0).toBe(m1.symptoms.some((s) => s.id === 'cn3_palsy') ? 1 : 0);
     }
   });
 });

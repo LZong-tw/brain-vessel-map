@@ -168,6 +168,12 @@ const zh: RecoveryStrings = {
         '病灶仍會造成這些缺損，但病人雖然清醒，卻幾乎不會自己動、不說話，也不照指令做，所以需要病人動手、回答或自己說出來的檢查（失用、異己手、伸手、認物、讀寫算、記憶、失語的類型等）都做不了；暫時不列在症狀清單裡，也不算改善。看得到的表現（意志缺失、情緒等）仍會列出。',
       tag: '無動性緘默',
     },
+    aphasia: {
+      label: '聽不懂話（失語），目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但病人聽不懂話（中度以上的全面性、接受性或混合型經皮質失語），而閱讀、書寫、計算、說出手指名稱、語文記憶、對自身缺損的覺察，以及只能靠病人自己說出來的症狀（眩暈、複視、聽力、味覺、位置感、疼痛等），都要透過語言才能檢查，和失語本身分不開；所以暫時不列在症狀清單裡，也不算改善。失用症可以請病人模仿檢查者的動作來檢查，不需要語言，所以仍會列出。理解力恢復時會再列出。',
+      tag: '失語',
+    },
   },
   unexaminableMixedLabel: '目前無法檢查',
 };
@@ -266,6 +272,12 @@ const en: RecoveryStrings = {
       title:
         'The lesion still causes these deficits, but the patient, although awake, hardly moves or speaks and does not act on request, so nothing that needs the patient to act, answer or report can be tested (praxis, the alien hand, reaching, recognition, reading, writing and calculation, memory, the type of aphasia …); they are left out of the symptom list for now and do not count as improved. What can be seen (abulia, emotional expression) is still listed.',
       tag: 'akinetic mutism',
+    },
+    aphasia: {
+      label: 'Cannot be examined: the patient does not understand speech (aphasia)',
+      title:
+        'The lesion still causes these deficits, but the patient does not understand speech (a moderate or severe global, Wernicke or mixed transcortical aphasia), and reading, writing, calculation, naming the fingers, verbal memory, awareness of the deficit and what only the patient can report (vertigo, double vision, hearing, taste, position sense, pain …) are tested through language and cannot be told apart from the aphasia; they are left out of the symptom list for now and do not count as improved. Apraxia is tested by imitating the examiner’s gestures, which needs no language, so it is still listed. They are listed again as comprehension returns.',
+      tag: 'aphasia',
     },
   },
   unexaminableMixedLabel: 'Cannot be examined now',

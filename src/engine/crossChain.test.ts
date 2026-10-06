@@ -215,15 +215,25 @@ describe('colour, reading and writing need an awake patient (R1-5, R1-9 with R5-
     expect(labels(poor)).toContain('alexia_without_agraphia');
   });
 
-  it('the reading, writing and calculation signs of a left M1 infarct pause during the herniation coma and return after it', () => {
+  // Z3-16: awake, they are there, but named apart beside the global aphasia, which leaves too little
+  // comprehension to test them (was: listed beside it)
+  it('the reading, writing and calculation signs of a left M1 infarct cannot be examined in the herniation coma, nor beside the global aphasia', () => {
     const at = (tH: number) => scenario('l_m1', tH, { collateral: 'poor' });
     const GERSTMANN = ['alexia', 'agraphia', 'acalculia', 'finger_agnosia'];
+    const why = (r: SimResult, id: string) => r.unexaminable.find((s) => s.id === id)?.why;
     for (const tH of [72, 168]) {
       const r = at(tH);
       expect(r.nihss.items['1a'], `${tH} h`).toBe(3);
-      for (const id of GERSTMANN) expect(ids(r), `${tH} h`).not.toContain(id);
+      for (const id of GERSTMANN) {
+        expect(ids(r), `${tH} h`).not.toContain(id);
+        expect(why(r, id), `${tH} h ${id}`).toBe('consciousness');
+      }
     }
-    for (const tH of [24, 336, 2160]) for (const id of GERSTMANN) expect(ids(at(tH)), `${tH} h`).toContain(id);
+    for (const tH of [24, 336, 2160])
+      for (const id of GERSTMANN) {
+        expect(ids(at(tH)), `${tH} h`).not.toContain(id);
+        expect(why(at(tH), id), `${tH} h ${id}`).toBe('aphasia');
+      }
     // awake at 3 months, but the language cortex is nearly all infarcted and the global aphasia
     // stays (Z2-6): the tetrad cannot be tested, so no Gerstmann label (C1-F1); was: a mild Broca
     // aphasia and the label (R1-2)
@@ -276,8 +286,9 @@ describe('a stuporous patient’s language is scored and listed; in coma or a di
           expect(ids(r), where).toContain('aphasia_thalamic');
           expect(items(r)['9'], where).toBe(1);
         }
-    expect(scenario('percheron', 24).nihss.total).toBe(6);
-    expect(scenario('percheron_midbrain', 24).nihss.total).toBe(7);
+    // (Z3-17: stuporous, the patient performs at most one command, 1c = 1; was 6 and 7)
+    expect(scenario('percheron', 24).nihss.total).toBe(7);
+    expect(scenario('percheron_midbrain', 24).nihss.total).toBe(8);
   });
 
   it('no aphasia type is listed in a comatose patient or a disorder of consciousness, and item 9 is 3', () => {

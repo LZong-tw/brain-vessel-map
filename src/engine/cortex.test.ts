@@ -115,11 +115,15 @@ describe('C1-F1: one aphasia type at a time (Kertesz & Poole taxonomy)', () => {
     expect(m3.nihss.items['9']).toBe(1);
   });
 
-  it('Gerstmann is not named when global or Wernicke aphasia prevents testing it; the angular deficits stay listed', () => {
+  // Z3-16: the angular deficits are still there, but named apart as tested through language while
+  // the aphasia leaves too little comprehension (was: listed beside it)
+  it('Gerstmann is not named when global or Wernicke aphasia prevents testing it; the angular deficits are there, named apart', () => {
     for (const id of ['l_m1', 'l_m2_inf']) {
       const r = scenario(id, 24);
       expect(labels(r), id).not.toContain('gerstmann_l');
-      expect(sym(r), id).toEqual(expect.arrayContaining(['agraphia(-)', 'acalculia(-)', 'finger_agnosia(-)']));
+      const apart = r.unexaminable.filter((s) => s.why === 'aphasia').map((s) => s.id);
+      expect(apart, id).toEqual(expect.arrayContaining(['agraphia', 'acalculia', 'finger_agnosia']));
+      expect(sym(r), id).not.toContain('agraphia(-)');
     }
     // an angular-gyrus infarct without them keeps the label
     expect(labels(sim(occl('mca_angular_l'), 24, { collateral: 'moderate' }))).toContain('gerstmann_l');

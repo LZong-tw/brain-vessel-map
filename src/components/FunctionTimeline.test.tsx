@@ -10,6 +10,7 @@ import { TIME_STOPS } from '../anatomy/timeline';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { FunctionTimeline } from './FunctionTimeline';
+import { RECOVERY_UI } from '../i18n/uiRecovery';
 
 afterEach(() => {
   cleanup();
@@ -73,9 +74,13 @@ describe('function heat-map under reduced consciousness', () => {
     expect(label).toContain(tr(SYMPTOM_BY_ID.executive.name, lang));
     expect(label).toContain(lang === 'en' ? 'Cannot be examined' : '無法檢查');
     expect(cell.className).not.toMatch(/\bempty\b/);
-    // awake two weeks later, the deficits are listed and drawn again
+    // awake two weeks later, the deficits are listed and drawn again; only what is tested through
+    // language cannot be examined while the global aphasia leaves too little comprehension (Z3-16)
     const i336 = TIME_STOPS.findIndex((s) => s.h === 336);
     const later = screen.getByRole('button', { name: new RegExp(`^${row} · ${tr(TIME_STOPS[i336].label, lang)}`) });
-    expect(later.getAttribute('aria-label')).not.toContain(lang === 'en' ? 'Cannot be examined' : '無法檢查');
+    const laterLabel = later.getAttribute('aria-label') ?? '';
+    expect(later.className).not.toMatch(/\bempty\b/);
+    expect(laterLabel).not.toContain(RECOVERY_UI[lang].unexaminableBy.consciousness.label);
+    expect(laterLabel).toContain(RECOVERY_UI[lang].unexaminableBy.aphasia.label);
   });
 });

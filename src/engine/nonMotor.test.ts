@@ -194,7 +194,10 @@ describe('bladder and taste', () => {
 
   it('taste: the lesion side below the upper pons, no fixed side from the thalamus up', () => {
     expect(find(scenario('l_aica', 24), 'taste_loss').map((s) => s.side)).toEqual(['l']);
-    expect(find(scenario('l_m1', 24), 'taste_loss').map((s) => s.side)).toEqual([null]);
+    // (beside the global aphasia the taste loss is there but named apart, as only the patient can
+    // report it: Z3-16)
+    const lm1 = scenario('l_m1', 24);
+    expect([...lm1.symptoms, ...lm1.unexaminable].filter((s) => s.id === 'taste_loss').map((s) => s.side)).toEqual([null]);
     expect(find(scenario('l_thalamic', 24), 'taste_loss').map((s) => s.side)).toEqual([null]);
   });
 });
@@ -303,8 +306,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C5-F1 drift: was 11 (6l 2); Y1-1: the cerebral peduncle, infarcted by the herniation, has lost
   // its whole corticospinal tract: the arm stays plegic and the leg barely moves (5l: 3 → 4, 6l: 1
   // → 3; was 10). Z2-6: the right MCA cortex is nearly all infarcted, so little of the neglect is
-  // taken over: profound at 3 months (11: 1 → 2; was 13)
-  'r_m1_malignant@2160': [14, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // taken over: profound at 3 months (11: 1 → 2; was 13). Z3-12: the oculomotor fascicles cross the
+  // peduncle the herniation infarcted, so the right third-nerve palsy stays after the compression
+  // ends (2: 0 → 1, an isolated peripheral nerve paresis; was 14)
+  'r_m1_malignant@2160': [15, { 2: 1, 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C1-F2: hemianopia (3: 1 → 2); C4-F2: as r_m1_malignant@24 (1a: 1 → 0); was 17
   'r_m1_decompression@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9); Z2-6: as r_m1_malignant (11:
@@ -313,8 +318,8 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C4-F2: 3.5 mm of midline shift at 24 h, alert (1a: 1 → 0; was 19)
   'r_ica_t@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10); Z2-6: as
-  // r_m1_malignant (11: 1 → 2; was 13)
-  'r_ica_t@2160': [14, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // r_m1_malignant (11: 1 → 2; was 13); Z3-12: as r_m1_malignant (2: 0 → 1; was 14)
+  'r_ica_t@2160': [15, { 2: 1, 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C1-F5: right neglect from the left supramarginal gyrus (11: 0 → 1; was 13)
   'l_m2_sup@24': [14, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1, 11: 1 }, ['mca_superior_l']],
   // C5-F1 drift: was 6 (5r 2); C1-F5: the right neglect of a large supramarginal infarct is still
@@ -364,16 +369,18 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // aphasia from the left (9) and neglect from the right (11) paramedian thalamus (was 5); R5-7: the
   // thalamic word-finding difficulty cannot be examined in a stuporous patient (9: 1 → 0; was 6).
   // X1-5: the scale has the examiner choose a language score in stupor, so the thalamic aphasia is
-  // listed and scored again (9: 0 → 1; was 5)
-  'percheron@24': [6, { '1a': 2, '1b': 2, 9: 1, 11: 1 }, ['thalamic_paramedian_bilateral']],
+  // listed and scored again (9: 0 → 1; was 5). Z3-17: a stuporous patient who does not comprehend
+  // the questions performs at most one of the two commands (1c: 0 → 1; was 6)
+  'percheron@24': [7, { '1a': 2, '1b': 2, '1c': 1, 9: 1, 11: 1 }, ['thalamic_paramedian_bilateral']],
   // C3-F2: the coma of the paramedian thalami has given way to persistent hypersomnia by 3 months
   // (1a 1 → 0); C9-F1, C9-F3/F4: as at 24 h, the neglect has recovered (was 4)
   'percheron@2160': [1, { 9: 1 }, ['thalamic_paramedian_bilateral']],
   // C9-F1: the Percheron pattern with the midbrain (a scenario of its own). MERGE: stuporous
   // (1a = 2), so C5-F1 scores the questions 2 and not the ataxia (1b: 2 in place of 7: 2); R5-7:
   // stuporous, so no thalamic word-finding difficulty is listed (9: 1 → 0; was 7). X1-5: listed and
-  // scored again in stupor, as for percheron@24 (9: 0 → 1; was 6)
-  'percheron_midbrain@24': [7, { '1a': 2, '1b': 2, 2: 1, 9: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
+  // scored again in stupor, as for percheron@24 (9: 0 → 1; was 6). Z3-17: as percheron@24 (1c: 0 →
+  // 1; was 7)
+  'percheron_midbrain@24': [8, { '1a': 2, '1b': 2, '1c': 1, 2: 1, 9: 1, 11: 1 }, ['thalamomesencephalic_bilateral']],
   'percheron_midbrain@2160': [4, { 2: 1, 7: 2, 9: 1 }, ['thalamomesencephalic_bilateral']],
   // C1-F3: the untreated P2 occlusion infarcts the calcarine cortex: a hemianopia (3: 1 → 2; was 4),
   // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l']);
@@ -441,8 +448,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // Y1-0: the infarct grows over hours, about 300 mL at 24 h instead of 334, so the midline shift is
   // just under 4 mm then and the patient still alert (1a: 1 → 0; drowsy from about 26 h; was 19)
   'ica_isolated@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['ica_territory_r', 'neglect_r']],
-  // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10)
-  'ica_isolated@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']],
+  // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10); Z3-12: as
+  // r_m1_malignant, the third-nerve palsy of the infarcted peduncle (2: 0 → 1; was 13)
+  'ica_isolated@2160': [14, { 2: 1, 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']],
   // C9-F2: the PComm feeds the tuberothalamic artery, so the anterior thalamus is infarcted too and
   // has its own label; C9-F4: its dysarthria (10); C9-F2: mild, passing weakness from the
   // inferolateral thalamus (4, 5l: drift, C5-F1); was 6. Z2-8: the leg too, from the part of the

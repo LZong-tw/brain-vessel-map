@@ -13,6 +13,7 @@ import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { treatmentLine } from '../ui/caseSummary';
 import { fmtMl } from '../ui/format';
+import { OUTCOME_UI } from '../i18n/uiOutcome';
 import { RightPanel } from './RightPanel';
 
 const simOf = () => {
@@ -391,6 +392,37 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     render(<RightPanel sim={simOf()} />);
     const tr = within(within(screen.getByRole('table')).getByRole('rowheader', { name: 'Often fatal (basilar not reopened, coma)' }).closest('tr')!);
     expect(tr.getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', 'often']);
+  });
+
+  // Z3-12: both hemispheres destroyed: the herniation figures of one hemisphere do not apply, and the
+  // survivor stays in a disorder of consciousness
+  it('both hemispheres destroyed: their own note in place of the figures of one hemisphere', () => {
+    const both = (a: string, b: string) => [
+      { vessel: a, severity: 1 },
+      { vessel: b, severity: 1 },
+    ];
+    useApp.setState({ occlusions: both('mca_m1_r', 'mca_m1_l'), collateral: 'good', rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const danger = nihss.querySelector('.callout.danger') as HTMLElement;
+    expect(danger.textContent).toBe(OUTCOME_UI['zh-TW'].fatalBilateral);
+    expect(nihss.textContent).not.toContain('存活者多數仍可達 mRS 0–4');
+    expect(nihss.querySelector('.callout.warn')).toBeNull();
+    within(nihss).getByText('3 個月（假如存活）');
+    cleanup();
+    useApp.setState({ lang: 'en' });
+    const en = render(<RightPanel sim={simOf()} />);
+    const n2 = en.container.querySelector('.outcome-nihss') as HTMLElement;
+    expect(n2.textContent).toContain(OUTCOME_UI.en.fatalBilateral);
+    expect(n2.textContent).not.toContain('most survivors still reach mRS 0–4');
+    cleanup();
+    // decompressed, the two infarcted territories do not herniate: the survivor's note alone
+    useApp.setState({ occlusions: both('ica_terminal_r', 'ica_terminal_l'), decompression: true, lang: 'zh-TW' });
+    const dec = render(<RightPanel sim={simOf()} />);
+    const n3 = dec.container.querySelector('.outcome-nihss') as HTMLElement;
+    expect(n3.querySelector('.callout.danger')).toBeNull();
+    expect((n3.querySelector('.callout.warn') as HTMLElement).textContent).toBe(OUTCOME_UI['zh-TW'].survival.bilateral_hemispheres);
+    within(n3).getByText('6 個月（假如存活）');
   });
 
   // Y3-11: a locked-in syndrome is not "usually fatal", but its 3- and 6-month NIHSS is a survivor's

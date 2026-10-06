@@ -173,9 +173,25 @@ describe('symptom list under reduced consciousness', () => {
     within(group).getByText(tr(SYMPTOM_BY_ID.callosal_apraxia.name, lang), { exact: false });
   });
 
-  it('no such group for an awake patient', () => {
+  // Z3-16: an awake patient with a global aphasia cannot be tested for reading, writing or
+  // calculation either; so the awake patient without such a group is one who understands speech
+  it.each(['zh-TW', 'en'] as const)('%s: an awake patient with a global aphasia (left M1) lists reading and writing apart, as tested through language', (lang) => {
     const occlusions = occl('mca_m1_l');
     const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });
+    expect(sim.nihss.items['1a'] ?? 0).toBe(0);
+    useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(24), lang });
+    const { container } = render(<RightPanel sim={sim} />);
+    const group = container.querySelector('.sym-group.unexaminable') as HTMLElement;
+    expect(group).not.toBeNull();
+    within(group).getByText(lang === 'en' ? 'Cannot be examined: the patient does not understand speech (aphasia)' : '聽不懂話（失語），目前無法檢查');
+    for (const id of ['alexia', 'agraphia']) within(group).getByText(tr(SYMPTOM_BY_ID[id].name, lang));
+    expect(within(group).queryByText(tr(SYMPTOM_BY_ID.apraxia.name, lang))).toBeNull();
+  });
+
+  it('no such group for an awake patient who understands speech', () => {
+    const occlusions = occl('mca_m1_r');
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });
+    expect(sim.nihss.items['1a'] ?? 0).toBe(0);
     useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(24), lang: 'en' });
     const { container } = render(<RightPanel sim={sim} />);
     expect(container.querySelector('.sym-group.unexaminable')).toBeNull();

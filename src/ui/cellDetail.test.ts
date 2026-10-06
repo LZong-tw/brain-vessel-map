@@ -114,6 +114,9 @@ describe('function heat-map cell detail under reduced consciousness', () => {
     const ex = d.items.find((s) => s.id === 'executive');
     expect(ex?.change).toBe('again');
     expect(ex?.prevSev).toBeGreaterThan(0);
-    expect(d.unexaminable).toEqual([]);
+    // (what is tested through language stays apart while the global aphasia leaves too little
+    // comprehension: Z3-16)
+    expect(d.unexaminable.every((s) => s.why === 'aphasia')).toBe(true);
+    expect(d.unexaminable.map((s) => s.id)).not.toContain('executive');
   });
 });

@@ -22,6 +22,8 @@
   · Symptoms, 54 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative; a limb whose corticospinal tract is cut where it converges recovers less; an aphasia or a neglect is taken over by what is left of that hemisphere's MCA cortex; brainstem deficits are graded by the share lost rather than all switching at a threshold)
 - 「血管再通」事件依避免的缺損、避免的致命病程或保住的組織量評等，NIHSS 一樣時不寫成差異；不治療時致命的那一欄註明「假如存活」
   · The recanalisation event graded by the deficit, the fatal course or the volume it avoids, never writing the same NIHSS as a difference; the column of a course that is usually fatal marked "if the patient survives"
+- 意識與兩側的病程：基底動脈「常會死亡」只算基底動脈病灶本身造成的昏迷，從那條動脈阻塞後才算；兩側半球合計的惡性水腫只算兩側的中大腦動脈區梗塞；兩側大腦半球都被破壞的存活者列為意識障礙，「最終」頁有兩側自己的說明；被疝脫梗塞的大腦腳留下動眼神經麻痺；病人聽不懂話時，靠語言檢查的項目另外標出；NIHSS 的 1b 與 1c 彼此一致
+  · Consciousness and courses of both hemispheres: the basilar "often fatal" risk counts only a coma the basilar lesion itself causes, from when that artery closes; the joint malignant course of two hemispheres counts their MCA infarcts; a survivor of the destruction of both hemispheres is listed in a disorder of consciousness, with a note of its own on the *Outcome* tab; a cerebral peduncle the herniation infarcted keeps the third-nerve palsy; what is tested through language is named apart in a patient who does not understand speech; NIHSS items 1b and 1c agree
 - 病例介面：發病前條件／阻塞事件／治療三張卡片，範本可載入或疊加多條血管；右側「此刻／最終／詳細」，最終頁有治療與未治療對照
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
 - 35 個教學範本、單一穿通支阻塞（腔隙性中風，可選落點；內囊警訊症候群）、栓子漂流模擬
