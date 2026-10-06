@@ -583,7 +583,9 @@ describe('最終 tab: problems after stroke (population figures)', () => {
     const now = render(<RightPanel sim={simOf()} />);
     expect(section(now.container)).toBeNull();
     expect(now.container.textContent).not.toContain(TITLE);
-    const items = [...now.container.querySelectorAll('.sym-group li')];
+    // (the signs that cannot be examined are listed apart, W1-6: l_m1 keeps a Wernicke aphasia that
+    // leaves too little comprehension to test reading and writing)
+    const items = [...now.container.querySelectorAll('.sym-group:not(.unexaminable) li')];
     expect(items).toHaveLength(simOf().symptoms.length);
     const listed = items.map((li) => li.textContent).join('\n');
     for (const n of riskNames) expect(listed).not.toContain(n);

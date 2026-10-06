@@ -1028,11 +1028,22 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'pain_temp_face', lat: 'contra', sev: 1 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
-      { s: 'horner', lat: 'ipsi', sev: 1 },
+      // The descending sympathetic fibres take up a small part of the lateral tegmentum: one
+      // circumferential branch's share of the region (the P2 segment's, or the superior cerebellar
+      // artery's, 0.3) leaves them, and only a larger infarct (a proximal PCA, quadrigeminal or top-of-
+      // the-basilar pattern) reaches them (W1-11). A PCA occlusion usually gives a field defect, a
+      // hemisensory loss and neuropsychological deficits; a Horner syndrome with it was first
+      // reported after a proximal PCA occlusion that infarcted the anterolateral midbrain and the
+      // thalamus (Bassetti C, Staikov IN. Stroke 1995;26:702–704, PMID 7709421), and in 407 patients
+      // with posterior circulation ischaemia a Horner syndrome went with the proximal (medullary)
+      // territory, a field defect with the distal one (Searls DE et al. Arch Neurol 2012;69:346–351,
+      // PMID 22083796). TODO(medical-review): minLevel
+      { s: 'horner', lat: 'ipsi', sev: 1, minLevel: 0.35 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
       // the same descending sympathetic fibres (Korpelainen et al., Stroke 1993 studied pontine and
-      // medullary infarcts; the midbrain is assumed). TODO(medical-review): sev
-      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      // medullary infarcts; the midbrain is assumed), from the same share of the region.
+      // TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1, minLevel: 0.35 },
     ],
     compartment: 'infra',
   }),

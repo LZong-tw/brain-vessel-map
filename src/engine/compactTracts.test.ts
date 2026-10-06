@@ -55,16 +55,27 @@ describe('a bilateral pontine infarct just under the threshold is not a full rec
   const lower = one('basilar_lower');
   const trigeminal = one('basilar_lower', { variants: ['persistent_trigeminal_r'] });
 
-  it('both keep a lasting bilateral deficit; the smaller infarct a milder one (a dysarthria instead of the anarthria)', () => {
+  it('both give a bilateral deficit; the smaller infarct a milder one (a dysarthria instead of the anarthria)', () => {
+    const a = at(lower, 168);
+    const b = at(trigeminal, 168);
+    expect(b.regions.pons_caudal_basis_r.infarct).toBeLessThan(0.25);
+    expect(b.nihss.total).toBeGreaterThanOrEqual(a.nihss.total / 2);
+    expect(b.nihss.total).toBeLessThanOrEqual(a.nihss.total);
+    expect(b.symptoms.some((s) => s.id === 'dysarthria')).toBe(true);
+    expect(b.symptoms.some((s) => s.id === 'anarthria')).toBe(false);
+  });
+
+  // W1-0: below the symptom threshold each side keeps most of its tract, so each side's deficit is
+  // taken over as a one-sided one (lesionSides): the smaller infarct recovers more, but a mild
+  // weakness of both sides remains (extensive bilateral pontine lesions on DWI do not always mean a
+  // poor outcome after a reopening either: Haussen DC et al. Interv Neurol 2016;5:179–184)
+  it('the smaller infarct recovers more, but leaves a mild weakness of both sides at 1, 3 and 6 months (W1-0)', () => {
     for (const tH of [720, 2160, 4320]) {
       const a = at(lower, tH);
       const b = at(trigeminal, tH);
-      expect(b.regions.pons_caudal_basis_r.infarct, `${tH} h`).toBeLessThan(0.25);
-      expect(b.nihss.total, `${tH} h`).toBeGreaterThanOrEqual(a.nihss.total / 2);
-      expect(b.nihss.total, `${tH} h`).toBeLessThanOrEqual(a.nihss.total);
+      expect(b.nihss.total, `${tH} h`).toBeLessThan(a.nihss.total);
       expect(limbs(b, 'r'), `${tH} h`).toBeGreaterThan(0);
       expect(limbs(b, 'l'), `${tH} h`).toBeGreaterThan(0);
-      expect(b.symptoms.some((s) => s.id === 'dysarthria'), `${tH} h`).toBe(true);
     }
   });
 });

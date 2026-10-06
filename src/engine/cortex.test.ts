@@ -99,20 +99,25 @@ describe('C1-F1: one aphasia type at a time (Kertesz & Poole taxonomy)', () => {
     expect(g).toHaveLength(1);
     expect(g[0].sev).toBe(2);
     expect(g[0].recovery?.compensated ?? 0).toBeGreaterThan(0);
-    // three months: mild, so no longer global (R1-2) — a milder type, no longer mute
+    // three months: mild, so no longer global (R1-2) — a milder type, no longer mute (with most of
+    // Wernicke's area infarcted, a Wernicke type that still does not comprehend the questions: W1-6)
     const m3 = scenario('l_m1', 2160);
     expect(aphasias(m3)).toHaveLength(1);
     expect(get(m3, 'aphasia_global')).toEqual([]);
     expect(m3.nihss.items['9']).toBeLessThan(3);
-    expect(m3.nihss.items['1b'] ?? 0).toBeLessThan(2);
+    expect(m3.nihss.items['1c'] ?? 0).toBeLessThan(2);
   });
 
+  // (W1-6: a mild one where half of Wernicke's area or less is infarcted; l_m2_inf, with 85 % of it,
+  // keeps a moderate-to-severe one)
   it('Wernicke aphasia is graded on item 9: a mild one scores 1', () => {
     const items = estimateNihss([{ id: 'aphasia_wernicke', side: null, sev: 1, sources: [], delayed: false }]).items;
     expect(items['9']).toBe(1);
-    const m3 = scenario('l_m2_inf', 2160);
+    const m3 = sim(occl('mca_m2_inf_l'), 2160, { reperfusionH: 4.5 });
+    expect(m3.regions.superior_temporal_posterior_l.infarct).toBeLessThanOrEqual(0.5);
     expect(get(m3, 'aphasia_wernicke')[0]?.sev).toBe(1);
     expect(m3.nihss.items['9']).toBe(1);
+    expect(get(scenario('l_m2_inf', 2160), 'aphasia_wernicke')[0]?.sev).toBe(2);
   });
 
   // Z3-16: the angular deficits are still there, but named apart as tested through language while

@@ -21,8 +21,10 @@
  *     Applied per symptom in clinical.aggregateSymptoms; summarised per region here. A limb
  *     weakness from where the corticospinal tract converges is taken over less once that tract is
  *     lost (Y1-1), an aphasia or a neglect less the less of the hemisphere's MCA cortex is left
- *     (redundancy.NETWORK_LOSS, Z2-6), and a deficit of both sides at the ventral pons or the
- *     cerebral peduncles hardly at all (the bottleneck, whose site is named: Z2-10). Time course:
+ *     (redundancy.NETWORK_LOSS, Z2-6), a Wernicke aphasia less the less of Wernicke's area is left
+ *     (redundancy.AREA_LOSS, W1-6), and a deficit of both sides at the ventral pons or the
+ *     cerebral peduncles hardly at all (the bottleneck, whose site is named: Z2-10; graded by how
+ *     much of both sides is lost there: W1-7). Time course:
  *     starts after the first day, fastest over the first weeks, mostly done by ~3 months, then
  *     slower to ~6 months with some later gains (time explains much of the improvement in the first
  *     ~10 weeks: Kwakkel et al., Stroke 2006; 37:2348–53; review: Langhorne et al., Lancet 2011;
@@ -30,7 +32,8 @@
  *
  *   • Grading below the threshold: the brainstem's compact tracts and nuclei give their deficits
  *     in proportion to the share lost down to COMPACT_FROM, so they taper rather than switch
- *     (gradeFactor, Z2-8).
+ *     (gradeFactor, Z2-8). Below the symptom threshold such a region is not a dead source of its
+ *     functions, so it does not make another region's deficit a two-sided one (lesionSides, W1-0).
  *
  * Illustrative group-level behaviour, not a prognosis.
  * TODO(medical-review): every magnitude and time constant in this file.
@@ -40,14 +43,19 @@ import { BED_BY_ID, REGIONS, REGION_BY_ID } from '../anatomy';
 import type { DeficitRef, Region, Side } from '../anatomy';
 import { LACUNE_DYSFUNCTION } from '../anatomy/lacunes';
 import {
+  AREA_LOSS,
   BOTTLENECK_FACTOR,
+  BOTTLENECK_FULL,
   BOTTLENECK_REGIONS,
+  BOTTLENECK_SHOWN,
   BOTTLENECK_SITE,
   CST_CONVERGENCE,
   CST_LOST_SHARE,
+  MOTOR_TRACT_SYMPTOMS,
   NETWORK_CORTEX,
   NETWORK_LOSS,
   NO_BACKUP_KINDS,
+  areaLossOf,
   networkLossOf,
   redundancyFor,
   type BottleneckSite,
@@ -125,13 +133,13 @@ export const DEAD_THR = 0.25;
  * stay silent, the edge of the region rather than its tract: the vertebral artery's 15 % of the
  * medial medulla (no hemiparesis with a Wallenberg syndrome, C7-F3) and the paramedian thalamic
  * artery's 15 % of the paramedian midbrain (no oculomotor palsy with a Percheron infarct, C9-F1).
+ * It grades a region's own deficits only: whether a deficit is one- or two-sided still follows the
+ * dead sources, from the symptom threshold (lesionSides, W1-0).
  * TODO(medical-review): 0.15
  */
 export const COMPACT_FROM = 0.15;
 /** a region of compact tracts and nuclei (COMPACT_FROM) */
 export const isCompact = (r: Region) => r.category === 'brainstem';
-/** the infarcted share from which a region counts as a dead source of its functions */
-export const deadThresholdOf = (r: Region) => (isCompact(r) ? COMPACT_FROM : DEAD_THR);
 /**
  * the level of consciousness is not a tract that a small infarct cuts in proportion: coma and
  * drowsiness keep their threshold (they follow the arousal network of both sides, C3-F2)
@@ -196,40 +204,58 @@ export function diaschisisCurve(a: number): number {
 /** Which hemispheric sides have dead tissue serving each symptom (a midline region counts for both). */
 export interface LesionSides {
   bySymptom: Map<string, Set<Side>>;
-  /** … counting only bottleneck regions (ventral pons, cerebral peduncles) */
-  bottleneckBySymptom: Map<string, Set<Side>>;
+  /**
+   * … counting only bottleneck regions (ventral pons, cerebral peduncles): on each side, the
+   * infarcted share of the most infarcted one (W1-7)
+   */
+  bottleneckBySymptom: Map<string, Partial<Record<Side, number>>>;
   /** … and where those bottleneck regions lie (Z2-10) */
   bottleneckSites: Map<string, Set<BottleneckSite>>;
   /** infarcted share of each hemisphere's MCA cortex, by volume (NETWORK_CORTEX, Z2-6) */
   cortexInfarct: Record<Side, number>;
+  /** infarcted share of each region that an AREA_LOSS reads, by region id (Wernicke's area, W1-6) */
+  areaInfarct: Record<string, number>;
 }
 
 /**
- * The dead sources of each symptom: regions infarcted from the symptom threshold (`thr`), regions
- * of compact tracts and nuclei from COMPACT_FROM (Z2-8), and the infarcted share of each
- * hemisphere's MCA cortex.
+ * The dead sources of each symptom: regions infarcted from the symptom threshold (`thr`), and the
+ * infarcted share of each hemisphere's MCA cortex. A deficit counts as two-sided when its pathway is
+ * lost on both sides (W1-0):
+ *   • a region of compact tracts and nuclei grades its own deficits below the threshold (Z2-8), but
+ *     counts as a lesion of their pathway on its side only from it, as every other region: the
+ *     posterior cerebral artery's fifth of a cerebral peduncle, or the vertebral artery's edge of
+ *     the medial medulla that is meant to stay silent (C7-F3), leaves most of that side's tract;
+ *   • a deficit that is a passing effect on a neighbouring pathway (Redundancy.passing: the mild
+ *     weakness of an inferolateral thalamic infarct) is not a lesion of that pathway;
+ *   • a lesion of a motor pathway lies on the side of the hemisphere whose tract it cuts
+ *     (MOTOR_TRACT_SYMPTOMS), so a lateral medullary infarct, whose facial weakness is on its own
+ *     side, cuts the same pathway as the other hemisphere's motor cortex.
  */
 export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): LesionSides {
   const bySymptom = new Map<string, Set<Side>>();
-  const bottleneckBySymptom = new Map<string, Set<Side>>();
+  const bottleneckBySymptom = new Map<string, Partial<Record<Side, number>>>();
   const bottleneckSites = new Map<string, Set<BottleneckSite>>();
-  const put = (m: Map<string, Set<Side>>, id: string, r: Region) => {
-    let set = m.get(id);
-    if (!set) m.set(id, (set = new Set()));
-    if (r.side === 'm') {
-      set.add('r');
-      set.add('l');
-    } else set.add(r.side);
+  const sidesOf = (r: Region, d: DeficitRef): Side[] => {
+    if (r.side === 'm') return ['r', 'l'];
+    // the hemisphere whose motor tract is cut: opposite the weak side of the body
+    if (d.lat === 'ipsi' && MOTOR_TRACT_SYMPTOMS.includes(d.s)) return [r.side === 'r' ? 'l' : 'r'];
+    return [r.side];
   };
   for (const r of REGIONS) {
-    if ((regionInf[r.id] ?? 0) < Math.min(thr, deadThresholdOf(r))) continue;
+    const inf = regionInf[r.id] ?? 0;
+    if (inf < thr) continue;
     const site = BOTTLENECK_REGIONS.includes(r.baseId) ? BOTTLENECK_SITE[r.baseId] : undefined;
     for (const d of r.deficits) {
       if (d.only && r.side !== d.only) continue;
-      if (d.minLevel && (regionInf[r.id] ?? 0) < d.minLevel) continue;
-      put(bySymptom, d.s, r);
+      if (d.minLevel && inf < d.minLevel) continue;
+      if ((d.redundancy ?? redundancyFor(d.s, r.baseId, r.side)).passing) continue;
+      let set = bySymptom.get(d.s);
+      if (!set) bySymptom.set(d.s, (set = new Set()));
+      for (const sd of sidesOf(r, d)) set.add(sd);
       if (site) {
-        put(bottleneckBySymptom, d.s, r);
+        let lv = bottleneckBySymptom.get(d.s);
+        if (!lv) bottleneckBySymptom.set(d.s, (lv = {}));
+        for (const sd of sidesOf(r, d)) lv[sd] = Math.max(lv[sd] ?? 0, inf);
         let sites = bottleneckSites.get(d.s);
         if (!sites) bottleneckSites.set(d.s, (sites = new Set()));
         sites.add(site);
@@ -248,7 +274,12 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
     }
     cortexInfarct[side] = w > 0 ? v / w : 0;
   }
-  return { bySymptom, bottleneckBySymptom, bottleneckSites, cortexInfarct };
+  const areaInfarct: Record<string, number> = {};
+  for (const a of Object.values(AREA_LOSS)) {
+    const id = `${a.area}_${a.side}`;
+    areaInfarct[id] = regionInf[id] ?? 0;
+  }
+  return { bySymptom, bottleneckBySymptom, bottleneckSites, cortexInfarct, areaInfarct };
 }
 
 /**
@@ -262,6 +293,18 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
 export function corticospinalLoss(symptomId: string, regionBase: string, inf: number, initialSev: number, lacune = false): number {
   if (lacune || !CST_LOST_SHARE[symptomId] || !CST_CONVERGENCE.includes(regionBase)) return 0;
   return clamp01((inf - DEAD_THR) / DEAD_THR) * clamp01(initialSev - 1.5);
+}
+
+/**
+ * How far the bottleneck acts on a symptom (0–1, W1-7): not at all until the bottleneck regions
+ * giving it are infarcted beyond the symptom threshold on both sides, in full once the less
+ * infarcted side reaches BOTTLENECK_FULL (the share at which the model names the classical locked-in
+ * syndrome), linearly in between.
+ */
+export function bottleneckDepth(lesions: LesionSides, symptomId: string): number {
+  const lv = lesions.bottleneckBySymptom.get(symptomId);
+  if (lv?.r === undefined || lv.l === undefined) return 0;
+  return clamp01((Math.min(lv.r, lv.l) - DEAD_THR) / (BOTTLENECK_FULL - DEAD_THR));
 }
 
 /**
@@ -300,11 +343,22 @@ export function symptomCompensation(
     const fall = (x: number) => (x > net.lost ? x - (x - net.lost) * netLoss : x);
     share = { ...share, uni: fall(share.uni), bi: fall(share.bi) };
   }
+  // a Wernicke aphasia is taken over less the more of Wernicke's area itself is lost (W1-6)
+  const area = AREA_LOSS[symptomId];
+  const areaLoss =
+    area && NETWORK_CORTEX.includes(region.baseId) ? areaLossOf(symptomId, region.side, lesions.areaInfarct[`${area.area}_${area.side}`] ?? 0) : 0;
+  if (areaLoss > 0) {
+    const fall = (x: number) => (x > area.lost ? x - (x - area.lost) * areaLoss : x);
+    share = { ...share, uni: fall(share.uni), bi: fall(share.bi) };
+  }
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
-  const bottleneck = bilateral && (lesions.bottleneckBySymptom.get(symptomId)?.size ?? 0) >= 2;
+  // the bottleneck acts in proportion to how much of both sides is lost there, and is named once it
+  // acts substantially (W1-7)
+  const depth = bilateral ? bottleneckDepth(lesions, symptomId) : 0;
+  const bottleneck = depth >= BOTTLENECK_SHOWN;
   let compensated = 0;
   if (red.kind !== 'exempt' && !NO_BACKUP_KINDS.has(red.kind) && level > 0) {
-    const gain = bilateral ? share.bi * (bottleneck ? BOTTLENECK_FACTOR : 1) : share.uni;
+    const gain = bilateral ? share.bi * (1 - (1 - BOTTLENECK_FACTOR) * depth) : share.uni;
     compensated = gain * compensationProgress(tH, red.fast || fast) * clamp01(inf / level);
   }
   if (!bottleneck) return { kind: red.kind, compensated, bilateral, bottleneck };

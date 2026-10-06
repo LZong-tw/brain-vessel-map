@@ -195,10 +195,16 @@ const unaware = (c: SyndromeCtx) => c.sym('coma') > 0 || c.sym('disorder_of_cons
 const limbsParalysed = (c: SyndromeCtx) =>
   (['r', 'l'] as Side[]).every((sd) => c.sym('arm_weak', sd) >= 3 && c.sym('leg_weak', sd) >= 3);
 /**
+ * the share of both ventral pontine halves infarcted from which the model names the classical
+ * locked-in syndrome (with every limb paralysed); the bottleneck of the recovery model acts in full
+ * from here (redundancy.BOTTLENECK_FULL, W1-7). TODO(medical-review): 0.4
+ */
+export const LOCKED_IN_CLASSICAL_BASES = 0.4;
+/**
  * classical locked-in: both ventral pons, awake, every limb paralysed (the label also needs the
  * anarthria, `requires`)
  */
-const classicalLockedIn = (c: SyndromeCtx) => bothBases(c, 0.4) && !unaware(c) && limbsParalysed(c);
+const classicalLockedIn = (c: SyndromeCtx) => bothBases(c, LOCKED_IN_CLASSICAL_BASES) && !unaware(c) && limbsParalysed(c);
 /** the other side of the ventral pons is spared (below the symptom threshold) */
 const otherBasesSpared = (c: SyndromeCtx, s: Side) => {
   const o: Side = s === 'r' ? 'l' : 'r';

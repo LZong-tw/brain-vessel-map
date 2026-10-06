@@ -125,6 +125,30 @@ describe('"what is happening now" names the bottleneck where it is (Z2-10)', () 
     expect(sentence('basilar_mid', 720, 'en')).toMatch(/cut together in the ventral pons/);
     expect(sentence('basilar_mid', 720, 'zh-TW')).toMatch(/在腹側橋腦一起被截斷/);
   });
+
+  // W1-7: a quarter of both peduncles infarcted after a bridged reopening (0.8 mL) is not the
+  // bottleneck of a locked-in syndrome: the sentence is not shown
+  it.each([720, 2160])('the top of the basilar bridged at 4.5 h (eTICI 2c) at %s h: no bottleneck sentence', (h) => {
+    const series = TIME_STOPS.map((st) =>
+      simulate({
+        occlusions: [{ vessel: 'basilar_tip', severity: 1 }],
+        variants: [],
+        collateral: 'moderate',
+        map: 93,
+        tH: st.h,
+        reperfusionH: 4.5,
+        decompression: false,
+        treatment: { method: 'bridging', grade: '2c', reocclusionAfterH: null, distalEmbolus: null, noReflow: 0 },
+      }),
+    );
+    for (const lang of ['en', 'zh-TW'] as Lang[]) {
+      useApp.setState({ lang, tIndex: at(h) });
+      const { container } = render(<NowSummary sim={series[at(h)]} series={series} />);
+      const text = container.querySelector('p')?.textContent ?? '';
+      cleanup();
+      expect(text, lang).not.toMatch(/cut together|一起被截斷/);
+    }
+  });
 });
 
 // Z4-13: the tissue sentence says the penumbra "can still be saved" only while a reopening is still

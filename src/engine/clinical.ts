@@ -526,12 +526,13 @@ export function lesionSymptoms(
     // tissue (Z2-8), not pushed over the threshold by the passing perilesional depression of the
     // first days: a small infarct of the cerebral peduncle gave a new dense hemiparesis on day 2
     // with no mass effect, which then went again (Z2-9). From the threshold the depression deepens
-    // its deficits as elsewhere.
+    // its deficits as elsewhere. A deficit with a threshold of its own (minLevel) is judged against
+    // that threshold the same way (W1-11).
     const compact = isCompact(r);
-    const own = (x: string) => {
+    const own = (x: string, thr = DYS_THR) => {
       const all = regionDys[x] ?? 0;
       const tissue = levels?.base[x] ?? all;
-      return compact && !reaches(tissue) ? Math.min(all, tissue) : all;
+      return compact && !reaches(tissue, thr) ? Math.min(all, tissue) : all;
     };
     const inf = inBorder ? b!.inf : regionInf[r.id] ?? 0;
     const dys = inBorder ? b!.dys : own(r.id);
@@ -556,8 +557,11 @@ export function lesionSymptoms(
       }
       const delayed = !!sym.delayed;
       const byInfarct = delayed || !!sym.fromInfarct;
-      const level = byInfarct ? inf : dys;
       const thr = Math.max(DYS_THR, d.minLevel ?? 0);
+      // (a compact region's deficit with a threshold of its own is not pushed over it by the passing
+      // depression either: the P2 segment's share of the lateral midbrain gave a Horner syndrome on
+      // days 2–5 only, W1-11)
+      const level = byInfarct ? inf : compact && d.minLevel && !inBorder ? own(r.id, thr) : dys;
       // graded below the threshold (recovery.tapers, Z2-8)
       const tapers = tapersBelow(r, d);
       // a deep tract that a large lesion reached at onset stays cut where that lesion left an
@@ -670,6 +674,13 @@ export function lesionSymptoms(
     if (hi.sev > lo.sev) map.set(`gaze_deviation|${hi.side}`, { ...hi, sev: (hi.sev - lo.sev) as 1 | 2 | 3, sources });
     else map.set('gaze_paresis_bilateral|', { ...hi, id: 'gaze_paresis_bilateral', side: null, sources });
   }
+  // An eye with a third-nerve palsy shows no Horner syndrome of its own (W1-4): the complete ptosis
+  // of the palsy covers the mild ptosis of the Horner syndrome, and a pupil that has lost both its
+  // constrictor (the oculomotor fibres) and its dilator (the sympathetic fibres) is neither wide nor
+  // small but mid-position and unreactive: an oculomotor palsy with a Horner syndrome on the same
+  // side can look pupil-sparing (Serdaru M, Schaison M, Lhermitte F. Ann Neurol 1983;14:697–698,
+  // PMID 6651258). The sweating loss of the same sympathetic lesion (hypohidrosis) stays.
+  for (const fs of ['r', 'l'] as Side[]) if (get('cn3_palsy', fs) && get('horner', fs)) del('horner', fs);
   for (const fs of ['r', 'l'] as Side[]) {
     const sup = get('quadrant_sup', fs);
     const inf = get('quadrant_inf', fs);

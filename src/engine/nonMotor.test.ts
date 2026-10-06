@@ -279,7 +279,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // Y1-1: the arm weakness comes from half of the posterior limb, where the corticospinal tract
   // converges; plegic in the first week, it recovers to a moderate weakness, not a drift (5r: 1 → 3;
   // was 9)
-  'l_m1@2160': [11, { '1b': 1, 3: 2, 4: 1, '5r': 3, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_complete_l']],
+  // W1-6: 92 % of Wernicke's area is infarcted, so the comprehension deficit is taken over little
+  // (Naeser 1987): the Wernicke type that follows the global aphasia is moderate to severe (9: 1 → 2,
+  // 1b: 1 → 2, 1c: 0 → 1; was 11)
+  'l_m1@2160': [14, { '1b': 2, '1c': 1, 3: 2, 4: 1, '5r': 3, '6r': 1, 8: 1, 9: 2, 10: 1 }, ['mca_complete_l']],
   // Y2-2: the deep infarct the reopening at 2 h leaves (putamen, caudate, posterior limb) is named
   // a striatocapsular infarct next to the inferior-division label of its temporal part (was
   // ['mca_inferior_l'] alone, whose text describes little weakness beside a hemiparesis)
@@ -333,7 +336,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_m2_inf@24': [9, { '1b': 2, '1c': 1, 3: 2, 9: 2, 10: 1, 11: 1 }, ['mca_inferior_l']],
   // C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 6). R1-6: the
   // hemianopia stays where the infarct cut the parietal optic radiation (3: 1 → 2; was 3)
-  'l_m2_inf@2160': [4, { '1b': 1, 3: 2, 9: 1 }, ['mca_inferior_l']],
+  // W1-6: 85 % of Wernicke's area is infarcted, so the Wernicke aphasia stays moderate to severe
+  // (Naeser 1987: 9: 1 → 2, 1b: 1 → 2, 1c: 0 → 1; was 4)
+  'l_m2_inf@2160': [7, { '1b': 2, '1c': 1, 3: 2, 9: 2 }, ['mca_inferior_l']],
   'tia_l_mca@24': [0, {}, []],
   'tia_l_mca@2160': [0, {}, []],
   // C1-F5: the superior parietal lobule alone gives no neglect (was 7, 11: 1, ['aca_r', 'neglect_r'])

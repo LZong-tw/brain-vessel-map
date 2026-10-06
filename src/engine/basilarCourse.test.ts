@@ -43,7 +43,9 @@ describe('X2-9: the swelling of the first days does not bring back a deficit tha
   // the instant blood returns; once a deficit has cleared, the swelling does not bring it back
   // Z2-8: a fifth of both rostral pontine bases infarcted is a small bilateral pontine infarct, and
   // it leaves what such an infarct gives (a mild weakness of both sides, a dysarthria: Kumral 2002),
-  // graded by its size; was: free of deficits once the region fell below the symptom threshold
+  // graded by its size; was: free of deficits once the region fell below the symptom threshold.
+  // W1-0: each side keeps most of its tract, so each side's mild deficit is taken over as a
+  // one-sided one, within weeks
   it('a rescued upper basilar occlusion (poor collaterals, 1 h) recovers within a day to the mild deficit of its small infarcts, without a locked-in label, and is not worse again', () => {
     expect(one('basilar_upper', 12, { collateral: 'poor', reperfusionH: 1 }).nihss.total).toBeLessThan(one('basilar_upper', 1, { collateral: 'poor', reperfusionH: 1 }).nihss.total);
     let prev = Infinity;
@@ -53,10 +55,12 @@ describe('X2-9: the swelling of the first days does not bring back a deficit tha
       prev = r.nihss.total;
       expect(labels(r).filter((id) => id.startsWith('locked_in')), `${tH} h`).toEqual([]);
     }
+    const week = one('basilar_upper', 168, { collateral: 'poor', reperfusionH: 1 });
     const end = one('basilar_upper', 2160, { collateral: 'poor', reperfusionH: 1 });
     expect(end.regions.pons_rostral_basis_r.infarct).toBeLessThan(0.25);
-    expect(end.nihss.total).toBeGreaterThan(0);
-    expect(end.nihss.total).toBeLessThanOrEqual(4);
+    expect(week.nihss.total).toBeGreaterThan(0);
+    expect(week.nihss.total).toBeLessThanOrEqual(4);
+    expect(end.nihss.total).toBeLessThanOrEqual(week.nihss.total);
   });
 
   it('with moderate collaterals reopened at 1.5 h the same within about 3 days: no incomplete locked-in syndrome on days 3–14', () => {

@@ -93,14 +93,17 @@ describe('R1-2: a global aphasia that has become mild changes type', () => {
         }
   });
 
+  // (W1-6: with 92 % of Wernicke's area infarcted, the comprehension deficit stays poor, so the
+  // Wernicke type left is a moderate-to-severe one: Naeser 1987)
   it('left M1 at 3 and 6 months: the dominant remaining component sets the type (global → Wernicke, Copenhagen aphasia study)', () => {
     for (const tH of [2160, 4320]) {
       const r = scenario('l_m1', tH);
-      expect(aphasias(r).map((s) => `${s.id}${s.sev}`), `${tH} h`).toEqual(['aphasia_wernicke1']);
-      // a mild Wernicke aphasia: item 9 = 1, the questions 1, the commands followed
-      expect(r.nihss.items['9'], `${tH} h`).toBe(1);
-      expect(r.nihss.items['1b'], `${tH} h`).toBe(1);
-      expect(r.nihss.items['1c'] ?? 0, `${tH} h`).toBe(0);
+      expect(aphasias(r).map((s) => `${s.id}${s.sev}`), `${tH} h`).toEqual(['aphasia_wernicke2']);
+      // a moderate-to-severe Wernicke aphasia: item 9 = 2, neither question answered, one command
+      // followed (no longer mute: not 9 = 3)
+      expect(r.nihss.items['9'], `${tH} h`).toBe(2);
+      expect(r.nihss.items['1b'], `${tH} h`).toBe(2);
+      expect(r.nihss.items['1c'] ?? 0, `${tH} h`).toBe(1);
       // a fluent type: apraxia of speech is not listed with it (C1-F1)
       expect(sym(r), `${tH} h`).not.toContain('apraxia_of_speech(-)');
     }

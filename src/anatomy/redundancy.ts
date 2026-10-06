@@ -31,8 +31,9 @@
  *
  * Bottleneck: in the ventral pons (and the cerebral peduncles) both corticospinal tracts, both
  * corticobulbar tracts and many cortico-reticular fibres run together, so a lesion of both sides
- * there removes the main pathway and its backup at once. BOTTLENECK_FACTOR is a model assumption
- * built on that anatomy, not a measured figure. The review of 139 locked-in cases compared
+ * there removes the main pathway and its backup at once, the more so the more of both sides is lost
+ * (BOTTLENECK_FULL, W1-7). BOTTLENECK_FACTOR is a model assumption built on that anatomy, not a
+ * measured figure. The review of 139 locked-in cases compared
  * vascular with non-vascular causes, not with hemispheric strokes: vascular cases recovered later
  * and less completely, and survivors beyond 4 months generally recovered well (Patterson &
  * Grabois, Stroke 1986; 17:758–64). In a selected series of 14 patients after early intensive
@@ -45,7 +46,7 @@
  * TODO(medical-review): every magnitude in this file is an illustrative estimate.
  */
 
-import { MCA_CORTEX } from './syndromes';
+import { LOCKED_IN_CLASSICAL_BASES, MCA_CORTEX } from './syndromes';
 
 export type RedundancyKind = 'bilateral' | 'parallel' | 'fine' | 'partial' | 'fcp' | 'none' | 'exempt';
 
@@ -68,6 +69,13 @@ export interface Redundancy {
    */
   fcpSources?: string[];
   /**
+   * the deficit from this source is a passing effect on a neighbouring pathway, not its loss (the
+   * mild weakness of an inferolateral thalamic infarct, from the internal capsule beside it): it
+   * does not count as a lesion of that pathway on its side, so it does not make another region's
+   * deficit a two-sided one (recovery.lesionSides, W1-0)
+   */
+  passing?: boolean;
+  /**
    * a different redundancy when the symptom comes from this source region (base id), for a
    * lesion on one side ('r' / 'l') or on either ('any'); e.g. the cognitive deficits of a
    * right-sided paramedian thalamic stroke recover much better than those of a left-sided one
@@ -87,8 +95,40 @@ export const BOTTLENECK_SITE: Readonly<Record<string, BottleneckSite>> = {
   pons_rostral_basis: 'pons',
   pons_caudal_basis: 'pons',
 };
-/** compensation left after a two-sided lesion at a bottleneck, relative to `bi` */
+/**
+ * The descending motor pathways of the face and limbs, for which the side of a lesion in the
+ * both-sides test (recovery.lesionSides) is that of the hemisphere whose tract it cuts, the side
+ * opposite the weak half of the body, wherever along the tract it lies (W1-0). Every source gives
+ * them on the opposite side of the body except the lateral medulla, whose ipsilateral facial
+ * weakness comes from the corticobulbar fibres of the other hemisphere that loop down into the
+ * medulla after crossing (Kanbayashi T, Sonoo M. BMC Neurol 2021;21:214): with an infarct of the
+ * other hemisphere's motor cortex it is a second lesion of the same pathway, not a lesion of both
+ * sides.
+ */
+export const MOTOR_TRACT_SYMPTOMS: readonly string[] = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'spasticity'];
+/** compensation left after a two-sided lesion at a bottleneck, relative to `bi` (in full: BOTTLENECK_FULL) */
 export const BOTTLENECK_FACTOR = 0.25;
+/**
+ * The bottleneck is graded by how much of both sides is lost there (W1-7): the less infarcted of
+ * the two sides (each side's most infarcted bottleneck region giving the deficit) counts. At the
+ * symptom threshold (a quarter of each side) the lesion is two-sided (`bi`) but most of the tracts
+ * and of the cortico-reticular fibres beside them are left, so the bottleneck takes nothing more
+ * away; it acts in full from the share of both ventral pontine halves at which the model names the
+ * classical locked-in syndrome, every limb paralysed (LOCKED_IN_CLASSICAL_BASES), and linearly in
+ * between. A small infarct of both cerebral peduncles or of the ventral pons after a reopening is
+ * therefore not treated as a locked-in syndrome: bilateral pontine infarcts leave a worse outcome
+ * than one-sided ones (Kumral E et al. J Neurol 2002;249:1659–1670), but even extensive bilateral
+ * pontine lesions on DWI do not always mean a poor outcome after a reopening (Haussen DC et al.
+ * Interv Neurol 2016;5:179–184, PMID 27781047). A model assumption, like BOTTLENECK_FACTOR.
+ * TODO(medical-review): the range
+ */
+export const BOTTLENECK_FULL = LOCKED_IN_CLASSICAL_BASES;
+/**
+ * the bottleneck is named (the Outcome tag, the notes, the sentence of "what is happening now")
+ * once it acts at least this much (its share of the full effect, 0–1): both sides about a third
+ * infarcted; below it the deficit is named as two-sided (`bilateral`)
+ */
+export const BOTTLENECK_SHOWN = 0.5;
 
 /**
  * Where the corticospinal fibres of one side converge: the posterior limb of the internal capsule,
@@ -174,6 +214,50 @@ export const NETWORK_LOSS: Readonly<Record<string, NetworkLoss>> = {
 /** the cortex whose infarcted share NETWORK_LOSS reads (per hemisphere) */
 export const NETWORK_CORTEX: readonly string[] = MCA_CORTEX;
 
+/**
+ * Comprehension recovers through what is left of Wernicke's area itself, whatever the size of the
+ * whole infarct (W1-6). The severity of the comprehension deficit in Wernicke's aphasia followed the
+ * amount of Wernicke's area (the posterior two-thirds of the superior temporal gyrus) lesioned and
+ * not the total temporoparietal lesion size: with half of it or less, comprehension was good at six
+ * months; with more than half, it was poor even one year after onset, worse still when the lesion
+ * reached the middle temporal gyrus (Naeser MA et al. Arch Neurol 1987;44:73–82, PMID 3800725). A
+ * persisting Wernicke's aphasia usually also involved the supramarginal and angular gyri, and the
+ * good-recovery group had less of the superior and middle temporal gyri involved (22 patients:
+ * Kertesz A, Lau WK, Polk M. Brain Lang 1993;44:153–164, PMID 8428309). Global aphasics with more
+ * than half of Wernicke's area lesioned kept a moderate-to-severe comprehension deficit at 1–2
+ * years (8 of 9: Naeser MA et al. Arch Neurol 1990;47:425–432, PMID 2322136).
+ *
+ * So the share of a Wernicke-type aphasia taken over falls from its own `uni` to `lost` as the
+ * infarcted share of the left posterior superior temporal gyrus (the model's Wernicke's area) rises
+ * from `from` (half) to `to`: from about three-fifths of it lost, the aphasia stays moderate to
+ * severe (NIHSS 9 = 2) at 3 and 6 months. It is applied to the Wernicke component only, so a global
+ * aphasia that improves after such an infarct becomes a severe Wernicke type rather than a mild one.
+ * The extension into the middle temporal gyrus and the angular and supramarginal gyri is not
+ * weighed separately. TODO(medical-review): `lost`, `from` and `to`.
+ */
+export interface AreaLoss {
+  /** the hemisphere of the area */
+  side: 'r' | 'l';
+  /** the area (a region base id) whose infarcted share counts */
+  area: string;
+  /** the share taken over once (nearly) all of the area is infarcted */
+  lost: number;
+  /** infarcted share of the area from which the share starts to fall … */
+  from: number;
+  /** … and at which it has reached `lost` */
+  to: number;
+}
+export const AREA_LOSS: Readonly<Record<string, AreaLoss>> = {
+  aphasia_wernicke: { side: 'l', area: 'superior_temporal_posterior', lost: 0.1, from: 0.5, to: 0.6 },
+};
+
+/** How far the share of `symptomId` taken over has fallen towards its AREA_LOSS `lost` value (0–1), for a source on `side`, with this infarcted share of the area. */
+export function areaLossOf(symptomId: string, side: 'r' | 'l' | 'm', areaInfarct: number): number {
+  const a = AREA_LOSS[symptomId];
+  if (!a || side !== a.side) return 0;
+  return Math.min(1, Math.max(0, (areaInfarct - a.from) / (a.to - a.from)));
+}
+
 /** How far the share of `symptomId` taken over has fallen towards its `lost` value (0–1), for a source on `side` with this infarcted share of its hemisphere's MCA cortex. */
 export function networkLossOf(symptomId: string, side: 'r' | 'l' | 'm', cortexInfarct: number): number {
   const net = NETWORK_LOSS[symptomId];
@@ -190,8 +274,8 @@ const partial = (uni: number, bi: number, extra: Partial<Redundancy> = {}): Redu
 const FCP: Redundancy = { kind: 'fcp', uni: 0, bi: 0 };
 const NONE: Redundancy = { kind: 'none', uni: 0, bi: 0 };
 const EXEMPT: Redundancy = { kind: 'exempt', uni: 0, bi: 0 };
-/** the same kind of deficit, but one that passes within days to weeks */
-const transient = (r: Redundancy): Redundancy => ({ ...r, uni: 0.95, bi: 0.6, fast: true });
+/** the same kind of deficit, but one that passes within days to weeks: a passing effect, not a loss of the pathway */
+const transient = (r: Redundancy): Redundancy => ({ ...r, uni: 0.95, bi: 0.6, fast: true, passing: true });
 /**
  * Paramedian thalamic stroke: outcome excellent after right-sided infarcts; persistent frontal
  * and cognitive deficits in 100% of bilateral, 90% of left-sided and 33% of right-sided strokes

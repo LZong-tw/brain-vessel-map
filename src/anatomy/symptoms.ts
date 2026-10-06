@@ -807,8 +807,8 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'cn3_palsy',
     name: { zh: '動眼神經麻痺', en: 'Oculomotor (CN III) palsy' },
     desc: {
-      zh: '眼瞼下垂、瞳孔放大、眼球偏向外下方，造成複視。',
-      en: 'Ptosis, dilated pupil and a "down and out" eye causing double vision.',
+      zh: '眼瞼下垂、瞳孔放大、眼球偏向外下方，造成複視。若旁邊的下行交感神經纖維也一起受損（例如中腦病灶），瞳孔則停在中等大小、對光沒有反應，而不是放大；同一眼也就看不出霍納氏症候群。',
+      en: 'Ptosis, dilated pupil and a "down and out" eye causing double vision. When the descending sympathetic fibres beside it are damaged too (in the midbrain, say), the pupil stays mid-sized and unreactive instead of wide, and no Horner syndrome can be seen on that eye.',
     },
     system: 'eye',
     lateralised: true,

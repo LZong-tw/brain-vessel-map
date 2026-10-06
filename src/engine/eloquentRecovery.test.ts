@@ -76,17 +76,59 @@ describe('an aphasia after near-total destruction of the language cortex stays s
     expect(n(untreated) - n(treated)).toBeGreaterThanOrEqual(4);
   });
 
+  // (W1-6: those that take most of Wernicke's area keep a severe Wernicke type: below)
   it('smaller infarcts recover as before: a mild-to-moderate aphasia at 3 months', () => {
-    for (const id of ['l_m1', 'l_m2_sup', 'l_m2_inf']) {
-      const it9 = items(scenario(id), 2160);
-      expect(it9['9'] ?? 0, id).toBe(1);
-      expect(it9['1c'] ?? 0, id).toBe(0);
+    const it9 = items(scenario('l_m2_sup'), 2160);
+    expect(it9['9'] ?? 0).toBe(1);
+    expect(it9['1c'] ?? 0).toBe(0);
+    expect(items(one('mca_m2_sup_l', 'poor'), 2160)['9'] ?? 0).toBe(1);
+  });
+});
+
+/**
+ * W1-6: comprehension recovers through what is left of Wernicke's area. The severity of the
+ * comprehension deficit in Wernicke's aphasia followed the amount of Wernicke's area (the posterior
+ * two-thirds of the superior temporal gyrus) lesioned, not the size of the whole temporoparietal
+ * lesion: with half of it or less comprehension was good at 6 months, with more than half it was
+ * poor even at 1 year, worse still with the middle temporal gyrus (Naeser MA et al. Arch Neurol
+ * 1987;44:73–82, PMID 3800725); a persisting Wernicke's aphasia usually also involved the
+ * supramarginal and angular gyri (Kertesz A et al. Brain Lang 1993;44:153–164, PMID 8428309); global
+ * aphasics with more than half of Wernicke's area lesioned kept a moderate-to-severe comprehension
+ * deficit at 1–2 years (Naeser MA et al. Arch Neurol 1990;47:425–432, PMID 2322136).
+ */
+describe('a Wernicke aphasia recovers by how much of Wernicke\'s area is left (W1-6)', () => {
+  const wernicke = (input: SimInput) => simulate({ ...input, tH: 2160 }).regions.superior_temporal_posterior_l.infarct;
+
+  it.each([
+    ['l_m2_inf (85 % of Wernicke\'s area)', scenario('l_m2_inf')],
+    ['l_m1 (92 %)', scenario('l_m1')],
+    ['left inferior division, poor collaterals', one('mca_m2_inf_l', 'poor')],
+    ['left inferior division, moderate collaterals', one('mca_m2_inf_l', 'moderate')],
+  ] as const)('%s: more than half of it infarcted, so comprehension stays poor (9 ≥ 2, 1b = 2) at 1, 3 and 6 months', (_name, input) => {
+    expect(wernicke(input)).toBeGreaterThan(0.6);
+    for (const tH of [720, 2160, 4320]) {
+      const it9 = items(input, tH);
+      expect(it9['9'] ?? 0, `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(it9['1b'] ?? 0, `${tH} h`).toBe(2);
+      const aphasia = simulate({ ...input, tH }).symptoms.find((s) => s.id.startsWith('aphasia_'));
+      expect(['aphasia_wernicke', 'aphasia_global', 'aphasia_mixed_tc'], `${tH} h`).toContain(aphasia?.id);
     }
-    for (const [vessel, collateral] of [
-      ['mca_m2_sup_l', 'poor'],
-      ['mca_m2_inf_l', 'poor'],
-    ] as const)
-      expect(items(one(vessel, collateral), 2160)['9'] ?? 0, `${vessel} ${collateral}`).toBe(1);
+  });
+
+  it.each([
+    ['left inferior division reopened at 4.5 h', one('mca_m2_inf_l', 'good', { reperfusionH: 4.5 })],
+    ['left M1 reopened at 6 h', one('mca_m1_l', 'good', { reperfusionH: 6 })],
+  ] as const)('%s: half of it or less infarcted, so comprehension recovers to a mild deficit by 3 months', (_name, input) => {
+    expect(wernicke(input)).toBeLessThanOrEqual(0.5);
+    expect(items(input, 2160)['9'] ?? 0).toBeLessThanOrEqual(1);
+    expect(items(input, 4320)['9'] ?? 0).toBeLessThanOrEqual(1);
+  });
+
+  it('more of Wernicke\'s area infarcted never leaves better comprehension at 3 and 6 months', () => {
+    const runs = [1, 2, 3, 4.5, 6, 12, null].map((reperfusionH) => one('mca_m2_inf_l', 'moderate', { reperfusionH }));
+    const sorted = runs.map((input) => ({ w: wernicke(input), at: [2160, 4320].map((tH) => items(input, tH)['9'] ?? 0) })).sort((a, b) => a.w - b.w);
+    for (let i = 1; i < sorted.length; i++)
+      sorted[i].at.forEach((x, j) => expect(x, `${sorted[i].w.toFixed(2)} vs ${sorted[i - 1].w.toFixed(2)}`).toBeGreaterThanOrEqual(sorted[i - 1].at[j]));
   });
 });
 

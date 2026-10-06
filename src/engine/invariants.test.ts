@@ -702,6 +702,30 @@ describe('syndromes and events agree with the symptoms', () => {
     });
   });
 
+  // W1-4: one pupil is not wide (a third-nerve palsy) and small (a Horner syndrome) at once: the eye of
+  // a third-nerve palsy shows no Horner syndrome of its own, listed or not examinable
+  it.each(CASES)('%s: no third-nerve palsy and Horner syndrome on the same eye (W1-4)', (name) => {
+    series(name).forEach((r, i) => {
+      const all = [...r.symptoms, ...r.unexaminable];
+      for (const side of ['r', 'l'] as const)
+        expect(
+          all.some((s) => s.id === 'cn3_palsy' && s.side === side) && all.some((s) => s.id === 'horner' && s.side === side),
+          `${name} ${STOPS[i]} h ${side}`,
+        ).toBe(false);
+    });
+  });
+
+  // W1-7: the bottleneck is named only when both sides are substantially lost there: for each side,
+  // a bottleneck region (cerebral peduncle, ventral pons) about a third infarcted or more
+  const BOTTLENECK = ['midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis'];
+  it.each(CASES)('%s: a deficit is named a bottleneck one only with both sides about a third lost there (W1-7)', (name) => {
+    series(name).forEach((r, i) => {
+      if (!r.symptoms.some((s) => s.recovery?.bottleneck)) return;
+      const lost = (side: 'r' | 'l') => Math.max(...BOTTLENECK.map((b) => r.regions[`${b}_${side}`]?.infarct ?? 0));
+      expect(Math.min(lost('r'), lost('l')), `${name} ${STOPS[i]} h`).toBeGreaterThanOrEqual(0.32);
+    });
+  });
+
   // Z3-4: the malignant-oedema text never quotes the 145 mL threshold beside a smaller volume of the
   // hemisphere it names (a side at risk only together with the other says so)
   it.each(CASES)('%s: the malignant-oedema text quotes the 145 mL threshold only beside a volume that reaches it (Z3-4)', (name) => {
