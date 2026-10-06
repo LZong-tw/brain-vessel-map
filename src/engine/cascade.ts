@@ -38,6 +38,8 @@ import { resolveCurve, vasoRise } from './edema';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
 import { isTreatable, reopenedByTreatment, startOf } from './schedule';
+import { regainedAfterH } from './tissue';
+import { PERFORATOR_TISSUE } from './tissueParams';
 
 export type EventKind = 'mechanism' | 'imaging' | 'treatment' | 'secondary' | 'complication' | 'recovery';
 export type EventSeverity = 'info' | 'warn' | 'danger' | 'good';
@@ -176,6 +178,12 @@ export interface CascadeInput {
    * often fatal (Y3-11)
    */
   basilarNotReopened?: boolean;
+  /**
+   * the NIHSS 3 months after the onset with the treatment given and without it, worked out by
+   * simulate() in the second pass: the recanalisation event is graded by the deficit it avoids
+   * (Y1-12). Left out (the first pass, or no treatment), it is graded by the volume saved.
+   */
+  reperfusionOutcome?: ReperfusionOutcome;
   /**
    * the midline shift the oedema model (engine/edema.ts) gives a malignant hemispheric oedema
    * without decompression, per side of the swelling, worked out by simulate(): an uncal
@@ -468,11 +476,46 @@ function ivtTimingNote(t: number): L {
 }
 
 /**
+ * The rescued tissue does not work again at the instant blood returns (simulate.ts, Y1-12): only
+ * about 1 in 4 thrombectomy patients has an NIHSS below 6 within 30 min of recanalisation (Desai SM
+ * et al. Stroke Vasc Interv Neurol 2022;2:e000138); about half of the benefit shows in the NIHSS at
+ * 24 h and three quarters at discharge (Kniep H et al. Stroke 2022;53:2828–2837).
+ */
+const REGAIN_NOTE: L = {
+  zh: '救回的組織不會在血流恢復的那一刻就立刻恢復功能：取栓後 30 分鐘內 NIHSS 降到 6 分以下的約只有四分之一；治療帶來的進步約一半在 24 小時的 NIHSS 看得到、四分之三在出院時看得到；缺血越久越深，恢復越慢。',
+  en: ' The rescued tissue does not work again the moment blood returns: only about 1 in 4 patients has an NIHSS below 6 within 30 min of thrombectomy; about half of the benefit shows in the NIHSS at 24 h and three quarters at discharge, more slowly after longer or deeper ischaemia.',
+};
+
+/** the NIHSS 3 months after onset with and without the treatment (CascadeInput.reperfusionOutcome) */
+export interface ReperfusionOutcome {
+  treatedNihss: number;
+  untreatedNihss: number;
+}
+
+/**
+ * a recanalisation is shown as a benefit when it avoids a deficit: an NIHSS at 3 months at least
+ * this much lower than without treatment (Y1-12). Rescuing tissue whose loss changes no deficit
+ * the scale sees is told, but not as a benefit. Without the outcome (the first pass), more than
+ * 5 mL saved.
+ */
+const AVOIDED_NIHSS = 2;
+const reperfusionSeverity = (outcome: ReperfusionOutcome | undefined, savedVolume: number): CascadeEvent['severity'] =>
+  (outcome ? outcome.untreatedNihss - outcome.treatedNihss >= AVOIDED_NIHSS : savedVolume > 5) ? 'good' : 'info';
+/** the sentence that gives the NIHSS at 3 months with and without the treatment */
+const outcomeSentence = (outcome: ReperfusionOutcome | undefined): L =>
+  outcome
+    ? {
+        zh: `模型估計 3 個月時 NIHSS 約 ${outcome.treatedNihss} 分（不治療約 ${outcome.untreatedNihss} 分）。`,
+        en: ` Model estimate: NIHSS at 3 months about ${outcome.treatedNihss} instead of ${outcome.untreatedNihss} without treatment.`,
+      }
+    : { zh: '', en: '' };
+
+/**
  * The recanalisation event when the treatment details differ from the default: it names the
  * method and the eTICI grade, says how much of the territory got its flow back, and says so when
  * the attempt failed.
  */
-function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number, delayH: number): CascadeEvent {
+function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number, delayH: number, outcome?: ReperfusionOutcome): CascadeEvent {
   const m = METHOD_NAME[t.method];
   const g = GRADE_MEANING[t.grade];
   // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
@@ -499,15 +542,16 @@ function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume
   const shareEn = partial ? ` The model gives about ${pct(t.reperfusedFraction)} of the downstream territory its flow back; the rest follows the untreated course.` : '';
   const reclosesZh = t.reocclusionH !== null ? '（血管之後又再阻塞，見「再阻塞」）' : '';
   const reclosesEn = t.reocclusionH !== null ? ' in the end (the artery later closes again: see "Reocclusion")' : '';
+  const o = outcomeSentence(outcome);
   return {
     id: 'reperfusion',
     kind: 'treatment',
-    severity: savedVolume > 5 ? 'good' : 'info',
+    severity: reperfusionSeverity(outcome, savedVolume),
     onsetH: reperfusionH,
     title: { zh: `血管再通：${m.zh}，eTICI ${t.grade}`, en: `Recanalisation: ${m.en}, eTICI ${t.grade}` },
     desc: {
-      zh: `eTICI ${t.grade}：${g.zh}${ivtNote.zh}。${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}。已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-      en: `eTICI ${t.grade}: ${g.en}${ivtNote.en}.${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}. The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+      zh: `eTICI ${t.grade}：${g.zh}${ivtNote.zh}。${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+      en: `eTICI ${t.grade}: ${g.en}${ivtNote.en}.${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
     },
     regions: [],
   };
@@ -814,9 +858,11 @@ const IVT_INTRO: L = {
   zh: '靜脈血栓溶解（alteplase，或以 tenecteplase 替代）：標準是發作 4.5 小時內開始用藥；更晚或醒來才發現時，只在 MRI 或灌流影像篩選後使用（WAKE-UP、EXTEND 試驗）。',
   en: 'IV thrombolysis (alteplase, or tenecteplase as an alternative): standard when started within 4.5 h of onset; later, or on waking with symptoms, only after MRI or perfusion imaging selects the patient (WAKE-UP, EXTEND trials).',
 };
+// the range of the rate: Desai SM et al. Stroke 2019;50:34–37 (415 ICA or M1 occlusions); with poor
+// collaterals the model's infarct grows at the fast end of it (tissueParams.ts, Y1-0)
 const SAVER: L = {
-  zh: '每延遲一分鐘，典型大血管中風約多死亡 190 萬個神經元（Saver 2006）。',
-  en: 'Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006).',
+  zh: '每延遲一分鐘，典型大血管中風約多死亡 190 萬個神經元（Saver 2006）；實際速度因人而異，從每分鐘不到 3.5 萬到超過 2700 萬個（Desai 2019），側枝越差越快。',
+  en: 'Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006); the actual rate varies from under 35,000 to over 27 million a minute (Desai 2019), faster the poorer the collaterals.',
 };
 
 /** what fits this occlusion site: thrombolysis, thrombectomy and the trials behind them */
@@ -951,6 +997,38 @@ const BRAINSTEM_EVENT: Record<BrainstemState, { id: string; title: L }> = {
 };
 
 /**
+ * the start of the run of brainstem stretches that follow one another without a gap up to stretch
+ * `i` (one course: a classical locked-in state that turns incomplete as the pons recovers)
+ */
+function runStartOf(course: BrainstemCourse, i: number): number {
+  const segs = course.segments;
+  let start = segs[i].fromH;
+  for (let j = i - 1; j >= 0 && segs[j].untilH !== null && Math.abs(segs[j].untilH! - start) < 1e-6; j--) start = segs[j].fromH;
+  return start;
+}
+
+/** the latest reopening in the run up to the end of stretch `i`, when that stretch ends (null otherwise) */
+function reopeningOf(course: BrainstemCourse, i: number): number | null {
+  const end = course.segments[i].untilH;
+  if (end === null) return null;
+  const start = runStartOf(course, i);
+  return course.reopenH.filter((r) => r >= start - 1e-6 && r <= end + 1e-6).pop() ?? null;
+}
+
+/** stretch `i` ends after blood returned during its run: it clears with the reopening (Y1-12) */
+const endsAfterReopening = (course: BrainstemCourse, i: number) => reopeningOf(course, i) !== null;
+
+/**
+ * a state that clears after blood returned before the tissue of both sides died: at once (`atOnce`,
+ * when nothing had begun to die), or as the rescued tissue regains its function over the following
+ * hours to days (tissue.silentAfterReflow, Y1-12), by `end`
+ */
+const resolvesZh = (back: string, end: string, atOnce: boolean) =>
+  `血流在發作後 ${back}恢復，兩側沒有形成梗塞：${atOnce ? '這個狀態隨之解除。' : `救回的組織在之後幾小時到幾天內逐漸恢復功能，這個狀態約在發作後 ${end}解除。`}`;
+const resolvesEn = (back: string, end: string, atOnce: boolean) =>
+  ` Blood returned ${back} after onset before both sides infarcted, so the state ${atOnce ? 'resolves then' : `resolves as the rescued tissue regains its function over the following hours to days, by about ${end} after onset`}.`;
+
+/**
  * The events of the brainstem consciousness course (X2-7, X2-10, X2-11, X2-15): one per stretch
  * of the course the labels show, titled by what they show then and told from what came before
  * and what follows. A stretch that ends when blood returns says so; the times in the texts count
@@ -960,26 +1038,32 @@ function brainstemEvents(course: BrainstemCourse, care: L, regions: { coma: stri
   const out: CascadeEvent[] = [];
   const seen: Record<string, number> = {};
   const segs = course.segments;
-  const atReopening = (h: number | null) => h !== null && course.reopenH.some((r) => Math.abs(r - h) < 1e-6);
+  /** the latest reopening in [a, b], or null */
+  const reopenedIn = (a: number, b: number) => course.reopenH.filter((r) => r >= a - 1e-6 && r <= b + 1e-6).pop() ?? null;
   segs.forEach((seg, i) => {
     const prev = i > 0 && segs[i - 1].untilH !== null && Math.abs(segs[i - 1].untilH! - seg.fromH) < 1e-6 ? segs[i - 1] : null;
     const next = seg.untilH !== null && i + 1 < segs.length && Math.abs(segs[i + 1].fromH - seg.untilH) < 1e-6 ? segs[i + 1] : null;
     const after = (h: number) => ({ zh: formatHours(h - seg.lesionOnsetH, 'zh-TW'), en: formatHours(h - seg.lesionOnsetH, 'en') });
     const end = seg.untilH === null ? null : after(seg.untilH);
-    const reopened = atReopening(seg.untilH);
+    // blood that returned during this stretch or the ones just before it (one course: a classical
+    // locked-in state that turned incomplete as the pons recovered) ends it (Y1-12)
+    const reopenH = reopeningOf(course, i);
+    // when blood returned, and how the state ends with it: at once, or as the tissue works again
+    const back = reopenH === null ? null : after(reopenH);
+    const atOnce = reopenH !== null && seg.untilH !== null && Math.abs(seg.untilH - reopenH) < 1e-6;
     const lis = (st: BrainstemState | undefined) => st === 'classical' || st === 'incomplete';
     let zh = '';
     let en = '';
     if (seg.state === 'coma') {
       zh = '四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。';
       en = 'Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation.';
-      if (end && reopened && lis(next?.state)) {
+      if (end && back && lis(next?.state)) {
         const part = next!.state === 'incomplete';
-        zh += `血流在發作後 ${end.zh}恢復，兩側被蓋還沒有形成梗塞：昏迷隨之解除；但兩側橋腦腹側已經梗塞，病人醒來是${part ? '不完全' : ''}閉鎖的（清醒、有意識，卻${part ? '幾乎' : ''}不能動也不能說話）。`;
-        en += ` Blood returned ${end.en} after onset before the tegmentum of both sides infarcted, so the coma lifts then; but the ventral pons has infarcted on both sides, so the person wakes up ${part ? 'incompletely ' : ''}locked-in (awake and aware, ${part ? 'barely able' : 'unable'} to move or speak).`;
-      } else if (end && reopened && !next) {
-        zh += `血流在發作後 ${end.zh}恢復，兩側沒有形成梗塞：這個狀態隨之解除。`;
-        en += ` Blood returned ${end.en} after onset before both sides infarcted, so the state resolves then.`;
+        zh += `血流在發作後 ${back.zh}恢復，兩側被蓋還沒有形成梗塞：昏迷${atOnce ? '隨之解除' : `隨著被蓋恢復功能而解除（約在發作後 ${end.zh}）`}；但兩側橋腦腹側已經梗塞，病人醒來是${part ? '不完全' : ''}閉鎖的（清醒、有意識，卻${part ? '幾乎' : ''}不能動也不能說話）。`;
+        en += ` Blood returned ${back.en} after onset before the tegmentum of both sides infarcted, so the coma lifts ${atOnce ? 'then' : `as it regains its function, by about ${end.en} after onset`}; but the ventral pons has infarcted on both sides, so the person wakes up ${part ? 'incompletely ' : ''}locked-in (awake and aware, ${part ? 'barely able' : 'unable'} to move or speak).`;
+      } else if (end && back && !next) {
+        zh += resolvesZh(back.zh, end.zh, atOnce);
+        en += resolvesEn(back.en, end.en, atOnce);
       } else {
         zh += '這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。';
         en += ' Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.';
@@ -997,7 +1081,8 @@ function brainstemEvents(course: BrainstemCourse, care: L, regions: { coma: stri
         zh = `昏迷已經過去：病人醒著、有意識，但四肢與臉部${part ? '嚴重無力' : '完全癱瘓'}、無法說話吞嚥，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。因為接在昏迷之後、外觀又像昏迷，很容易被忽略：要反覆請病人用上下看或眨眼回答問題。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。`;
         en = `The coma has lifted: the person is awake and aware, but with ${part ? 'severe weakness' : 'total paralysis'} of limbs and face and no speech or swallowing, communicating by vertical eye movements and blinking (the midbrain gaze centres are spared). Because it follows a coma and looks like one, it is easily missed: ask repeatedly for answers by looking up or blinking. With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.`;
       } else if (prev && part) {
-        const lead = atReopening(seg.fromH) ? after(seg.fromH) : null;
+        const leadH = reopenedIn(prev.fromH, seg.fromH);
+        const lead = leadH === null ? null : after(leadH);
         zh = `${lead ? `血流在發作後 ${lead.zh}恢復，救回部分橋腦腹側：四肢已能稍微動，閉鎖症候群變成「不完全」。` : '四肢已能稍微動：典型閉鎖症候群已變成「不完全」閉鎖。'}病人仍然意識清楚、幾乎不能說話、吞嚥嚴重困難，用垂直眼動與眨眼溝通。`;
         en = `${lead ? `Blood returned ${lead.en} after onset and saved part of the ventral pons: some limb movement has come back, so the locked-in syndrome is now incomplete.` : 'Some limb movement has come back: classical locked-in syndrome has become incomplete.'} The person is still conscious, with little or no speech and severe difficulty swallowing, communicating by vertical eye movements and blinking.`;
       } else if (prev) {
@@ -1009,9 +1094,9 @@ function brainstemEvents(course: BrainstemCourse, care: L, regions: { coma: stri
       }
       zh += care.zh;
       en += care.en;
-      if (end && !next && reopened) {
-        zh += `血流在發作後 ${end.zh}恢復，兩側沒有形成梗塞：這個狀態隨之解除。`;
-        en += ` Blood returned ${end.en} after onset before both sides infarcted, so the state resolves then.`;
+      if (end && !next && back) {
+        zh += resolvesZh(back.zh, end.zh, atOnce);
+        en += resolvesEn(back.en, end.en, atOnce);
       } else if (end && !next) {
         zh += `約在發作後 ${end.zh}，四肢無力與無法說話已減輕，不再是這個表現。`;
         en += ` By about ${end.en} after onset the weakness of all four limbs and the loss of speech have eased, and the picture no longer applies.`;
@@ -1136,8 +1221,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 6,
       title: { zh: '缺血連鎖反應（數秒至數分鐘）', en: 'Ischaemic cascade (seconds to minutes)' },
       desc: {
-        zh: '血流中斷約 10 秒內神經元停止放電而出現症狀；數分鐘內能量（ATP）耗盡 → 鈉鉀幫浦失效 → 細胞腫脹（細胞毒性水腫）→ 麩胺酸大量釋放造成興奮毒性 → 鈣離子湧入、自由基與發炎反應 → 細胞死亡。核心區在數分鐘內壞死；周邊的「缺血半影區」靠側枝循環勉強存活，是治療要搶救的目標。',
-        en: 'Within ~10 s of lost flow neurons stop firing and symptoms begin. Within minutes ATP runs out → ion pumps fail → cells swell (cytotoxic oedema) → glutamate floods out (excitotoxicity) → calcium overload, free radicals and inflammation → cell death. The core dies within minutes; the surrounding penumbra survives on collateral flow and is what treatment tries to rescue.',
+        zh: '血流中斷約 10 秒內神經元停止放電而出現症狀；數分鐘內能量（ATP）耗盡 → 鈉鉀幫浦失效 → 細胞腫脹（細胞毒性水腫）→ 麩胺酸大量釋放造成興奮毒性 → 鈣離子湧入、自由基與發炎反應 → 細胞死亡。組織死得多快，取決於還剩多少血流、缺血多久：終末動脈完全沒有血流的地方（深部穿通支的供應區）約半小時內壞死；側枝還送得到一點血的皮質可以撐幾個小時（清醒猴子的中大腦動脈阻塞 15–30 分鐘只留下顯微鏡下的小梗塞），血流越少死得越快；周邊的「缺血半影區」靠側枝循環可撐數小時到一天。還沒壞死的組織就是治療要搶救的目標；梗塞擴大的速度因人而異，大血管阻塞的中位數每小時約 3–5 mL，側枝差的人常超過每小時 10 mL。',
+        en: 'Within ~10 s of lost flow neurons stop firing and symptoms begin. Within minutes ATP runs out → ion pumps fail → cells swell (cytotoxic oedema) → glutamate floods out (excitotoxicity) → calcium overload, free radicals and inflammation → cell death. How fast tissue dies depends on how little blood still reaches it and for how long: where an end artery leaves none at all (the deep perforator territories) it dies within about half an hour; cortex that collaterals still reach lasts for hours (in awake monkeys 15–30 min of MCA occlusion left only microscopic infarcts), the faster the less flow it gets; and the surrounding penumbra survives on collateral flow for hours to a day. Tissue not yet dead is what treatment tries to rescue; how fast the infarct grows varies widely, with a median of about 3–5 mL/h in large-vessel occlusion and often more than 10 mL/h with poor collaterals.',
       },
       regions: lacunarOnly ? lacuneIschaemia : infarctedRegions,
     });
@@ -1180,19 +1265,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // hours from the onset of the (most recent) reopened occlusion, as in the settings panel
     const starts = input.occlusions.filter((o) => reopenedByTreatment(o, reperfusionH)).map(startOf);
     const delayH = starts.length ? reperfusionH - Math.max(...starts) : reperfusionH;
-    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume, delayH));
+    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome));
     pushTreatmentComplications(events, treatment, reperfusionH);
   } else if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
+    const o = outcomeSentence(input.reperfusionOutcome);
     events.push({
       id: 'reperfusion',
       kind: 'treatment',
-      severity: savedVolume > 5 ? 'good' : 'info',
+      severity: reperfusionSeverity(input.reperfusionOutcome, savedVolume),
       onsetH: reperfusionH,
       title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
       desc: {
-        zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞。已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-        en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct. The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+        zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+        en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
       },
       regions: [],
     });
@@ -1667,13 +1753,15 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // the infarcted share from which the tissue counts as dead.
   const transientUntil = (pairs: [string, string][], thr = 0.3) =>
     input.flowReturnsH != null && !bilateral((r) => infarcted(r, thr), pairs) ? input.flowReturnsH : undefined;
-  const clears = (h: number | undefined) =>
-    h === undefined
-      ? { zh: '', en: '' }
-      : {
-          zh: `血流在發作後 ${formatHours(h, 'zh-TW')}恢復，兩側沒有形成梗塞：這個狀態隨之解除。`,
-          en: ` Blood returned ${formatHours(h, 'en')} after onset before both sides infarcted, so the state resolves then.`,
-        };
+  // … and it eases as the rescued tissue regains its function (Y1-12): estimated for tissue that
+  // was ischaemic from onset, with the shortest lag (the perforators)
+  const regainedBy = (h: number) => h + regainedAfterH(Math.max(0, h - PERFORATOR_TISSUE.lagH));
+  const clears = (h: number | undefined) => {
+    if (h === undefined) return { zh: '', en: '' };
+    const end = regainedBy(h);
+    const atOnce = end - h < 1e-6;
+    return { zh: resolvesZh(formatHours(h, 'zh-TW'), formatHours(end, 'zh-TW'), atOnce), en: resolvesEn(formatHours(h, 'en'), formatHours(end, 'en'), atOnce) };
+  };
   // the tegmentum (arousal) failing on both sides gives coma (C3-F1): acutely ischaemic at the index
   // onset, or at the onset of a lesion of its own before or after it (Y3-19)
   const ischaemicOnBoth = ([r, l]: [string, string]) =>
@@ -1746,7 +1834,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       kind: 'complication',
       severity: 'danger',
       onsetH: 0,
-      endH: Math.min(168, until ?? Infinity),
+      endH: Math.min(168, until === undefined ? Infinity : regainedBy(until)),
       title: { zh: '雙側延髓受損：呼吸衰竭風險', en: 'Bilateral medulla: risk of respiratory failure' },
       desc: {
         zh: `延髓的呼吸節律中樞與吞嚥反射受損，可能需要插管與呼吸器。${note.zh}`,
@@ -1820,12 +1908,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // PMID 22541608) — not "usually fatal", but the 3- and 6-month picture is a survivor's
   const survival = new Set<SurvivalCaveat>();
   const bc = input.listed?.brainstem;
-  if (
-    bc?.segments.some(
-      (g) => (g.state === 'classical' || g.state === 'incomplete') && !(g.untilH !== null && bc.reopenH.some((h) => Math.abs(h - g.untilH!) < 1e-6)),
-    )
-  )
-    survival.add('locked_in');
+  // (a locked-in stretch that ends after blood returned during it, or during the stretches just
+  // before it, clears with the reopening, at once or as the rescued pons regains its function: Y1-12)
+  if (bc?.segments.some((g, i) => (g.state === 'classical' || g.state === 'incomplete') && !endsAfterReopening(bc, i))) survival.add('locked_in');
   if (bilateral((r) => finalLevel(r) >= SIGNS_THR, [['medulla_medial_r', 'medulla_medial_l']])) survival.add('bilateral_medulla');
 
   // ── 6. systemic complications ──────────────────────────────────

@@ -2,8 +2,10 @@
  * Tissue fate as a function of residual perfusion and time.
  *
  * Relative CBF thresholds (fraction of normal):
- *   < 0.30   ischaemic core — irreversible within minutes (CT-perfusion rCBF < 30 %;
- *            Campbell et al. Stroke 2011)
+ *   < 0.30   ischaemic core (CT-perfusion rCBF < 30 %; Campbell et al. Stroke 2011) — all of it is
+ *            lost if flow never returns, but not at once: an end-artery territory without any
+ *            flow within about half an hour, tissue that collaterals reach over hours, the faster
+ *            the less flow it gets (tissueParams.ts, Y1-0)
  *   < 0.55   penumbra — functionally impaired (symptomatic) but salvageable; converts to infarct
  *            over hours, faster the lower the flow. The concept is Astrup, Siesjö & Symon's
  *            (Stroke 1981): tissue whose electrical function has failed while its ion pumps still
@@ -38,9 +40,13 @@ export const CORE_REL = DEFAULT_TISSUE.coreRel;
 export const PENUMBRA_REL = DEFAULT_TISSUE.penumbraRel;
 export const OLIGEMIA_REL = DEFAULT_TISSUE.oligemiaRel;
 
-/** hours until 63 % of a unit at this perfusion has infarcted (after the lag, if any) */
+/**
+ * hours until 63 % of a unit at this perfusion has infarcted (after the lag, if any): below the core
+ * threshold from coreTauH at no flow to coreTauH · coreTauSpan just below the threshold, in the
+ * penumbra from penumbraTauMinH at its bottom to penumbraTauMinH · penumbraTauSpan at its top
+ */
 export function tauHours(rel: number, p: TissueParams = DEFAULT_TISSUE): number {
-  if (rel < p.coreRel) return p.coreTauH;
+  if (rel < p.coreRel) return p.coreTauSpan === 1 ? p.coreTauH : p.coreTauH * Math.pow(p.coreTauSpan, Math.max(0, rel) / p.coreRel);
   if (rel >= p.penumbraRel) return Infinity;
   const x = (rel - p.coreRel) / (p.penumbraRel - p.coreRel);
   return p.penumbraTauMinH * Math.pow(p.penumbraTauSpan, x);
@@ -123,7 +129,9 @@ export function infarctFractionOf(history: readonly FlowPhase[], tH: number, p: 
  *     window has passed since the current phase began (after that it has stabilised: hypoperfused
  *     but functioning, i.e. "oligemia", with `stabilisedH` the hours since it stabilised);
  *   • "salvaged" when the flow was below the penumbra threshold in an earlier phase and is above
- *     it now;
+ *     it now, with `reflowH` the hours since blood returned and `ischaemicH` the hours of ischaemia
+ *     beyond the lag before that (see ischaemicHours): the caller lets it regain its function over
+ *     the following hours to days (silentAfterReflow, Y1-12);
  *   • otherwise "oligemia" or "normal" by the current flow.
  * The current phase is the last one with fromH ≤ t; before the first phase, flow is normal.
  */
@@ -131,7 +139,7 @@ export function tissueCourse(
   history: readonly FlowPhase[],
   tH: number,
   p: TissueParams = DEFAULT_TISSUE,
-): { f: number; rest: TissueState; stabilisedH?: number } {
+): { f: number; rest: TissueState; stabilisedH?: number; reflowH?: number; ischaemicH?: number } {
   const f = infarctFractionOf(history, tH, p);
   let c = -1;
   while (c + 1 < history.length && history[c + 1].fromH <= tH) c++;
@@ -150,10 +158,91 @@ export function tissueCourse(
     const resolveH = penumbraResolveH(cur, p);
     if (since < resolveH) rest = 'penumbra';
     else return { f, rest: 'oligemia', stabilisedH: since - resolveH };
-  } else if (wasIschaemic(history, c, p)) rest = 'salvaged';
-  else rest = cur < p.oligemiaRel ? 'oligemia' : 'normal';
+  } else if (wasIschaemic(history, c, p)) {
+    // blood has returned since the last ischaemic phase (Y1-12)
+    let j = c;
+    while (j > 0 && history[j - 1].rel >= p.penumbraRel) j--;
+    return { f, rest: 'salvaged', reflowH: tH - history[j].fromH, ischaemicH: ischaemicHours(history, j, p) };
+  } else rest = cur < p.oligemiaRel ? 'oligemia' : 'normal';
   return { f, rest };
 }
+
+/**
+ * Hours of ischaemia (flow below the penumbra threshold) before phase `end`, beyond the lag: the
+ * time in which the tissue was dying, added up over every ischaemic phase. Nothing counts within
+ * the lag, so a TIA of minutes gives 0.
+ */
+export function ischaemicHours(history: readonly FlowPhase[], end: number, p: TissueParams = DEFAULT_TISSUE): number {
+  let budget = p.lagH;
+  let h = 0;
+  for (let i = 0; i < end && i + 1 < history.length; i++) {
+    if (!(history[i].rel < p.penumbraRel)) continue;
+    const dt = history[i + 1].fromH - history[i].fromH;
+    const used = Math.min(budget, dt);
+    budget -= used;
+    h += dt - used;
+  }
+  return h;
+}
+
+/**
+ * Function returns gradually after reperfusion (Y1-12). Of the tissue that survives `ischaemicH`
+ * hours of ischaemia beyond the lag (ischaemicHours), this share is still silent `sinceH` hours
+ * after blood returned. A part returns at once — all of it when nothing had begun to die (within
+ * the lag: a TIA of minutes), about a quarter after an hour of ischaemia, almost none after two
+ * hours or more — and the rest in two steps: most of it with a time constant that grows with how
+ * long the ischaemia lasted (about 2 h after an hour of it, about 16 h after 6 h: half back by
+ * about 2 h and by about a day), and a slower quarter (eight times slower) that is back within
+ * weeks. The time constant follows how long the ischaemia lasted, not how deep it was at each
+ * spot: how deep it was mostly decides how much of the tissue dies (the tissue model), and all the
+ * rescued tissue of a territory regains its function at one pace, so the deficits shrink towards
+ * the final picture without new combinations appearing on the way (an aphasia type changing from
+ * fluent to non-fluent, which does not happen: X3-14).
+ *
+ * TODO(medical-review): an illustrative shape. Only about 1 in 4 thrombectomy patients has an
+ * NIHSS below 6 within 30 min of successful recanalisation (Desai SM et al. Stroke Vasc Interv
+ * Neurol 2022;2:e000138); 54 % of the functional benefit of recanalisation is apparent in the
+ * NIHSS at 24 h and 75 % at discharge (Kniep H et al. Stroke 2022;53:2828–2837); the benefit
+ * falls with every hour of delay to reperfusion (Fransen PS et al. JAMA Neurol 2016;73:190–196)
+ * and recovery can be delayed (the "stunned brain": Klapproth S et al. J Neurol 2025;272:313).
+ * Rescued penumbra can still lose neurons in proportion to how deep its hypoperfusion was
+ * (Guadagno JV et al. Brain 2008;131:2666–2678): the model takes that lasting loss to be zero, so
+ * all of the rescued function returns in the end.
+ */
+export function silentAfterReflow(sinceH: number, ischaemicH: number): number {
+  if (!(ischaemicH > 0)) return 0;
+  const later = 1 - Math.exp(-ischaemicH / REFLOW_AT_ONCE_H);
+  const tau = REFLOW_TAU_PER_ISCHAEMIC_H * ischaemicH;
+  const s = Math.max(0, sinceH);
+  return later * (REFLOW_FAST_SHARE * Math.exp(-s / tau) + (1 - REFLOW_FAST_SHARE) * Math.exp(-s / (REFLOW_SLOW_FACTOR * tau)));
+}
+
+/**
+ * Hours after blood returned by which less than `below` of the rescued tissue is still silent, after
+ * `ischaemicH` hours of ischaemia beyond the lag (silentAfterReflow): when a deficit of tissue that
+ * was all ischaemic clears (0 when it clears at once).
+ */
+export function regainedAfterH(ischaemicH: number, below = 0.25): number {
+  if (!(silentAfterReflow(0, ischaemicH) >= below)) return 0;
+  let lo = 0;
+  let hi = 1;
+  while (silentAfterReflow(hi, ischaemicH) >= below) hi *= 2;
+  for (let k = 0; k < 40; k++) {
+    const m = (lo + hi) / 2;
+    if (silentAfterReflow(m, ischaemicH) >= below) lo = m;
+    else hi = m;
+  }
+  return hi;
+}
+
+/** hours of ischaemia beyond the lag after which e^−1 of the rescued function returns at the instant of reflow */
+const REFLOW_AT_ONCE_H = 0.5;
+/** the main time constant of the return, per hour of ischaemia beyond the lag */
+const REFLOW_TAU_PER_ISCHAEMIC_H = 2.8;
+/** the share that returns with the main time constant … */
+const REFLOW_FAST_SHARE = 0.75;
+/** … and how many times slower the rest returns */
+const REFLOW_SLOW_FACTOR = 8;
 
 /** was any phase before phase `c` below the penumbra threshold? */
 function wasIschaemic(history: readonly FlowPhase[], c: number, p: TissueParams): boolean {
@@ -203,3 +292,4 @@ export function unitState(
 
 /** Neurons lost per mL of infarcted tissue (Saver 2006: ~1.2 billion in a typical 54 mL infarct). */
 export const NEURONS_PER_ML = 22e6;
+

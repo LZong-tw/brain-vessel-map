@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REGION_BY_ID, VESSELS } from '../anatomy';
+import { BEDS, REGION_BY_ID, VESSELS } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
@@ -567,5 +567,57 @@ describe('syndromes and events agree with the symptoms', () => {
         }
       }
     });
+  });
+});
+
+/**
+ * Y1: classes of contradiction the tissue and recovery calibration must not bring back, over every
+ * scenario with a complete occlusion and each collateral grade.
+ */
+describe('tissue and recovery calibration (Y1)', () => {
+  const COMPLETE = SCENARIOS.filter((s) => s.occlusions.every((o) => !o.fromH && o.toH == null) && s.occlusions.some((o) => o.severity >= 1 && !o.branch));
+  const BRAIN_CATEGORIES = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
+  const brainMl = (r: SimResult, pick: (b: SimResult['beds'][string]) => number) =>
+    BEDS.filter((b) => BRAIN_CATEGORIES.has(REGION_BY_ID[b.region].category)).reduce((a, b) => a + pick(r.beds[b.id]) * b.volume, 0);
+
+  // Y1-12: the tissue that survives does not work again at the instant blood returns: at most about
+  // a quarter of it at once after an hour of ischaemia, less after longer
+  it.each(COMPLETE.map((s) => [s.id]))('%s: reopened at 1, 2 or 6 h, at most about 30 % of the ischaemic tissue still alive works again at once', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const)
+      for (const reperfusionH of [1, 2, 6]) {
+        const before = simulate(inputOf(id, { collateral, reperfusionH, tH: reperfusionH - 1e-3 }));
+        const after = simulate(inputOf(id, { collateral, reperfusionH, tH: reperfusionH }));
+        const atRisk = brainMl(before, (b) => b.frac.penumbra);
+        if (atRisk < 1) continue;
+        const silent = brainMl(after, (b) => b.frac.penumbra + b.regaining);
+        expect(silent, `${id} ${collateral} reopened ${reperfusionH} h`).toBeGreaterThanOrEqual(0.7 * atRisk - 0.5);
+      }
+  });
+
+  // Y1-0: the infarct never grows faster than the fastest growth measured in large-vessel occlusion
+  // (about 74 mL/h averaged from onset to imaging: Desai SM et al. Stroke 2019;50:34–37), from 1 h on.
+  // Not for an isolated hemisphere (no communicating arteries: ica_isolated), which with poor pial
+  // collaterals gets almost no flow at all and loses about 100 mL in the first hour, beyond that range
+  it.each(COMPLETE.filter((s) => !s.variants?.length).map((s) => [s.id]))('%s: the untreated infarct grows by at most about 75 mL/h, averaged from onset', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const)
+      for (const tH of [1, 2, 3, 4.5, 6, 12])
+        expect(simulate(inputOf(id, { collateral, reperfusionH: null, tH })).volumes.core / tH, `${id} ${collateral} ${tH} h`).toBeLessThanOrEqual(76);
+  });
+
+  // Y1-1: a limb made plegic by an infarct of half or more of a corticospinal convergence site (the
+  // posterior limb of the internal capsule, the cerebral peduncle, the basis pontis) keeps a
+  // moderate weakness at 3 months, not a drift (Shelton & Reding 2001; Feng 2015)
+  const CST = ['ic_posterior_limb', 'midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis'];
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: an arm plegic at 3 days from a corticospinal convergence site half infarcted is not a mere drift at 3 months', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const) {
+      const d3 = simulate(inputOf(id, { collateral, tH: 72 }));
+      const m3 = simulate(inputOf(id, { collateral, tH: 2160 }));
+      for (const side of ['r', 'l'] as const) {
+        const lesion = side === 'r' ? 'l' : 'r';
+        const cut = CST.some((b) => (m3.regions[`${b}_${lesion}`]?.infarct ?? 0) >= 0.5 && !(SCENARIOS.find((s) => s.id === id)!.occlusions.every((o) => o.branch)));
+        if (!cut || d3.nihss.items[`5${side}`] !== 4) continue;
+        expect(m3.nihss.items[`5${side}`] ?? 0, `${id} ${collateral} arm ${side}`).toBeGreaterThanOrEqual(3);
+      }
+    }
   });
 });

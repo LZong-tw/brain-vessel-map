@@ -31,7 +31,7 @@
 import { BED_BY_ID, REGIONS } from '../anatomy';
 import type { Region, Side } from '../anatomy';
 import { LACUNE_DYSFUNCTION } from '../anatomy/lacunes';
-import { BOTTLENECK_FACTOR, BOTTLENECK_REGIONS, NO_BACKUP_KINDS, redundancyFor, type Redundancy } from '../anatomy/redundancy';
+import { BOTTLENECK_FACTOR, BOTTLENECK_REGIONS, CST_CONVERGENCE, CST_LOST_SHARE, NO_BACKUP_KINDS, redundancyFor, type Redundancy } from '../anatomy/redundancy';
 import type { CascadeOutput } from './cascade';
 import type { EdemaState } from './edemaTypes';
 import { NO_RECOVERY, type RecoveryState, type SymptomRecovery } from './recoveryTypes';
@@ -54,6 +54,11 @@ export interface RecoveryInput {
   lacuneLoss?: Record<string, number>;
   /** hours since each region became ischaemic, when that differs from tH (clinical.aggregateSymptoms; R6-6) */
   regionAgeH?: Record<string, number>;
+  /**
+   * each region's dysfunction at onset (simulate's regionAcute): how severe a limb weakness was at
+   * first, for the corticospinal convergence sites (Y1-1). Left out, the infarct level stands in.
+   */
+  regionAcute?: Record<string, number>;
 }
 
 // ── temporary dysfunction ────────────────────────────────────────────
@@ -93,11 +98,14 @@ const smoothstep = (e0: number, e1: number, x: number) => {
   return u * u * (3 - 2 * u);
 };
 
+/** the severity (1–3, not rounded) a deficit of nominal severity `sev` has from a region affected to `level`, as clinical.aggregateSymptoms grades it */
+export const initialSeverity = (sev: number, level: number) => sev * (0.35 + 0.65 * Math.min(1, level / 0.8));
+
 /**
  * A deficit of nominal severity `sev` from a region affected to `level` is severe (profound)
  * before compensation: as clinical.aggregateSymptoms grades it, it rounds to 3.
  */
-export const isProfound = (sev: number, level: number) => Math.round(sev * (0.35 + 0.65 * Math.min(1, level / 0.8))) >= 3;
+export const isProfound = (sev: number, level: number) => Math.round(initialSeverity(sev, level)) >= 3;
 
 /** Share of the eventual compensation reached `tH` hours after onset (0 until day 1). */
 export function compensationProgress(tH: number, fast = false): number {
@@ -145,10 +153,25 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
 }
 
 /**
+ * How much of its corticospinal tract a convergence site (CST_CONVERGENCE) has lost for a limb
+ * weakness it gives (Y1-1), 0–1: by how much of the region is infarcted (from the symptom
+ * threshold, 25 %, to half of it) and by how severe the weakness from it was at first
+ * (`initialSev`, on the 1–3 scale before compensation: from between mild and moderate, 1.5, to
+ * between moderate and severe, 2.5; a mild weakness recovers in proportion, about 70 %). 0 for any
+ * other source, any other symptom, and a lacune (small: it spares part of the tract).
+ */
+export function corticospinalLoss(symptomId: string, regionBase: string, inf: number, initialSev: number, lacune = false): number {
+  if (lacune || !CST_LOST_SHARE[symptomId] || !CST_CONVERGENCE.includes(regionBase)) return 0;
+  return clamp01((inf - DEAD_THR) / DEAD_THR) * clamp01(initialSev - 1.5);
+}
+
+/**
  * Compensation of one symptom caused by `region` at `tH`: its redundancy, whether the pathway is
  * damaged on both sides, and the fraction of the deficit that spared pathways have taken over.
  * Only the part of the region's dysfunction that is dead tissue (`inf` / `level`) is compensated;
- * penumbra and oedema recover (or not) through the tissue and oedema models.
+ * penumbra and oedema recover (or not) through the tissue and oedema models. A limb weakness from a
+ * corticospinal convergence site that has lost its tract (`tractLoss`, corticospinalLoss) is taken
+ * over less after a one-sided lesion (CST_LOST_SHARE, Y1-1).
  */
 export function symptomCompensation(
   symptomId: string,
@@ -163,9 +186,13 @@ export function symptomCompensation(
   profound = false,
   /** this source's own redundancy, in place of the symptom's (DeficitRef.redundancy) */
   own?: Redundancy,
+  /** how much of the corticospinal tract this source has lost (corticospinalLoss, Y1-1) */
+  tractLoss = 0,
 ): SymptomRecovery {
   const red = own ?? redundancyFor(symptomId, region.baseId, region.side);
-  const share = profound && red.profound ? red.profound : red;
+  const base = profound && red.profound ? red.profound : red;
+  const lost = CST_LOST_SHARE[symptomId];
+  const share = tractLoss > 0 && lost !== undefined && lost < base.uni ? { ...base, uni: base.uni - (base.uni - lost) * clamp01(tractLoss) } : base;
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
   const bottleneck = bilateral && (lesions.bottleneckBySymptom.get(symptomId)?.size ?? 0) >= 2;
   let compensated = 0;
@@ -236,7 +263,9 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
         if (d.only && r.side !== d.only) continue;
         if (d.bilateralOnly && (lesions.bySymptom.get(d.s)?.size ?? 0) < 2) continue;
         if (d.minLevel && inf < d.minLevel) continue;
-        const c = symptomCompensation(d.s, r, inf, inf, lesions, input.regionAgeH?.[r.id] ?? tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy);
+        const early = Math.max(input.regionAcute?.[r.id] ?? 0, inf);
+        const tract = corticospinalLoss(d.s, r.baseId, inf, initialSeverity(d.sev ?? 2, early), input.lacunes?.includes(r.id));
+        const c = symptomCompensation(d.s, r, inf, inf, lesions, input.regionAgeH?.[r.id] ?? tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy, tract);
         if (c.kind === 'exempt') continue;
         const w = d.sev ?? 2;
         sum += c.compensated * w;

@@ -211,8 +211,10 @@ describe('R1-6: the parietal field cut of an MCA infarct does not depend on the 
     }
   });
 
-  it('a field cut whose tissue is saved recovers: thrombectomy at 2 h leaves none', () => {
-    for (const tH of [24, 2160]) {
+  // Y1-12: the rescued tissue regains its function over the first day or two, not at the instant
+  // of reopening (a mild upper quadrantanopia is still listed at 24 h)
+  it('a field cut whose tissue is saved recovers: thrombectomy at 2 h leaves none once it works again', () => {
+    for (const tH of [48, 168, 2160]) {
       const r = scenario('l_m1_thrombectomy', tH);
       expect(r.symptoms.filter((s) => ['hemianopia', 'quadrant_sup', 'quadrant_inf'].includes(s.id)), `${tH} h`).toEqual([]);
     }

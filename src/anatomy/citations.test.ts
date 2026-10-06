@@ -177,7 +177,8 @@ describe('C2: treatment and evidence references', () => {
     ['Ma H, Campbell BCV', 'N Engl J Med 2019;380:1795–1803'],
     ['Thomalla G, Simonsen CZ', 'N Engl J Med 2018;379:611–622'],
     ['Xiong Y', 'N Engl J Med 2024;391:203–212'],
-    ['Sarraj A', 'N Engl J Med 2023;388:1259–1271'],
+    // (Sarraj A et al. Stroke 2021, on early infarct growth, is a separate entry: Y1-0)
+    ['Sarraj A, Hassan AE, Abraham MG', 'N Engl J Med 2023;388:1259–1271'],
     ['Huo X', 'N Engl J Med 2023;388:1272–1283'],
     ['Yoshimura S', 'N Engl J Med 2022;386:1303–1313'],
     ['Bendszus M', 'Lancet 2023;402:1753–1763'],

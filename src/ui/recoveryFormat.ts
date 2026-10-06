@@ -69,6 +69,13 @@ export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: num
   return { edemaMl, remoteMl };
 }
 
+/** mL of brain tissue that survived and is still regaining its function (after a reopening, or penumbra that collaterals held; Y1-12) */
+export function regainingVolume(sim: SimResult): number {
+  let ml = 0;
+  for (const b of BEDS) if (BRAIN.has(REGION_BY_ID[b.region].category)) ml += (sim.beds[b.id]?.regaining ?? 0) * b.volume;
+  return ml;
+}
+
 const APHASIA_TYPES = [
   'aphasia_global',
   'aphasia_broca',

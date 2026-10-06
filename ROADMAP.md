@@ -8,8 +8,8 @@
   · 180 arterial segments (brainstem perforators, cerebellar arteries, 38 collaterals), main trunks fitted to an MRA statistical atlas
 - Poiseuille 血流網路：Willis 環代償、竊血、自動調節、分水嶺、21 種解剖變異、側枝分級、腦幹軟腦膜側枝
   · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 21 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
-- 組織命運隨時間演變（核心／半影區／低灌流），後循環時間窗依基底動脈取栓試驗校正
-  · Tissue fate over time (core / penumbra / oligaemia), posterior-circulation time window calibrated to the basilar thrombectomy trials
+- 組織命運隨時間演變（核心／半影區／低灌流），壞死速度依缺血深度與時間、依大血管阻塞實測的梗塞擴大速度校正；再通救回的組織要幾小時到幾天才恢復功能；後循環時間窗依基底動脈取栓試驗校正
+  · Tissue fate over time (core / penumbra / oligaemia), lost by how deep and how long the ischaemia is, calibrated to the measured growth of the core in large-vessel occlusion; rescued tissue regaining its function over hours to days; posterior-circulation time window calibrated to the basilar thrombectomy trials
 - 分段病程：TIA、狹窄後才完全阻塞、自行再通，可在任一時間點治療
   · Staged course: TIAs, stenosis progressing to occlusion, spontaneous reopening, treatment at any point
 - 再通細節：治療方式、eTICI 再灌流程度、再阻塞、遠端栓塞、無再流，並附已發表數據
@@ -18,8 +18,8 @@
   · Oedema and swelling (cytotoxic → ionic → vasogenic → resolution → atrophy), 3D deformation, midline shift
 - 連鎖反應：腦疝脫、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症
   · Cascade: herniation, hydrocephalus, haemorrhagic transformation, CCD, Wallerian and olivary degeneration, systemic complications
-- 症狀、54 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意）
-  · Symptoms, 54 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative)
+- 症狀、54 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意；皮質脊髓徑匯集處被切斷的肢體恢復較少）
+  · Symptoms, 54 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative; a limb whose corticospinal tract is cut where it converges recovers less)
 - 病例介面：發病前條件／阻塞事件／治療三張卡片，範本可載入或疊加多條血管；右側「此刻／最終／詳細」，最終頁有治療與未治療對照
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
 - 35 個教學範本、單一穿通支阻塞（腔隙性中風，可選落點；內囊警訊症候群）、栓子漂流模擬
@@ -47,8 +47,8 @@
 
 - [ ] **臨床審閱**：請神經科／神經放射科醫師審閱腦區—症狀對應、症候群規則與時間軸（最重要）
   · **Clinical review** of the region–symptom mapping, syndrome rules and time courses by a neurologist / neuroradiologist (most important)
-- [ ] 以公開資料（例如取栓試驗的最終梗塞體積分佈）做更系統的參數校正，並把校正結果寫進測試；包括跨越兩段的基底動脈阻塞（目前側枝中等或差時再通幾乎無效），以及讓 Willis 環與後顱窩的動脈也左右對稱（目前只有大腦半球表面的動脈對稱，後循環的校正要跟著重做）
-  · Systematic calibration against public data (e.g. final infarct volumes in thrombectomy trials), encoded as tests, including basilar occlusions over two segments (with moderate or poor collaterals reopening them is nearly futile in the model now) and making the circle of Willis and the posterior-fossa arteries mirror images too (only the arteries over the hemispheres are now; the posterior calibration would have to be redone with them)
+- [ ] 以公開資料（例如取栓試驗的最終梗塞體積分佈）做更系統的參數校正，並把校正結果寫進測試；包括跨越兩段的基底動脈阻塞（目前側枝中等或差時再通幾乎救不回橋腦）、側枝中等與差時的血流（讓早期梗塞擴大速度不必靠時間常數來符合實測），以及讓 Willis 環與後顱窩的動脈也左右對稱（目前只有大腦半球表面的動脈對稱，後循環的校正要跟著重做）
+  · Systematic calibration against public data (e.g. final infarct volumes in thrombectomy trials), encoded as tests, including basilar occlusions over two segments (with moderate or poor collaterals reopening them saves hardly any of the pons in the model now), the flow of moderate and poor collaterals (so that the early growth of the infarct matches the measured rates without the time constants carrying it), and making the circle of Willis and the posterior-fossa arteries mirror images too (only the arteries over the hemispheres are now; the posterior calibration would have to be redone with them)
 - [ ] 兩側半球都腫脹時的中央型（經天幕）疝脫：目前把兩側合計的腫脹當成單側的中線偏移，並以兩側各自的鉤迴疝脫呈現
   · A central (transtentorial) herniation of its own when both hemispheres swell: their swelling is now counted together as one side's midline shift and told as an uncal herniation on each side
 - [ ] 病例卡片可直接改單一階段血管的阻塞程度（目前要到血管詳細資料改）

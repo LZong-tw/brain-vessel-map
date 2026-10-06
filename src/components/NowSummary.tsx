@@ -7,7 +7,7 @@ import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { fmtMl, midlineShiftOf, pct, shortTitle, stopIndexAtOrAfter, stopTime, symptomLabel } from '../ui/format';
-import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, silencedVolume, unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, regainingVolume, silencedVolume, unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
 
 const SEV_RANK: Record<EventSeverity, number> = { danger: 0, warn: 1, good: 2, info: 3 };
 const bySeverity = (a: CascadeEvent, b: CascadeEvent) => SEV_RANK[a.severity] - SEV_RANK[b.severity] || a.onsetH - b.onsetH;
@@ -73,6 +73,12 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   const silenced = silencedVolume(sim);
   if (silenced.edemaMl >= SILENCED_ML) {
     sentences.push(rt.nowSilenced(fmtMl(silenced.edemaMl)));
+    recoveryShown = true;
+  }
+  // the tissue that survived works again over hours to days, not at once (Y1-12)
+  const regaining = regainingVolume(sim);
+  if (regaining >= SILENCED_ML) {
+    sentences.push(rt.nowRegaining(fmtMl(regaining)));
     recoveryShown = true;
   }
   if (silenced.remoteMl >= SILENCED_ML) {

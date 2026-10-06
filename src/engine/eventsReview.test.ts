@@ -188,12 +188,14 @@ describe('X3-1, X3-3: the aspiration warning is titled by what is listed at the 
     }
   });
 
-  it('a dysphagia that clears when blood returns ends its warning (mid-basilar, reopened at 2 h)', () => {
+  // Y1-12: the rescued pons regains its function over the following days, so the dysphagia clears
+  // then, not at the instant blood returns
+  it('a dysphagia that clears once blood has returned ends its warning (mid-basilar, reopened at 2 h)', () => {
     const input = occInput([{ vessel: 'basilar_mid', severity: 1 }], 'poor');
     const treated = { ...input, reperfusionH: 2 };
     checkFollows('basilar_mid poor reopened 2 h', treated);
-    expect(at(treated, 1).symptoms.map((s) => s.id)).toContain('dysphagia');
-    for (const tH of [3, 24, 168]) {
+    for (const tH of [1, 3, 24]) expect(at(treated, tH).symptoms.map((s) => s.id), `${tH} h`).toContain('dysphagia');
+    for (const tH of [72, 120, 168]) {
       const r = at(treated, tH);
       expect(r.symptoms.map((s) => s.id), `${tH} h`).not.toContain('dysphagia');
       expect(aspirationsAt(r, tH).map((e) => e.title.en), `${tH} h`).not.toContain(DYSPHAGIA_TITLE);

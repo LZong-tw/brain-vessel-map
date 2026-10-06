@@ -1,8 +1,11 @@
 /**
- * Parameters of the tissue-fate model (see tissue.ts), per perfusion bed.
+ * Parameters of the tissue-fate model (see tissue.ts), per perfusion unit (the part of a bed fed
+ * by one artery).
  *
- * Every bed uses DEFAULT_TISSUE unless it has its own entry: this is where regional
- * differences in ischaemic tolerance or in how fast the penumbra is lost are calibrated.
+ * A unit uses its bed's own entry if the bed has one (the basilar brainstem, the retina), else
+ * PERFORATOR_TISSUE when an end-artery perforator feeds it, else DEFAULT_TISSUE (tissue that
+ * collaterals can reach): this is where regional differences in ischaemic tolerance or in how
+ * fast the core and the penumbra are lost are calibrated.
  */
 
 import { BEDS, REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
@@ -15,8 +18,13 @@ export interface TissueParams {
   penumbraRel: number;
   /** relative flow below which tissue is oligaemic (functioning, not at risk) */
   oligemiaRel: number;
-  /** time constant (h) of core loss */
+  /** time constant (h) of the loss of tissue that gets no flow at all */
   coreTauH: number;
+  /**
+   * how many times slower the loss is just below the core threshold than at no flow (1: the same
+   * time constant everywhere below the threshold); in between it changes geometrically with the flow
+   */
+  coreTauSpan: number;
   /** time constant (h) of penumbra loss just above the core threshold */
   penumbraTauMinH: number;
   /** how many times slower the loss is at the top of the penumbra than at its bottom */
@@ -28,24 +36,17 @@ export interface TissueParams {
 }
 
 /**
- * Ischaemic lag and core loss.
- *
- * TODO(medical-review): no tissue is lost during the first 6 min below the penumbra threshold;
- * core loss then runs with a 0.09 h time constant (63 % lost about 11 min after onset instead of
- * about 7 min, and still more than 80 % at 15 min). A brief complete occlusion — a transient
- * ischaemic attack of a few minutes — thus causes symptoms but no infarct. Clinically, brief
- * episodes usually leave no DWI lesion while longer ones often do, which underlies the
- * tissue-based definition of TIA (Easton JD et al. Stroke 2009;40:2276–2293); in awake monkeys
- * a 15–30 min MCA occlusion left only microscopic foci of infarction, 2–3 h moderate to large
- * infarcts (Jones TH et al. J Neurosurg 1981;54:773–782). The loss at 15 min is kept close to
- * the previous model because the existing calibration relies on it, although the monkey data
- * suggest that even this is on the fast side.
+ * The former single model, kept for end-artery perforator territories (PERFORATOR_TISSUE) and as
+ * the base of the brainstem and retina calibrations: no tissue is lost during the first 6 min
+ * below the penumbra threshold; below the core threshold it is then lost with a 0.09 h time
+ * constant (more than 80 % at 15 min).
  */
-export const DEFAULT_TISSUE: TissueParams = {
+const FAST_CORE: TissueParams = {
   coreRel: 0.3,
   penumbraRel: 0.55,
   oligemiaRel: 0.85,
   coreTauH: 0.09,
+  coreTauSpan: 1,
   penumbraTauMinH: 1.5,
   penumbraTauSpan: 20,
   penumbraSurvivalMax: 0.85,
@@ -53,12 +54,73 @@ export const DEFAULT_TISSUE: TissueParams = {
 };
 
 /**
+ * Tissue that collaterals can reach: the cortex, the white matter and the cerebellum behind a
+ * pial or trunk artery (Y1-0). How fast it is lost depends on how deep the ischaemia is and how
+ * long it lasts: nothing is lost in the first 20 min, then tissue without any flow is lost with a
+ * 3 h time constant (about a fifth by the end of the first hour, half by about 2½ h), tissue just
+ * below the core threshold with an 8 h one, and penumbra more slowly still, up to 30 h at its top
+ * (as before). Untreated,
+ * everything below the core threshold still dies (finalInfarctProb), so final infarcts are those
+ * of the former model; only the time course is slower.
+ *
+ * TODO(medical-review): calibrated to the measured growth of the ischaemic core in
+ * anterior-circulation large-vessel occlusion, not to a measured time-to-infarction curve. Median
+ * growth was 3.1 mL/h (IQR 0.7–10.7; Wheeler HM et al. Int J Stroke 2015;10:723–729) and 4.74
+ * mL/h (IQR 1.25–14.84; Ospel JM et al. J Neurointerv Surg 2022;14:886–891); "fast progressors"
+ * grow by 10 mL/h or more (Sarraj A et al. Stroke 2021;52:57–69), 77 % of those with the worst
+ * collaterals (Seners P et al. Neurology 2023;101:e2126–e2137); the fastest of 415 ICA or M1
+ * occlusions lost about 27 million neurons per minute, about 74 mL/h (Desai SM et al. Stroke
+ * 2019;50:34–37). With poor collaterals the model puts most of the MCA territory at 5–15 % of
+ * normal flow, and the former 0.09 h time constant killed it within 30 min (about 1000 mL/h). In
+ * awake monkeys 15–30 min of MCA occlusion left only microscopic infarcts, flow below 10–12
+ * mL/100 g/min for 2–3 h moderate to large ones (Jones TH et al. J Neurosurg 1981;54:773–782); in
+ * patients reperfused early only flow below about 7–9 mL/100 g/min went on to infarct
+ * (d'Esterre CD et al. Stroke 2015;46:3390–3397), and the perfusion "core" of the first hours
+ * often survives reperfusion (Boned S et al. J Neurointerv Surg 2017;9:66–69). The model follows
+ * the slower human course: about 60 mL at 1 h and 35–55 mL/h over the first 6 h behind an M1
+ * occlusion with poor collaterals (about 70 mL at 1 h behind a carotid T occlusion, close to the
+ * fastest measured), 20–30 mL/h with moderate collaterals and 10–20 mL/h with good ones. The
+ * moderate and good figures stay above the median growth because the end-artery perforator
+ * territories (PERFORATOR_TISSUE) and the anterior temporal cortex, which the model leaves without
+ * flow, die early. The bottom of the penumbra had to slow down with the core (from 1.5 h to 8 h),
+ * or tissue with more flow would have died faster than tissue with less.
+ */
+export const DEFAULT_TISSUE: TissueParams = {
+  coreRel: 0.3,
+  penumbraRel: 0.55,
+  oligemiaRel: 0.85,
+  coreTauH: 3,
+  coreTauSpan: 8 / 3,
+  penumbraTauMinH: 8,
+  penumbraTauSpan: 30 / 8,
+  penumbraSurvivalMax: 0.85,
+  lagH: 1 / 3,
+};
+
+/**
+ * End-artery perforator territories (the lenticulostriate, thalamic, choroidal and brainstem
+ * perforators; anatomy/vessels.ts kind 'perforator'), and every lacune: no collateral reaches
+ * them, so behind an occlusion they get no flow at all and keep the former fast course (Y1-0).
+ * In rats the lateral striatum, supplied by end arteries, was infarcted after 30 min of MCA
+ * occlusion, the cortex only after 60 min (Memezawa H et al. Stroke 1992;23:552–559); with a
+ * permanent occlusion irreversible change appears first in the caudoputamen and then spreads to
+ * the cortex (Garcia JH et al. Stroke 1995;26:636–642).
+ * TODO(medical-review): the 0.09 h time constant itself; a brief closure of a perforator (a
+ * capsular TIA of minutes) still leaves nothing (Easton JD et al. Stroke 2009;40:2276–2293).
+ */
+export const PERFORATOR_TISSUE: TissueParams = { ...FAST_CORE };
+
+/**
  * Brainstem supplied by the basilar artery (pons and midbrain).
  *
  * A calibration to what is seen in basilar artery occlusion, not measured physiological
- * constants. Thresholds, core loss and the ischaemic lag are the defaults.
+ * constants. Thresholds, core loss and the ischaemic lag are those of the former single model
+ * (FAST_CORE, as in PERFORATOR_TISSUE): the basilar calibration (posterior.test.ts) was made with
+ * them and is kept as it was when the collateral-fed tissue was slowed down (Y1-0).
  *
- * TODO(medical-review): penumbra lost half as fast as in the default (hemispheric) model.
+ * TODO(medical-review): penumbra lost half as fast as in the former single model (from 3 h
+ * instead of 1.5 h just above the core threshold; the collateral-fed DEFAULT_TISSUE now starts
+ * from 8 h, but loses tissue without flow far more slowly than the brainstem here).
  * Thrombectomy was clearly beneficial both within 12 h of onset (ATTENTION: Tao C et al.
  * N Engl J Med 2022;387:1361–1372) and 6–24 h after onset (BAOCHE: Jovin TG et al. N Engl J Med
  * 2022;387:1373–1384), i.e. salvageable brainstem often persists for many hours, far longer than
@@ -82,11 +144,12 @@ export const DEFAULT_TISSUE: TissueParams = {
  * Applies only to brainstem beds supplied entirely by the basilar artery and its branches,
  * because that is what the calibration is about: the medulla (vertebral arteries, PICA, anterior
  * spinal artery) and the cerebral peduncle (partly fed by the anterior choroidal artery) keep
- * the defaults. So does the cerebellum: nothing here calibrates a different cerebellar time
+ * the general parameters (PERFORATOR_TISSUE where a perforator feeds them, else
+ * DEFAULT_TISSUE). So does the cerebellum: nothing here calibrates a different cerebellar time
  * course.
  */
-const BASILAR_BRAINSTEM_TISSUE: TissueParams = {
-  ...DEFAULT_TISSUE,
+export const BASILAR_BRAINSTEM_TISSUE: TissueParams = {
+  ...FAST_CORE,
   penumbraTauMinH: 3,
   penumbraSurvivalMax: 0.4,
 };
@@ -105,11 +168,11 @@ const BASILAR_BRAINSTEM_TISSUE: TissueParams = {
  * model follows the shorter estimate and only lengthens the lag before loss begins from 6 to
  * 12 min, so that amaurosis fugax lasting minutes leaves no infarct (retinal ischaemia without
  * infarction is a TIA: Easton JD et al. Stroke 2009;40:2276–2293); after that the retina is lost
- * as fast as brain core. Not calibrated to the 97-min primate figure. An incomplete occlusion
+ * as fast as brain tissue without flow behind an end artery (FAST_CORE). Not calibrated to the 97-min primate figure. An incomplete occlusion
  * (severity < 1) leaves residual flow and lasts longer, as in the brain.
  */
-const RETINA_TISSUE: TissueParams = {
-  ...DEFAULT_TISSUE,
+export const RETINA_TISSUE: TissueParams = {
+  ...FAST_CORE,
   lagH: 0.2,
 };
 
@@ -125,4 +188,16 @@ const BED_TISSUE: Record<string, TissueParams> = Object.fromEntries([
   ...BEDS.filter((b) => REGION_BY_ID[b.region]?.category === 'eye').map((b) => [b.id, RETINA_TISSUE]),
 ]);
 
+/**
+ * The parameters of a bed that has its own (the basilar brainstem, the retina), else the default.
+ * The simulation uses tissueParamsForUnit, which also tells perforator-fed units apart.
+ */
 export const tissueParamsForBed = (bedId: string): TissueParams => BED_TISSUE[bedId] ?? DEFAULT_TISSUE;
+
+/**
+ * The parameters of one perfusion unit (the part of a bed fed by one artery): its bed's own if it
+ * has them, else those of an end-artery perforator when that is what feeds it, else the default
+ * (Y1-0).
+ */
+export const tissueParamsForUnit = (u: { bed: string; vessel: string }): TissueParams =>
+  BED_TISSUE[u.bed] ?? (VESSEL_BY_ID[u.vessel]?.kind === 'perforator' ? PERFORATOR_TISSUE : DEFAULT_TISSUE);

@@ -253,7 +253,9 @@ describe('every new symptom can occur', () => {
  * the cortex fixes, R1 (1: a mute global aphasia follows no command; 2: a mild global aphasia
  * changes type; 3: shoulder weakness on item 5; 6: the parietal field cut; 7: left-hemisphere
  * neglect clears), and the fresh-eyes review, Y2 (2: the deep infarct of an early M1 reopening is
- * named a striatocapsular infarct; 8: item 7 counts ataxic limbs, a moderate hemiataxia two).
+ * named a striatocapsular infarct; 8: item 7 counts ataxic limbs, a moderate hemiataxia two), Y1
+ * (0: the infarct grows over hours; 1: a plegic arm from where the corticospinal tract converges
+ * stays moderately weak; 12: rescued tissue regains its function over hours to days).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
@@ -265,25 +267,39 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // components (sev 1): 9: 3 → 2, 1b: 2 → 1, 1c: 1 → 0 (was 12). R1-2: a mild global aphasia is
   // no longer global but a mild Wernicke type (9: 2 → 1); R1-6: the parietal optic radiation
   // stays cut where the infarct is, so the hemianopia stays (3: 1 → 2); still 9
-  'l_m1@2160': [9, { '1b': 1, 3: 2, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_complete_l']],
+  // Y1-1: the arm weakness comes from half of the posterior limb, where the corticospinal tract
+  // converges; plegic in the first week, it recovers to a moderate weakness, not a drift (5r: 1 → 3;
+  // was 9)
+  'l_m1@2160': [11, { '1b': 1, 3: 2, 4: 1, '5r': 3, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_complete_l']],
   // Y2-2: the deep infarct the reopening at 2 h leaves (putamen, caudate, posterior limb) is named
   // a striatocapsular infarct next to the inferior-division label of its temporal part (was
   // ['mca_inferior_l'] alone, whose text describes little weakness beside a hemiparesis)
-  'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l', 'striatocapsular_l']],
+  // Y1-0: the cortex that collaterals reach is lost over hours, so the reopening at 2 h leaves 34 mL
+  // (was 58), mostly the end-artery deep territory; Y1-12: by 24 h most of the rescued cortex works
+  // again: a milder aphasia (9: 2 → 1, 1b: 2 → 1, 1c: 1 → 0) and too little cortical infarct for the
+  // inferior-division label (was 15, ['mca_inferior_l', 'striatocapsular_l'])
+  'l_m1_thrombectomy@24': [12, { '1b': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 1, 10: 1 }, ['striatocapsular_l']],
   // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was
   // 10); Y2-2: as at 24 h (was ['mca_inferior_l'])
-  'l_m1_thrombectomy@2160': [7, { '1b': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_inferior_l', 'striatocapsular_l']],
+  // Y1-0: no lasting aphasia from the smaller cortical infarct (9: 1 → 0, 1b: 1 → 0), no
+  // inferior-division label; Y1-1: the arm, cut in the posterior limb, stays moderately weak (5r: 1
+  // → 3); still 7
+  'l_m1_thrombectomy@2160': [7, { 4: 1, '5r': 3, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']],
   // C1-F2: hemianopia (3: 1 → 2); C4-F2: consciousness follows the midline shift, 3.4 mm at 24 h
   // (alert), not a fixed drowsiness (1a: 1 → 0); was 17
   'r_m1_malignant@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  'r_m1_malignant@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
+  // C5-F1 drift: was 11 (6l 2); Y1-1: the cerebral peduncle, infarcted by the herniation, has lost
+  // its whole corticospinal tract: the arm stays plegic and the leg barely moves (5l: 3 → 4, 6l: 1
+  // → 3; was 10)
+  'r_m1_malignant@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
   // C1-F2: hemianopia (3: 1 → 2); C4-F2: as r_m1_malignant@24 (1a: 1 → 0); was 17
   'r_m1_decompression@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9)
   'r_m1_decompression@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
   // C4-F2: 3.5 mm of midline shift at 24 h, alert (1a: 1 → 0; was 19)
   'r_ica_t@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  'r_ica_t@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
+  // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10)
+  'r_ica_t@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
   // C1-F5: right neglect from the left supramarginal gyrus (11: 0 → 1; was 13)
   'l_m2_sup@24': [14, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1, 11: 1 }, ['mca_superior_l']],
   // C5-F1 drift: was 6 (5r 2); C1-F5: the right neglect of a large supramarginal infarct is still
@@ -303,10 +319,13 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C5-F1 drift: was 4 (6l 2); C5-F2: the neglect has resolved, so its label goes (aca_r stays)
   'r_aca@2160': [3, { '5l': 1, '6l': 1, 8: 1 }, ['aca_r']],
   'l_acha@24': [12, { 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['acha_l']],
-  'l_acha@2160': [7, { 3: 2, 4: 1, '5r': 1, '6r': 1, 8: 1, 10: 1 }, ['acha_l']], // C5-F1 drift: was 9
+  // C5-F1 drift: was 9; Y1-1: half of the posterior limb infarcted under a plegic arm: a moderate
+  // weakness, not a drift (5r: 1 → 3; was 7)
+  'l_acha@2160': [9, { 3: 2, 4: 1, '5r': 3, '6r': 1, 8: 1, 10: 1 }, ['acha_l']],
   // C6-F6: a subcortical (transcortical motor) aphasia from cortical hypoperfusion (9: 0 → 1; was 10)
   'l_lsa@24': [11, { 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 1, 10: 1 }, ['striatocapsular_l']],
-  'l_lsa@2160': [5, { 4: 1, '5r': 1, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']], // C5-F1 drift: was 7
+  // C5-F1 drift: was 7; Y1-1: as l_acha (5r: 1 → 3; was 5)
+  'l_lsa@2160': [7, { 4: 1, '5r': 3, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']],
   // C6-F1: a lacune weakens face, arm and leg mildly (sev 1 each), not to a plegia (was 10, 4: 2, 5r: 4, 6r: 4)
   'l_lacune@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
   // C5-F1 drift: was 6 (6r 2); C6-F1: drift of arm and leg left, the face compensated (was 5, 4: 1, 5r: 3)
@@ -385,7 +404,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'r_sca@24': [5, { 2: 1, 7: 2, 8: 1, 10: 1 }, ['sca_r']],
   'r_sca@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['sca_r']],
   'l_pontine@24': [13, { 2: 2, 4: 2, '5r': 4, '6r': 4, 10: 1 }, ['foville_l']],
-  'l_pontine@2160': [7, { 2: 2, 4: 2, '5r': 1, '6r': 1, 7: 1 }, ['foville_l']], // C5-F1 drift: was 9
+  // C5-F1 drift: was 9; Y1-1: 65 % of the left basis pontis infarcted under a plegic arm and leg: a
+  // moderate weakness of both at 3 months (5r: 1 → 3, 6r: 1 → 3; the leg recovers further by 6
+  // months), too weak for the ataxia to be scored (7: 1 → 0; was 7)
+  'l_pontine@2160': [10, { 2: 2, 4: 2, '5r': 3, '6r': 3 }, ['foville_l']],
   // C6-F1: ataxic hemiparesis — mild weakness, so the ataxia is scored (was 11, 4: 2, 5l: 4, 6l: 4, no 7).
   // Y2-8: "marked ataxia of the same limbs", the arm and the leg (7: 1 → 2; was 5)
   'r_pontine_lacune@24': [6, { 4: 1, '5l': 1, '6l': 1, 7: 2, 10: 1 }, ['pontine_lacunar_r']],
@@ -395,8 +417,11 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'r_asa@2160': [5, { '5l': 3, '6l': 1, 10: 1 }, ['dejerine_r']], // C5-F1 drift: was 6 (6l 2)
   'ica_silent@24': [0, {}, ['carotid_compensated_r']],
   'ica_silent@2160': [0, {}, ['carotid_compensated_r']],
-  'ica_isolated@24': [19, { '1a': 1, 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['ica_territory_r', 'neglect_r']],
-  'ica_isolated@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']], // C5-F1 drift: was 11 (6l 2)
+  // Y1-0: the infarct grows over hours, about 300 mL at 24 h instead of 334, so the midline shift is
+  // just under 4 mm then and the patient still alert (1a: 1 → 0; drowsy from about 26 h; was 19)
+  'ica_isolated@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['ica_territory_r', 'neglect_r']],
+  // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10)
+  'ica_isolated@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']],
   // C9-F2: the PComm feeds the tuberothalamic artery, so the anterior thalamus is infarcted too and
   // has its own label; C9-F4: its dysarthria (10); C9-F2: mild, passing weakness from the
   // inferolateral thalamus (4, 5l: drift, C5-F1); was 6

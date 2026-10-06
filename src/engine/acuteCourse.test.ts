@@ -63,8 +63,11 @@ describe('C4-F2: consciousness follows the midline shift (Ropper 1986)', () => {
     expect(activeAt(s48, 'uncal_r', 48)).toBe(false);
   });
 
-  it('a larger hemispheric infarct deteriorates earlier (isolated ICA: drowsy already at 24 h)', () => {
-    const s = scenario('ica_isolated', 24);
+  // Y1-0: the infarct now grows over hours rather than minutes, so at 24 h it is about 300 mL
+  // instead of 334 and the shift just under 4 mm; drowsy from about 26 h (was: already at 24 h)
+  it('a larger hemispheric infarct deteriorates earlier (isolated ICA: drowsy by 30 h)', () => {
+    expect(scenario('ica_isolated', 24).edema.midlineShiftMm).toBeGreaterThan(3);
+    const s = scenario('ica_isolated', 30);
     expect(s.edema.midlineShiftMm).toBeGreaterThanOrEqual(4);
     expect(item1a(s)).toBe(1);
   });
@@ -331,11 +334,17 @@ describe('R6-5: an uncal herniation follows the midline shift of the oedema mode
       expect(event(r72, `subfalcine_${s}`)).toBeUndefined();
       expect(event(r72, `herniation_fatal_${s}`)).toBeUndefined();
       expect(r72.cascade.fatalRisk).toEqual([]);
-      // the risk from the early volume is still named, with the shift the model reaches
-      const mal = event(r72, `malignant_edema_${s}`)!;
-      expect(mal.desc.en).toMatch(/peaks at about \d+(\.\d)? mm/);
-      expect(mal.desc.en).not.toMatch(/Death likely after herniation/);
-      expect(mal.desc.zh).toMatch(/約 \d+(\.\d)? mm/);
+      // the risk from the early volume is still named, with the shift the model reaches, when the
+      // infarct reaches 145 mL within 14 h (Oppenheim 2000; Y1-0: about 141 mL on the right, 149
+      // mL on the left now that the infarct grows over hours)
+      const mal = event(r72, `malignant_edema_${s}`);
+      if (plain(occl(v), 14).volumes.core < 145) {
+        expect(mal, v).toBeUndefined();
+        continue;
+      }
+      expect(mal!.desc.en).toMatch(/peaks at about \d+(\.\d)? mm/);
+      expect(mal!.desc.en).not.toMatch(/Death likely after herniation/);
+      expect(mal!.desc.zh).toMatch(/約 \d+(\.\d)? mm/);
     }
   });
 

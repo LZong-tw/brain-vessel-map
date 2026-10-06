@@ -49,6 +49,8 @@ export interface RecoveryStrings {
   hatchCell: string;
   // ── "what is happening now" ──
   nowSilenced: (ml: string) => string;
+  /** tissue that survived, still regaining its function after blood returned (Y1-12) */
+  nowRegaining: (ml: string) => string;
   nowRemote: string;
   nowCompensating: (pct: string) => string;
   nowCompensatingLittle: (pct: string) => string;
@@ -116,6 +118,8 @@ const zh: RecoveryStrings = {
   hatchCell: '部分已由其他路徑代償',
   nowSilenced: (ml) =>
     `水腫讓病灶周圍約 ${ml} mL 還活著的組織暫時停擺，所以此刻的功能缺損比壞死範圍更大；水腫約 1–3 週消退後，這部分功能會回來。`,
+  nowRegaining: (ml) =>
+    `約 ${ml} mL 存活下來的組織仍在恢復功能：血流恢復（或側枝撐住半影區）之後，組織要幾小時到幾天才重新運作，不是立刻恢復；缺血越久，恢復越慢。`,
   nowRemote: '與受損區相連的遠處腦區（例如對側小腦）功能也暫時下降（遠端抑制），通常沒有明顯症狀，會在數週內淡去。',
   nowCompensating: (pct) => `其他神經路徑正逐漸接手部分失去的功能（典型的代償進程已走了約 ${pct}）；大部分發生在前 3 個月，之後變慢。`,
   nowCompensatingLittle: (pct) =>
@@ -202,6 +206,8 @@ const en: RecoveryStrings = {
   hatchCell: 'partly compensated by other pathways',
   nowSilenced: (ml) =>
     `Oedema has switched off about ${ml} mL of living tissue around the lesion, so the deficit is larger than the dead tissue alone; as the oedema settles over ~1–3 weeks, this function comes back.`,
+  nowRegaining: (ml) =>
+    `About ${ml} mL of tissue that survived is still regaining its function: once blood returns (or collaterals hold the penumbra), it works again over hours to days rather than at once, more slowly the longer the ischaemia lasted.`,
   nowRemote:
     'Connected regions further away (e.g. the opposite cerebellum) are temporarily depressed too (diaschisis); this is usually silent and fades over weeks.',
   nowCompensatingLittle: (pct) =>

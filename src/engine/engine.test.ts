@@ -6,6 +6,7 @@ import { dropEmbolus } from './embolus';
 import { simulateHemodynamics, type HemoInput } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
 import { finalInfarctProb, infarctFraction, tauHours } from './tissue';
+import { PERFORATOR_TISSUE } from './tissueParams';
 
 const base: HemoInput = { occlusions: [], variants: [], map: 93, collateral: 'good' };
 const occl = (...ids: string[]) => ids.map((vessel) => ({ vessel, severity: 1 }));
@@ -82,8 +83,14 @@ describe('collateral circulation', () => {
 });
 
 describe('tissue fate over time', () => {
-  it('core dies within minutes, penumbra over hours', () => {
-    expect(infarctFraction(0.1, 0.25, null)).toBeGreaterThan(0.8);
+  it('an end-artery territory without flow dies within minutes, tissue that collaterals reach over hours', () => {
+    // Y1-0: the fast course is kept for end-artery perforator territories only; the former check
+    // here (rel 0.1 more than 80 % lost at 15 min) held for every bed, which made a poor-collateral
+    // M1 infarct the whole MCA territory within half an hour
+    expect(infarctFraction(0.1, 0.25, null, 1, PERFORATOR_TISSUE)).toBeGreaterThan(0.8);
+    expect(infarctFraction(0.1, 0.25, null)).toBe(0);
+    expect(infarctFraction(0.1, 1, null)).toBeLessThan(0.25);
+    expect(infarctFraction(0.1, 12, null)).toBeGreaterThan(0.9);
     expect(tauHours(0.45)).toBeGreaterThan(3);
     expect(infarctFraction(0.45, 1, null)).toBeLessThan(0.3);
     expect(infarctFraction(0.32, 48, null)).toBeGreaterThan(0.9);

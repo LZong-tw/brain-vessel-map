@@ -55,18 +55,25 @@ describe('Y2-2: the deep infarct an early M1 reopening leaves is named for it', 
       'l',
     ],
   ];
-  it.each(cases)('%s: the striatocapsular label is shown with the hemiparesis, from the reopening to 6 months', (_, make, side) => {
+  // Y1-12: the rescued cortex regains its function over the first day or two after the reopening
+  // (later the later it is), so the complete-MCA picture lasts until then; the deep infarct is
+  // named once it is what is left
+  it.each(cases)('%s: the striatocapsular label is shown with the hemiparesis once the rescued cortex works again, to 6 months', (_, make, side) => {
     const at = make();
     const body = side === 'l' ? 'r' : 'l';
-    for (const tH of STOPS.filter((h) => h >= 6)) {
+    for (const tH of STOPS.filter((h) => h >= 72)) {
       const r = at(tH);
       if (sev(r, 'arm_weak', body) === 0) continue;
       expect(labels(r), `${tH} h`).toContain(`striatocapsular_${side}`);
     }
+    // until then, the whole territory's picture
+    expect(labels(at(2))).toContain(`mca_complete_${side}`);
   });
 
   it('the inferior-division label, shown with it, says where a hemiparesis comes from', () => {
-    const r = scenario('l_m1_thrombectomy', 48);
+    // (Y1-0: after a reopening at 2 h the cortical infarct is now too small for the inferior-division
+    // label; reopened at 6 h it is not)
+    const r = run(occl('mca_m1_l'), 168, 'good', { reperfusionH: 6 });
     expect(sev(r, 'arm_weak', 'r')).toBe(3);
     expect(labels(r)).toEqual(expect.arrayContaining(['mca_inferior_l', 'striatocapsular_l']));
     const inferior = SYNDROMES.find((d) => d.id === 'mca_inferior')!;
@@ -174,9 +181,10 @@ describe('Y2-13: both hemispheres and the level of consciousness', () => {
     expect(mal.desc.zh).toMatch(/把腦往下擠而不是推向對側/);
   });
 
+  // (Y1-12: the rescued cortex works again within hours, not at the instant of the reopening)
   it('reopened at 1 h: no lasting drowsiness once both hemispheres work again', () => {
     expect(item(bothM1(0.5, 'good', { reperfusionH: 1 }), '1a')).toBe(1);
-    for (const tH of [2, 24, 168]) expect(item(bothM1(tH, 'good', { reperfusionH: 1 }), '1a'), `${tH} h`).toBe(0);
+    for (const tH of [12, 24, 168]) expect(item(bothM1(tH, 'good', { reperfusionH: 1 }), '1a'), `${tH} h`).toBe(0);
   });
 
   it('one hemisphere: the mass effect is the midline shift, as before', () => {

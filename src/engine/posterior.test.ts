@@ -9,7 +9,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import type { CollateralGrade } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
 import { infarctFraction } from './tissue';
-import { DEFAULT_TISSUE, tissueParamsForBed } from './tissueParams';
+import { DEFAULT_TISSUE, PERFORATOR_TISSUE, tissueParamsForBed } from './tissueParams';
 
 const GRADES: CollateralGrade[] = ['good', 'moderate', 'poor'];
 const sim = (over: Partial<SimInput>) =>
@@ -125,6 +125,8 @@ describe('collateral grade matters in basilar occlusion (goal 4)', () => {
 });
 
 describe('the anterior circulation is unchanged (goal 5)', () => {
+  // (per bed; within any other bed, the part an end-artery perforator feeds keeps the former fast
+  // course: tissueParamsForUnit, Y1-0)
   it('only brainstem beds fed entirely by the basilar artery (and the retina, C8-F1) have their own tissue parameters', () => {
     for (const b of BEDS) {
       if (tissueParamsForBed(b.id) === DEFAULT_TISSUE) continue;
@@ -139,8 +141,11 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
   // calibration; the small shifts allowed come from the ischaemic lag (goal 7)
   const BEFORE: Record<string, number> = {
     l_m1: 148.916,
-    // X3-0: the pial arteries of the hemispheres are mirrored in the flow model (was 60.198)
-    l_m1_thrombectomy: 58.046,
+    // X3-0: the pial arteries of the hemispheres are mirrored in the flow model (was 60.198). Y1-0:
+    // tissue that collaterals reach is lost over hours, not minutes, so the reopening at 2 h leaves
+    // the end-artery (striatocapsular) territory and little cortex (was 58.046; the untreated final
+    // volumes do not change)
+    l_m1_thrombectomy: 33.65,
     r_m1_malignant: 485.138,
     r_m1_decompression: 296.726,
     r_ica_t: 493.241,
@@ -190,7 +195,11 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
 describe('a brief complete occlusion is a TIA (goal 7)', () => {
   it('no tissue is lost during the ischaemic lag', () => {
     expect(infarctFraction(0, DEFAULT_TISSUE.lagH, null)).toBe(0);
-    expect(infarctFraction(0, 1, null)).toBeGreaterThan(0.99);
+    expect(infarctFraction(0, PERFORATOR_TISSUE.lagH, null, 1, PERFORATOR_TISSUE)).toBe(0);
+    // Y1-0: an end-artery territory without flow is lost within the hour; tissue that collaterals
+    // reach takes hours (the former check, more than 99 % lost at 1 h, held for every bed)
+    expect(infarctFraction(0, 1, null, 1, PERFORATOR_TISSUE)).toBeGreaterThan(0.99);
+    expect(infarctFraction(0, 1, null)).toBeLessThan(0.5);
   });
 
   it.each([

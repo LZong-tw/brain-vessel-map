@@ -39,24 +39,33 @@ describe('X2-9: the swelling of the first days does not bring back a deficit tha
     }
   });
 
-  it('a rescued upper basilar occlusion (poor collaterals, 1 h) stays free of deficits and of a locked-in label after reopening', () => {
-    for (const tH of STOPS.filter((h) => h >= 1)) {
+  // Y1-12: the rescued tissue regains its function over hours to days after the reopening, not at
+  // the instant blood returns; once a deficit has cleared, the swelling does not bring it back
+  it('a rescued upper basilar occlusion (poor collaterals, 1 h) recovers within a day and then stays free of deficits and of a locked-in label', () => {
+    expect(one('basilar_upper', 12, { collateral: 'poor', reperfusionH: 1 }).nihss.total).toBeLessThan(one('basilar_upper', 1, { collateral: 'poor', reperfusionH: 1 }).nihss.total);
+    for (const tH of STOPS.filter((h) => h >= 24)) {
       const r = one('basilar_upper', tH, { collateral: 'poor', reperfusionH: 1 });
       expect(r.nihss.total, `${tH} h`).toBe(0);
       expect(labels(r).filter((id) => id.startsWith('locked_in')), `${tH} h`).toEqual([]);
     }
   });
 
-  it('with moderate collaterals reopened at 1.5 h the same: no incomplete locked-in syndrome on days 2–10', () => {
-    for (const tH of [3, 24, 36, 48, 72, 120, 168, 240, 336]) {
+  it('with moderate collaterals reopened at 1.5 h the same within about 3 days: no incomplete locked-in syndrome on days 3–14', () => {
+    for (const tH of [72, 120, 168, 240, 336]) {
       const r = one('basilar_upper', tH, { collateral: 'moderate', reperfusionH: 1.5 });
       expect(r.nihss.total, `${tH} h`).toBe(0);
       expect(labels(r), `${tH} h`).not.toContain('locked_in_incomplete');
     }
   });
 
-  it('upper basilar occlusion reopened at 6 h (good collaterals): awake from the reopening on, not comatose again on days 2–7', () => {
+  it('upper basilar occlusion reopened at 6 h (good collaterals): the coma lightens, the patient wakes within days and is not comatose again', () => {
+    const comaSev = (tH: number) => one('basilar_upper', tH, { reperfusionH: 6 }).symptoms.find((s) => s.id === 'coma')?.sev ?? 0;
+    let prev = 3;
     for (const tH of [6, 12, 24, 48, 72, 120, 168, 336, 720]) {
+      expect(comaSev(tH), `${tH} h`).toBeLessThanOrEqual(prev);
+      prev = comaSev(tH);
+    }
+    for (const tH of [168, 336, 720]) {
       const r = one('basilar_upper', tH, { reperfusionH: 6 });
       expect(r.symptoms.some((s) => s.id === 'coma'), `${tH} h`).toBe(false);
       expect(labels(r), `${tH} h`).toContain('locked_in_incomplete');
@@ -87,20 +96,25 @@ const event = (r: SimResult, id: string) => r.cascade.events.find((e) => e.id ==
 const comatose = (r: SimResult) => r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness');
 
 describe('X2-7, X2-10: after an early reopening the coma event ends when the patient wakes', () => {
-  it('upper basilar occlusion reopened at 6 h (good collaterals): coma until 6 h, then an incomplete locked-in event, never "comatose now" while awake', () => {
+  // Y1-12: the tegmentum rescued at 6 h regains its function over days (was: the coma lifted at the
+  // instant of the reopening)
+  it('upper basilar occlusion reopened at 6 h (good collaterals): coma until the tegmentum works again, then an incomplete locked-in event, never "comatose now" while awake', () => {
     const late = one('basilar_upper', 4320, { reperfusionH: 6 });
     const coma = event(late, 'basilar_coma')!;
-    expect([coma.onsetH, coma.endH]).toEqual([0, 6]);
-    expect(coma.desc.en).toMatch(/Blood returned 6 h after onset before the tegmentum of both sides infarcted, so the coma lifts then/);
+    expect(coma.onsetH).toBe(0);
+    expect(coma.endH).toBeGreaterThan(24);
+    expect(coma.endH).toBeLessThan(168);
+    expect(coma.desc.en).toMatch(/Blood returned 6 h after onset before the tegmentum of both sides infarcted, so the coma lifts as it regains its function, by about/);
     expect(coma.desc.en).toMatch(/wakes up incompletely locked-in/);
-    expect(coma.desc.zh).toContain('昏迷隨之解除');
+    expect(coma.desc.zh).toContain('昏迷隨著被蓋恢復功能而解除');
     const lis = event(late, 'locked_in_incomplete')!;
-    expect([lis.onsetH, lis.endH]).toEqual([6, undefined]);
+    expect([lis.onsetH, lis.endH]).toEqual([coma.endH, undefined]);
     expect(lis.desc.en).toMatch(/The coma has lifted/);
     for (const tH of [6, 12, 24, 48, 168, 336, 720]) {
       const r = one('basilar_upper', tH, { reperfusionH: 6 });
-      expect(r.nihss.items['1a'] ?? 0, `${tH} h`).toBe(0);
-      expect(activeFamily(r), `${tH} h`).toEqual(['locked_in_incomplete']);
+      const awake = tH > coma.endH!;
+      expect((r.nihss.items['1a'] ?? 0) === 0, `${tH} h`).toBe(awake);
+      expect(activeFamily(r), `${tH} h`).toEqual([awake ? 'locked_in_incomplete' : 'basilar_coma']);
     }
   });
 
@@ -163,24 +177,34 @@ describe('X2-8, X2-11: with stacked occlusions the brainstem events run on the b
 });
 
 describe('X2-15: the locked-in event is titled by the picture at the time, not by the final infarct', () => {
-  it('mid-basilar occlusion reopened at 24 h: classical locked-in until the reopening, incomplete after it', () => {
+  // Y1-12: the part of the ventral pons rescued at 24 h regains its function over the following
+  // days (was: at the instant of the reopening)
+  it('mid-basilar occlusion reopened at 24 h: classical locked-in until the rescued pons works again, incomplete after it', () => {
     const r = one('basilar_mid', 4320, { reperfusionH: 24 });
     const classical = event(r, 'locked_in')!;
-    expect([classical.onsetH, classical.endH]).toEqual([0, 24]);
+    expect(classical.onsetH).toBe(0);
+    expect(classical.endH).toBeGreaterThan(24);
+    expect(classical.endH).toBeLessThan(168);
     expect(classical.title.en).toBe('Bilateral ventral pons: locked-in syndrome');
     const incomplete = event(r, 'locked_in_incomplete')!;
-    expect([incomplete.onsetH, incomplete.endH]).toEqual([24, undefined]);
+    expect([incomplete.onsetH, incomplete.endH]).toEqual([classical.endH, undefined]);
     expect(incomplete.title.en).toMatch(/incomplete locked-in/);
     expect(incomplete.desc.en).toMatch(/Blood returned 24 h after onset and saved part of the ventral pons/);
     expect(incomplete.desc.zh).toContain('救回部分橋腦腹側');
     for (const tH of [1, 6, 12]) expect(shownFamily(one('basilar_mid', tH, { reperfusionH: 24 })), `${tH} h`).toEqual(['locked_in']);
   });
 
-  it('reopened in time: the event names the locked-in picture shown and says it resolves with the reopening', () => {
-    const e = event(one('basilar_mid', 4320, { reperfusionH: 1 }), 'locked_in')!;
+  it('reopened in time: the events name the locked-in picture shown and say it resolves as the rescued pons works again', () => {
+    const r = one('basilar_mid', 4320, { reperfusionH: 1 });
+    const e = event(r, 'locked_in')!;
     expect([e.onsetH, e.endH]).toEqual([0, 1]);
     expect(e.title.en).toBe('Bilateral ventral pons: locked-in syndrome');
-    expect(e.desc.en).toMatch(/Blood returned 1 h after onset before both sides infarcted, so the state resolves then/);
+    // some movement returns at once, the rest within hours
+    const last = event(r, 'locked_in_incomplete')!;
+    expect(last.onsetH).toBe(1);
+    expect(last.endH).toBeLessThan(24);
+    expect(last.desc.en).toMatch(/Blood returned 1 h after onset before both sides infarcted, so the state resolves as the rescued tissue regains its function over the following hours to days/);
+    expect(last.desc.zh).toContain('救回的組織在之後幾小時到幾天內逐漸恢復功能');
   });
 });
 
@@ -195,11 +219,20 @@ describe('X2-17: a basilar occlusion over two segments with the lower basilar is
       { vessel: 'basilar_upper', severity: 1 },
     ],
   ];
-  it('with moderate or poor collaterals reopening at 30 min saves almost nothing in the model; good collaterals still benefit', () => {
+  // Y1-0: the AICA territories of the cerebellum, which collaterals reach, are now lost over hours
+  // and so saved by an early reopening; the paramedian pons, below the core threshold, is not
+  const PONS = ['pons_rostral_basis_r', 'pons_rostral_basis_l', 'pons_caudal_basis_r', 'pons_caudal_basis_l'];
+  const ponsInfarct = (r: SimResult) => PONS.reduce((a, id) => a + r.regions[id].infarct, 0);
+  it('with moderate or poor collaterals reopening at 30 min saves almost nothing of the pons in the model; good collaterals still benefit', () => {
     for (const clot of LONG_CLOT) {
       for (const collateral of ['moderate', 'poor'] as const) {
-        const untreated = occ(clot, 4320, { collateral }).volumes.finalInfarct;
-        expect(occ(clot, 4320, { collateral, reperfusionH: 0.5 }).volumes.finalInfarct, `${clot.map((o) => o.vessel).join('+')} ${collateral}`).toBeGreaterThan(0.95 * untreated);
+        const where = `${clot.map((o) => o.vessel).join('+')} ${collateral}`;
+        const untreated = occ(clot, 4320, { collateral });
+        const reopened = occ(clot, 4320, { collateral, reperfusionH: 0.5 });
+        expect(ponsInfarct(reopened), where).toBeGreaterThan(0.95 * ponsInfarct(untreated));
+        // the same brainstem picture (a locked-in syndrome, or a disorder of consciousness)
+        expect(reopened.syndromes.map((m) => m.def.id), where).toEqual(untreated.syndromes.map((m) => m.def.id));
+        expect(reopened.nihss.total, where).toBe(untreated.nihss.total);
       }
       const good = occ(clot, 4320).volumes.finalInfarct;
       expect(occ(clot, 4320, { reperfusionH: 1 }).volumes.finalInfarct).toBeLessThan(0.6 * good);

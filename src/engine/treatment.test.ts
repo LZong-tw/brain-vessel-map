@@ -67,12 +67,23 @@ describe('default treatment = the model before treatment details', () => {
   // region is now the upper cervical cord (C1–C3) that an occlusion at the origin of the anterior
   // spinal artery threatens, 2 mL instead of 3, which lowers the flow the ASA draws: l_m1 core
   // 58.046 → 58.030 mL, the basilar values in the 4th significant digit; NIHSS and event texts did
+  // not change. Y1: re-pinned deliberately. Y1-0: tissue that collaterals reach is now lost over
+  // hours (end-artery perforator territories keep the fast course), so the left M1 opened at 2 h
+  // leaves 33.65 mL (was 58.03) and saves 113.70 mL (was 89.32); the poor-collateral right M1
+  // opened at 3 h leaves 148.46 mL instead of the whole 485 mL (with the herniation it no longer
+  // causes) and saves 148.26 mL (was 3e-12). Y1-12: the rescued tissue regains its function over
+  // hours to days, and the recanalisation event is graded by the deficit it avoids (NIHSS at 3
+  // months with and without the treatment): the left M1 at 24 h has NIHSS 12 (was 15; less infarct,
+  // most of the rescued cortex working again); the mid basilar opened at 6 h is still recovering at
+  // 72 h (NIHSS 4, was 0), and it and the stuttering basilar (NIHSS 0 at 168 h, as before) avoid a
+  // locked-in syndrome (NIHSS 0 instead of 20 at 3 months), the right M1 avoids 3 points (10 instead
+  // of 13): all three are now 'good' (were 'info', graded by the mL saved). The basilar volumes did
   // not change.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
-    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 58.02959827117762, finalInfarct: 58.02959827117762, saved: 89.32210056740406, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.548183407798022, finalInfarct: 0.548183407798022, saved: 2.2891834072667288, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 485.13835470147296, finalInfarct: 485.13835470147296, saved: 3.0127011996228248e-12, nihss: 37, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.555090683882325, finalInfarct: 0.555090683882325, saved: 2.282276131182426, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 33.650130680446615, finalInfarct: 33.650130680446615, saved: 113.70156815813507, nihss: 12, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.548183407798022, finalInfarct: 0.548183407798022, saved: 2.2891834072667288, nihss: 4, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 148.4638249972209, finalInfarct: 148.4638249972209, saved: 148.26218830850274, nihss: 18, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.555090683882325, finalInfarct: 0.555090683882325, saved: 2.282276131182426, nihss: 0, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {
     const id = label.split(' ')[0];
@@ -312,11 +323,15 @@ describe('method and events', () => {
   it('thrombolysis raises the haemorrhagic-transformation risk modestly, never below thrombectomy alone', () => {
     const LEVELS = ['low', 'moderate', 'high'];
     const level = (r: SimResult) => LEVELS.findIndex((l) => eventOf(r, 'hemorrhagic_transformation')!.title.en.endsWith(l));
-    // a 59 mL infarct: moderate after thrombectomy alone, one step higher with the drug
-    const evt = withT({ ...M1, tH: 24 }, { method: 'evt', grade: '3', noReflow: 0.01 });
+    // a 63 mL infarct (the left M1 opened at 6 h; Y1-0: at 2 h it is now 34 mL, under the step):
+    // moderate after thrombectomy alone, one step higher with the drug
+    const M1_6H = { ...M1, reperfusionH: 6, tH: 24 };
+    const evt = withT(M1_6H, { method: 'evt', grade: '3', noReflow: 0.01 });
+    expect(evt.volumes.finalInfarct).toBeGreaterThan(52.5);
+    expect(evt.volumes.finalInfarct).toBeLessThan(70);
     expect(level(evt)).toBe(1);
-    expect(level(withT({ ...M1, tH: 24 }, { method: 'ivt' }))).toBe(2);
-    expect(level(withT({ ...M1, tH: 24 }, { method: 'bridging' }))).toBe(2);
+    expect(level(withT(M1_6H, { method: 'ivt' }))).toBe(2);
+    expect(level(withT(M1_6H, { method: 'bridging' }))).toBe(2);
     for (const id of ['l_m2_sup', 'l_m2_inf', 'r_aca', 'l_pca', 'r_pica', 'l_m1'])
       for (const reperfusionH of [2, 6, 12]) {
         const over = scenario(id, { reperfusionH, tH: 24 });

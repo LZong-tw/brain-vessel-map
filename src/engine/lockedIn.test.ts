@@ -54,23 +54,31 @@ describe('mid-basilar occlusion: classic locked-in syndrome', () => {
 });
 
 describe('the locked-in risk ends when blood returns before the pons dies', () => {
-  const event = (r: ReturnType<typeof simulate>, id: string) => r.cascade.events.find((e) => e.id === id);
 
   // reported: after reopening at 1 h there was no infarct and no deficit, yet the acute
-  // "risk of locked-in syndrome" never ended and showed as a lasting state
-  it.each([1, 3, 6])('treatment at %s h: the event ends at the treatment, like the symptoms', (reperfusionH) => {
+  // "risk of locked-in syndrome" never ended and showed as a lasting state. Y1-12: the rescued pons
+  // regains its function over hours to days, so the state ends some hours after the treatment, as
+  // the symptoms do
+  const lockedInLabel = (r: ReturnType<typeof simulate>) => r.syndromes.some((m) => m.def.id.startsWith('locked_in'));
+  it.each([1, 3, 6])('treatment at %s h: the events end after the treatment, when the symptoms do', (reperfusionH) => {
     const r = sim({ occlusions: BASILAR_MID, reperfusionH, tH: 4320 });
-    const e = event(r, 'locked_in');
-    expect(e?.endH).toBe(reperfusionH);
-    expect(e?.desc['zh']).toContain('這個狀態隨之解除');
-    // the symptom model agrees: locked-in before the treatment, gone after it
-    expect(sim({ occlusions: BASILAR_MID, reperfusionH, tH: reperfusionH / 2 }).syndromes.map((m) => m.def.id)).toContain('locked_in');
-    expect(sim({ occlusions: BASILAR_MID, reperfusionH, tH: 24 }).syndromes.map((m) => m.def.id)).not.toContain('locked_in');
+    const course = r.cascade.events.filter((e) => e.id.startsWith('locked_in'));
+    const last = course[course.length - 1];
+    expect(course[0].onsetH).toBe(0);
+    expect(last.endH).toBeGreaterThan(reperfusionH);
+    expect(last.endH).toBeLessThan(48);
+    expect(last.desc['zh']).toContain('救回的組織在之後幾小時到幾天內逐漸恢復功能');
+    // the symptom model agrees: locked-in before the treatment and until the events end, gone after
+    expect(lockedInLabel(sim({ occlusions: BASILAR_MID, reperfusionH, tH: reperfusionH / 2 }))).toBe(true);
+    expect(lockedInLabel(sim({ occlusions: BASILAR_MID, reperfusionH, tH: last.endH! - 0.05 }))).toBe(true);
+    expect(lockedInLabel(sim({ occlusions: BASILAR_MID, reperfusionH, tH: last.endH! + 0.05 }))).toBe(false);
   });
 
   it('a spontaneous reopening ends it too', () => {
     const r = sim({ occlusions: [{ vessel: 'basilar_mid', severity: 1, toH: 2 }], tH: 4320 });
-    expect(event(r, 'locked_in')?.endH).toBe(2);
+    const course = r.cascade.events.filter((e) => e.id.startsWith('locked_in'));
+    expect(course[course.length - 1].endH).toBeGreaterThan(2);
+    expect(course[course.length - 1].endH).toBeLessThan(24);
   });
 
   // the locked-in state is told by its own course (X2-15): classical while nothing moves, then an
@@ -83,14 +91,16 @@ describe('the locked-in risk ends when blood returns before the pons dies', () =
       expect(course[0].endH).toBe(course[1].onsetH);
       expect(course[1].endH).toBeUndefined();
     }
-    // reopened at 1 h, closed again at 7 h: it resolves at the reopening and returns with the reocclusion
+    // reopened at 1 h, closed again at 7 h: it resolves after the reopening (incomplete for a few
+    // hours as the pons recovers, Y1-12) and returns with the reocclusion
     const reoccluded = lockedInEvents(sim({ occlusions: BASILAR_MID, reperfusionH: 1, tH: 4320, treatment: { ...DEFAULT_TREATMENT, reocclusionAfterH: 6 } }));
     expect(reoccluded.map((e) => [e.id, e.onsetH])).toEqual([
       ['locked_in', 0],
+      ['locked_in_incomplete', 1],
       ['locked_in_2', 7],
-      ['locked_in_incomplete', reoccluded[2].onsetH],
+      ['locked_in_incomplete_2', reoccluded[3].onsetH],
     ]);
-    expect(reoccluded[0].endH).toBe(1);
-    expect(reoccluded[2].endH).toBeUndefined();
+    expect(reoccluded[1].endH).toBeLessThan(7);
+    expect(reoccluded[3].endH).toBeUndefined();
   });
 });

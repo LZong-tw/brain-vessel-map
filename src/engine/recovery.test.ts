@@ -17,12 +17,18 @@ const BASILAR = { occlusions: occl('basilar_mid') };
 const FOVILLE = { occlusions: occl('pontine_paramedian_caudal_l') };
 
 describe('compensation of lost function', () => {
-  it('an untreated left M1 infarct improves by 3 months, arm more than fine finger control', () => {
+  // Y1-1: the arm's weakness comes from half of the posterior limb of the internal capsule, where the
+  // corticospinal tract converges: plegic in the first week, it recovers to a moderate weakness, not
+  // to a drift (Shelton & Reding 2001), while the leg recovers further
+  it('an untreated left M1 infarct improves by 3 months, the leg more than the arm, the arm more than fine finger control', () => {
     const d1 = sim({ ...L_M1, tH: 24 });
+    const d3 = sim({ ...L_M1, tH: 72 });
     const m3 = sim({ ...L_M1, tH: 2160 });
     expect(m3.nihss.total).toBeLessThan(d1.nihss.total);
-    expect(sev(m3, 'arm_weak', 'r')).toBeLessThan(sev(d1, 'arm_weak', 'r'));
+    expect(sev(m3, 'arm_weak', 'r')).toBeLessThan(sev(d3, 'arm_weak', 'r'));
+    expect(sev(m3, 'arm_weak', 'r')).toBe(2);
     expect(sev(m3, 'leg_weak', 'r')).toBeLessThan(sev(d1, 'leg_weak', 'r'));
+    expect(sev(m3, 'leg_weak', 'r')).toBeLessThan(sev(m3, 'arm_weak', 'r'));
     const arm = find(m3, 'arm_weak', 'r')?.recovery;
     expect(arm?.kind).toBe('parallel');
     expect(arm?.bilateral).toBe(false);
@@ -31,7 +37,7 @@ describe('compensation of lost function', () => {
       const hand = find(m3, 'hand_clumsy', 'r');
       expect(hand, 'the clumsy hand is still there').toBeDefined();
       expect(hand!.recovery?.kind).toBe('fine');
-      expect(arm!.compensated).toBeGreaterThan(2 * hand!.recovery!.compensated);
+      expect(arm!.compensated).toBeGreaterThan(hand!.recovery!.compensated);
     }
   });
 

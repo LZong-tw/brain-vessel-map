@@ -239,6 +239,27 @@ Sleep, emotional expression, temperature regulation and sweating, taste and blad
 - Wong GJ et al. Stroke 2021;52:2241–2249 (embolic evidence on MRI before and after thrombectomy).
 - Ng FC et al. Neurology 2022;98:e790–e801 (no-reflow after successful reperfusion).
 - ter Schiphorst A et al. J Cereb Blood Flow Metab 2021;41:253–266 (tissue no-reflow after recanalisation).
+- Wheeler HM, Mlynash M, Inoue M, et al. The growth rate of early DWI lesions is highly variable and associated with penumbral salvage and clinical outcomes following endovascular reperfusion. Int J Stroke 2015;10:723–729. (DEFUSE 2: median early infarct growth 3.1 mL/h; the target of the infarct-growth calibration.)
+- Ospel JM, McDonough R, Demchuk AM, et al. Predictors and clinical impact of infarct progression rate in the ESCAPE-NA1 trial. J Neurointerv Surg 2022;14:886–891. (Median infarct progression 4.74 mL/h.)
+- Sarraj A, Hassan AE, Grotta J, et al. Early infarct growth rate correlation with endovascular thrombectomy clinical outcomes: analysis from the SELECT study. Stroke 2021;52:57–69. (Fast progressors: 10 mL/h or more.)
+- Seners P, Yuen N, Olivot JM, et al. Factors associated with fast early infarct growth in patients with acute ischemic stroke with a large vessel occlusion. Neurology 2023;101:e2126–e2137. (Poor collaterals in most fast progressors.)
+- Desai SM, Rocha M, Jovin TG, Jadhav AP. High variability in neuronal loss. Stroke 2019;50:34–37. (Neurons lost per minute in ICA and M1 occlusions: the fastest, over 27 million per minute, is about 74 mL/h at the 22 million neurons per mL of Saver 2006.)
+- Thomalla G, Hartmann F, Juettler E, et al. Prediction of malignant middle cerebral artery infarction by magnetic resonance imaging within 6 hours of symptom onset: a prospective multicenter observational study. Ann Neurol 2010;68:435–445. (A DWI lesion over 82 mL within 6 h.)
+- d'Esterre CD, Boesen ME, Ahn SH, et al. Time-dependent computed tomographic perfusion thresholds for patients with acute ischemic stroke. Stroke 2015;46:3390–3397. (The flow at which tissue infarcts falls the earlier blood returns.)
+- Boned S, Padroni M, Rubiera M, et al. Admission CT perfusion may overestimate initial infarct core: the ghost infarct core concept. J Neurointerv Surg 2017;9:66–69.
+- Berkhemer OA, Jansen IG, Beumer D, et al. Collateral status on baseline computed tomographic angiography and intra-arterial treatment effect in patients with proximal anterior circulation stroke. Stroke 2016;47:768–776. (MR CLEAN: the benefit of thrombectomy grows with the collateral grade.)
+- Memezawa H, Smith ML, Siesjö BK. Penumbral tissues salvaged by reperfusion following middle cerebral artery occlusion in rats. Stroke 1992;23:552–559. (The end-artery caudoputamen is lost within minutes, the cortex later.)
+- Garcia JH, Liu KF, Ho KL. Neuronal necrosis after middle cerebral artery occlusion in Wistar rats progresses at different time intervals in the caudoputamen and the cortex. Stroke 1995;26:636–642.
+- Desai SM, Catapano JS, Tonetti DA, et al. Ultra-early functional improvement after stroke thrombectomy: predictors and implications. Stroke Vasc Interv Neurol 2022;2:e000138. (Few patients improve within 30 min of recanalisation; the model's slow return of rescued function.)
+- Kniep H, Meyer L, Bechstein M, et al. How much of the thrombectomy related improvement in functional outcome is already apparent at 24 hours and at hospital discharge? Stroke 2022;53:2828–2837. (About half of the benefit at 24 h, three quarters at discharge.)
+- Fransen PS, Berkhemer OA, Lingsma HF, et al. Time to reperfusion and treatment effect for acute ischemic stroke: a randomized clinical trial. JAMA Neurol 2016;73:190–196.
+- Klapproth S, Meyer L, Kniep H, et al. Delayed neurological recovery in ischemic stroke patients undergoing endovascular treatment is associated with baseline hyperglycemia: a treatable cause of the stunned brain phenomenon? J Neurol 2025;272:313.
+- Guadagno JV, Jones PS, Aigbirhio FI, et al. Selective neuronal loss in rescued penumbra relates to initial hypoperfusion. Brain 2008;131:2666–2678.
+- Shelton FN, Reding MJ. Effect of lesion location on upper limb motor recovery after stroke. Stroke 2001;32:107–112. (Arm recovery: cortex better than the posterior limb of the internal capsule.)
+- Feng W, Wang J, Chhatbar PY, et al. Corticospinal tract lesion load: an imaging biomarker for stroke motor outcomes. Ann Neurol 2015;78:860–870.
+- Nijland RH, van Wegen EE, Harmeling-van der Wel BC, Kwakkel G. Presence of finger extension and shoulder abduction within 72 hours after stroke predicts functional recovery: early prediction of functional outcome after stroke: the EPOS cohort study. Stroke 2010;41:745–750.
+- Stinear CM, Byblow WD, Ackerley SJ, Smith MC, Borges VM, Barber PA. PREP2: a biomarker-based algorithm for predicting upper limb function after stroke. Ann Clin Transl Neurol 2017;4:811–820.
+- Byblow WD, Stinear CM, Barber PA, Petoe MA, Ackerley SJ. Proportional recovery after stroke depends on corticomotor integrity. Ann Neurol 2015;78:848–859.
 
 ### 臨床細節審查（B）· Clinical-detail audit (B): treatment, haemodynamics, brainstem and thalamus, acute course
 

@@ -196,9 +196,12 @@ describe('oedema model — treatment and other territories', () => {
     expect(early.midlineShiftMm).toBeLessThan(none.midlineShiftMm);
   });
 
+  // Y1-0: with good collaterals a reopening at 12 h still saves part of the territory (the infarct
+  // grows over a day), so the extra water of reperfusion shows where little is left to save: poor
+  // collaterals, reopened at 18 h
   it('late reperfusion of dead tissue transiently adds oedema', () => {
-    const none = edemaAt({ ...L_M1, tH: 24 });
-    const late = edemaAt({ ...L_M1, tH: 24, reperfusionH: 12 });
+    const none = edemaAt({ ...L_M1, collateral: 'poor', tH: 24 });
+    const late = edemaAt({ ...L_M1, collateral: 'poor', tH: 24, reperfusionH: 18 });
     expect(late.extraVolume.supra.l).toBeGreaterThan(none.extraVolume.supra.l);
   });
 

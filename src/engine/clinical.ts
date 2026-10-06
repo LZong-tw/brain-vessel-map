@@ -8,7 +8,7 @@ import { REGION_DEFS } from '../anatomy/regions';
 import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { MCA_CORTEX, SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
 import { indexById } from '../anatomy/indexById';
-import { lesionSides, symptomCompensation } from './recovery';
+import { corticospinalLoss, initialSeverity, lesionSides, symptomCompensation } from './recovery';
 import type { SymptomRecovery } from './recoveryTypes';
 
 export interface SymptomItem {
@@ -434,7 +434,15 @@ export function lesionSymptoms(
   regionAgeH?: Record<string, number>,
   /** after an artery has reopened: the deficits held back (see SymptomHold) and a trace of what is given */
   hold?: SymptomHold,
+  /**
+   * per region, two levels below `regionDys` (Y1-12): `steady`, from dead and still ischaemic tissue
+   * alone (without the tissue regaining its function after a reopening, or penumbra that collaterals
+   * held, and without the passing perilesional depression), above which what a region gives fades;
+   * and `base`, without the passing depression only, from which a global aphasia is graded
+   */
+  levels?: { steady: Record<string, number>; base: Record<string, number> },
 ): SymptomItem[] {
+  const steady = levels?.steady;
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
     const key = `${id}|${side ?? ''}`;
@@ -453,9 +461,17 @@ export function lesionSymptoms(
   // which sides have dead tissue serving each function: a one-sided loss compensates better
   const lesions = lesionSides(regionInf);
   /** the strongest region source of each aphasia component before compensation (for a global aphasia) */
-  const aphasiaRaw = new Map<string, { raw: number; r: Region; level: number; inf: number }>();
+  /** (`rawBase`: the same without the passing perilesional depression: what grades a global aphasia) */
+  const aphasiaRaw = new Map<string, { raw: number; rawBase: number; r: Region; level: number; inf: number }>();
   /** each listed aphasia component's severity after its own compensation (not rounded) */
   const aphasiaNow = new Map<string, number>();
+  /**
+   * a symptom fades: no region it comes from gives it by its dead or still ischaemic tissue alone
+   * (`steady`), only through tissue regaining its function after a reopening (Y1-12) or the passing
+   * perilesional depression, so it will go; one from dead tissue, or from a lasting event (no
+   * region), stays
+   */
+  const fading = (x: SymptomItem) => !!steady && !x.sources.some((src) => !REGION_BY_ID[src] || reaches(steady[src] ?? 0));
   /** per body side: the worst early limb weakness (before rounding) and any early hemisensory loss */
   const earlyParesis: Record<Side, number> = { r: 0, l: 0 };
   const earlySensory: Record<Side, boolean> = { r: false, l: false };
@@ -539,13 +555,19 @@ export function lesionSymptoms(
       if (id === 'hypersomnia' && d.s === 'coma') sevEff = Math.min(sevEff, 2);
       // weeks–months later, spared pathways take over part of what the dead tissue did; a coma
       // that became a disorder of consciousness keeps the arousal system's (coma's) redundancy
-      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy);
+      // a limb weakness from where the corticospinal fibres converge recovers little once most of
+      // the tract there is lost under a weakness that was plegic at first (Y1-1)
+      const early = acuteDys ? Math.max(acuteDys[r.id] ?? 0, inf) : Math.max(dys, inf);
+      const tract = corticospinalLoss(d.s, r.baseId, inf, initialSeverity(d.sev ?? 2, early), lacune);
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy, tract);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
       }
       if (APHASIA_FEATURES[id]) {
-        if (raw > (aphasiaRaw.get(id)?.raw ?? 0)) aphasiaRaw.set(id, { raw, r, level, inf });
+        const baseLevel = inBorder || !levels ? level : Math.min(level, levels.base[r.id] ?? level);
+        const rawBase = ((d.sev ?? 2) + peak) * (0.35 + 0.65 * Math.min(1, baseLevel / 0.8));
+        if (raw > (aphasiaRaw.get(id)?.raw ?? 0)) aphasiaRaw.set(id, { raw, rawBase, r, level, inf });
         aphasiaNow.set(id, Math.max(aphasiaNow.get(id) ?? 0, sevEff));
       }
       hold?.trace?.add(key);
@@ -652,18 +674,27 @@ export function lesionSymptoms(
   const components = [...map.values()].filter((s) => APHASIA_FEATURES[s.id]);
   if (components.length > 0) {
     const features = (list: SymptomItem[]) => Object.assign({}, ...list.map((s) => APHASIA_FEATURES[s.id]));
-    let type = aphasiaType(features(components));
+    // apraxia of speech makes speech effortful and non-fluent: with only mild fluent components left
+    // that fade as their tissue regains its function (Y1-12), the picture stays a non-fluent one;
+    // otherwise the type would turn fluent, drop the apraxia of speech, and give it back once those
+    // components are gone
+    const aos = map.get('apraxia_of_speech|');
+    const aosOverFading = !!aos && components.every((s) => s.sev < 2 && !APHASIA_FEATURES[s.id].nonfluent && fading(s));
+    let type = aphasiaType(aosOverFading ? { ...features(components), nonfluent: true } : features(components));
     let sev = Math.max(...components.map((s) => s.sev));
     let recovery = components.find((s) => s.sev === sev)?.recovery;
     if (type === 'aphasia_global') {
       // graded from its components, without a fixed step up, and compensated as a global
-      // aphasia (the poorest outlook), so that it can become a Broca or Wernicke type later
+      // aphasia (the poorest outlook), so that it can become a Broca or Wernicke type later; the
+      // passing perilesional depression of days 2–5 deepens its components but does not make a
+      // global aphasia of one that had become milder (after a reopening, as the rescued cortex
+      // regains its function: Y1-12)
       let best = -1;
       for (const s of components) {
         const c = aphasiaRaw.get(s.id);
         if (!c) continue;
         const rec = symptomCompensation('aphasia_global', c.r, c.level, c.inf, lesions, ageOf(c.r.id));
-        const v = c.raw * (1 - rec.compensated);
+        const v = c.rawBase * (1 - rec.compensated);
         if (v > best) {
           best = v;
           recovery = rec;
@@ -687,7 +718,24 @@ export function lesionSymptoms(
         const strongType = strong.length > 0 ? aphasiaType(features(strong)) : 'aphasia_global';
         const now = (s: SymptomItem) => aphasiaNow.get(s.id) ?? s.sev;
         const strongest = (f: 'nonfluent' | 'comprehension') => Math.max(0, ...components.filter((s) => APHASIA_FEATURES[s.id][f]).map(now));
-        type = strongType !== 'aphasia_global' ? strongType : strongest('comprehension') <= strongest('nonfluent') ? 'aphasia_broca' : 'aphasia_wernicke';
+        // what lasts decides first: while tissue regains its function after a reopening, the
+        // components it gives fade, and those of dead tissue (or of a lasting event, the
+        // subcortical aphasia of a striatocapsular infarct) stay; a type that follows the fading
+        // ones would turn fluent and then non-fluent again (Y1-12)
+        const lasting = components.filter((s) => !fading(s));
+        // (a listed apraxia of speech keeps the speech non-fluent)
+        const lastingNonfluent = lasting.some((s) => APHASIA_FEATURES[s.id].nonfluent) || !!aos;
+        const lastingComprehension = lasting.some((s) => APHASIA_FEATURES[s.id].comprehension);
+        type =
+          strongType !== 'aphasia_global'
+            ? strongType
+            : lastingNonfluent !== lastingComprehension
+              ? lastingNonfluent
+                ? 'aphasia_broca'
+                : 'aphasia_wernicke'
+              : strongest('comprehension') <= strongest('nonfluent')
+                ? 'aphasia_broca'
+                : 'aphasia_wernicke';
         const shares = (s: SymptomItem) => (Object.keys(APHASIA_FEATURES[s.id]) as (keyof (typeof APHASIA_FEATURES)[string])[]).some((f) => APHASIA_FEATURES[type][f]);
         const kept = strongType !== 'aphasia_global' ? strong : components.filter(shares);
         sev = Math.max(...kept.map((s) => s.sev)) as 1 | 2 | 3;

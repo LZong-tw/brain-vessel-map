@@ -128,9 +128,15 @@ describe('C2-F2: thrombolysis beyond alteplase within 4.5 h', () => {
 
 describe('C2-F3: large-core thrombectomy', () => {
   it('an anterior LVO with a large core at the decision names the large-core trials, their benefit and their haemorrhage', () => {
-    // untreated l_m1 has about 92 mL of core at 6 h; r_ica_t about 300 mL
-    for (const id of ['l_m1', 'r_ica_t']) {
-      const d = windowText(run(id));
+    // Y1-0: the infarct now grows over hours, so untreated l_m1 has about 62 mL of core at 6 h
+    // (was 92); reopened at 12 h it has about 88 mL then; r_ica_t (moderate collaterals) about 177
+    // mL at 6 h (was 300)
+    const CASES: [string, SimResult][] = [
+      ['l_m1 at 12 h', run('l_m1', { reperfusionH: 12 })],
+      ['r_ica_t', run('r_ica_t')],
+    ];
+    for (const [id, r] of CASES) {
+      const d = windowText(r);
       for (const trial of ['SELECT2', 'ANGEL-ASPECT', 'RESCUE-Japan LIMIT', 'TENSION', 'LASTE']) expect(d.en, `${id} ${trial}`).toContain(trial);
       expect(d.en, id).toMatch(/lower mortality in TENSION and LASTE/);
       expect(d.en, id).toMatch(/6\.1% vs 2\.7%/);
@@ -139,11 +145,13 @@ describe('C2-F3: large-core thrombectomy', () => {
     }
     // a core beyond most trial populations says so
     expect(windowText(run('r_ica_t')).en).toMatch(/larger than in most of these trials/);
-    expect(windowText(run('l_m1')).en).not.toMatch(/larger than in most of these trials/);
+    expect(windowText(run('l_m1', { reperfusionH: 12 })).en).not.toMatch(/larger than in most of these trials/);
+    // and a core under 70 mL at the decision does not get the large-core sentence at all
+    expect(windowText(run('l_m1')).en).not.toContain('SELECT2');
   });
 
   it('a small core at the time of treatment does not get the large-core sentence', () => {
-    // l_m1 reopened at 1 h: about 45 mL of core then
+    // l_m1 reopened at 1 h: about 25 mL of core then (Y1-0; was 45)
     const d = windowText(run('l_m1', { reperfusionH: 1 }));
     expect(d.en).not.toContain('SELECT2');
   });

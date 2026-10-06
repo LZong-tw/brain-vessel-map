@@ -7,8 +7,8 @@ import type { SymptomItem } from '../engine/clinical';
 import type { EdemaState } from '../engine/edemaTypes';
 import { getUnits } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
-import { finalInfarctProb, penumbraResolveH, tauHours, type TissueState } from '../engine/tissue';
-import { tissueParamsForBed } from '../engine/tissueParams';
+import { finalInfarctProb, infarctFraction, penumbraResolveH, type TissueState } from '../engine/tissue';
+import { tissueParamsForUnit } from '../engine/tissueParams';
 import type { Strings } from '../i18n/ui';
 import { STATE_COLORS } from './colors';
 
@@ -293,12 +293,14 @@ export function penumbraEstimate(sim: SimResult, regionId: string): PenumbraEsti
   for (const u of getUnits(sim.input.variants, sim.input.collateral)) {
     if (!beds.has(u.bed)) continue;
     const rel = sim.hemo.unitRel[u.id] ?? 1;
-    const tp = tissueParamsForBed(u.bed);
-    if (rel < tp.coreRel || rel >= tp.penumbraRel) continue;
+    const tp = tissueParamsForUnit(u);
+    // tissue below the core threshold that is still alive counts too: fed by collaterals, it can
+    // last for hours (Y1-0)
+    if (rel >= tp.penumbraRel) continue;
     const resolve = penumbraResolveH(rel, tp);
     if (resolve <= tH) continue;
     const p = finalInfarctProb(rel, tp);
-    const dead = p * (1 - Math.exp(-Math.max(tH - tp.lagH, 0) / tauHours(rel, tp)));
+    const dead = infarctFraction(rel, tH, null, 1, tp);
     const alive = (1 - dead) * u.frac * bedWeight(u.bed);
     if (alive <= 0) continue;
     parts.push({ resolve, alive });

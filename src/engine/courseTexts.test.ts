@@ -144,26 +144,34 @@ describe('Y3-5: the cardiac warning calls a stroke severe by its clinical severi
     }
   });
 
-  it('a severe deficit is called severe whatever the volume (left M1 opened at 2 h: NIHSS 23 at onset, 17 later)', () => {
+  // Y1-12: the rescued cortex regains its function over the first day, so the NIHSS falls from 23
+  // to 12–15 after 6 h (was 17 throughout); the text follows it at every stop
+  it('a severe deficit is called severe whatever the volume (left M1 opened at 2 h: NIHSS 23 at onset, lower once the rescued cortex works again)', () => {
     const input = inputOf('l_m1_thrombectomy');
     expect(at(input, 24).cascade.volumes.total).toBeLessThan(60);
     expect(at(input, 0).nihss.total).toBeGreaterThanOrEqual(16);
+    let severe = 0;
     for (const h of STOPS.filter((x) => x < 336)) {
-      const c = cardiacAt(at(input, h), h)!;
-      expect(c.desc.en, `${h} h`).toContain(SEVERE_NOW);
-      expect(c.desc.zh, `${h} h`).toContain('這是嚴重的中風');
+      const r = at(input, h);
+      const c = cardiacAt(r, h)!;
+      if (r.nihss.total >= 16) {
+        severe++;
+        expect(c.desc.en, `${h} h`).toContain(SEVERE_NOW);
+        expect(c.desc.zh, `${h} h`).toContain('這是嚴重的中風');
+      } else expect(c.desc.en, `${h} h`).toMatch(SEVERE_PAST);
       expect(c.severity).toBe('warn');
     }
+    expect(severe).toBeGreaterThanOrEqual(6);
   });
 
-  it('after a reopening that clears the deficit, it was severe at onset (mid-basilar reopened at 2 h and at 12 h)', () => {
-    for (const [name, input, opened] of [
-      ['c07', C07, 2],
-      ['c33', C33, 12],
-    ] as [string, SimInput, number][]) {
+  // Y1-12: reopened at 2 h the pons recovers within the first day; reopened at 12 h it stays
+  // locked-in for days (still severe then), and the deficit clears only over weeks
+  it('after a reopening that clears the deficit, it was severe at onset (mid-basilar reopened at 2 h; at 12 h severe while the locked-in picture lasts)', () => {
+    for (const h of [24, 48, 72]) expect(cardiacAt(at(C33, h), h)!.desc.en, `c33 ${h} h`).toContain(SEVERE_NOW);
+    for (const [name, input, opened] of [['c07', C07, 2]] as [string, SimInput, number][]) {
       expect(at(input, 0).nihss.total, name).toBeGreaterThanOrEqual(16);
       expect(cardiacAt(at(input, 0), 0)!.desc.en, name).toContain(SEVERE_NOW);
-      for (const h of STOPS.filter((x) => x >= opened + 12 && x < 336)) {
+      for (const h of STOPS.filter((x) => x >= opened + 22 && x < 336)) {
         const r = at(input, h);
         expect(r.nihss.total, `${name} ${h} h`).toBe(0);
         const c = cardiacAt(r, h)!;
@@ -222,8 +230,9 @@ describe('Y3-6: the posterior-circulation caveat follows the circulation and nee
       const r = at(C33, h);
       if (r.symptoms.length + r.unexaminable.length === 0) expect(r.nihss.posteriorCaveat, `${h} h`).toBe(false);
     }
-    expect(at(C33, 168).symptoms).toEqual([]);
-    expect(at(C33, 168).nihss.posteriorCaveat).toBe(false);
+    // (Y1-12: the rescued pons regains its function over weeks; was: symptom-free from 12 h)
+    expect(at(C33, 2160).symptoms).toEqual([]);
+    expect(at(C33, 2160).nihss.posteriorCaveat).toBe(false);
   });
 
   it('a thalamic (Percheron, thalamogeniculate) stroke with a low NIHSS gets it from onset', () => {
@@ -266,15 +275,19 @@ const immobile = (r: SimResult) =>
 const dvtAt = (r: SimResult, h: number) => runningAt(r, h, /^dvt(_\d+)?$/);
 
 describe('Y3-7: the venous-thrombosis warning follows immobility (CLOTS 3)', () => {
-  it('none after a full recovery before day 2 (mid-basilar reopened at 2 h and at 12 h)', () => {
-    for (const [name, input] of [
-      ['c07', C07],
-      ['c33', C33],
-    ] as [string, SimInput][]) {
-      const r = at(input, 48);
-      expect(immobile(r), name).toBe(false);
-      expect(r.cascade.events.filter((e) => /^dvt/.test(e.id)), name).toEqual([]);
-    }
+  it('none after a full recovery before day 2 (mid-basilar reopened at 2 h)', () => {
+    const r = at(C07, 48);
+    expect(immobile(r)).toBe(false);
+    expect(r.cascade.events.filter((e) => /^dvt/.test(e.id))).toEqual([]);
+  });
+
+  // Y1-12: reopened at 12 h the pons regains its function only over days, so the patient is still
+  // locked-in, and immobile, on day 2 (was: recovered at the reopening)
+  it('kept while a rescued pons is still recovering (mid-basilar reopened at 12 h)', () => {
+    const r = at(C33, 48);
+    expect(immobile(r)).toBe(true);
+    expect(dvtAt(r, 48).map((e) => e.id)).toEqual(['dvt']);
+    expect(dvtAt(r, 48)[0].endH).toBeLessThan(720);
   });
 
   it('kept for a paralysed leg (untreated anterior choroidal and M1 occlusions)', () => {

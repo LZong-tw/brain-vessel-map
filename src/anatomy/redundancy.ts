@@ -81,6 +81,30 @@ export const BOTTLENECK_REGIONS: readonly string[] = ['midbrain_peduncle', 'pons
 /** compensation left after a two-sided lesion at a bottleneck, relative to `bi` */
 export const BOTTLENECK_FACTOR = 0.25;
 
+/**
+ * Where the corticospinal fibres of one side converge: the posterior limb of the internal capsule,
+ * the cerebral peduncle and the basis pontis (Y1-1). An arm made plegic by an infarct that takes
+ * most of the tract there recovers little: only 1 of 28 patients with the posterior limb and the
+ * structures next to it involved regained isolated arm movement, against 3 of 4 with purely
+ * cortical strokes (cortex > corona radiata > posterior limb; small lacunes of the posterior limb
+ * alone left too little weakness to be included: Shelton FN, Reding MJ. Stroke 2001;32:107–112);
+ * a corticospinal lesion load of 7 cc or more left every patient with a poor arm at 3 months (Feng W
+ * et al. Ann Neurol 2015;78:860–870); about 70 % of the impairment resolves only while the
+ * corticomotor pathway still works (Byblow WD et al. Ann Neurol 2015;78:848–859; the PREP2
+ * algorithm predicts the arm's outcome from it: Stinear CM et al. Ann Clin Transl Neurol
+ * 2017;4:811–820); without finger extension or shoulder abduction on day 2 only a quarter regained
+ * any dexterity (Nijland RH et al. Stroke 2010;41:745–750).
+ */
+export const CST_CONVERGENCE: readonly string[] = ['ic_posterior_limb', 'midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis'];
+/**
+ * the one-sided share of the limb weakness that is taken over when a convergence site has lost
+ * most of its tract (half or more of the region infarcted) under a weakness that was plegic at
+ * first: the arm's falls from 0.5 towards this, the leg's less (walking recovers better through
+ * the reticulospinal pathways: Baker 2011, above). A lacune is small and spares part of the tract
+ * (Shelton & Reding 2001), so it keeps the usual share. TODO(medical-review): both values
+ */
+export const CST_LOST_SHARE: Readonly<Record<string, number>> = { arm_weak: 0.15, leg_weak: 0.45 };
+
 /** unknown / unlisted symptoms: partial compensation, unilateral only */
 export const DEFAULT_REDUNDANCY: Redundancy = { kind: 'partial', uni: 0.4, bi: 0 };
 

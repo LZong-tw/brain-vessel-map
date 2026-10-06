@@ -378,7 +378,9 @@ describe('speech is rated only while the patient speaks, and a clumsy hand only 
     const cases: [string, SimResult][] = [
       ['basilar_upper 24 h (coma)', one('basilar_upper', 24)],
       ['basilar_upper 2160 h (disorder of consciousness)', one('basilar_upper', 2160)],
-      ['basilar_upper reopened at 24 h, 24 h (stupor)', simulate({ ...one('basilar_upper', 24).input, reperfusionH: 24 })],
+      // (Y1-12: the tegmentum rescued at 6 h works again only over days, so the patient is
+      // stuporous at 12 h; was: reopened at 24 h, stuporous at 24 h)
+      ['basilar_upper reopened at 6 h, 12 h (stupor)', simulate({ ...one('basilar_upper', 12).input, reperfusionH: 6 })],
       ['r_m1_malignant poor 48 h (coma)', scenario('r_m1_malignant', 48, { collateral: 'poor' })],
     ];
     expect(items(cases[2][1])['1a']).toBe(2);

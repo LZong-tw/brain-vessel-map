@@ -70,3 +70,22 @@ describe('"what is happening now" when the patient falls into a coma (X1-2)', ()
     expect(container.querySelector('.now-symptoms.unexaminable')).toBeNull();
   });
 });
+
+describe('"what is happening now" after a reopening: the rescued tissue regains its function over time (Y1-12)', () => {
+  // the thrombectomy template: the left M1 reopened at 2 h
+  const series = seriesOf('l_m1_thrombectomy', 'good');
+
+  it.each(['zh-TW', 'en'] as Lang[])('%s: at 6 h the summary says how much rescued tissue is still regaining its function, and that it takes hours to days', (lang) => {
+    useApp.setState({ lang, tIndex: at(6) });
+    const { container } = render(<NowSummary sim={series[at(6)]} series={series} />);
+    const text = container.textContent ?? '';
+    expect(text).toMatch(lang === 'en' ? /About \d+ mL of tissue that survived is still regaining its function/ : /約 \d+ mL 存活下來的組織仍在恢復功能/);
+    expect(text).toMatch(lang === 'en' ? /over hours to days rather than at once/ : /要幾小時到幾天才重新運作/);
+  });
+
+  it('three months later the rescued tissue works again and the line is gone', () => {
+    useApp.setState({ lang: 'en', tIndex: at(2160) });
+    const { container } = render(<NowSummary sim={series[at(2160)]} series={series} />);
+    expect(container.textContent).not.toMatch(/still regaining its function/);
+  });
+});

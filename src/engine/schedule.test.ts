@@ -12,7 +12,7 @@ import { getUnits, simulateHemodynamics, type Occlusion } from './hemodynamics';
 import { activeAt, breakpoints, fitSchedule, scheduleEvents, statusAt } from './schedule';
 import { simulate, type SimInput } from './simulate';
 import { finalInfarctProb, infarctFraction, lossSteps, penumbraResolveH, tauHours, tissueCourse, unitState, type TissueState } from './tissue';
-import { DEFAULT_TISSUE, tissueParamsForBed, type TissueParams } from './tissueParams';
+import { DEFAULT_TISSUE, PERFORATOR_TISSUE, tissueParamsForUnit, type TissueParams } from './tissueParams';
 
 const base: SimInput = { occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false };
 const sim = (over: Partial<SimInput>) => simulate({ ...base, ...over });
@@ -106,7 +106,7 @@ describe('tissue: the piecewise model reduces exactly to the two-phase model', (
       const expected: Record<string, Record<TissueState, number>> = {};
       for (const b of BEDS) expected[b.id] = { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 };
       for (const u of units) {
-        const p = tissueParamsForBed(u.bed);
+        const p = tissueParamsForUnit(u);
         const rel = acute.unitRel[u.id] ?? 1;
         const relAfter = after.unitRel[u.id] ?? 1;
         const { f, rest } = expectedUnitState(rel, tH, 2, relAfter, p);
@@ -172,10 +172,14 @@ describe('tissue: piecewise flow histories', () => {
       { fromH: from, rel: 0.1 },
       { fromH: from + 1 / 6, rel: 1 },
     ];
-    const lag = { ...p, lagH: 0.25 };
-    // one 10-minute event inside a 15-minute budget: nothing dies; without a lag some does
+    // the fast course of an end-artery territory, whose lag is 6 min (Y1-0)
+    const fast = PERFORATOR_TISSUE;
+    const lag = { ...fast, lagH: 0.25 };
+    // one 10-minute event inside a 15-minute budget: nothing dies; with a 6-minute one some does
     expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, lag).f).toBe(0);
-    expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, p).f).toBeGreaterThan(0.5);
+    expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, fast).f).toBeGreaterThan(0.5);
+    // tissue that collaterals reach has a 20-minute budget: the same 10 minutes leave nothing
+    expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, p).f).toBe(0);
     // a second 10-minute event a day later uses up the rest of the budget
     const twice = [{ fromH: 0, rel: 1 }, ...tia(1), ...tia(24)];
     expect(tissueCourse(twice, 20, lag).f).toBe(0);
@@ -336,7 +340,13 @@ async function simulateWithLag(lagH: number): Promise<typeof simulate> {
   vi.doMock('./tissueParams', async (importOriginal) => {
     const orig = await importOriginal<typeof import('./tissueParams')>();
     const withLag = (p: TissueParams): TissueParams => ({ ...p, lagH });
-    return { ...orig, DEFAULT_TISSUE: withLag(orig.DEFAULT_TISSUE), tissueParamsForBed: (bed: string) => withLag(orig.tissueParamsForBed(bed)) };
+    return {
+      ...orig,
+      DEFAULT_TISSUE: withLag(orig.DEFAULT_TISSUE),
+      PERFORATOR_TISSUE: withLag(orig.PERFORATOR_TISSUE),
+      tissueParamsForBed: (bed: string) => withLag(orig.tissueParamsForBed(bed)),
+      tissueParamsForUnit: (u: { bed: string; vessel: string }) => withLag(orig.tissueParamsForUnit(u)),
+    };
   });
   const mod = await import('./simulate');
   return mod.simulate;

@@ -104,10 +104,12 @@ describe('C3-F1: locked-in syndrome is not labelled during coma; incomplete and 
   // X2-15: titled by the picture the labels show at the time (classical, incomplete), no longer by
   // the final infarct; reopened in time, the locked-in picture shown resolves with the reopening
   it('the locked-in event is titled by the picture shown: classical while nothing moves, incomplete with movement left, resolving when reopened in time', () => {
-    const early = event(one('basilar_mid', 4320, { reperfusionH: 1 }), 'locked_in')!;
+    const r = one('basilar_mid', 4320, { reperfusionH: 1 });
+    const early = event(r, 'locked_in')!;
     expect(early.title.en).toBe('Bilateral ventral pons: locked-in syndrome');
     expect(early.endH).toBe(1);
-    expect(early.desc.en).toMatch(/resolves then/);
+    // some movement returns at once, the rest as the rescued pons recovers (Y1-12)
+    expect(event(r, 'locked_in_incomplete')!.desc.en).toMatch(/resolves as the rescued tissue regains its function/);
     expect(event(scenario('basilar_mid', 24), 'locked_in')!.title.en).toBe('Bilateral ventral pons: locked-in syndrome');
     const lower = event(one('basilar_lower', 24), 'locked_in_incomplete')!;
     expect(lower.title.en).toMatch(/incomplete locked-in/);
@@ -553,15 +555,19 @@ describe('R5-3: one-and-a-half only with its signs; both caudal tegmenta are one
   // the swelling of the following days no longer brings the weakness of all four limbs and the
   // anarthria back (the R5-3 course showed them, and the incomplete locked-in label, from day 1 to
   // two weeks after a deficit-free first day); the infarcted tegmenta stay one bilateral picture
-  it('reopened before both ventral halves infarcted: the bilateral signs do not come back with the swelling (X2-9)', () => {
-    for (const [collateral, reperfusionH] of REOPENED)
-      for (const tH of [24, 168]) {
-        const r = one('basilar_mid', tH, { collateral, reperfusionH });
-        const where = `${collateral} reopened ${reperfusionH} h, ${tH} h`;
-        expect(ids(r), where).not.toContain('anarthria');
-        expect(syn(r).filter((s) => s.startsWith('locked_in')), where).toEqual([]);
-        expect(sym(r, 'gaze_palsy_horizontal').map((s) => s.side).sort(), where).toEqual(['l', 'r']);
-      }
+  // Y1-12: the rescued ventral pons regains its function over days to weeks after the reopening
+  // (longer the later it is), so the bilateral signs fade then rather than at the reopening
+  it('reopened before both ventral halves infarcted: the bilateral signs fade as the pons recovers and do not come back with the swelling (X2-9)', () => {
+    const STOPS = [24, 48, 72, 120, 168, 336, 720, 2160, 4320];
+    for (const [collateral, reperfusionH] of REOPENED) {
+      const runs = STOPS.map((tH) => one('basilar_mid', tH, { collateral, reperfusionH }));
+      const signs = (r: ReturnType<typeof one>) => ids(r).includes('anarthria') || syn(r).some((x) => x.startsWith('locked_in'));
+      const gone = runs.findIndex((r) => !signs(r));
+      expect(gone, `${collateral} reopened ${reperfusionH} h`).toBeGreaterThanOrEqual(0);
+      for (let i = gone; i < runs.length; i++) expect(signs(runs[i]), `${collateral} reopened ${reperfusionH} h, ${STOPS[i]} h`).toBe(false);
+      const m3 = runs[STOPS.indexOf(2160)];
+      expect(sym(m3, 'gaze_palsy_horizontal').map((x) => x.side).sort(), `${collateral} reopened ${reperfusionH} h`).toEqual(['l', 'r']);
+    }
   });
 
   it('a one-sided lesion of the dorsal caudal pons keeps the label', () => {
@@ -599,47 +605,59 @@ describe('R5-4: the locked-in event does not say the state resolves while a lock
   // X2-7, X2-10: the coma does not "resolve" (the ventral pons has infarcted), but it does lift when
   // blood returns, and the person wakes up incompletely locked-in then, not two weeks later; the
   // swelling does not make the person comatose again (X2-9)
-  it('upper basilar occlusion reopened at 6 h: the coma lifts with the reopening and the incomplete locked-in state has its event from then', () => {
+  // Y1-12: the tegmentum rescued at 6 h regains its function over days, so the coma lifts then (not
+  // at the instant of the reopening); the person wakes incompletely locked-in
+  it('upper basilar occlusion reopened at 6 h: the coma lifts as the tegmentum recovers and the incomplete locked-in state has its event from then', () => {
     const late = one('basilar_upper', 4320, { reperfusionH: 6 });
     expect(syn(late)).toContain('locked_in_incomplete');
     for (const e of late.cascade.events.filter((x) => x.id === 'basilar_coma' || x.id.startsWith('locked_in'))) {
       expect(e.desc.en, e.id).not.toMatch(/resolves then/);
       expect(e.desc.zh, e.id).not.toContain('這個狀態隨之解除');
     }
-    expect(event(late, 'basilar_coma')!.endH).toBe(6);
-    expect(event(late, 'locked_in_incomplete')!.onsetH).toBe(6);
-    const day2 = one('basilar_upper', 48, { reperfusionH: 6 });
-    expect(syn(day2)).toEqual(['locked_in_incomplete']);
-    expect(activeAt(event(day2, 'basilar_coma')!, 48)).toBe(false);
+    const comaEnd = event(late, 'basilar_coma')!.endH!;
+    expect(comaEnd).toBeGreaterThan(6);
+    expect(event(late, 'locked_in_incomplete')!.onsetH).toBe(comaEnd);
+    const day7 = one('basilar_upper', 168, { reperfusionH: 6 });
+    expect(syn(day7)).toEqual(['locked_in_incomplete']);
+    expect(activeAt(event(day7, 'basilar_coma')!, 168)).toBe(false);
   });
 
-  it('reopened before the pons infarcts on both sides, it still resolves at the reopening', () => {
+  it('reopened before the pons infarcts on both sides, it still resolves after the reopening, as the pons recovers', () => {
     for (const reperfusionH of [1, 3]) {
-      const e = event(one('basilar_mid', 4320, { reperfusionH }), 'locked_in')!;
-      expect(e.endH).toBe(reperfusionH);
-      expect(e.desc.en).toMatch(/resolves then/);
+      const r = one('basilar_mid', 4320, { reperfusionH });
+      const course = r.cascade.events.filter((x) => x.id.startsWith('locked_in'));
+      const last = course[course.length - 1];
+      expect(last.endH).toBeGreaterThan(reperfusionH);
+      expect(last.endH).toBeLessThan(24);
+      expect(last.desc.en).toMatch(/resolves as the rescued tissue regains its function/);
     }
   });
 
   // X2-9 supersedes R5-3's sentence: the swelling around small infarcts of both halves no longer
   // brings the weakness of all four limbs and the loss of speech back, so the event does not say so
-  it('small infarcts left on both sides: the state resolves at the reopening and the event promises no return with the swelling (X2-9)', () => {
-    const e = event(one('basilar_mid', 4320, { collateral: 'poor', reperfusionH: 2 }), 'locked_in')!;
-    expect(e.endH).toBe(2);
-    expect(e.desc.en).toMatch(/resolves then/);
-    expect(e.desc.en).not.toMatch(/swelling around them/);
-    expect(e.desc.zh).not.toContain('周圍的水腫');
-    for (const tH of [24, 72, 168]) expect(syn(one('basilar_mid', tH, { collateral: 'poor', reperfusionH: 2 })).filter((x) => x.startsWith('locked_in')), `${tH} h`).toEqual([]);
+  it('small infarcts left on both sides: the state resolves as the pons recovers and the event promises no return with the swelling (X2-9)', () => {
+    const r = one('basilar_mid', 4320, { collateral: 'poor', reperfusionH: 2 });
+    const course = r.cascade.events.filter((x) => x.id.startsWith('locked_in'));
+    const last = course[course.length - 1];
+    expect(last.endH).toBeGreaterThan(2);
+    expect(last.endH).toBeLessThan(72);
+    expect(last.desc.en).toMatch(/resolves as the rescued tissue regains its function/);
+    for (const e of course) {
+      expect(e.desc.en).not.toMatch(/swelling around them/);
+      expect(e.desc.zh).not.toContain('周圍的水腫');
+    }
+    for (const tH of [72, 120, 168]) expect(syn(one('basilar_mid', tH, { collateral: 'poor', reperfusionH: 2 })).filter((x) => x.startsWith('locked_in')), `${tH} h`).toEqual([]);
   });
 });
 
 describe('R5-5: the basilar coma ends when it is relabelled, and the state that follows has its own event', () => {
   it('upper basilar occlusion reopened at 8 or 24 h: awake and locked-in from two weeks, with the locked-in event, not the coma event', () => {
     // reopened at 24 h the tegmentum has infarcted: comatose until the coma is relabelled at two
-    // weeks, then classical locked-in; reopened at 8 h it had not: awake and incompletely
-    // locked-in from the reopening (X2-7)
+    // weeks, then classical locked-in; reopened at 8 h it had not, but it regains its function only
+    // over the following two weeks (Y1-12; was: awake from the reopening, X2-7): incompletely
+    // locked-in from then
     for (const [reperfusionH, id, from] of [
-      [8, 'locked_in_incomplete', 8],
+      [8, 'locked_in_incomplete', 336],
       [24, 'locked_in', 336],
     ] as const)
       for (const tH of [336, 720, 4320]) {
