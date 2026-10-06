@@ -103,8 +103,13 @@ describe('what the capsular course leaves alone (Z1-7)', () => {
     expect(r.regions.putamen_r.infarct).toBeGreaterThan(0.3);
   });
 
-  it('a lacune keeps the fast course of a single perforator: closed for 30 min, it leaves its infarct', () => {
-    const r = sim({ occlusions: [{ vessel: 'lenticulostriate_r', severity: 1, branch: true, fromH: 0, toH: 0.5 }], tH: 72 });
-    expect(r.regions.ic_posterior_limb_r.infarct).toBeGreaterThan(0);
+  // W2-2: one branch feeds part of the same white matter, which is lost on the same course behind
+  // it as behind the whole bundle (the former fast course of a single perforator left a capsular
+  // infarct after 30 min where the whole bundle closed for 2 h left none)
+  it('a capsular lacune is lost on the capsule\'s own course: closed for 30 min or 2 h it leaves nothing, for 4 h it leaves its infarct', () => {
+    const lacune = (toH: number) => sim({ occlusions: [{ vessel: 'lenticulostriate_r', severity: 1, branch: true, fromH: 0, toH }], tH: 72 });
+    expect(lacune(0.5).regions.ic_posterior_limb_r.infarct).toBe(0);
+    expect(lacune(2).regions.ic_posterior_limb_r.infarct).toBe(0);
+    expect(lacune(4).regions.ic_posterior_limb_r.infarct).toBeGreaterThan(0);
   });
 });

@@ -61,11 +61,13 @@ const DROWSY_TITLE = 'Reduced consciousness → aspiration pneumonia';
  */
 function checkFollows(name: string, input: SimInput, lesions?: number[]) {
   const first = at(input, STOPS[0]);
-  const onset = first.schedule.onsetH;
+  // the index onset of the whole schedule (before a later occlusion begins, a result describes
+  // the schedule so far: W2-3)
+  const onset = at(input, 4320).schedule.onsetH;
   // Y3-19: with stacked occlusions, the first two weeks of each lesion that leaves an infarct
   const runs = [...new Set((lesions ?? [onset]).flatMap((l) => STOPS.map((h) => l + h)))].sort((a, b) => a - b).map((h) => [h, at(input, h)] as const);
   // the index attack left no infarct and its flow came back
-  const tia = first.volumes.finalInfarct < 0.05 && (input.reperfusionH != null || input.occlusions.every((o) => o.toH != null));
+  const tia = at(input, 4320).volumes.finalInfarct < 0.05 && (input.reperfusionH != null || input.occlusions.every((o) => o.toH != null));
   if (tia) {
     expect(aspiration(first), `${name}: a TIA carries no aspiration warning`).toBeUndefined();
     return;

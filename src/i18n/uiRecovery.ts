@@ -14,6 +14,9 @@ export interface RecoveryStrings {
   deadNote: string;
   silenced: string;
   silencedNote: (edema: boolean, remote: boolean) => string;
+  /** alive, still regaining its function: after a reopening, or penumbra that survives (Y1-12, W2-10) */
+  regaining: string;
+  regainingNote: string;
   compensated: string;
   compensatedNote: (pct: string) => string;
   compensatedLittle: string;
@@ -34,6 +37,8 @@ export interface RecoveryStrings {
   // ── function groups ──
   funcDeadAndSilenced: string;
   funcSilenced: string;
+  funcDeadAndRegaining: string;
+  funcRegaining: string;
   funcLostCompensating: string;
   funcCompensatedGone: string;
   // ── time strips ──
@@ -90,6 +95,8 @@ const zh: RecoveryStrings = {
     `組織還活著，只是被${edema && remote ? '周圍水腫與遠端抑制' : edema ? '周圍水腫' : '遠端抑制（相連腦區受損後的功能下降）'}暫時關掉；${
       edema ? '水腫約 1–3 週消退後' : '數週內'
     }這部分功能會回來。`,
+  regaining: '存活，仍在恢復功能',
+  regainingNote: '這部分組織存活下來，不會壞死，只是還沒恢復運作；它會在數小時到數天內逐漸恢復功能，缺血越久越慢。',
   compensated: '已部分代償',
   compensatedNote: (pct) => `其他神經路徑已接手約 ${pct} 因壞死而失去的功能；大部分代償在前 3 個月發生，之後變慢，但仍可能進步。`,
   compensatedLittle: '預期代償很有限',
@@ -122,6 +129,8 @@ const zh: RecoveryStrings = {
   },
   funcDeadAndSilenced: '已受損：部分組織壞死；周圍還活著的組織也被水腫暫時抑制，這部分會恢復',
   funcSilenced: '暫時受抑制：組織還活著，被水腫或遠端抑制暫時關掉，會隨之恢復',
+  funcDeadAndRegaining: '已受損：部分組織壞死；其餘的組織存活下來，仍在逐漸恢復功能，這部分會恢復',
+  funcRegaining: '暫停中，會恢復：組織存活下來，仍在逐漸恢復功能',
   funcLostCompensating: '已受損：組織壞死；部分功能正由其他路徑代償',
   funcCompensatedGone: '已代償：組織已壞死，但其他路徑接手後已不明顯',
   rowSilenced: '抑制',
@@ -187,6 +196,8 @@ const en: RecoveryStrings = {
     `The tissue is alive but switched off by ${
       edema && remote ? 'the surrounding oedema and remote depression' : edema ? 'the surrounding oedema' : 'remote depression (a connected region was damaged)'
     }; this function comes back ${edema ? 'as the oedema settles over ~1–3 weeks' : 'over weeks'}.`,
+  regaining: 'Survived, still regaining function',
+  regainingNote: 'This tissue survived and will not die, but it is not working yet; it regains its function over hours to days, more slowly the longer the ischaemia lasted.',
   compensated: 'Partly compensated',
   compensatedNote: (pct) =>
     `Other pathways have taken over about ${pct} of the function lost to dead tissue; most compensation happens in the first 3 months, then more slowly, and later gains are possible.`,
@@ -225,6 +236,8 @@ const en: RecoveryStrings = {
   },
   funcDeadAndSilenced: 'Impaired — part of the tissue has died; surviving tissue around it is also silenced by oedema, and that part will recover',
   funcSilenced: 'Temporarily silenced — the tissue is alive but switched off by oedema or remote depression, and will recover',
+  funcDeadAndRegaining: 'Impaired — part of the tissue has died; the rest survived and is still regaining its function, and that part will recover',
+  funcRegaining: 'Switched off but recovering — the tissue survived and is regaining its function',
   funcLostCompensating: 'Impaired — the tissue has died; other pathways are taking part of the function over',
   funcCompensatedGone: 'Compensated — the tissue is dead, but other pathways have taken over enough that it no longer shows',
   rowSilenced: 'Silenced',

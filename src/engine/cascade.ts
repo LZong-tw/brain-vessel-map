@@ -193,10 +193,11 @@ export interface CascadeInput {
    */
   reperfusionOutcome?: ReperfusionOutcome;
   /**
-   * the midline shift the oedema model (engine/edema.ts) gives a malignant hemispheric oedema
-   * without decompression, per side of the swelling, worked out by simulate(): an uncal
-   * herniation follows only a shift into the coma range, from when it gets there until it falls
-   * below it again (R6-5, R6-2). Left out, the herniation follows the volume rule with its
+   * the midline shift the oedema model (engine/edema.ts) gives a hemispheric oedema, per side of
+   * the swelling (a malignant one, or one with a moderate mass effect), worked out by simulate():
+   * an uncal herniation follows only a shift into the coma range, from when it gets there until it
+   * falls below it again (R6-5, R6-2), and a swelling that gets there takes the malignant course
+   * whatever the infarct's size (W2-1). Left out, the herniation follows the volume rule with its
    * default timing (day 3 to two weeks).
    */
   shift?: Partial<Record<Side, HerniationShift>>;
@@ -1579,7 +1580,17 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // 2003;31:272–277); deterioration over days 2–5 (Hacke W et al. Arch Neurol 1996;53:309–315).
     /** at risk by this hemisphere's own infarct, not only with the other's (Z3-4) */
     const ownRisk = earlySupra[s] >= MALIGNANT_EARLY_ML || v >= MALIGNANT_FINAL_ML;
-    if (ownRisk || jointMalignant) {
+    // The swelling the oedema model computes for this hemisphere (alone, or with the other one:
+    // Y2-13) reaches the coma range, whatever the size thresholds say (W2-1): a swelling that
+    // large is a malignant oedema, and it herniates as the others do (from day 3, while the shift
+    // stays in the coma range: R6-5). Two carotid territories (MCA and ACA), each under the
+    // malignant sizes, swelled together into coma for a week with no herniation and no fatal risk;
+    // so did one hemisphere of 245 mL that shifted the midline by 9 mm. (In Ropper's patients the
+    // first fall in consciousness, even coma, came with the horizontal shift before any
+    // transtentorial herniation, which is why the coma here comes first and the herniation from
+    // day 3: Ropper 1986.)
+    const swellsIntoComa = (input.shift?.[s]?.comaFromH ?? null) !== null;
+    if (ownRisk || jointMalignant || swellsIntoComa) {
       // Without decompression the swelling herniates when the oedema model's midline shift
       // reaches the coma range (≥ 8 mm, Ropper 1986): from day 3, or later when the shift gets
       // there later, until it falls below it again; a shift that stays below it brings
@@ -1676,10 +1687,15 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           : { zh: `${note.zh}。`, en: `${note.en}.` };
         const joint: L = ownRisk
           ? { zh: '', en: '' }
-          : {
-              zh: `單看這一側，早期的梗塞不到惡性梗塞的 145 mL；但兩側的中大腦動脈區梗塞都大到會腫脹，兩側合計 14 小時內約 ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL、最終約 ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL：模型把兩側合計，拿來和單側惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）比較。`,
-              en: ` On its own this hemisphere's early infarct is under the 145 mL that marks a malignant infarct; but the MCA infarcts of both hemispheres are large enough to swell, ≈ ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL in both hemispheres together within 14 h and ≈ ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL in the end, and the model holds both hemispheres together against the thresholds of one (> 145 mL within 14 h, or a very large final infarct).`,
-            };
+          : jointMalignant
+            ? {
+                zh: `單看這一側，早期的梗塞不到惡性梗塞的 145 mL；但兩側的中大腦動脈區梗塞都大到會腫脹，兩側合計 14 小時內約 ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL、最終約 ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL：模型把兩側合計，拿來和單側惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）比較。`,
+                en: ` On its own this hemisphere's early infarct is under the 145 mL that marks a malignant infarct; but the MCA infarcts of both hemispheres are large enough to swell, ≈ ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL in both hemispheres together within 14 h and ≈ ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL in the end, and the model holds both hemispheres together against the thresholds of one (> 145 mL within 14 h, or a very large final infarct).`,
+              }
+            : {
+                zh: `單看大小，這個梗塞未達惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）；但模型算出的腫脹${bothSwell ? '與另一側合計' : ''}已達昏迷的範圍（${bothSwell ? '換算為單側' : ''}約 ${peakMm} mm 的中線偏移，模型從 8 mm 起算昏迷）：腫到讓人昏迷就是惡性腦水腫，模型讓它和其他惡性水腫一樣，從第 3 天起、在中線偏移仍達昏迷範圍時疝脫。`,
+                en: ` By its size alone this infarct does not reach the thresholds of a malignant infarct (> 145 mL within 14 h, or a very large final infarct); but the swelling the model computes${bothSwell ? ' together with the other hemisphere’s' : ''} reaches the coma range (about ${peakMm} mm${bothSwell ? ', counted as one side’s midline shift' : ' of midline shift'}; the model counts coma from 8 mm). A swelling that puts the patient into a coma is a malignant oedema, and the model lets it herniate as it does the others: from day 3, while the shift stays in the coma range.`,
+              };
         event.desc = { zh: `${head.zh}${tail.zh}${joint.zh}${rest.zh}`, en: `${head.en}${tail.en}${joint.en}${rest.en}` };
       });
       events.push(event);

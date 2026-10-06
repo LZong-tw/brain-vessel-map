@@ -124,12 +124,13 @@ describe('temporary dysfunction (oedema, diaschisis)', () => {
     const d3 = sim({ ...L_M1, tH: 72 });
     expect(maxOf(d3.recovery.extraDys)).toBeGreaterThan(0.05);
     // it is dysfunction on top of the core, the penumbra and the stabilised penumbra still
-    // regaining function (R6-11), of tissue that is alive
+    // regaining function (R6-11) or still silent past the time it is at risk (W2-10), of tissue
+    // that is alive
     for (const b of BEDS) {
       const bs = d3.beds[b.id];
       const x = d3.recovery.extraDys[b.id] ?? 0;
-      expect(bs.dys, b.id).toBeCloseTo(Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining + x), 9);
-      expect(x, b.id).toBeLessThanOrEqual(Math.max(0, 1 - bs.infarct - bs.frac.penumbra - bs.regaining) + 1e-9);
+      expect(bs.dys, b.id).toBeCloseTo(Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining + bs.holding + x), 9);
+      expect(x, b.id).toBeLessThanOrEqual(Math.max(0, 1 - bs.infarct - bs.frac.penumbra - bs.regaining - bs.holding) + 1e-9);
     }
     const m1 = sim({ ...L_M1, tH: 720 });
     expect(maxOf(m1.recovery.extraDys)).toBeLessThan(0.02);

@@ -311,7 +311,9 @@ describe('C3-F8: the prodrome of basilar thrombosis', () => {
         const e = event(r, id);
         expect(e, `${id} @${tH}`).toBeDefined();
         expect(e!.onsetH).toBeLessThan(1);
-        expect(e!.endH).toBeLessThanOrEqual(72);
+        // before day 3 nobody knows the artery will occlude: the story runs on as a TIA's (W2-3)
+        if (tH >= 72) expect(e!.endH).toBeLessThanOrEqual(72);
+        else expect(e!.endH ?? Infinity).toBeGreaterThan(Math.min(tH, 6));
       }
     }
     // a plain basilar stroke has none of them

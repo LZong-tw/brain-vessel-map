@@ -31,11 +31,13 @@ import {
   compensatedShare,
   hasNoBackup,
   peakSeverity,
+  regionFunctionGroup,
   regionRecovery,
   shareLevel,
   symptomBackup,
   unexaminableHeading,
   withHatch,
+  type RegionFunctionGroup,
   type RegionRecovery,
 } from '../ui/recoveryFormat';
 import type { BottleneckSite } from '../anatomy/redundancy';
@@ -197,20 +199,19 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
   const est = comp.penumbra >= 0.03 ? penumbraEstimate(sim, id) : null;
   const reperf = sim.input.reperfusionH;
   const rr = regionRecovery(sim, id);
-  const silencedMatters = rr.silenced >= 0.05 && rr.silenced >= 0.2 * (comp.core + rr.silenced);
-  // how reversible the region's current deficits are, from what its tissue is made of now
-  const nowGroup: [string, string] =
-    comp.core >= 0.15 && comp.penumbra >= 0.15
-      ? ['mixed', t.funcMixed]
-      : comp.penumbra > comp.core
-        ? ['at-risk', t.funcAtRisk]
-        : silencedMatters
-          ? comp.core >= 0.1
-            ? ['mixed silenced', rt.funcDeadAndSilenced]
-            : ['silenced', rt.funcSilenced]
-          : rr.compensated >= 0.05
-            ? ['lost compensating', rt.funcLostCompensating]
-            : ['lost', t.funcLost];
+  // how reversible the region's current deficits are, from what its tissue is made of now (tissue
+  // that survived and is still regaining its function is alive, not dead: Y1-12, W2-10)
+  const groups: Record<RegionFunctionGroup, [string, string]> = {
+    mixed: ['mixed', t.funcMixed],
+    'at-risk': ['at-risk', t.funcAtRisk],
+    'dead-regaining': ['mixed silenced', rt.funcDeadAndRegaining],
+    regaining: ['silenced', rt.funcRegaining],
+    'dead-silenced': ['mixed silenced', rt.funcDeadAndSilenced],
+    silenced: ['silenced', rt.funcSilenced],
+    'lost-compensating': ['lost compensating', rt.funcLostCompensating],
+    lost: ['lost', t.funcLost],
+  };
+  const nowGroup = groups[regionFunctionGroup(comp, rr)];
   const noBackupNow = funcs.now.filter(hasNoBackup);
   const bilateral = funcs.now.some((s) => s.recovery?.bilateral && symptomBackup(s) !== 'exempt' && !hasNoBackup(s));
   const bottleneck = funcs.now.some((s) => s.recovery?.bottleneck && !hasNoBackup(s));
@@ -226,7 +227,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         : rr.compensated >= SILENCED_SHOWN
           ? 'comp'
           : null;
-  const showStatus = rr.dead >= 0.02 || rr.silenced >= SILENCED_SHOWN || compLine !== null;
+  const showStatus = rr.dead >= 0.02 || rr.silenced >= SILENCED_SHOWN || rr.regaining >= SILENCED_SHOWN || compLine !== null;
   const tagOf = (s: SymptomItem): Tag | null => {
     const kind = symptomBackup(s);
     const peak = funcs.peak.get(symptomKey(s)) ?? s.sev;
@@ -439,6 +440,17 @@ function RecoveryStatus({
                 {rt.silenced} <span className="num">{pct(rr.silenced)}</span>
               </span>
               <span className="muted small"> — {rt.silencedNote(edema, remote)}</span>
+            </div>
+          </li>
+        )}
+        {rr.regaining >= SILENCED_SHOWN && (
+          <li className="silenced">
+            <span className="rec-dot" aria-hidden="true" />
+            <div>
+              <span className="rec-head">
+                {rt.regaining} <span className="num">{pct(rr.regaining)}</span>
+              </span>
+              <span className="muted small"> — {rt.regainingNote}</span>
             </div>
           </li>
         )}

@@ -64,6 +64,25 @@ export function finalInfarctProb(rel: number, p: TissueParams = DEFAULT_TISSUE):
 /** the penumbra "resolves" (dies or stabilises) after about three time constants */
 export const penumbraResolveH = (rel: number, p: TissueParams = DEFAULT_TISSUE) => p.lagH + 3 * tauHours(rel, p);
 
+/**
+ * How long ischaemic tissue counts as penumbra — alive and at risk — at most, from when its
+ * ischaemia began (h; W2-10). By about two days it has either died or will survive: in
+ * [18F]-fluoromisonidazole PET, which marks hypoxic but viable tissue, the share of patients with
+ * such tissue and its amount fell with time in 24 patients studied up to 51 h after onset (Read SJ
+ * et al. Ann Neurol 2000;48:228–235), and it made up more than a fifth of the ischaemic volume in
+ * 60 % of studies within 12 h but in 16 % of those at 12–48 h (Markus R et al. Brain
+ * 2004;127:1427–1436). Past it, only the part of a unit that this flow still kills is penumbra;
+ * the rest will survive and is no longer at risk, though it stays silent until its own window
+ * (penumbraResolveH) has passed, as before. The time constants at the top of the penumbra (up to
+ * 30 h in the hemispheres, 60 h in the basilar brainstem) kept it "at risk" for up to four days
+ * (more than a week in the brainstem), counting tens of millilitres as penumbra on days 2 and 3
+ * of which a few were ever lost. TODO(medical-review): a model choice, not a measured time.
+ */
+export const PENUMBRA_AT_RISK_H = 48;
+
+/** when the penumbra at this flow is decided (dead, or no longer at risk): its window, at most PENUMBRA_AT_RISK_H */
+export const penumbraDecidedH = (rel: number, p: TissueParams = DEFAULT_TISSUE) => Math.min(penumbraResolveH(rel, p), PENUMBRA_AT_RISK_H);
+
 function lossAt(rel: number, tH: number, p: TissueParams): number {
   const tau = tauHours(rel, p);
   if (!Number.isFinite(tau)) return 0;
@@ -128,7 +147,10 @@ export function infarctFractionOf(history: readonly FlowPhase[], tH: number, p: 
  * surviving remainder, for a piecewise-constant flow history (see lossSteps):
  *   • "penumbra" while the current flow is below the penumbra threshold and less than the resolve
  *     window has passed since the current phase began (after that it has stabilised: hypoperfused
- *     but functioning, i.e. "oligemia", with `stabilisedH` the hours since it stabilised);
+ *     but functioning, i.e. "oligemia", with `stabilisedH` the hours since it stabilised), and no
+ *     more than PENUMBRA_AT_RISK_H: past that, only the part this flow still kills (`dying`) is
+ *     penumbra, and the part that survives is "oligemia" but still silent until the window has
+ *     passed (`held`, W2-10);
  *   • "salvaged" when the flow was below the penumbra threshold in an earlier phase and is above
  *     it now, with `reflowH` the hours since blood returned and `ischaemicH` the hours of ischaemia
  *     beyond the lag before that (see ischaemicHours): the caller lets it regain its function over
@@ -140,7 +162,7 @@ export function tissueCourse(
   history: readonly FlowPhase[],
   tH: number,
   p: TissueParams = DEFAULT_TISSUE,
-): { f: number; rest: TissueState; stabilisedH?: number; reflowH?: number; ischaemicH?: number; dying?: number } {
+): { f: number; rest: TissueState; stabilisedH?: number; reflowH?: number; ischaemicH?: number; dying?: number; held?: boolean } {
   const f = infarctFractionOf(history, tH, p);
   let c = -1;
   while (c + 1 < history.length && history[c + 1].fromH <= tH) c++;
@@ -160,8 +182,11 @@ export function tissueCourse(
     // window) is still dying, not functioning: counting it as working let a region's level dip
     // and then creep up again as that part died over the following days (Z2-8)
     const resolveH = penumbraResolveH(cur, p);
-    if (since < resolveH) rest = 'penumbra';
-    else return { f, rest: 'oligemia', stabilisedH: since - resolveH, dying: Math.max(0, finalInfarctProb(cur, p) - f) };
+    const dying = Math.max(0, finalInfarctProb(cur, p) - f);
+    if (since < Math.min(resolveH, PENUMBRA_AT_RISK_H)) rest = 'penumbra';
+    // past the time it is at risk (W2-10): what survives is no longer penumbra, though still silent
+    else if (since < resolveH) return { f, rest: 'oligemia', held: true, dying };
+    else return { f, rest: 'oligemia', stabilisedH: since - resolveH, dying };
   } else if (wasIschaemic(history, c, p)) {
     // blood has returned since the last ischaemic phase (Y1-12)
     let j = c;

@@ -7,7 +7,7 @@ import type { SymptomItem } from '../engine/clinical';
 import type { EdemaState } from '../engine/edemaTypes';
 import { getUnits } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
-import { finalInfarctProb, infarctFraction, penumbraResolveH, type TissueState } from '../engine/tissue';
+import { finalInfarctProb, infarctFraction, penumbraDecidedH, type TissueState } from '../engine/tissue';
 import { tissueParamsForUnit } from '../engine/tissueParams';
 import type { Strings } from '../i18n/ui';
 import { STATE_COLORS } from './colors';
@@ -297,7 +297,8 @@ export function penumbraEstimate(sim: SimResult, regionId: string): PenumbraEsti
     // tissue below the core threshold that is still alive counts too: fed by collaterals, it can
     // last for hours (Y1-0)
     if (rel >= tp.penumbraRel) continue;
-    const resolve = penumbraResolveH(rel, tp);
+    // (decided: dead, or past the time it is at risk and surviving: W2-10)
+    const resolve = penumbraDecidedH(rel, tp);
     if (resolve <= tH) continue;
     const p = finalInfarctProb(rel, tp);
     const dead = infarctFraction(rel, tH, null, 1, tp);

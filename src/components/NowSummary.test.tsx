@@ -170,15 +170,19 @@ describe('"what is happening now": the penumbra after the treatment window, and 
   });
 
   it.each([48, 72])('after the treatment window (%s h) the penumbra may still be lost, not "saved"', (h) => {
-    // (the left PCA template has moderate collaterals)
+    // (the left PCA template has moderate collaterals; by 3 days less than half a millilitre of it
+    // is still to die, and the infarct has settled: W2-10)
     for (const [id, collateral] of [['l_m1', 'good'], ['l_pca', 'moderate']] as const) {
+      const sc = SCENARIO_BY_ID[id];
+      const r = simulate({ occlusions: sc.occlusions, variants: sc.variants ?? [], collateral, map: sc.map ?? 93, tH: h, reperfusionH: null, decompression: false });
+      const stillLost = r.volumes.finalInfarct - r.volumes.core >= 0.5;
+      expect(stillLost, `${id} ${h} h`).toBe(!(id === 'l_pca' && h === 72));
       const en = tissue(id, collateral, h, 'en');
-      expect(en, `${id} ${h} h`).toMatch(/still growing/);
       expect(en, `${id} ${h} h`).not.toMatch(/can still be saved/);
-      expect(en, `${id} ${h} h`).toMatch(/may still be lost/);
+      expect(en, `${id} ${h} h`).toMatch(stillLost ? /still growing.*may still be lost/ : /largely settled/);
       const zh = tissue(id, collateral, h, 'zh-TW');
       expect(zh, `${id} ${h} h`).not.toContain('可救');
-      expect(zh, `${id} ${h} h`).toContain('仍可能壞死');
+      if (stillLost) expect(zh, `${id} ${h} h`).toContain('仍可能壞死');
     }
   });
 
@@ -187,5 +191,26 @@ describe('"what is happening now": the penumbra after the treatment window, and 
     expect(en).toMatch(/still growing/);
     expect(en).not.toMatch(/not growing/);
     expect(tissue('basilar_mid', 'good', h, 'zh-TW')).toContain('正在擴大');
+  });
+});
+
+describe('W2-10: from day 2, the penumbra the summary names is what the course may still lose', () => {
+  // the left M1 template (good collaterals): at 2 days about 10 mL is still to die, while about
+  // 135 mL counted as penumbra before the at-risk window was capped
+  const series = seriesOf('l_m1', 'good');
+  const i = at(48);
+  const r = series[i];
+
+  it.each(['zh-TW', 'en'] as Lang[])('%s: the penumbra quoted is about what is still lost, and the surviving tissue is named as regaining', (lang) => {
+    const still = r.volumes.finalInfarct - r.volumes.core;
+    expect(still).toBeGreaterThan(1);
+    useApp.setState({ lang, tIndex: i });
+    const { container } = render(<NowSummary sim={r} series={series} />);
+    const text = container.querySelector('.now-summary p')?.textContent ?? '';
+    const quoted = lang === 'en' ? text.match(/about ([\d.]+) mL of penumbra may still be lost/) : text.match(/約 ([\d.]+) mL 的半影區仍可能壞死/);
+    expect(quoted, text).not.toBeNull();
+    expect(Math.abs(Number(quoted![1]) - still)).toBeLessThan(1);
+    // the tissue that survives is still silent: the summary says it is regaining its function
+    expect(text).toContain(lang === 'en' ? 'of tissue that survived is still regaining its function' : '存活下來的組織仍在恢復功能');
   });
 });

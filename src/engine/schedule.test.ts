@@ -11,7 +11,7 @@ import { applyHash, encodeState } from '../state/urlState';
 import { getUnits, simulateHemodynamics, type Occlusion } from './hemodynamics';
 import { activeAt, breakpoints, fitSchedule, scheduleEvents, statusAt } from './schedule';
 import { simulate, type SimInput } from './simulate';
-import { finalInfarctProb, infarctFraction, lossSteps, penumbraResolveH, tauHours, tissueCourse, unitState, type TissueState } from './tissue';
+import { PENUMBRA_AT_RISK_H, finalInfarctProb, infarctFraction, lossSteps, penumbraResolveH, tauHours, tissueCourse, unitState, type TissueState } from './tissue';
 import { DEFAULT_TISSUE, PERFORATOR_TISSUE, tissueParamsForUnit, type TissueParams } from './tissueParams';
 
 const base: SimInput = { occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false };
@@ -46,14 +46,19 @@ function legacyUnitState(rel: number, tH: number, reperfusionH: number | null, r
 }
 
 /**
- * The old model's state with the one intended change since: tissue whose current flow is below
+ * The old model's state with the two intended changes since: tissue whose current flow is below
  * the core threshold keeps its not-yet-dead remainder as dying penumbra instead of "stabilised"
- * oligaemia (the infarct fraction itself is unchanged).
+ * oligaemia, and penumbra no longer counts as at risk (as penumbra) more than PENUMBRA_AT_RISK_H
+ * after its ischaemia began (W2-10: what survives is then oligaemic, though still silent). The
+ * infarct fraction itself is unchanged.
  */
 function expectedUnitState(rel: number, tH: number, reperfusionH: number | null, relAfter: number, p: TissueParams) {
   const s = legacyUnitState(rel, tH, reperfusionH, relAfter, p);
-  const cur = reperfusionH !== null && tH >= reperfusionH ? relAfter : rel;
-  return cur < p.coreRel ? { ...s, rest: 'penumbra' as TissueState } : s;
+  const reperfused = reperfusionH !== null && tH >= reperfusionH;
+  const cur = reperfused ? relAfter : rel;
+  const since = reperfused ? tH - (reperfusionH as number) : tH;
+  if (cur < p.coreRel) return { ...s, rest: 'penumbra' as TissueState };
+  return s.rest === 'penumbra' && since >= PENUMBRA_AT_RISK_H ? { ...s, rest: 'oligemia' as TissueState } : s;
 }
 
 const RELS = [0, 0.05, 0.12, 0.2, 0.29, 0.3, 0.31, 0.35, 0.4, 0.45, 0.5, 0.549, 0.55, 0.6, 0.8, 0.85, 1, 1.3];

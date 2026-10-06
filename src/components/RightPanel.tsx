@@ -576,7 +576,8 @@ function Results({ sim }: { sim: SimResult }) {
           {txSummary}
         </p>
       )}
-      {sim.schedule.onsetH > 0 && <p className="muted small">{sched.indexOnset(formatClock(sim.schedule.onsetH, lang))}</p>}
+      {/* (only for an infarct: a run of attacks that has left none has no oedema to time) */}
+      {sim.schedule.onsetH > 0 && sim.volumes.finalInfarct >= 0.05 && <p className="muted small">{sched.indexOnset(formatClock(sim.schedule.onsetH, lang))}</p>}
       <NowSummary sim={sim} series={series} />
       <div className="stat-row">
         <div className="stat">
@@ -614,9 +615,10 @@ function Results({ sim }: { sim: SimResult }) {
           </div>
         )}
       </div>
-      {/* the end of the course lives on its own tab; one line leads there */}
+      {/* the end of the course lives on its own tab; one line leads there, with the tab's own
+          figure: the whole schedule's, also before a later occlusion begins (W2-3) */}
       <button className="outcome-link" onClick={() => setRightTab('final')}>
-        {OUTCOME_UI[lang].finalLink(fmtMl(sim.volumes.finalInfarct))}
+        {OUTCOME_UI[lang].finalLink(fmtMl((series[series.length - 1] ?? sim).volumes.finalInfarct))}
       </button>
 
       <FunctionTimeline series={series} />

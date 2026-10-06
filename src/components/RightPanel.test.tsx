@@ -197,3 +197,35 @@ describe('symptom list under reduced consciousness', () => {
     expect(container.querySelector('.sym-group.unexaminable')).toBeNull();
   });
 });
+
+// W2-3: before a later occlusion begins, *Now* describes the schedule so far; the line that leads
+// to the Outcome tab still gives the Outcome tab's own figure, that of the whole schedule, and the
+// note on when the oedema is timed from is shown only for an infarct
+describe('the final-infarct line and the index-onset note with an occlusion that begins later (W2-3)', () => {
+  it('a left M1 with a lower basilar occlusion from 1 month: at 3 days the line gives the whole schedule\'s final infarct', () => {
+    const occlusions = [{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'basilar_lower', severity: 1, fromH: 720 }];
+    const at = (tH: number) => simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH, reperfusionH: null, decompression: false });
+    const now = at(72);
+    const whole = at(4320).volumes.finalInfarct;
+    expect(whole).toBeGreaterThan(now.volumes.finalInfarct + 30);
+    useApp.setState({ occlusions, variants: [], map: 93, collateral: 'good', reperfusionH: null, decompression: false, rightTab: 'now', tIndex: tIndexFor(72), lang: 'en' });
+    const { container } = render(<RightPanel sim={now} />);
+    const link = container.querySelector('.outcome-link')?.textContent ?? '';
+    expect(link).toContain(`${Math.round(whole)}`);
+    expect(link).not.toContain(`${Math.round(now.volumes.finalInfarct)} mL`);
+  });
+
+  it('a run of capsular attacks that has left no infarct yet: no note on when the oedema is timed from', () => {
+    const occlusions = [
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, toH: 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 1, toH: 1 + 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 6 },
+    ];
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 2, reperfusionH: null, decompression: false });
+    expect(sim.schedule.onsetH).toBe(1);
+    expect(sim.volumes.finalInfarct).toBeLessThan(0.05);
+    useApp.setState({ occlusions, variants: [], map: 93, collateral: 'good', reperfusionH: null, decompression: false, rightTab: 'now', tIndex: tIndexFor(2), lang: 'en' });
+    render(<RightPanel sim={sim} />);
+    expect(screen.queryByText(/Oedema and complications are timed from/)).toBeNull();
+  });
+});

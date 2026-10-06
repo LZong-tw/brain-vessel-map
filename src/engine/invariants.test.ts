@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { BEDS, REGION_BY_ID, VESSELS } from '../anatomy';
+import { LACUNE_SITES } from '../anatomy/lacunes';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
-import { symptomsAddedAt } from './cascade';
+import { consciousnessFromShift, symptomsAddedAt } from './cascade';
 import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
+import { progressed, startOf, successorOf } from './schedule';
 import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
+import { regionComposition } from '../ui/format';
+import { regionFunctionGroup, regionRecovery } from '../ui/recoveryFormat';
 
 /** Relations between outputs that must hold for every scenario at every displayed time. */
 const inputOf = (id: string, over: Partial<SimInput> = {}): SimInput => {
@@ -391,6 +395,19 @@ describe('syndromes and events agree with the symptoms', () => {
     // border-zone beds (each was labelled watershed), beside the haemodynamic watershed template
     ['aca_a2_l moderate', [{ vessel: 'aca_a2_l', severity: 1 }], 'moderate'],
     ['aca_pericallosal_l good', [{ vessel: 'aca_pericallosal_l', severity: 1 }], 'good'],
+    // W2-1: both carotid territories swelling together into coma; one hemisphere of about 245 mL
+    // whose own swelling shifts the midline into the coma range. W2-3: a larger occlusion a week
+    // after a first infarct, which becomes the index event
+    ['both cervical ICAs good', [{ vessel: 'ica_cervical_r', severity: 1 }, { vessel: 'ica_cervical_l', severity: 1 }], 'good'],
+    ['ica_cervical_r + aca_a1_l moderate', [{ vessel: 'ica_cervical_r', severity: 1 }, { vessel: 'aca_a1_l', severity: 1 }], 'moderate'],
+    [
+      'mca_m2_inf_l, then mca_m2_sup_l at 1 week, poor',
+      [
+        { vessel: 'mca_m2_inf_l', severity: 1, fromH: 0 },
+        { vessel: 'mca_m2_sup_l', severity: 1, fromH: 168 },
+      ],
+      'poor',
+    ],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -815,6 +832,131 @@ describe('syndromes and events agree with the symptoms', () => {
         }
       }
     });
+  });
+
+  /**
+   * W2: the swelling and the timing of tissue loss. Classes of contradiction: an occlusion that has
+   * not begun yet changing what is shown (W2-3); a coma from the swelling without the malignant
+   * course and its herniation risk (W2-1); one branch of a perforator bundle leaving more infarct in
+   * a structure than the whole bundle closed for as long (W2-2); and, two days into a lesion, more
+   * penumbra than the course will still lose (W2-10).
+   */
+  describe('the swelling and the timing of tissue loss (W2)', () => {
+    const STOPS = TIME_STOPS.map((s) => s.h);
+    const base = (occlusions: Occlusion[], collateral: CollateralGrade, reperfusionH: number | null = null): SimInput => ({
+      occlusions,
+      variants: [],
+      collateral,
+      map: 93,
+      tH: 0,
+      reperfusionH,
+      decompression: false,
+    });
+    /** the schedule as it stands at `tH`: what has begun, a phase that becomes a worse one later lasting */
+    const soFar = (occlusions: Occlusion[], tH: number): Occlusion[] =>
+      occlusions
+        .filter((o) => startOf(o) <= tH)
+        .map((o) => {
+          const next = successorOf(occlusions, o);
+          return next && startOf(next) > tH && progressed(occlusions, o) ? { ...o, toH: null } : o;
+        });
+    /** everything a result says about the displayed time and before, and its forecast */
+    const shown = (r: SimResult) => ({
+      symptoms: r.symptoms,
+      unexaminable: r.unexaminable,
+      nihss: r.nihss,
+      syndromes: r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
+      regions: r.regions,
+      volumes: r.volumes,
+      edema: r.edema,
+      recovery: r.recovery,
+      onsetH: r.schedule.onsetH,
+      events: r.cascade.events.map((e) => ({ id: e.id, onsetH: e.onsetH, endH: e.endH, title: e.title, desc: e.desc })),
+      fatal: r.cascade.fatalRisk,
+      caveats: r.cascade.survivalCaveat,
+    });
+
+    const STAGED: [string, SimInput][] = [
+      ...SCENARIOS.filter((s) => s.occlusions.some((o) => startOf(o) > 0)).flatMap((s) =>
+        (['good', 'poor'] as const).map((c) => [`${s.id} ${c}`, inputOf(s.id, { collateral: c })] as [string, SimInput]),
+      ),
+      ...EXTRA.filter((e) => e[1].some((o) => startOf(o) > 0)).map(([name, occ, c, r]) => [name, base(occ, c, r ?? null)] as [string, SimInput]),
+      ['left M1, then the right P2 at 3 days', base([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 72 }], 'good')],
+      ['left M1, then the left PICA at 1 week', base([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pica_l', severity: 1, fromH: 168 }], 'good')],
+      ['left M1 reopened at 4.5 h, then the right M1 at 2 days', base([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'mca_m1_r', severity: 1, fromH: 48 }], 'moderate', 4.5)],
+    ];
+    it.each(STAGED)('%s: an occlusion that has not begun changes nothing at the displayed time', (_name, input) => {
+      for (const tH of STOPS) {
+        const known = soFar(input.occlusions, tH);
+        if (known.length === input.occlusions.length && known.every((o, i) => o === input.occlusions[i])) continue;
+        expect(shown(simulate({ ...input, tH })), `${tH} h`).toEqual(shown(simulate({ ...input, occlusions: known, tH })));
+      }
+    });
+
+    // a coma from the swelling (the mass effect alone in the coma range) is the malignant course
+    // with its herniation risk, whatever the size of the infarct
+    it.each(CASES)('%s: a coma from the swelling comes with the malignant course and its herniation risk', (name) => {
+      series(name).forEach((r, i) => {
+        if (r.input.decompression || (consciousnessFromShift(r.edema.massEffectMm)?.sev ?? 0) < 3) return;
+        expect(r.cascade.events.some((e) => /^malignant_edema_[rl]$/.test(e.id)), `${name} ${STOPS[i]} h`).toBe(true);
+        expect(r.cascade.fatalRisk, `${name} ${STOPS[i]} h`).toContain('herniation');
+      });
+    });
+
+    // a branch feeds part of its bundle's territory: closed for as long, it never leaves more infarct
+    // in its structure than the whole bundle
+    const BUNDLES = VESSELS.filter((v) => v.id.endsWith('_l') && LACUNE_SITES[v.baseId] && isOccludable(v.id));
+    it.each(BUNDLES.map((v) => [v.id]))('%s: one branch never leaves more infarct in its structure than the whole bundle closed for as long', (vessel) => {
+      const v = VESSELS.find((x) => x.id === vessel)!;
+      for (const site of LACUNE_SITES[v.baseId])
+        for (const collateral of ['good', 'poor'] as const)
+          for (const toH of [0.5, 2, 4, null])
+            for (const tH of [6, 2160]) {
+              const w = toH === null ? {} : { toH };
+              const trunk = simulate({ ...base([{ vessel, severity: 1, ...w }], collateral), tH });
+              const branch = simulate({ ...base([{ vessel, severity: 1, branch: true, lacuneSite: site.id, ...w }], collateral), tH });
+              const rid = `${site.region}_l`;
+              expect(branch.regions[rid].infarct, `${site.id} ${collateral} closed ${toH ?? 'for good'} at ${tH} h`).toBeLessThanOrEqual(trunk.regions[rid].infarct + 1e-9);
+            }
+    });
+
+    // two days into a lesion, the penumbra (tissue at risk) is no more than what the course still loses
+    it.each(CASES)('%s: from two days after the last occlusion begins, the penumbra is no more than the course still loses', (name) => {
+      series(name).forEach((r, i) => {
+        const tH = STOPS[i];
+        const changes = r.input.occlusions.flatMap((o) => [startOf(o), o.toH ?? 0]).concat(r.input.reperfusionH ?? 0);
+        if (tH < Math.max(...changes) + 48) return;
+        expect(r.volumes.penumbra, `${name} ${tH} h`).toBeLessThanOrEqual(r.volumes.finalInfarct - r.volumes.core + 0.5);
+      });
+    });
+
+    // the tissue that survives (past the time it is at risk, or rescued by a reopening: W2-10,
+    // Y1-12) is still silent while it regains its function: the region details never tell the
+    // deficits of a region that is mostly such living tissue as those of dead tissue
+    const REOPENED: [string, SimInput][] = [
+      ['left M1 reopened at 3 h', base([{ vessel: 'mca_m1_l', severity: 1 }], 'good', 3)],
+      ['left M1 reopened at 6 h, moderate', base([{ vessel: 'mca_m1_l', severity: 1 }], 'moderate', 6)],
+      ['mid-basilar reopened at 4.5 h', base([{ vessel: 'basilar_mid', severity: 1 }], 'good', 4.5)],
+    ];
+    const living = (r: SimResult, rid: string) => {
+      const comp = regionComposition(r, rid);
+      const rr = regionRecovery(r, rid);
+      return { comp, rr, alive: comp.penumbra + rr.regaining + rr.silenced };
+    };
+    it.each([...CASES.map(([n]) => [n, null] as [string, SimInput | null]), ...REOPENED])(
+      '%s: a region whose deficits come mostly from living tissue is not told as dead tissue',
+      (name, input) => {
+        const runs = input ? STOPS.map((tH) => simulate({ ...input, tH })) : series(name);
+        runs.forEach((r, i) => {
+          for (const [rid, st] of Object.entries(r.regions)) {
+            if (st.dys < 0.25) continue;
+            const { comp, rr, alive } = living(r, rid);
+            if (comp.core >= 0.15 || alive < 0.5) continue;
+            expect(regionFunctionGroup(comp, rr), `${name} ${STOPS[i]} h ${rid}`).not.toMatch(/^lost/);
+          }
+        });
+      },
+    );
   });
 });
 

@@ -107,10 +107,11 @@ export const DEFAULT_TISSUE: TissueParams = {
 
 /**
  * End-artery perforator territories (the lenticulostriate, thalamic, choroidal and brainstem
- * perforators; anatomy/vessels.ts kind 'perforator'), and every lacune: no collateral reaches
- * them, so behind an occlusion they get no flow at all and keep the former fast course (Y1-0);
- * the deep white matter of the hemisphere they feed has its own, slower one
- * (DEEP_WHITE_MATTER_TISSUE, Z1-7).
+ * perforators; anatomy/vessels.ts kind 'perforator'): no collateral reaches them, so behind an
+ * occlusion they get no flow at all and keep the former fast course (Y1-0); the deep white matter
+ * of the hemisphere they feed has its own, slower one (DEEP_WHITE_MATTER_TISSUE, Z1-7). A lacune
+ * (one branch of a bundle) is lost on the course of the tissue it lies in, that of its bundle's
+ * own units there (simulate.bundleIn, W2-2).
  * In rats the lateral striatum, supplied by end arteries, was infarcted after 30 min of MCA
  * occlusion, the cortex only after 60 min (Memezawa H et al. Stroke 1992;23:552–559); with a
  * permanent occlusion irreversible change appears first in the caudoputamen and then spreads to
@@ -144,9 +145,13 @@ export const PERFORATOR_TISSUE: TissueParams = { ...FAST_CORE };
  * Untreated it all dies in the end, as before. Function fails at once and, after reopening,
  * returns at the pace of the end-artery tissue around it (`reflowLagH` of the perforators), so a
  * capsule rescued at 1 h is still silent for some hours. Below the core threshold the flow makes
- * no difference (as in FAST_CORE); the penumbra is lost no faster than the core. Lacunes keep the
- * fast course of a single perforator (PERFORATOR_TISSUE): this calibration is about the whole
- * perforator group behind a trunk occlusion.
+ * no difference (as in FAST_CORE); the penumbra is lost no faster than the core. A lacune of the
+ * capsule or the corona radiata follows this course too (W2-2): the white matter behind one
+ * branch of the bundle is the same as behind the whole bundle. Kept on the fast course of a
+ * single perforator, one branch closed for an hour left a capsular infarct and a pure motor
+ * hemiparesis where the whole bundle closed for as long left neither; a single branch closed for
+ * minutes to about 2½ h now leaves no infarct, a capsular TIA by the tissue definition (Easton JD
+ * et al. Stroke 2009;40:2276–2293).
  */
 export const DEEP_WHITE_MATTER_TISSUE: TissueParams = {
   ...FAST_CORE,

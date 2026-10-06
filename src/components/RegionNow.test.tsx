@@ -50,3 +50,35 @@ describe('region details while the patient is comatose (X1-2)', () => {
     expect(cell!.className).not.toMatch(/\bempty\b/);
   });
 });
+
+// W2-10: from two days on, the penumbra that survives is no longer counted as penumbra but is still
+// silent, regaining its function; the region's deficits are not those of dead tissue. The same holds
+// for the tissue a reopening rescued (Y1-12)
+describe('region details: tissue that survived and is still regaining its function (W2-10)', () => {
+  const groupOf = (container: HTMLElement) => container.querySelector('.region-now .func-group:not(.unexaminable):not(.recovered):not(.compensated)');
+  const DEAD = { en: /tissue has died, usually leaving a lasting deficit/, 'zh-TW': /組織壞死，多半會留下後遺症/ };
+  const REGAINING = { en: /survived and is (still )?regaining its function/, 'zh-TW': /存活下來，仍在逐漸恢復功能/ };
+  const cases: [string, number | null, number, string][] = [
+    // untreated left M1 at 2 days: about a quarter of Broca's area is dead, most of the rest survives
+    ['the left M1 at 2 days', null, 48, 'broca_l'],
+    // reopened at 3 h: little died, the rest regains its function over hours
+    ['the left M1 reopened at 3 h, at 4.5 h', 3, 4.5, 'broca_l'],
+  ];
+  it.each((['zh-TW', 'en'] as Lang[]).flatMap((lang) => cases.map((c) => [lang, ...c] as const)))(
+    '%s: %s, the deficits of the region are told as recovering, not as those of dead tissue',
+    (lang, _name, reperfusionH, tH, region) => {
+      const input = { occlusions: SCENARIO_BY_ID.l_m1.occlusions, variants: [], map: 93, collateral: 'good' as const, reperfusionH, decompression: false };
+      const sim = simulate({ ...input, tH });
+      // most of the region is alive but silent, a minority is dead
+      expect(sim.regions[region].infarct).toBeLessThan(0.3);
+      expect(sim.regions[region].dys).toBeGreaterThan(0.7);
+      useApp.setState({ ...input, selected: { kind: 'region', id: region }, rightTab: 'details', tIndex: TIME_STOPS.findIndex((s) => s.h === tH), lang });
+      const { container } = render(<RightPanel sim={sim} />);
+      const title = groupOf(container)?.querySelector('.func-title')?.textContent ?? '';
+      expect(title).not.toMatch(DEAD[lang]);
+      expect(title).toMatch(REGAINING[lang]);
+      // the function status lists the share still regaining its function
+      expect(container.querySelector('.rec-status')?.textContent ?? '').toContain(lang === 'en' ? 'Survived, still regaining function' : '存活，仍在恢復功能');
+    },
+  );
+});

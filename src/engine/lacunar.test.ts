@@ -402,14 +402,17 @@ describe('R2-2: the warning syndrome needs at least two attacks that cleared wit
     for (const tH of [2, 3, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
   });
 
+  // (the capsule's white matter dies from about 2½ h of ischaemia on, behind one branch as behind
+  // the whole bundle: W2-2, Z1-7; so attacks that infarct it last hours)
   it('two attacks that each leave an infarct are not crescendo TIAs', () => {
-    const occ = [lacune('lenticulostriate_l', undefined, { toH: 0.5 }), lacune('lenticulostriate_l', undefined, { fromH: 3, toH: 3.5 })];
-    expect(sim(occ, 2).volumes.core).toBeGreaterThan(0.3);
-    for (const tH of [3, 4, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
+    const occ = [lacune('lenticulostriate_l', undefined, { toH: 4 }), lacune('lenticulostriate_l', undefined, { fromH: 6, toH: 10 })];
+    expect(sim(occ, 5).volumes.core).toBeGreaterThan(0.3);
+    for (const tH of [6, 12, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
   });
 
   it('a TIA and then an infarcting attack within the day: no crescendo of TIAs either', () => {
-    const occ = [lacune('lenticulostriate_l', undefined, { toH: 1 / 12 }), lacune('lenticulostriate_l', undefined, { fromH: 2, toH: 2.5 })];
+    const occ = [lacune('lenticulostriate_l', undefined, { toH: 1 / 12 }), lacune('lenticulostriate_l', undefined, { fromH: 2, toH: 6 })];
+    expect(sim(occ, 24).volumes.core).toBeGreaterThan(0.3);
     for (const tH of [2, 3, 24]) expect(warned(sim(occ, tH)), `${tH} h`).toBe(false);
   });
 

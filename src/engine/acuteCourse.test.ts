@@ -527,7 +527,8 @@ describe("R6-6: a stroke's coma and late signs follow the age of its own lesion,
   it('an M1 stroke a month after a basilar occlusion: the earlier coma is relabelled on its own clock, as without the M1', () => {
     for (const tH of [340, 720]) {
       const r = stack('basilar_upper', 0, 'mca_m1_l', 720, tH);
-      expect(r.schedule.onsetH).toBe(720);
+      // (before the M1 occludes, the schedule so far is the basilar occlusion alone: W2-3)
+      expect(r.schedule.onsetH).toBe(tH >= 720 ? 720 : 0);
       expect(sev(r, 'coma'), `${tH} h`).toBe(0);
       expect(sev(basilarAlone(tH), 'coma'), `${tH} h`).toBe(0);
       // (its severity can differ: the earlier lesion's perilesional swelling still runs on the index

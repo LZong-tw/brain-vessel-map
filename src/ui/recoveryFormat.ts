@@ -7,6 +7,7 @@ import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
 import { NO_BACKUP_KINDS, redundancyFor, type BottleneckSite, type RedundancyKind } from '../anatomy/redundancy';
 import type { NihssResult, SymptomItem, UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
+import type { TissueState } from '../engine/tissue';
 import type { Lang } from '../anatomy/types';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { SEV_FILL, SYSTEM_ORDER, symptomKey, systemOf } from './format';
@@ -27,12 +28,18 @@ export interface RegionRecovery {
   remote: number;
   /** share of the function lost to dead tissue that other pathways have taken over */
   compensated: number;
+  /**
+   * alive, will not die, but still silent while it regains its function: tissue that blood reached
+   * again (Y1-12), penumbra that collaterals held, also once it is past the time it is at risk
+   * (W2-10)
+   */
+  regaining: number;
 }
 
 /** Volume-weighted recovery status of a region at the simulated time. */
 export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery {
   const r = REGION_BY_ID[regionId];
-  const out: RegionRecovery = { dead: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0 };
+  const out: RegionRecovery = { dead: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0, regaining: 0 };
   if (!r) return out;
   let tot = 0;
   for (const bid of r.beds) {
@@ -40,14 +47,36 @@ export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery
     out.dead += (sim.beds[bid]?.infarct ?? 0) * w;
     out.silenced += (sim.recovery.extraDys[bid] ?? 0) * w;
     out.remote += (sim.recovery.diaschisisDys[bid] ?? 0) * w;
+    out.regaining += ((sim.beds[bid]?.regaining ?? 0) + (sim.beds[bid]?.holding ?? 0)) * w;
     tot += w;
   }
   if (tot > 0) {
     out.dead = Math.max(out.dead / tot, sim.regions[regionId]?.infarct ?? 0);
     out.silenced /= tot;
     out.remote /= tot;
+    out.regaining /= tot;
   }
   return out;
+}
+
+/**
+ * How reversible a region's current deficits are, from what its tissue is made of now (the region
+ * details' heading over them): penumbra still at risk ('at-risk', or 'mixed' beside dead tissue);
+ * tissue that survived and is still silent while it regains its function, after a reopening or as
+ * penumbra that collaterals held, also once it is past the time it is at risk ('regaining', or
+ * 'dead-regaining' beside dead tissue: Y1-12, W2-10); living tissue silenced by oedema or remote
+ * depression ('silenced', 'dead-silenced'); or dead tissue ('lost', 'lost-compensating').
+ */
+export type RegionFunctionGroup = 'mixed' | 'at-risk' | 'regaining' | 'dead-regaining' | 'silenced' | 'dead-silenced' | 'lost-compensating' | 'lost';
+
+export function regionFunctionGroup(comp: Record<TissueState, number>, rr: RegionRecovery): RegionFunctionGroup {
+  if (comp.core >= 0.15 && comp.penumbra >= 0.15) return 'mixed';
+  if (comp.penumbra > comp.core) return 'at-risk';
+  // alive and recovering, not dead (whichever of the two kinds of silent tissue is larger)
+  const matters = (x: number) => x >= 0.05 && x >= 0.2 * (comp.core + x);
+  if (matters(rr.regaining) && rr.regaining >= rr.silenced) return comp.core >= 0.1 ? 'dead-regaining' : 'regaining';
+  if (matters(rr.silenced)) return comp.core >= 0.1 ? 'dead-silenced' : 'silenced';
+  return rr.compensated >= 0.05 ? 'lost-compensating' : 'lost';
 }
 
 /** Redundancy of a symptom (from its dominant source when the engine attached it). */
@@ -74,10 +103,14 @@ export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: num
   return { edemaMl, remoteMl };
 }
 
-/** mL of brain tissue that survived and is still regaining its function (after a reopening, or penumbra that collaterals held; Y1-12) */
+/**
+ * mL of brain tissue that survived and is still regaining its function (after a reopening, or
+ * penumbra that collaterals held; Y1-12), with the tissue that is past the time it is at risk and
+ * will survive but is still silent (W2-10)
+ */
 export function regainingVolume(sim: SimResult): number {
   let ml = 0;
-  for (const b of BEDS) if (BRAIN.has(REGION_BY_ID[b.region].category)) ml += (sim.beds[b.id]?.regaining ?? 0) * b.volume;
+  for (const b of BEDS) if (BRAIN.has(REGION_BY_ID[b.region].category)) ml += ((sim.beds[b.id]?.regaining ?? 0) + (sim.beds[b.id]?.holding ?? 0)) * b.volume;
   return ml;
 }
 
