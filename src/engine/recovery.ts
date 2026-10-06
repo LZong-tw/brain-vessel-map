@@ -7,7 +7,9 @@
  *         a rim of surviving tissue around the infarct stops working; the rim is proportional to
  *         the infarct in the bed and larger when the bed swells. It follows the vasogenic oedema of
  *         the oedema model (engine/edema.ts): peaks around days 2–5, resolves over ~1–3 weeks and is
- *         gone by ~1 month.
+ *         gone by ~1 month. After an artery has reopened it keeps (and can deepen) a deficit
+ *         still present when blood returned, but does not bring back one that cleared then
+ *         (simulate.ts heldReference, X2-9).
  *       – diaschisis: depressed function of intact but connected remote tissue (Feeney & Baron,
  *         Stroke 1986; 17:817–30). The cascade marks crossed cerebellar diaschisis beds; they get a
  *         mild depression that fades over weeks — kept below the symptom threshold, as crossed

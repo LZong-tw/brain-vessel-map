@@ -47,7 +47,8 @@ export interface SyndromeMatch {
 
 const DEF_BY_BASE = indexById(REGION_DEFS, (d) => d.id);
 const opp = (s: Side): Side => (s === 'r' ? 'l' : 'r');
-const DYS_THR = 0.25;
+/** the share of a region that must be dysfunctional (or infarcted) before its deficits are listed */
+export const DYS_THR = 0.25;
 /** a region counts as affected at DYS_THR; fractions are sums of exponentials, so a region that
  * is exactly at the threshold (e.g. one quarter-share artery lost) must not flicker on and off
  * with floating-point rounding */
@@ -279,6 +280,25 @@ export function byConsciousness(symptoms: SymptomItem[]): { shown: SymptomItem[]
 const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
 
 /**
+ * After an artery has reopened (simulate.ts, X2-9): a deficit that cleared when blood returned is
+ * listed again only when the region's tissue itself gives it, not through the passing
+ * perilesional depression of the following days (recovery.extraDys). Keys are `symptom|side` as a
+ * region gives the deficit, before the merges (two quadrantanopias into a hemianopia …).
+ */
+export interface SymptomHold {
+  /** the deficits that cleared when blood last returned */
+  keys?: Set<string>;
+  /** per region, its level without the passing depression */
+  base?: Record<string, number>;
+  /** per region with border-zone deficits, the level of those beds without it */
+  borderBase?: Record<string, number>;
+  /** regions that became ischaemic again since: a new lesion, not held */
+  fresh?: Set<string>;
+  /** when given, filled with the key of every deficit a region gives */
+  trace?: Set<string>;
+}
+
+/**
  * Everything the regional dysfunction gives, at every level of consciousness: aggregateSymptoms
  * without leaving out what cannot be examined (byConsciousness).
  */
@@ -307,6 +327,8 @@ export function lesionSymptoms(
    * drowsiness and its compensation follow the age of its own lesion. Regions left out use `tH`.
    */
   regionAgeH?: Record<string, number>,
+  /** after an artery has reopened: the deficits held back (see SymptomHold) and a trace of what is given */
+  hold?: SymptomHold,
 ): SymptomItem[] {
   const map = new Map<string, SymptomItem>();
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
@@ -388,6 +410,14 @@ export function lesionSymptoms(
         if (r.side === 'm' || d.lat === 'none') side = r.side === 'm' ? 'both' : null;
         else side = d.lat === 'contra' ? opp(r.side) : r.side;
       }
+      // a deficit that cleared when blood returned comes back only from the tissue itself, not
+      // through the perilesional depression of the following days (X2-9)
+      const key = `${d.s}|${side ?? ''}`;
+      if (!byInfarct && hold?.keys?.has(key) && !hold.fresh?.has(r.id)) {
+        const own = (inBorder ? hold.borderBase?.[r.id] : hold.base?.[r.id]) ?? 0;
+        const other = d.bilateralOnly && r.side !== 'm' ? hold.base?.[`${r.baseId}_${opp(r.side)}`] ?? 0 : thr;
+        if (!(reaches(own, thr) && reaches(other, thr)) && !(d.deepTract && tractCut())) continue;
+      }
       // from two weeks on a region's coma is listed as what follows it (C3-F2)
       let id = d.s;
       let shownDelayed = delayed;
@@ -413,6 +443,7 @@ export function lesionSymptoms(
         if (raw > (aphasiaRaw.get(id)?.raw ?? 0)) aphasiaRaw.set(id, { raw, r, level, inf });
         aphasiaNow.set(id, Math.max(aphasiaNow.get(id) ?? 0, sevEff));
       }
+      hold?.trace?.add(key);
       add(id, side, sevEff, r.id, shownDelayed, rec);
     }
   }

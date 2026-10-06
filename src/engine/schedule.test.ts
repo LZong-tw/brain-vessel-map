@@ -386,10 +386,14 @@ describe('transient occlusions (relative to the tissue parameters)', () => {
     expect(day3.syndromes.map((s) => s.def.id)).toContain('locked_in');
     expect(at(120).volumes.core).toBeGreaterThan(1);
     // the index event's story starts on day 3; only the prodromal TIA's own story comes earlier,
-    // and it ends when the artery occludes (C3-F8)
+    // and it ends when the artery occludes (C3-F8), with the locked-in picture of the attack itself,
+    // which ends with the attack (X2-15: the brainstem events follow the labels)
     const TIA = ['ischemia_no_infarct', 'imaging_no_infarct', 'tia_urgent'];
     const events = at(120).cascade.events;
-    expect(events.filter((e) => !TIA.includes(e.id)).every((e) => e.onsetH >= 72)).toBe(true);
+    const attack = events.find((e) => e.id === 'locked_in')!;
+    expect(attack.onsetH).toBeCloseTo(0, 9);
+    expect(attack.endH).toBeCloseTo(sc.occlusions[0].toH!, 9);
+    expect(events.filter((e) => !TIA.includes(e.id) && e !== attack).every((e) => e.onsetH >= 72)).toBe(true);
     const tia = events.filter((e) => TIA.includes(e.id)).sort((a, b) => a.id.localeCompare(b.id));
     expect(tia.map((e) => [e.id, e.onsetH < 1, (e.endH ?? Infinity) <= 72])).toEqual([...TIA].sort().map((id) => [id, true, true]));
   });

@@ -7,6 +7,7 @@ import { symptomsAddedAt } from './cascade';
 import { SPEECH_SIGNS, NEEDS_AWAKE, aggregateSymptoms, estimateNihss } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
+import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
 
@@ -79,25 +80,7 @@ describe('output invariants', () => {
   // back only for a reason the model has: a sign that cannot be examined at the patient's level of
   // consciousness is not listed then (R5-7, X1-12: the engine names it in `unexaminable`), and the
   // sparing of central vision is lost while the oedema of days 1–2 weeks silences the occipital
-  // pole too
-  const ALL_STOPS = TIME_STOPS.map((s) => s.h);
-  const unexaminableNow = (r: SimResult, key: string) => r.unexaminable.some((x) => `${x.id}|${x.side}` === key);
-  const oedema = (r: SimResult, tH: number) => r.cascade.events.some((e) => e.id === 'vasogenic_edema' && e.onsetH <= tH && tH < (e.endH ?? Infinity));
-  const CONSCIOUSNESS = ['coma', 'somnolence', 'disorder_of_consciousness', 'hypersomnia'];
-  const noUnexplainedReturn = (name: string, runs: SimResult[]) => {
-    const keys = new Set(runs.flatMap((r) => r.symptoms.filter((x) => !CONSCIOUSNESS.includes(x.id)).map((x) => `${x.id}|${x.side}`)));
-    for (const key of keys) {
-      const id = key.split('|')[0];
-      const on = runs.map((r) => r.symptoms.some((x) => `${x.id}|${x.side}` === key));
-      const first = on.indexOf(true);
-      const last = on.lastIndexOf(true);
-      for (let i = first + 1; i < last; i++) {
-        if (on[i]) continue;
-        const why = unexaminableNow(runs[i], key) || (id === 'macular_sparing' && oedema(runs[i], ALL_STOPS[i]));
-        expect(why, `${name}: ${key} is ${on.map((x) => (x ? '■' : '□')).join('')}`).toBe(true);
-      }
-    }
-  };
+  // pole too; or it comes back from new damage (testing/courseChecks.ts)
   it.each(untreatedSingleOnset.map((s) => [s.id]))('%s: no symptom switches off and back on over the whole course without a reason (R6-11)', (id) => {
     for (const collateral of ['good', 'moderate', 'poor'] as const)
       noUnexplainedReturn(`${id} ${collateral}`, ALL_STOPS.map((tH) => simulate(inputOf(id, { collateral, reperfusionH: null, tH }))));
@@ -225,6 +208,28 @@ describe('syndromes and events agree with the symptoms', () => {
     ['basilar_mid good reopened 24 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 24],
     ['basilar_upper moderate reopened 6 h', [{ vessel: 'basilar_upper', severity: 1 }], 'moderate', 6],
     ['basilar_upper good reopened 8 h', [{ vessel: 'basilar_upper', severity: 1 }], 'good', 8],
+    // X2-7, X2-9, X2-10: woken by an early reopening, and rescued before anything infarcted
+    ['basilar_upper good reopened 6 h', [{ vessel: 'basilar_upper', severity: 1 }], 'good', 6],
+    ['basilar_upper moderate reopened 2 h', [{ vessel: 'basilar_upper', severity: 1 }], 'moderate', 2],
+    ['basilar_upper poor reopened 1 h', [{ vessel: 'basilar_upper', severity: 1 }], 'poor', 1],
+    ['basilar_mid good reopened 1 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 1],
+    // X2-8, X2-11: a basilar occlusion before and after a later index event
+    [
+      'basilar_upper, then mca_m1_l at 1 month, poor',
+      [
+        { vessel: 'basilar_upper', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 720 },
+      ],
+      'poor',
+    ],
+    [
+      'mca_m1_l, then basilar_upper at 1 month, poor',
+      [
+        { vessel: 'mca_m1_l', severity: 1, fromH: 0 },
+        { vessel: 'basilar_upper', severity: 1, fromH: 720 },
+      ],
+      'poor',
+    ],
     [
       'both mesencephalic perforators',
       [
@@ -407,6 +412,24 @@ describe('syndromes and events agree with the symptoms', () => {
     series(name).forEach((r, i) => {
       const all = estimateNihss([...r.symptoms, ...r.unexaminable], []);
       expect(r.nihss.items, `${name} ${STOPS[i]} h: ${r.unexaminable.map((s) => s.id).join(', ')}`).toEqual(all.items);
+    });
+  });
+
+  // X2-7, X2-8, X2-10, X2-11, X2-15: the brainstem consciousness events follow the labels of the
+  // bilateral ventral pons: each label shown has its event running, titled for it, and no such
+  // event runs without its label (a coma event without stupor or coma least of all)
+  const BRAINSTEM_FAMILY = ['basilar_coma', 'pontine_doc', 'locked_in', 'locked_in_incomplete'];
+  it.each(CASES)('%s: the brainstem consciousness events follow the labels shown (X2-10, X2-11, X2-15)', (name) => {
+    series(name).forEach((r, i) => {
+      const tH = STOPS[i];
+      const shown = r.syndromes.map((m) => m.def.id).filter((id) => BRAINSTEM_FAMILY.includes(id));
+      const running = r.cascade.events
+        .filter((e) => e.onsetH <= tH && tH < (e.endH ?? Infinity))
+        .map((e) => e.id.replace(/_\d+$/, ''))
+        .filter((id) => BRAINSTEM_FAMILY.includes(id));
+      expect(running.sort(), `${name} ${tH} h`).toEqual(shown.sort());
+      if (running.includes('basilar_coma'))
+        expect(r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness'), `${name} ${tH} h`).toBe(true);
     });
   });
 

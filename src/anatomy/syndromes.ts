@@ -155,6 +155,9 @@ export const isWatershedPicture = (b: { border: number; total: number }) => b.bo
 
 /** both sides of the ventral pons (upper or lower) involved, at least `thr` */
 const bothBases = (c: SyndromeCtx, thr: number) => c.both('pons_rostral_basis', thr) || c.both('pons_caudal_basis', thr);
+/** the coma comes from the arousal network of the upper pontine or paramedian midbrain tegmentum */
+const arousalComa = (q: SymptomQuery) =>
+  (['r', 'l'] as Side[]).some((sd) => q.from('coma', sd, 'pons_rostral_tegmentum') || q.from('coma', sd, 'midbrain_paramedian'));
 /** not awake: coma, or a disorder of consciousness after it (C3-F1, C3-F2) */
 const unaware = (c: SyndromeCtx) => c.sym('coma') > 0 || c.sym('disorder_of_consciousness') > 0;
 /** nothing moves in any limb (Bauer's classical locked-in syndrome) */
@@ -171,9 +174,11 @@ const otherBasesSpared = (c: SyndromeCtx, s: Side) => {
   return !c.has('pons_rostral_basis', o, 0.25) && !c.has('pons_caudal_basis', o, 0.25);
 };
 /**
- * the region floor of the incomplete locked-in label, below the symptom threshold (0.25): swelling
- * around smaller infarcts of both ventral pontine halves can bring their bilateral signs back for
- * days to weeks, and the label follows those signs (`requires`), whatever the infarct (R5-3)
+ * the region floor of the incomplete locked-in label, below the symptom threshold (0.25): the
+ * swelling around smaller infarcts of both ventral pontine halves can keep their bilateral signs
+ * for days to weeks (after a reopening only signs still present when blood returned: it does not
+ * bring back signs that had cleared, X2-9), and the label follows those signs (`requires`),
+ * whatever the infarct (R5-3)
  */
 export const LOCKED_IN_BASES_FLOOR = 0.15;
 /**
@@ -614,8 +619,9 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Both sides of the ventral pons (quadriplegia) plus both sides of the upper pontine or midbrain tegmentum (the arousal network): the person is comatose, not locked-in. With ventral pontine lesions people often stay comatose for days to weeks, needing ventilation, and then gradually wake: some wake up locked-in (aware but unable to move), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.',
     },
     test: (c) => bothBases(c, 0.25) && c.sym('coma') > 0,
-    // named for its signs: coma with weakness of all four limbs
-    requires: (q) => q.has('coma') && weakOn(q, 'r') && weakOn(q, 'l'),
+    // named for its signs: coma with weakness of all four limbs, the coma from the arousal network
+    // of the tegmentum (not, say, the swelling of a later hemispheric infarct: X2-11)
+    requires: (q) => arousalComa(q) && weakOn(q, 'r') && weakOn(q, 'l'),
     supersedes: PONTINE_ONE_SIDED,
   },
   {

@@ -73,10 +73,24 @@ describe('the locked-in risk ends when blood returns before the pons dies', () =
     expect(event(r, 'locked_in')?.endH).toBe(2);
   });
 
+  // the locked-in state is told by its own course (X2-15): classical while nothing moves, then an
+  // open-ended incomplete locked-in event once some movement returns
+  const lockedInEvents = (r: ReturnType<typeof simulate>) => r.cascade.events.filter((e) => e.id.startsWith('locked_in'));
   it('stays open-ended when nothing reopens the artery, when the pons dies anyway, or when it closes again', () => {
-    expect(event(sim({ occlusions: BASILAR_MID, tH: 4320 }), 'locked_in')?.endH).toBeUndefined();
-    expect(event(sim({ occlusions: BASILAR_MID, collateral: 'poor', reperfusionH: 24, tH: 4320 }), 'locked_in')?.endH).toBeUndefined();
-    const reoccluded = sim({ occlusions: BASILAR_MID, reperfusionH: 1, tH: 4320, treatment: { ...DEFAULT_TREATMENT, reocclusionAfterH: 6 } });
-    expect(event(reoccluded, 'locked_in')?.endH).toBeUndefined();
+    for (const r of [sim({ occlusions: BASILAR_MID, tH: 4320 }), sim({ occlusions: BASILAR_MID, collateral: 'poor', reperfusionH: 24, tH: 4320 })]) {
+      const course = lockedInEvents(r);
+      expect(course.map((e) => e.id)).toEqual(['locked_in', 'locked_in_incomplete']);
+      expect(course[0].endH).toBe(course[1].onsetH);
+      expect(course[1].endH).toBeUndefined();
+    }
+    // reopened at 1 h, closed again at 7 h: it resolves at the reopening and returns with the reocclusion
+    const reoccluded = lockedInEvents(sim({ occlusions: BASILAR_MID, reperfusionH: 1, tH: 4320, treatment: { ...DEFAULT_TREATMENT, reocclusionAfterH: 6 } }));
+    expect(reoccluded.map((e) => [e.id, e.onsetH])).toEqual([
+      ['locked_in', 0],
+      ['locked_in_2', 7],
+      ['locked_in_incomplete', reoccluded[2].onsetH],
+    ]);
+    expect(reoccluded[0].endH).toBe(1);
+    expect(reoccluded[2].endH).toBeUndefined();
   });
 });

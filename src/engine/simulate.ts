@@ -18,13 +18,17 @@
  *   • one index event: infarcts from other episodes add to the volumes and the oedema, but
  *     swell and evolve on the index clock (nothing before the index onset); only each region's
  *     late symptoms, compensation and coma relabelling count from when that region itself became
- *     ischaemic (R6-6);
+ *     ischaemic (R6-6), and the brainstem consciousness events follow the labels these give, so
+ *     they run on that clock too (brainstemCourse, X2-11);
  *   • the final infarct is taken FINAL_H after the last occlusion start or reopening;
  *   • the acute deficit pattern and the flow the cascade sees are those of the index onset, and
  *     "reperfusion" for the oedema model is the first reopening (treatment or spontaneous) of
  *     that episode;
  *   • treatment given before the index onset does not count as treating it.
  * With a single onset at 0 these reduce to the former behaviour exactly.
+ *
+ * After a reopening (treatment, or an occlusion that ends), a deficit that cleared when blood
+ * returned is not brought back by the swelling of the following days (heldReference, X2-9).
  *
  * Treatment details (engine/treatment.ts). `reperfusionH` is when flow returns; `treatment` says
  * how and how well. With the default (complete, lasting reperfusion) everything above holds
@@ -61,6 +65,9 @@ import {
   symptomsAddedAt,
   type BedEffect,
   type BedEffectKind,
+  type BrainstemCourse,
+  type BrainstemSegment,
+  type BrainstemState,
   type CascadeEvent,
   type CascadeInput,
   type CascadeOutput,
@@ -69,6 +76,7 @@ import {
   type ListedCourse,
 } from './cascade';
 import {
+  DYS_THR,
   byConsciousness,
   detectSyndromes,
   estimateNihss,
@@ -109,8 +117,9 @@ import {
   type TreatmentOptions,
 } from './treatment';
 import { LACUNE_DYSFUNCTION, LACUNE_ML, canBeLacunar, lacuneSiteOf } from '../anatomy/lacunes';
+import { DELAYED_ONSET_H } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { isWatershedPicture } from '../anatomy/syndromes';
+import { LOCKED_IN_BASES_FLOOR, isWatershedPicture } from '../anatomy/syndromes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
@@ -673,8 +682,9 @@ interface Model {
   regionAcute: Record<string, number>;
   /**
    * replaces `cascade` and `shownCascade` with the second pass, whose aspiration warning and
-   * cardiac severity read the sampled symptom list (R3-1, R3-4); nothing per-time depends on what
-   * it changes, so the per-time state may use the first pass
+   * cardiac severity read the sampled symptom list (R3-1, R3-4) and whose brainstem consciousness
+   * events follow the sampled labels (X2-10); nothing per-time depends on what it changes (those
+   * events add no symptoms), so the per-time state may use the first pass
    */
   finish: () => void;
   /**
@@ -682,6 +692,19 @@ interface Model {
    * schedule has more than one start; null otherwise (every lesion then dates from the index onset)
    */
   regionStarts: Record<string, number[]> | null;
+  /**
+   * when blood returns (simulation clock, sorted): the treatment reopening (when it reopens
+   * something), an occlusion (or a phase the treatment caused) that ends; after each, a deficit
+   * that cleared then is not brought back by the swelling (heldReference, X2-9)
+   */
+  reopenings: number[];
+  /** the deficits that cleared at each reopening, filled in when first needed (heldReference) */
+  heldAt: Map<number, HeldReference>;
+  /**
+   * per region, every start of an occlusion phase (the input's and those the treatment caused,
+   * simulation clock) at which it became ischaemic: a new lesion, which the hold does not cover
+   */
+  ischaemiaStarts: Record<string, number[]>;
 }
 
 const modelCache = new Map<string, Model>();
@@ -829,6 +852,9 @@ function modelFor(input: SimInput): Model {
     regionAcute: acuteDys,
     finish: () => {},
     regionStarts: regionIschaemiaStarts(input, course, hemoAtT),
+    reopenings: reopeningTimes(occlusions, plan && plan.reopened.length ? opensH : null),
+    heldAt: new Map(),
+    ischaemiaStarts: ischaemiaStartsOf([...new Set(occlusions.map(startOf))].sort((a, b) => a - b), course, hemoAtT),
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -839,7 +865,7 @@ function modelFor(input: SimInput): Model {
   model.finish = () => {
     if (done) return;
     done = true;
-    const second = computeCascade({ ...shiftedInput, listed: listedCourse(input, onsetH) });
+    const second = computeCascade({ ...shiftedInput, listed: { ...listedCourse(input, onsetH), brainstem: brainstemCourse(input, model) } });
     model.cascade = second;
     model.shownCascade = shownCascadeOf(second, onsetH, prodromal);
   };
@@ -880,6 +906,90 @@ function listedCourse(input: SimInput, onsetH: number): ListedCourse {
   }
   out.dysphagiaRegions = [...regions];
   return out;
+}
+
+/** the labels of the bilateral ventral pons and the state of the brainstem course each names (cascade.brainstemEvents) */
+const BRAINSTEM_LABELS: [string, BrainstemState][] = [
+  ['basilar_coma', 'coma'],
+  ['pontine_doc', 'doc'],
+  ['locked_in', 'classical'],
+  ['locked_in_incomplete', 'incomplete'],
+];
+const PONS_BASES: [string, string][] = [
+  ['pons_rostral_basis_r', 'pons_rostral_basis_l'],
+  ['pons_caudal_basis_r', 'pons_caudal_basis_l'],
+];
+/** the arousal network whose coma is relabelled two weeks after its own lesion began (clinical.ts) */
+const AROUSAL = ['pons_rostral_tegmentum_r', 'pons_rostral_tegmentum_l', 'midbrain_paramedian_r', 'midbrain_paramedian_l'];
+/** a change of state between two samples is placed to within (gap / 2^BRAINSTEM_BISECT) */
+const BRAINSTEM_BISECT = 8;
+
+/**
+ * The brainstem consciousness course the labels show (X2-7, X2-10, X2-11, X2-15), for the second
+ * pass of the cascade: which of coma with quadriplegia, a disorder of consciousness, classical and
+ * incomplete locked-in syndrome the labels name, and from when to when. Sampled at the time stops
+ * of both clocks, when blood returns, and when the ventral pons and the arousal network became
+ * ischaemic and two weeks later (when a coma is relabelled, by the lesion's own age: R6-6); a
+ * change between two samples is found by bisection. Null when the ventral pons is never
+ * ischaemic on both sides as far as these labels reach (no such label, no sampling).
+ */
+function brainstemCourse(input: SimInput, model: Model): BrainstemCourse | null {
+  const starts = model.ischaemiaStarts;
+  // both ventral halves ischaemic at some start, at least as far as the incomplete locked-in label reaches
+  const allStarts = [...new Set(model.occlusions.map(startOf))].sort((a, b) => a - b);
+  const bilateralAt = allStarts.filter((s) => {
+    const lv = ischaemicLevels(model.course, model.hemoAt, s);
+    return PONS_BASES.some(([r, l]) => (lv[r] ?? 0) >= LOCKED_IN_BASES_FLOOR - 1e-6 && (lv[l] ?? 0) >= LOCKED_IN_BASES_FLOOR - 1e-6);
+  });
+  if (!bilateralAt.length) return null;
+  const lesionStarts = [...new Set([...bilateralAt, ...PONS_BASES.flat().flatMap((rid) => starts[rid] ?? [])])].sort((a, b) => a - b);
+  const times = new Set<number>([0, ...model.reopenings]);
+  for (const s of [...lesionStarts, ...AROUSAL.flatMap((rid) => starts[rid] ?? [])]) {
+    times.add(s);
+    times.add(s + DELAYED_ONSET_H);
+  }
+  for (const s of TIME_STOPS) {
+    times.add(s.h);
+    times.add(model.onsetH + s.h);
+  }
+  const memo = new Map<number, BrainstemState | null>();
+  const stateAt = (h: number): BrainstemState | null => {
+    if (!memo.has(h)) {
+      const r = run({ ...input, tH: h }, false);
+      memo.set(h, BRAINSTEM_LABELS.find(([id]) => r.syndromes.some((m) => m.def.id === id))?.[1] ?? null);
+    }
+    return memo.get(h)!;
+  };
+  const sorted = [...times].filter((h) => h >= 0).sort((a, b) => a - b);
+  const points: [number, BrainstemState | null][] = [];
+  for (const h of sorted) {
+    const st = stateAt(h);
+    const last = points[points.length - 1];
+    if (last && last[1] !== st) {
+      // the change lies in (last, h]: found by bisection (a change at a sampled reopening or at a
+      // lesion's two weeks stays exactly there)
+      let lo = last[0];
+      let hi = h;
+      for (let k = 0; k < BRAINSTEM_BISECT; k++) {
+        const m = (lo + hi) / 2;
+        if (stateAt(m) === last[1]) lo = m;
+        else hi = m;
+      }
+      if (hi < h) points.push([hi, stateAt(hi)]);
+    }
+    points.push([h, st]);
+  }
+  const segments: BrainstemSegment[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const [h, st] = points[i];
+    if (i > 0 && points[i - 1][1] === st) continue;
+    const open = segments[segments.length - 1];
+    if (open && open.untilH === null) open.untilH = h - model.onsetH;
+    if (st === null) continue;
+    const lesion = lesionStarts.filter((s) => s <= h).pop() ?? lesionStarts[0];
+    segments.push({ state: st, fromH: h - model.onsetH, untilH: null, lesionOnsetH: lesion - model.onsetH });
+  }
+  return { segments, reopenH: model.reopenings.map((h) => h - model.onsetH) };
 }
 
 /** what the oedema model needs of a model to give the midline shift at any time */
@@ -990,23 +1100,40 @@ function herniationFollowsShift(
 function regionIschaemiaStarts(input: SimInput, course: Course, hemoAt: (tH: number) => HemoResult): Record<string, number[]> | null {
   const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
   if (starts.length <= 1) return null;
-  const ischaemic = (h: number): Record<string, number> => {
-    if (h < 0) return {};
-    const hemo = hemoAt(h);
-    const acute: Record<string, number> = {};
-    for (const u of course.units) if ((hemo.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
-    const out = regionAgg(acute);
-    for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, h)) out[rid] = Math.max(out[rid] ?? 0, LACUNE_DYSFUNCTION);
-    return out;
-  };
-  const THR = 0.25;
+  return ischaemiaStartsOf(starts, course, hemoAt);
+}
+
+/** per region, its acutely dysfunctional share at `h` (core + penumbra; a lacune whose branch is closed) */
+function ischaemicLevels(course: Course, hemoAt: (tH: number) => HemoResult, h: number): Record<string, number> {
+  if (h < 0) return {};
+  const hemo = hemoAt(h);
+  const acute: Record<string, number> = {};
+  for (const u of course.units) if ((hemo.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
+  const out = regionAgg(acute);
+  for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, h)) out[rid] = Math.max(out[rid] ?? 0, LACUNE_DYSFUNCTION);
+  return out;
+}
+
+/** per region, the times among `starts` at which its acutely dysfunctional share rises from below the symptom threshold to above it */
+function ischaemiaStartsOf(starts: number[], course: Course, hemoAt: (tH: number) => HemoResult): Record<string, number[]> {
   const out: Record<string, number[]> = {};
   for (const s of starts) {
-    const before = ischaemic(s - 1e-6);
-    const now = ischaemic(s);
-    for (const [rid, v] of Object.entries(now)) if (v >= THR - 1e-6 && (before[rid] ?? 0) < THR - 1e-6) (out[rid] ??= []).push(s);
+    const before = ischaemicLevels(course, hemoAt, s - 1e-6);
+    const now = ischaemicLevels(course, hemoAt, s);
+    for (const [rid, v] of Object.entries(now)) if (v >= DYS_THR - 1e-6 && (before[rid] ?? 0) < DYS_THR - 1e-6) (out[rid] ??= []).push(s);
   }
   return out;
+}
+
+/** when blood returns (see Model.reopenings): the treatment's reopening (null: it reopens nothing), and the end of every phase that ends */
+function reopeningTimes(occlusions: Occlusion[], opensH: number | null): number[] {
+  const out = new Set<number>();
+  if (opensH !== null) out.add(opensH);
+  for (const o of occlusions) {
+    const e = endOf(o);
+    if (e !== null && e > startOf(o)) out.add(e);
+  }
+  return [...out].sort((a, b) => a - b);
 }
 
 /** hours since each region last became ischaemic, at `tAbs` (simulation clock; R6-6) */
@@ -1145,6 +1272,240 @@ const edemaBedOf = (model: Pick<Model, 'hemoAcute' | 'hemoAfter'>, bedId: string
   secondaryOnsetH: effects.find((e) => e.kind === 'secondary')?.onsetH ?? null,
 });
 
+/** the ACA–MCA border-zone beds of one region (C1-F6): their levels, and their share of its dysfunction */
+interface BorderBeds {
+  dys: number;
+  inf: number;
+  share: number;
+  /** dysfunction from the tissue itself, without the passing perilesional and remote depression */
+  base: number;
+}
+
+/** What every region does at one time, before the symptom list is made from it (see run). */
+interface Levels {
+  /** clinical clock */
+  t: number;
+  beds: Record<string, BedTimeState>;
+  edema: EdemaState;
+  recovery: RecoveryState;
+  regionAgeH: Record<string, number> | undefined;
+  /** dysfunction (core, penumbra, still regaining, a lacune, and the passing depression of recovery.extraDys) */
+  rDys: Record<string, number>;
+  /** the primary vascular pattern (before secondary infarcts) the syndrome rules read */
+  rPrim: Record<string, number>;
+  rInf: Record<string, number>;
+  rRel: Record<string, number>;
+  /** rDys without the passing perilesional and remote depression (secondary infarcts included) */
+  rBase: Record<string, number>;
+  lacuneLoss: Record<string, number>;
+  lacuneIsch: Record<string, number>;
+  lacuneOnly: string[];
+  borderBySide: Record<Side, { border: number; total: number; kinds: string[] }>;
+  /** every region with border-zone deficits (C1-F6), whatever the picture of its hemisphere */
+  border: Record<string, BorderBeds>;
+}
+
+function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult | null): Levels {
+  const { course } = model;
+  const cascade = model.cascade;
+  const t = Math.max(0, tAbs - model.onsetH);
+  const lacunes = [...course.lacunes.keys()];
+  const { beds, lacuneLoss, lacuneIsch, lacuneOnly } = tissueAt(model, tAbs, hemo);
+  // dysfunction caused directly by the arterial occlusion(s), before secondary effects
+  // (herniation etc.) are overlaid — syndromes describe the primary vascular pattern,
+  // the secondary damage is reported as cascade events instead
+  const primaryDys: Record<string, number> = {};
+  // tissue state for the oedema model, captured before secondary infarcts overwrite it
+  const edemaBeds: Record<string, EdemaBedInput> = {};
+  for (const b of BEDS) {
+    const bs = beds[b.id];
+    primaryDys[b.id] = bs.frac.core + bs.frac.penumbra + bs.regaining;
+    const effects = effectsAt(cascade, b.id, t);
+    const eff = EFFECT_PRIORITY.find((k) => effects.some((e) => e.kind === k)) ?? null;
+    edemaBeds[b.id] = edemaBedOf(model, b.id, bs, effects);
+    bs.effect = eff;
+    if (eff === 'secondary') {
+      bs.infarct = 1;
+      bs.frac = { normal: 0, oligemia: 0, penumbra: 0, core: 1, salvaged: 0 };
+      bs.regaining = 0;
+    }
+  }
+  const edema = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression: input.decompression, beds: edemaBeds, cascade });
+  const recoveryBeds: Record<string, RecoveryBedInput> = {};
+  // (the stabilised penumbra still regaining function is silent, as the penumbra is)
+  for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra + beds[b.id].regaining };
+  // each region's lesion has its own age when a later occlusion caused it (R6-6)
+  const regionAgeH = regionAgesAt(model.regionStarts, tAbs);
+  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss, regionAgeH });
+  const baseMap: Record<string, number> = {};
+  for (const b of BEDS) {
+    const bs = beds[b.id];
+    baseMap[b.id] = Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining);
+    bs.dys = Math.min(1, baseMap[b.id] + (recovery.extraDys[b.id] ?? 0));
+  }
+
+  // ── per-region ──
+  const dysMap: Record<string, number> = {};
+  const infMap: Record<string, number> = {};
+  const relMap: Record<string, number> = {};
+  for (const b of BEDS) {
+    dysMap[b.id] = beds[b.id].dys;
+    infMap[b.id] = beds[b.id].infarct;
+    relMap[b.id] = beds[b.id].rel;
+  }
+  const rDys = regionAgg(dysMap);
+  const rPrim = regionAgg(primaryDys);
+  const rInf = regionAgg(infMap);
+  const rRel = regionAgg(relMap);
+  const rBase = regionAgg(baseMap);
+  // a lacune is small but sits in a compact fibre tract: it knocks out most of its function, from
+  // the moment its branch closes (ischaemic tissue is silent too) — so a branch that reopens
+  // within minutes gives a fully reversible deficit, a capsular TIA (C6-F2)
+  for (const rid of lacunes) {
+    const dead = LACUNE_DYSFUNCTION * lacuneLoss[rid];
+    const level = LACUNE_DYSFUNCTION * (lacuneLoss[rid] + lacuneIsch[rid]);
+    rDys[rid] = Math.max(rDys[rid] ?? 0, level);
+    rPrim[rid] = Math.max(rPrim[rid] ?? 0, level);
+    rBase[rid] = Math.max(rBase[rid] ?? 0, level);
+    rInf[rid] = Math.max(rInf[rid] ?? 0, dead);
+  }
+  // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern)
+  const borderOf = (side: Side) => {
+    let border = 0;
+    let total = 0;
+    const kinds = new Set<string>();
+    for (const b of BEDS) {
+      if (!b.region.endsWith(`_${side}`)) continue;
+      const reg = REGION_BY_ID[b.region];
+      if (!BRAIN.has(reg.category)) continue;
+      const v = primaryDys[b.id] * b.volume;
+      total += v;
+      if (b.terr.length === 2 && v > 0) {
+        border += v;
+        kinds.add(b.terr.join('|'));
+      }
+    }
+    return { border, total, kinds: [...kinds] };
+  };
+  const borderBySide = { r: borderOf('r'), l: borderOf('l') };
+  const border: Record<string, BorderBeds> = {};
+  for (const r of REGIONS) {
+    if (!r.borderDeficits || r.side === 'm') continue;
+    let vol = 0;
+    let dysVol = 0;
+    let infVol = 0;
+    let baseVol = 0;
+    let allDysVol = 0;
+    for (const bid of r.beds) {
+      const bed = BED_BY_ID[bid];
+      const w = bed.volume || 1;
+      allDysVol += beds[bid].dys * w;
+      if (bed.terr.length === 2 && bed.terr.includes('ACA') && bed.terr.some((x) => x.startsWith('MCA'))) {
+        vol += w;
+        dysVol += beds[bid].dys * w;
+        infVol += beds[bid].infarct * w;
+        baseVol += baseMap[bid] * w;
+      }
+    }
+    if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0, base: baseVol / vol };
+  }
+  return { t, beds, edema, recovery, regionAgeH, rDys, rPrim, rInf, rRel, rBase, lacuneLoss, lacuneIsch, lacuneOnly, borderBySide, border };
+}
+
+/** the deficits that cleared when blood last returned (see heldReference) */
+interface HeldReference {
+  /** when blood returned (simulation clock) */
+  tr: number;
+  /** `symptom|side` as each region gives it (clinical.SymptomHold) */
+  keys: Set<string>;
+}
+
+/** what the symptom list is made from at one time (see lesionListAt) */
+interface LesionList {
+  lv: Levels;
+  /** the ACA–MCA border-zone levels of the regions in a watershed picture (C1-F6) */
+  border: Record<string, BorderLevel>;
+  /** everything the lesion gives, at every level of consciousness (clinical.lesionSymptoms) */
+  all: SymptomItem[];
+}
+
+/**
+ * The lesion's symptom list at `tAbs`: the region levels, the symptoms the cascade events and the
+ * midline shift add, the border-zone picture, and every deficit the regions give, with `ref`'s
+ * deficits held (X2-9). `trace`, when given, is filled with every deficit the regions give.
+ */
+function lesionListAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult | null, ref: HeldReference | null, trace?: Set<string>): LesionList {
+  const lv = levelsAt(model, input, tAbs, hemo);
+  const { t, edema } = lv;
+  const cascade = model.cascade;
+  const extra: SymptomItem[] = [];
+  // only after a clear trigger, and only as possible (C3-F11)
+  if (cascade.palatalTremorFromH !== null && t >= cascade.palatalTremorFromH) {
+    extra.push({ id: 'palatal_tremor', side: null, sev: 1, sources: [], delayed: true });
+  }
+  for (const e of cascade.events) {
+    // a herniation coma lasts, after the oedema peak, only while the midline is still shifted
+    // into the coma range: a survivor wakes as the swelling subsides (C4-F1)
+    for (const sy of symptomsAddedAt(e, t, edema.midlineShiftMm)) {
+      const sides: (Side | null)[] = sy.side === 'both' ? ['r', 'l'] : [sy.side];
+      for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
+    }
+  }
+  // the level of consciousness follows the horizontal midline shift of a swollen hemisphere
+  // (Ropper 1986; cascade.consciousnessFromShift), whatever event caused the swelling (C4-F2)
+  const byShift = consciousnessFromShift(edema.midlineShiftMm);
+  if (byShift) extra.push({ id: byShift.id, side: null, sev: byShift.sev, sources: [], delayed: false });
+  // the ACA–MCA border-zone beds of regions that act differently when only they fail (C1-F6), in
+  // a hemisphere whose dysfunction is a border-zone picture (not a territorial infarct whose
+  // collaterals happen to rescue the core of the motor strip but not its edge)
+  const border: Record<string, BorderLevel> = {};
+  const borderBase: Record<string, number> = {};
+  for (const [rid, b] of Object.entries(lv.border)) {
+    const r = REGION_BY_ID[rid];
+    borderBase[rid] = b.base;
+    if (r.side !== 'm' && isWatershedPicture(lv.borderBySide[r.side])) border[rid] = { dys: b.dys, inf: b.inf, share: b.share };
+  }
+  const fresh = new Set<string>();
+  if (ref) for (const [rid, list] of Object.entries(model.ischaemiaStarts)) if (list.some((s) => s > ref.tr && s <= tAbs)) fresh.add(rid);
+  const hold = ref || trace ? { keys: ref?.keys, base: lv.rBase, borderBase, fresh, trace } : undefined;
+  const all = lesionSymptoms(lv.rDys, lv.rInf, t, extra, lv.lacuneOnly, border, lacuneDeficitsOf(model.course), model.regionAcute, lv.regionAgeH, hold);
+  return { lv, border, all };
+}
+
+/**
+ * After an artery has reopened, the swelling of the following days does not bring back a deficit
+ * that cleared when blood returned (X2-9). The perilesional depression of recovery.ts makes a
+ * deficit worse than the dead tissue alone and keeps it longer, but tissue that works again once
+ * blood has returned does not stop working because of the oedema around a small infarct: in the
+ * model it did, so a rescued upper basilar occlusion gave NIHSS 0 for two days, then an incomplete
+ * locked-in syndrome on days 3–5, then NIHSS 0 again, with no event to explain it (deterioration
+ * after reperfusion has causes of its own: reocclusion, haemorrhage, a space-occupying oedema,
+ * which the model tells through the midline shift and herniation).
+ *
+ * The reference at `tAbs`: the deficits the regions gave just before the latest reopening at or
+ * before it and no longer just after it, with those held at the reopening before (computed once
+ * per model). Such a deficit is listed again only when a region's tissue itself (its level without
+ * the passing perilesional and remote depression) reaches the deficit's threshold, or from a region
+ * that became ischaemic again since (clinical.SymptomHold). A deficit still present when blood
+ * returned is kept and may worsen while the swelling peaks, and one the case never gave may still
+ * appear with it, as without reopening. Null before any reopening.
+ */
+function heldReference(model: Model, input: SimInput, tAbs: number, strict = false): HeldReference | null {
+  const tr = model.reopenings.filter((h) => (strict ? h < tAbs : h <= tAbs)).pop();
+  if (tr === undefined) return null;
+  let ref = model.heldAt.get(tr);
+  if (!ref) {
+    const prev = heldReference(model, input, tr, true);
+    const before = new Set<string>();
+    const after = new Set<string>();
+    lesionListAt(model, input, tr - 1e-6, null, prev, before);
+    lesionListAt(model, input, tr, null, prev, after);
+    ref = { tr, keys: new Set([...(prev?.keys ?? []), ...before].filter((k) => !after.has(k))) };
+    model.heldAt.set(tr, ref);
+  }
+  return ref;
+}
+
 export function simulate(input: SimInput): SimResult {
   return run(input, false);
 }
@@ -1183,62 +1544,12 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   const t = Math.max(0, tAbs - model.onsetH);
   const cascade = model.cascade;
 
-  // ── per-bed state at time t ──
-  const { beds, lacuneLoss, lacuneIsch, lacuneOnly } = tissueAt(model, tAbs, hemo);
-  // dysfunction caused directly by the arterial occlusion(s), before secondary effects
-  // (herniation etc.) are overlaid — syndromes describe the primary vascular pattern,
-  // the secondary damage is reported as cascade events instead
-  const primaryDys: Record<string, number> = {};
-  // tissue state for the oedema model, captured before secondary infarcts overwrite it
-  const edemaBeds: Record<string, EdemaBedInput> = {};
-  for (const b of BEDS) {
-    const bs = beds[b.id];
-    primaryDys[b.id] = bs.frac.core + bs.frac.penumbra + bs.regaining;
-    const effects = effectsAt(cascade, b.id, t);
-    const eff = EFFECT_PRIORITY.find((k) => effects.some((e) => e.kind === k)) ?? null;
-    edemaBeds[b.id] = edemaBedOf(model, b.id, bs, effects);
-    bs.effect = eff;
-    if (eff === 'secondary') {
-      bs.infarct = 1;
-      bs.frac = { normal: 0, oligemia: 0, penumbra: 0, core: 1, salvaged: 0 };
-      bs.regaining = 0;
-    }
-  }
-  const edema = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression: input.decompression, beds: edemaBeds, cascade });
-  const recoveryBeds: Record<string, RecoveryBedInput> = {};
-  // (the stabilised penumbra still regaining function is silent, as the penumbra is)
-  for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra + beds[b.id].regaining };
-  // each region's lesion has its own age when a later occlusion caused it (R6-6)
-  const regionAgeH = regionAgesAt(model.regionStarts, tAbs);
-  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss, regionAgeH });
-  for (const b of BEDS) {
-    const bs = beds[b.id];
-    bs.dys = Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining + (recovery.extraDys[b.id] ?? 0));
-  }
-
-  // ── per-region ──
-  const dysMap: Record<string, number> = {};
-  const infMap: Record<string, number> = {};
-  const relMap: Record<string, number> = {};
-  for (const b of BEDS) {
-    dysMap[b.id] = beds[b.id].dys;
-    infMap[b.id] = beds[b.id].infarct;
-    relMap[b.id] = beds[b.id].rel;
-  }
-  const rDys = regionAgg(dysMap);
-  const rPrim = regionAgg(primaryDys);
-  const rInf = regionAgg(infMap);
-  const rRel = regionAgg(relMap);
-  // a lacune is small but sits in a compact fibre tract: it knocks out most of its function, from
-  // the moment its branch closes (ischaemic tissue is silent too) — so a branch that reopens
-  // within minutes gives a fully reversible deficit, a capsular TIA (C6-F2)
-  for (const rid of lacunes) {
-    const dead = LACUNE_DYSFUNCTION * lacuneLoss[rid];
-    const level = LACUNE_DYSFUNCTION * (lacuneLoss[rid] + lacuneIsch[rid]);
-    rDys[rid] = Math.max(rDys[rid] ?? 0, level);
-    rPrim[rid] = Math.max(rPrim[rid] ?? 0, level);
-    rInf[rid] = Math.max(rInf[rid] ?? 0, dead);
-  }
+  // ── per-bed and per-region state at time t, and the lesion's symptom list ──
+  // (after a reopening, the swelling does not bring back a deficit that had cleared: X2-9)
+  const { lv, all } = lesionListAt(model, input, tAbs, hemo, heldReference(model, input, tAbs));
+  const { beds, rDys, rPrim, rInf, rRel, lacuneLoss, lacuneIsch, lacuneOnly, borderBySide } = lv;
+  const edema = lv.edema;
+  const recovery = lv.recovery;
   const regions: Record<string, RegionTimeState> = {};
   for (const r of REGIONS) {
     const acc: Record<string, number> = {};
@@ -1269,69 +1580,9 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   }
 
   // ── symptoms, NIHSS, syndromes ──
-  const extra: SymptomItem[] = [];
-  // only after a clear trigger, and only as possible (C3-F11)
-  if (cascade.palatalTremorFromH !== null && t >= cascade.palatalTremorFromH) {
-    extra.push({ id: 'palatal_tremor', side: null, sev: 1, sources: [], delayed: true });
-  }
-  for (const e of cascade.events) {
-    // a herniation coma lasts, after the oedema peak, only while the midline is still shifted
-    // into the coma range: a survivor wakes as the swelling subsides (C4-F1)
-    for (const sy of symptomsAddedAt(e, t, edema.midlineShiftMm)) {
-      const sides: (Side | null)[] = sy.side === 'both' ? ['r', 'l'] : [sy.side];
-      for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
-    }
-  }
-  // the level of consciousness follows the horizontal midline shift of a swollen hemisphere
-  // (Ropper 1986; cascade.consciousnessFromShift), whatever event caused the swelling (C4-F2)
-  const byShift = consciousnessFromShift(edema.midlineShiftMm);
-  if (byShift) extra.push({ id: byShift.id, side: null, sev: byShift.sev, sources: [], delayed: false });
-  // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern)
-  const borderOf = (side: Side) => {
-    let border = 0;
-    let total = 0;
-    const kinds = new Set<string>();
-    for (const b of BEDS) {
-      if (!b.region.endsWith(`_${side}`)) continue;
-      const reg = REGION_BY_ID[b.region];
-      if (!BRAIN.has(reg.category)) continue;
-      const v = primaryDys[b.id] * b.volume;
-      total += v;
-      if (b.terr.length === 2 && v > 0) {
-        border += v;
-        kinds.add(b.terr.join('|'));
-      }
-    }
-    return { border, total, kinds: [...kinds] };
-  };
-  const borderBySide = { r: borderOf('r'), l: borderOf('l') };
-  // the ACA–MCA border-zone beds of regions that act differently when only they fail (C1-F6), in
-  // a hemisphere whose dysfunction is a border-zone picture (not a territorial infarct whose
-  // collaterals happen to rescue the core of the motor strip but not its edge)
-  const border: Record<string, BorderLevel> = {};
-  for (const r of REGIONS) {
-    if (!r.borderDeficits || r.side === 'm' || !isWatershedPicture(borderBySide[r.side])) continue;
-    let vol = 0;
-    let dysVol = 0;
-    let infVol = 0;
-    let allDysVol = 0;
-    for (const bid of r.beds) {
-      const bed = BED_BY_ID[bid];
-      const w = bed.volume || 1;
-      allDysVol += beds[bid].dys * w;
-      if (bed.terr.length === 2 && bed.terr.includes('ACA') && bed.terr.some((x) => x.startsWith('MCA'))) {
-        vol += w;
-        dysVol += beds[bid].dys * w;
-        infVol += beds[bid].infarct * w;
-      }
-    }
-    if (vol > 0) border[r.id] = { dys: dysVol / vol, inf: infVol / vol, share: allDysVol > 0 ? dysVol / allDysVol : 0 };
-  }
   // what cannot be examined at the patient's level of consciousness is left out of the list and
   // named apart (R5-7, X1-2, X1-12)
-  const { shown: symptoms, unexaminable } = byConsciousness(
-    lesionSymptoms(rDys, rInf, t, extra, lacuneOnly, border, lacuneDeficitsOf(course), model.regionAcute, regionAgeH),
-  );
+  const { shown: symptoms, unexaminable } = byConsciousness(all);
   if (symptomsOnly) return symptoms;
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
   const nihss = estimateNihss(symptoms, affected);

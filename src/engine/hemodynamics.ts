@@ -197,6 +197,12 @@ const PIAL_GRADE: Record<CollateralGrade, number> = { ...COLL_GRADE, poor: 0.5 }
  * the core threshold, so reopening a lower or upper basilar occlusion with poor collaterals saved
  * nothing even at 15 min. With these factors they sit at about a third of normal flow, like the
  * caudal group. A calibration, not a measurement; good and moderate are unchanged.
+ * Known limitation (X2-17, in both READMEs): the targets are for one basilar segment. When the
+ * lower basilar is occluded together with another segment (a long clot that also covers the AICA
+ * origins, the donors of most of these links), moderate or poor collaterals leave the paramedian
+ * groups of the occluded segments at about 6–23 % of normal flow, below the core threshold, so
+ * reopening even at 30 min saves almost nothing — against the evidence of a graded disadvantage
+ * above. Recalibrating it would move every single-segment, AICA and PICA calibration with it.
  */
 const PIAL_POOR_BY_GROUP: Record<string, number> = {
   'pontine_paramedian_inferior_{s}': 0.75,

@@ -129,6 +129,8 @@ describe('C7-F2: the medial (vermian) PICA branch gives the isolated-vertigo cer
   });
 
   it('the lateral branch and the PICA trunk keep their territorial infarcts', () => {
+    // (about 0.92 now: a calibration change that takes the lateral branch below 0.9 must be
+    // deliberate, as the margin is small; X2-17)
     expect(sim(occl('pica_lateral_r'), 72).regions.cerebellum_posterior_inferior_r.infarct).toBeGreaterThan(0.9);
     const r = scenario('r_pica', 72);
     expect(r.regions.vermis_inferior_r.infarct).toBeGreaterThan(0.9);
