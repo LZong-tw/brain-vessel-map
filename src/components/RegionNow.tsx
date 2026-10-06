@@ -33,6 +33,7 @@ import {
   regionRecovery,
   shareLevel,
   symptomBackup,
+  unexaminableHeading,
   withHatch,
   type RegionRecovery,
 } from '../ui/recoveryFormat';
@@ -136,8 +137,9 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
           const fill = SEV_FILL[lv] ?? null;
           const comp = fill !== null && syms.some((x) => compensatedShare(x) >= COMPENSATION_SHOWN);
           // a stop at which the region's deficits cannot be examined does not read "no loss" (X1-2)
-          const hidden = hiddenFromRegion(s, id).map((x) => symptomLabel(x, lang, t));
-          const hiddenText = hidden.length ? `${rt.unexaminableLabel}${lang === 'en' ? ': ' : '：'}${hidden.join(sep)}` : '';
+          const hiddenItems = hiddenFromRegion(s, id);
+          const hidden = hiddenItems.map((x) => symptomLabel(x, lang, t));
+          const hiddenText = hidden.length ? `${unexaminableHeading(hiddenItems, lang).label}${lang === 'en' ? ': ' : '：'}${hidden.join(sep)}` : '';
           const title = [names.join(sep), hiddenText].filter(Boolean).join(sep) || t.funcNone;
           const color = fill ? (comp ? withHatch(fill) : fill) : hidden.length ? UNEXAMINABLE_FILL : null;
           return { color, title: comp ? (lang === 'en' ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
@@ -300,7 +302,12 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         {funcs.now.length === 0 && funcs.unexaminable.length === 0 && <p className="muted small">{t.funcNone}</p>}
         {funcs.now.length > 0 && <FuncGroup cls={nowGroup[0]} title={nowGroup[1]} items={funcs.now} tags={funcs.now.map(tagOf)} />}
         {funcs.unexaminable.length > 0 && (
-          <FuncGroup cls="unexaminable" title={rt.unexaminableLabel} titleHint={rt.unexaminableTitle} items={funcs.unexaminable} />
+          <FuncGroup
+            cls="unexaminable"
+            title={unexaminableHeading(funcs.unexaminable, lang).label}
+            titleHint={unexaminableHeading(funcs.unexaminable, lang).title}
+            items={funcs.unexaminable}
+          />
         )}
         {funcs.compensated.length > 0 && <FuncGroup cls="compensated" title={rt.funcCompensatedGone} items={funcs.compensated} />}
         {funcs.recovered.length > 0 && <FuncGroup cls="recovered" title={t.funcRecovered} items={funcs.recovered} />}

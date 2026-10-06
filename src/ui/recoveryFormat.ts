@@ -5,8 +5,10 @@
 
 import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
 import { NO_BACKUP_KINDS, redundancyFor, type RedundancyKind } from '../anatomy/redundancy';
-import type { NihssResult, SymptomItem } from '../engine/clinical';
+import type { NihssResult, SymptomItem, UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
+import type { Lang } from '../anatomy/types';
+import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { SEV_FILL, SYSTEM_ORDER, symptomKey, systemOf } from './format';
 
 /** a symptom counts as "partly compensated" from this share */
@@ -95,6 +97,10 @@ const MERGED_INTO: Record<string, string[]> = {
   coma: ['disorder_of_consciousness'],
   // when both lateral medullas fail, the breathing problem is no longer only one of sleep
   central_sleep_apnoea: ['respiratory'],
+  // with both frontal eye fields lost the two deviations become one gaze paresis to both sides,
+  // and it becomes a deviation again when one side recovers more (Y2-13)
+  gaze_deviation: ['gaze_paresis_bilateral'],
+  gaze_paresis_bilateral: ['gaze_deviation'],
 };
 
 export interface Improvement {
@@ -119,7 +125,12 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
     const n = nowByKey.get(symptomKey(b));
     if (n) {
       if (n.sev < b.sev) out.push({ s: n, from: b.sev, to: n.sev });
-    } else if (!hidden.has(symptomKey(b)) && !(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id))) {
+    } else if (
+      !hidden.has(symptomKey(b)) &&
+      !(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id)) &&
+      // a deficit of both sides now listed once per side (Y2-17) has not gone
+      !(b.side === 'both' && now.some((x) => x.id === b.id))
+    ) {
       out.push({ s: b, from: b.sev, to: 0 });
     }
   }
@@ -127,12 +138,32 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
 }
 
 /**
- * What the lesion gives but cannot be examined at the patient's level of consciousness now
- * (SimResult.unexaminable), worst first, then in the order of the function systems.
+ * What the lesion gives but cannot be examined now (SimResult.unexaminable: at the patient's level
+ * of consciousness, in a blind patient, in akinetic mutism), worst first, then in the order of the
+ * function systems.
  */
 export function unexaminableNow(sim: SimResult): SymptomItem[] {
   const rank = (s: SymptomItem) => SYSTEM_ORDER.indexOf(systemOf(s.id));
   return [...sim.unexaminable].sort((a, b) => b.sev - a.sev || rank(a) - rank(b));
+}
+
+/**
+ * The heading and explanation of a list of signs that cannot be examined (Y2-14, Y2-15): the
+ * reason's own when they share one, otherwise a general heading with each reason explained;
+ * `tag(s)` names a sign's reason when there are several (empty otherwise).
+ */
+export function unexaminableHeading(items: { why?: UnexaminableWhy }[], lang: Lang): { label: string; title: string; tag: (s: { why?: UnexaminableWhy }) => string } {
+  const rt = RECOVERY_UI[lang];
+  const whys = [...new Set(items.map((s) => s.why ?? 'consciousness'))];
+  if (whys.length <= 1) {
+    const one = rt.unexaminableBy[whys[0] ?? 'consciousness'];
+    return { label: one.label, title: one.title, tag: () => '' };
+  }
+  return {
+    label: rt.unexaminableMixedLabel,
+    title: whys.map((w) => `${rt.unexaminableBy[w].tag}${lang === 'en' ? ': ' : '：'}${rt.unexaminableBy[w].title}`).join(lang === 'en' ? ' ' : ''),
+    tag: (s) => rt.unexaminableBy[s.why ?? 'consciousness'].tag,
+  };
 }
 
 /** Highest severity each symptom (id + side) has reached in `series`. */

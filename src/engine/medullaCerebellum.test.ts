@@ -174,7 +174,8 @@ describe('C7-F4: gait ataxia and lateropulsion, facial weakness and dysarthria',
     expect(get(r, 'face_weak', 'r')?.sev).toBe(1);
     expect(get(r, 'face_weak', 'l')).toBeUndefined();
     expect(get(r, 'dysarthria', null)?.sev).toBe(1);
-    expect(r.nihss.total).toBeLessThanOrEqual(4);
+    // (Y2-8: the ataxia of the right arm and leg is two limbs on item 7: 5, not 4)
+    expect(r.nihss.total).toBeLessThanOrEqual(5);
     expect(r.nihss.posteriorCaveat).toBe(true);
     // the summary states what the model shows
     expect(SCENARIO_BY_ID.r_wallenberg.summary.en).toContain(`NIHSS may be only ${r.nihss.total}`);

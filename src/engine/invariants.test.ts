@@ -4,7 +4,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { symptomsAddedAt } from './cascade';
-import { SPEECH_SIGNS, NEEDS_AWAKE, aggregateSymptoms, estimateNihss } from './clinical';
+import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
@@ -238,6 +238,28 @@ describe('syndromes and events agree with the symptoms', () => {
       ],
       'good',
     ],
+    // Y2-13, Y2-14: both M1 arteries (both frontal eye fields, both half-fields lost); Y2-14, Y2-18:
+    // both P2 arteries with moderate and poor collaterals (blind, then sight partly back); Y2-15:
+    // both A2 arteries (akinetic mutism); Y2-2: a right M1 reopened at 2 h (the deep infarct)
+    [
+      'both M1',
+      [
+        { vessel: 'mca_m1_r', severity: 1 },
+        { vessel: 'mca_m1_l', severity: 1 },
+      ],
+      'good',
+    ],
+    ['pca_p2_r + pca_p2_l moderate', [{ vessel: 'pca_p2_r', severity: 1 }, { vessel: 'pca_p2_l', severity: 1 }], 'moderate'],
+    ['pca_p2_r + pca_p2_l poor', [{ vessel: 'pca_p2_r', severity: 1 }, { vessel: 'pca_p2_l', severity: 1 }], 'poor'],
+    [
+      'both A2 moderate',
+      [
+        { vessel: 'aca_a2_r', severity: 1 },
+        { vessel: 'aca_a2_l', severity: 1 },
+      ],
+      'moderate',
+    ],
+    ['mca_m1_r reopened 2 h', [{ vessel: 'mca_m1_r', severity: 1 }], 'good', 2],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -289,6 +311,8 @@ describe('syndromes and events agree with the symptoms', () => {
         'cortical_blindness',
         // R1-9: alexia, with writing spared
         'alexia_without_agraphia',
+        // Y2-14: simultanagnosia or optic ataxia, which need sight to be tested
+        'balint',
         // the second audit chain's brainstem labels, gated the same way (MERGE: C3-F1, C3-F4 × C5-F2)
         'basilar_coma',
         'pontine_doc',
@@ -325,6 +349,54 @@ describe('syndromes and events agree with the symptoms', () => {
       if (r.symptoms.some((s) => s.id === 'disorder_of_consciousness')) expect(r.nihss.items['9'], `${name} ${STOPS[i]} h: DoC`).toBe(3);
       if (r.nihss.items['9'] !== 3) return;
       expect([r.nihss.items['1c'], r.nihss.items['10']], `${name} ${STOPS[i]} h`).toEqual([2, 2]);
+    });
+  });
+
+  // Y2-18: the cortical-blindness label is named for the blindness: it is shown exactly when the
+  // blindness is listed (the converse of the rule above)
+  it.each(CASES)('%s: the cortical-blindness label is shown exactly when cortical blindness is listed (Y2-18)', (name) => {
+    series(name).forEach((r, i) => {
+      const listed = r.symptoms.some((s) => s.id === 'cortical_blindness');
+      expect(r.syndromes.some((m) => m.def.id === 'cortical_blindness'), `${name} ${STOPS[i]} h`).toBe(listed);
+    });
+  });
+
+  // Y2-14: recognising faces and objects by sight, reading, finding the way, seeing a whole scene,
+  // reaching under sight and visuospatial tasks need sight to be tested; nor is a Balint syndrome
+  // named in a blind patient
+  it.each(CASES)('%s: no recognition by sight, reading or reaching listed, and no Balint label, in a blind patient (Y2-14)', (name) => {
+    series(name).forEach((r, i) => {
+      if (!isBlind(r.symptoms)) return;
+      const where = `${name} ${STOPS[i]} h`;
+      for (const s of r.symptoms) expect(NEEDS_SIGHT.includes(s.id), `${where}: ${s.id}`).toBe(false);
+      expect(r.syndromes.some((m) => m.def.id === 'balint'), where).toBe(false);
+    });
+  });
+
+  // Y2-15: in a moderate or severe akinetic mutism nothing that needs the patient to act on request,
+  // answer or report is listed (named apart, as not examinable), nor an aphasia type; mute, no
+  // dysarthria or hoarse voice either
+  it.each(CASES)('%s: akinetic mutism lists only what the examiner sees (Y2-15)', (name) => {
+    series(name).forEach((r, i) => {
+      const am = r.symptoms.filter((s) => s.id === 'akinetic_mutism').reduce((m, s) => Math.max(m, s.sev), 0);
+      if (am < 2) return;
+      const where = `${name} ${STOPS[i]} h`;
+      for (const s of r.symptoms) {
+        if (NEEDS_AWAKE.includes(s.id)) expect(AKINETIC_OBSERVED, `${where}: ${s.id}`).toContain(s.id);
+        expect(s.id.startsWith('aphasia_'), `${where}: ${s.id}`).toBe(false);
+        if (am >= 3) expect(SPEECH_SIGNS.includes(s.id), `${where}: ${s.id}`).toBe(false);
+      }
+    });
+  });
+
+  // Y2-13, Y2-17: one entry per deficit and side. A deficit of both sides is not listed beside the
+  // same deficit of one side, and the eyes cannot deviate to the right and to the left at once
+  it.each(CASES)('%s: no deficit listed for both sides and for one side, and no opposite gaze deviations (Y2-13, Y2-17)', (name) => {
+    series(name).forEach((r, i) => {
+      const where = `${name} ${STOPS[i]} h`;
+      for (const s of r.symptoms.filter((x) => x.side === 'both'))
+        expect(r.symptoms.some((x) => x.id === s.id && (x.side === 'r' || x.side === 'l')), `${where}: ${s.id}`).toBe(false);
+      expect(r.symptoms.filter((x) => x.id === 'gaze_deviation').length, where).toBeLessThan(2);
     });
   });
 
@@ -439,7 +511,7 @@ describe('syndromes and events agree with the symptoms', () => {
       for (const e of r.cascade.events) {
         // (a herniation coma lasts while the midline shift is in the coma range, C4-F1, R6-5; a
         // level of consciousness that follows a swelling, for its own part of the event, R6-1)
-        for (const s of symptomsAddedAt(e, tH, r.edema.midlineShiftMm)) {
+        for (const s of symptomsAddedAt(e, tH, r.edema.massEffectMm)) {
           // drowsiness is listed as coma when the patient is also comatose
           const ids = s.id === 'somnolence' ? ['somnolence', 'coma'] : [s.id];
           expect(

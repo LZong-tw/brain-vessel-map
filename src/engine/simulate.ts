@@ -78,6 +78,7 @@ import {
 } from './cascade';
 import {
   DYS_THR,
+  bilateralHemispheric,
   byConsciousness,
   detectSyndromes,
   estimateNihss,
@@ -167,9 +168,11 @@ export interface SimResult {
   regions: Record<string, RegionTimeState>;
   symptoms: SymptomItem[];
   /**
-   * what the lesion gives but cannot be examined at the patient's level of consciousness, so is
-   * not in `symptoms` (stupor, coma, a disorder of consciousness: clinical.byConsciousness). It has
-   * not gone: it is listed again once it can be examined (X1-2).
+   * what the lesion gives but cannot be examined now, so is not in `symptoms`, each with why
+   * (`why`): the level of consciousness (stupor, coma, a disorder of consciousness), blindness
+   * (recognition by sight, reading, reaching: Y2-14) or akinetic mutism (what needs the patient to
+   * act, answer or report: Y2-15); clinical.byConsciousness. It has not gone: it is listed again
+   * once it can be examined (X1-2).
    */
   unexaminable: SymptomItem[];
   nihss: NihssResult;
@@ -1028,13 +1031,18 @@ function brainstemCourse(input: SimInput, model: Model): BrainstemCourse | null 
 /** what the oedema model needs of a model to give the midline shift at any time */
 type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH' | 'edemaReperfusionH'>;
 
-/** the oedema model's midline shift (mm) and the side it comes from, `t` h after the index onset */
-function shiftAt(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, t: number): { mm: number; from: Side | null } {
+/**
+ * the oedema model's mass effect (mm: the swelling of both hemispheres together as the midline
+ * shift it would give on one side, which equals the midline shift when only one swells; Y2-13) and
+ * the side it pushes from: the side of the midline shift, or both when the hemispheres swell alike
+ * and the midline stays in place, `t` h after the index onset
+ */
+function shiftAt(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, t: number): { mm: number; from: Side | 'both' | null } {
   const { beds } = tissueAt(model, t + model.onsetH, null);
   const edemaBeds: Record<string, EdemaBedInput> = {};
   for (const b of BEDS) edemaBeds[b.id] = edemaBedOf(model, b.id, beds[b.id], effectsAt(cascade, b.id, t));
   const e = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression, beds: edemaBeds, cascade });
-  return { mm: e.midlineShiftMm, from: e.shiftFrom };
+  return { mm: e.massEffectMm, from: e.shiftFrom ?? (e.massEffectMm > 0 ? 'both' : null) };
 }
 
 /** the shift is sampled this often (h, clinical clock) up to the horizon, and the crossings refined to about 0.1 h */
@@ -1043,12 +1051,12 @@ const SHIFT_HORIZON_H = 720;
 const SHIFT_BISECT = 6;
 
 /**
- * For each side whose malignant oedema the cascade lets herniate: the largest midline shift, when
- * it first reaches the coma range and when, after the herniation began, it falls below it again
- * (cascade.CascadeInput.shift; R6-5, R6-2).
+ * For each side whose malignant oedema the cascade lets herniate: the largest mass effect, when it
+ * first reaches the coma range pushing from that side (or from both, Y2-13) and when, after the
+ * herniation began, it falls below it again (cascade.CascadeInput.shift; R6-5, R6-2).
  */
 function herniationShifts(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, sides: Side[]): Partial<Record<Side, HerniationShift>> {
-  const memo = new Map<number, { mm: number; from: Side | null }>();
+  const memo = new Map<number, { mm: number; from: Side | 'both' | null }>();
   const at = (t: number) => {
     let v = memo.get(t);
     if (!v) memo.set(t, (v = shiftAt(model, cascade, decompression, t)));
@@ -1056,7 +1064,8 @@ function herniationShifts(model: ShiftModel, cascade: CascadeOutput, decompressi
   };
   const out: Partial<Record<Side, HerniationShift>> = {};
   for (const s of sides) {
-    const inComa = (t: number) => at(t).from === s && at(t).mm >= COMA_SHIFT_MM;
+    const pushes = (t: number) => at(t).from === s || at(t).from === 'both';
+    const inComa = (t: number) => pushes(t) && at(t).mm >= COMA_SHIFT_MM;
     // the first time in (a, b] with the value inComa(b) has, where inComa(a) differs from it
     const edge = (a: number, b: number) => {
       const before = inComa(a);
@@ -1070,16 +1079,18 @@ function herniationShifts(model: ShiftModel, cascade: CascadeOutput, decompressi
     let peakMm = 0;
     let peakT = 0;
     let comaFromH: number | null = null;
+    // (the peak of the mass effect, from whichever side: when the other hemisphere pushes harder,
+    // the text says it herniates instead)
     for (let t = SHIFT_STEP_H; t <= SHIFT_HORIZON_H; t += SHIFT_STEP_H) {
       const v = at(t);
-      if (v.from === s && v.mm > peakMm) [peakMm, peakT] = [v.mm, t];
+      if (v.from !== null && v.mm > peakMm) [peakMm, peakT] = [v.mm, t];
       if (comaFromH === null && inComa(t)) comaFromH = edge(t - SHIFT_STEP_H, t);
     }
     // the peak between the samples, near enough for the text (a tenth of a millimetre)
     if (peakT > 0)
       for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) {
         const v = at(peakT + d);
-        if (v.from === s && v.mm > peakMm) peakMm = v.mm;
+        if (v.from !== null && v.mm > peakMm) peakMm = v.mm;
       }
     let comaUntilH: number | null = null;
     if (comaFromH !== null) {
@@ -1477,17 +1488,20 @@ function lesionListAt(model: Model, input: SimInput, tAbs: number, hemo: HemoRes
     extra.push({ id: 'palatal_tremor', side: null, sev: 1, sources: [], delayed: true });
   }
   for (const e of cascade.events) {
-    // a herniation coma lasts, after the oedema peak, only while the midline is still shifted
-    // into the coma range: a survivor wakes as the swelling subsides (C4-F1)
-    for (const sy of symptomsAddedAt(e, t, edema.midlineShiftMm)) {
+    // a herniation coma lasts, after the oedema peak, only while the mass effect is still in the
+    // coma range: a survivor wakes as the swelling subsides (C4-F1)
+    for (const sy of symptomsAddedAt(e, t, edema.massEffectMm)) {
       const sides: (Side | null)[] = sy.side === 'both' ? ['r', 'l'] : [sy.side];
       for (const sd of sides) extra.push({ id: sy.id, side: sd, sev: sy.sev, sources: [], delayed: false });
     }
   }
   // the level of consciousness follows the horizontal midline shift of a swollen hemisphere
-  // (Ropper 1986; cascade.consciousnessFromShift), whatever event caused the swelling (C4-F2)
-  const byShift = consciousnessFromShift(edema.midlineShiftMm);
+  // (Ropper 1986; cascade.consciousnessFromShift), whatever event caused the swelling (C4-F2), and
+  // the swelling of both hemispheres counted together when both swell (Y2-13)
+  const byShift = consciousnessFromShift(edema.massEffectMm);
   if (byShift) extra.push({ id: byShift.id, side: null, sev: byShift.sev, sources: [], delayed: false });
+  // both hemispheres largely out of action lower consciousness before any swelling (Y2-13)
+  if (bilateralHemispheric(lv.rDys, (rid) => lv.regionAgeH?.[rid] ?? t)) extra.push({ id: 'somnolence', side: null, sev: 1, sources: [], delayed: false });
   // the ACA–MCA border-zone beds of regions that act differently when only they fail (C1-F6), in
   // a hemisphere whose dysfunction is a border-zone picture (not a territorial infarct whose
   // collaterals happen to rescue the core of the motor strip but not its edge)
@@ -1613,8 +1627,8 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   }
 
   // ── symptoms, NIHSS, syndromes ──
-  // what cannot be examined at the patient's level of consciousness is left out of the list and
-  // named apart (R5-7, X1-2, X1-12)
+  // what cannot be examined at the patient's level of consciousness, in a blind patient or in
+  // akinetic mutism is left out of the list and named apart (R5-7, X1-2, X1-12, Y2-14, Y2-15)
   const { shown: symptoms, unexaminable } = byConsciousness(all);
   if (symptomsOnly) return symptoms;
   const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);

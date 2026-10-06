@@ -150,6 +150,29 @@ describe('symptom list under reduced consciousness', () => {
     expect(within(group).queryByText(tr(SYMPTOM_BY_ID.arm_weak.name, lang))).toBeNull();
   });
 
+  // Y2-14, Y2-15: what cannot be examined for another reason is named with that reason
+  it.each(['zh-TW', 'en'] as const)('%s: a blind patient (both P2 arteries) lists face and object recognition apart, as not testable without sight', (lang) => {
+    const occlusions = occl('pca_p2_r', 'pca_p2_l');
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });
+    useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(24), lang });
+    const { container } = render(<RightPanel sim={sim} />);
+    const group = container.querySelector('.sym-group.unexaminable') as HTMLElement;
+    expect(group).not.toBeNull();
+    within(group).getByText(lang === 'en' ? 'Cannot be tested: the patient cannot see' : '看不見，目前無法檢查');
+    for (const id of ['prosopagnosia', 'visual_agnosia']) within(group).getByText(tr(SYMPTOM_BY_ID[id].name, lang));
+    expect(within(group).queryByText(lang === 'en' ? /level of consciousness/ : /意識下降/)).toBeNull();
+  });
+
+  it.each(['zh-TW', 'en'] as const)('%s: akinetic mutism (both A2 arteries) lists praxis and the alien hand apart, with its own reason', (lang) => {
+    const occlusions = occl('aca_a2_r', 'aca_a2_l');
+    const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });
+    useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(24), lang });
+    const { container } = render(<RightPanel sim={sim} />);
+    const group = container.querySelector('.sym-group.unexaminable') as HTMLElement;
+    within(group).getByText(lang === 'en' ? 'Cannot be examined: akinetic mutism' : '無動性緘默，目前無法檢查');
+    within(group).getByText(tr(SYMPTOM_BY_ID.callosal_apraxia.name, lang), { exact: false });
+  });
+
   it('no such group for an awake patient', () => {
     const occlusions = occl('mca_m1_l');
     const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });

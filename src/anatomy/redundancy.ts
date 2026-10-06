@@ -290,6 +290,9 @@ export const REDUNDANCY: Record<string, Redundancy> = {
   // ── eye movements ──
   // the other hemisphere's frontal eye field takes over within days–weeks
   gaze_deviation: bilateral(0.9, 0.4, { fast: true }),
+  // both frontal eye fields: made from the two deviations after each one's own compensation
+  // (clinical.ts, Y2-13), so it follows theirs; given here for completeness
+  gaze_paresis_bilateral: bilateral(0.9, 0.4, { fast: true }),
   // abducens nucleus (and the pontine gaze centre next to it)
   gaze_palsy_horizontal: FCP,
   // medial longitudinal fasciculus: no parallel tract, but often improves

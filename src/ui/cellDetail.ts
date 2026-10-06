@@ -28,8 +28,8 @@ export interface CellDetail {
   items: CellSymptom[];
   /** present at the previous stop, gone now */
   resolved: { id: string; side: SymptomItem['side']; prevSev: number }[];
-  /** given by the lesion now but not examinable at the patient's level of consciousness (SimResult.unexaminable), worst first */
-  unexaminable: { id: string; side: SymptomItem['side']; sev: number }[];
+  /** given by the lesion now but not examinable (SimResult.unexaminable), worst first, each with why */
+  unexaminable: { id: string; side: SymptomItem['side']; sev: number; why?: SymptomItem['why'] }[];
 }
 
 /**
@@ -45,15 +45,18 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const hiddenNow = now.unexaminable.filter(inSystem);
   const hiddenKeys = new Set(hiddenNow.map(symptomKey));
   const tH = now.input.tH;
-  const shift = now.edema.midlineShiftMm;
+  // the swelling of both hemispheres together, on the scale of the midline shift (Y2-13)
+  const shift = now.edema.massEffectMm;
   const byShift = consciousnessFromShift(shift);
   // an event explains its own symptoms when simulate() adds them, by the same rule (a herniation
   // coma only while the shift is in the coma range; R6-9), and the consciousness level its
-  // swelling sets through the midline shift while it is active
+  // swelling sets through the mass effect while it is active; the drowsiness of both hemispheres
+  // largely out of action is explained by the event that says so (Y2-13)
   const adds = (e: CascadeEvent) => symptomsAddedAt(e, tH, shift);
   const swells = (e: CascadeEvent) => !!e.shiftSymptoms && e.onsetH <= tH && tH < (e.endH ?? Infinity);
   const activeEvents = now.cascade.events.filter((e) => adds(e).length > 0 || swells(e));
-  const explains = (e: CascadeEvent, id: string) => adds(e).some((x) => x.id === id) || (swells(e) && byShift?.id === id);
+  const explains = (e: CascadeEvent, id: string) =>
+    adds(e).some((x) => x.id === id) || (swells(e) && (byShift?.id === id || (e.id === 'bilateral_hemispheres' && id === 'somnolence')));
   const items: CellSymptom[] = now.symptoms
     .filter(inSystem)
     .map((s) => {
@@ -78,6 +81,6 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const resolved = [...prevByKey.values()]
     .filter((s) => !nowKeys.has(symptomKey(s)) && !hiddenKeys.has(symptomKey(s)))
     .map((s) => ({ id: s.id, side: s.side, prevSev: s.sev }));
-  const unexaminable = hiddenNow.map((s) => ({ id: s.id, side: s.side, sev: s.sev })).sort((a, b) => b.sev - a.sev || a.id.localeCompare(b.id));
+  const unexaminable = hiddenNow.map((s) => ({ id: s.id, side: s.side, sev: s.sev, why: s.why })).sort((a, b) => b.sev - a.sev || a.id.localeCompare(b.id));
   return { system, index, items, resolved, unexaminable };
 }

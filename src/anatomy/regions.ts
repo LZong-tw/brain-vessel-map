@@ -1584,15 +1584,22 @@ export const REGION_DEFS: RegionDef[] = [
     compartment: 'none',
   }),
   mid({
+    // Only the top of the cervical cord (Y2-17): the anterior spinal artery comes from both vertebral
+    // arteries at the foramen magnum, and lower down radiculomedullary arteries join it (in the
+    // cervical region seen on MR angiography in 24 of 50 people: Sheehy NP et al. Radiology
+    // 2005;236:637-641, PMID 15972334), so an occlusion at its origin threatens the upper cervical
+    // cord, not the whole of it (the medulla and upper cervical cord after a vertebral dissection:
+    // Pryse-Phillips W. Stroke 1989;20:292-294, PMID 2919418). Volume: the anterior two-thirds of
+    // C1–C3, about 4 cm of a cord of about 0.8 cm² cross-section.
     id: 'cervical_cord',
-    name: { zh: '頸髓前部', en: 'Anterior cervical spinal cord' },
+    name: { zh: '上段頸髓前部（C1–C3）', en: 'Upper anterior cervical cord (C1–C3)' },
     func: {
-      zh: '上下肢運動纖維與痛溫覺路徑。前脊髓動脈只在頂端由椎動脈供血，下方另有根動脈補充（本模型未納入）。',
-      en: 'Motor fibres and pain/temperature pathways for all limbs. The ASA is fed from the vertebrals only at its top; radicular arteries join lower down (not modelled).',
+      zh: '四肢的運動纖維，以及以下身體的痛溫覺路徑。前脊髓動脈在頂端由兩側椎動脈供血，往下有根髓動脈陸續補充，所以起始處阻塞時受威脅的是上段頸髓（這裡模擬的部分），不是整條頸髓；下段的根髓動脈本模型未納入。',
+      en: 'Motor fibres for all four limbs, and the pain/temperature pathways from the body below. The ASA is fed by both vertebral arteries at its top and joined by radiculomedullary arteries lower down, so an occlusion at its origin threatens the upper cervical cord (the part modelled here), not the whole cervical cord; the radiculomedullary feeders below are not modelled.',
     },
     category: 'spinal',
     cbf: 20,
-    fixedVolume: 3,
+    fixedVolume: 2,
     supply: [{ v: 'asa', share: 1 }],
     deficits: [
       { s: 'arm_weak', lat: 'none', sev: 2 },

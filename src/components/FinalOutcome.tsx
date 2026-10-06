@@ -14,7 +14,7 @@ import { useApp } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
 import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutcome';
 import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
-import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, symptomBackup } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, symptomBackup, unexaminableHeading } from '../ui/recoveryFormat';
 import { formatPrevalence, postStrokeRisksFor } from '../ui/postStrokeRisks';
 import { formatClock } from '../ui/scheduleFormat';
 import { treatmentLine } from '../ui/caseSummary';
@@ -71,6 +71,7 @@ export function FinalOutcome() {
   };
   const deficits = out.deficits[at];
   const shown = at === 'm3' ? course.m3 : m6;
+  const unexaminableHead = unexaminableHeading(shown.unexaminable, lang);
 
   return (
     <div className="results outcome">
@@ -222,16 +223,17 @@ export function FinalOutcome() {
         ))}
         {shown.unexaminable.length > 0 && (
           <div className="sym-group outcome-unexaminable">
-            <h4 title={RECOVERY_UI[lang].unexaminableTitle}>
-              {RECOVERY_UI[lang].unexaminableLabel} <span className="num">{shown.unexaminable.length}</span>
+            <h4 title={unexaminableHead.title}>
+              {unexaminableHead.label} <span className="num">{shown.unexaminable.length}</span>
             </h4>
-            <p className="muted small">{RECOVERY_UI[lang].unexaminableTitle}</p>
+            <p className="muted small">{unexaminableHead.title}</p>
             <ul className="bullets">
               {bySystem(shown.unexaminable).map((s) => (
                 <li key={s.id + s.side}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}
                   <span className="muted small"> · {tr(SYSTEM_LABEL[systemOf(s.id)], lang)}</span>
+                  {unexaminableHead.tag(s) && <span className="muted small"> · {unexaminableHead.tag(s)}</span>}
                 </li>
               ))}
             </ul>

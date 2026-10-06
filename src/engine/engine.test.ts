@@ -173,7 +173,8 @@ describe('classic syndromes', () => {
 
   it('flags that NIHSS underestimates posterior strokes', () => {
     const r = sim({ occlusions: occl('va_v4_dist_r') });
-    expect(r.nihss.total).toBeLessThanOrEqual(4);
+    // (Y2-8: the ataxia of the arm and the leg counts as two limbs: 5)
+    expect(r.nihss.total).toBeLessThanOrEqual(5);
     expect(r.nihss.posteriorCaveat).toBe(true);
   });
 

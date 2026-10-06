@@ -3,7 +3,7 @@ import { SCENARIO_BY_ID, SCENARIOS } from '../anatomy/scenarios';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { NEEDS_AWAKE, type SymptomItem } from '../engine/clinical';
 import { simulate, type SimResult } from '../engine/simulate';
-import { improvedSince } from './recoveryFormat';
+import { improvedSince, unexaminableHeading } from './recoveryFormat';
 
 const item = (id: string, sev: 1 | 2 | 3, side: SymptomItem['side'] = null): SymptomItem => ({ id, side, sev, sources: ['x'], delayed: false });
 
@@ -21,6 +21,8 @@ describe('improvedSince', () => {
     // extensive tegmental damage as a disorder of consciousness — neither is an improvement
     ['somnolence', 'hypersomnia'],
     ['coma', 'disorder_of_consciousness'],
+    // Y2-13: both frontal eye fields
+    ['gaze_deviation', 'gaze_paresis_bilateral'],
   ])('%s replaced by %s is not an improvement', (from, into) => {
     expect(improvedSince([item(from, 1)], [item(into, 3)])).toEqual([]);
   });
@@ -69,5 +71,33 @@ describe('improvedSince and signs that cannot be examined now', () => {
         }
       }
     }
+  });
+});
+
+// Y2-14, Y2-15: the heading of what cannot be examined names the reason
+describe('unexaminableHeading', () => {
+  const why = (w?: SymptomItem['why']) => ({ ...item('prosopagnosia', 2), why: w });
+  it('one reason: its own heading, no tag', () => {
+    expect(unexaminableHeading([why('blind')], 'en').label).toBe('Cannot be tested: the patient cannot see');
+    expect(unexaminableHeading([why('akinetic')], 'zh-TW').label).toBe('無動性緘默，目前無法檢查');
+    // the level of consciousness when no reason is given (X1)
+    const c = unexaminableHeading([why()], 'en');
+    expect(c.label).toBe('Cannot be examined at this level of consciousness');
+    expect(c.tag(why())).toBe('');
+  });
+  it('several reasons: a general heading, every reason explained, and a tag on each sign', () => {
+    const h = unexaminableHeading([why('blind'), why('consciousness')], 'en');
+    expect(h.label).toBe('Cannot be examined now');
+    expect(h.title).toMatch(/blind: .*reduced consciousness: /);
+    expect(h.tag(why('blind'))).toBe('blind');
+    const zh = unexaminableHeading([why('blind'), why('akinetic')], 'zh-TW');
+    expect(zh.label).toBe('目前無法檢查');
+    expect(zh.tag(why('akinetic'))).toBe('無動性緘默');
+  });
+});
+
+describe('improvedSince: a deficit of both sides now listed per side has not gone (Y2-17)', () => {
+  it('arm weakness of both sides, then of each side', () => {
+    expect(improvedSince([item('arm_weak', 2, 'both')], [item('arm_weak', 3, 'r'), item('arm_weak', 2, 'l')])).toEqual([]);
   });
 });

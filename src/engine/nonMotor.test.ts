@@ -252,7 +252,8 @@ describe('every new symptom can occur', () => {
  * MERGE (where findings of the two audit chains meet, as explained at the row) and the review of
  * the cortex fixes, R1 (1: a mute global aphasia follows no command; 2: a mild global aphasia
  * changes type; 3: shoulder weakness on item 5; 6: the parietal field cut; 7: left-hemisphere
- * neglect clears).
+ * neglect clears), and the fresh-eyes review, Y2 (2: the deep infarct of an early M1 reopening is
+ * named a striatocapsular infarct; 8: item 7 counts ataxic limbs, a moderate hemiataxia two).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
@@ -265,9 +266,13 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // no longer global but a mild Wernicke type (9: 2 → 1); R1-6: the parietal optic radiation
   // stays cut where the infarct is, so the hemianopia stays (3: 1 → 2); still 9
   'l_m1@2160': [9, { '1b': 1, 3: 2, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_complete_l']],
-  'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l']],
-  // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was 10)
-  'l_m1_thrombectomy@2160': [7, { '1b': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_inferior_l']],
+  // Y2-2: the deep infarct the reopening at 2 h leaves (putamen, caudate, posterior limb) is named
+  // a striatocapsular infarct next to the inferior-division label of its temporal part (was
+  // ['mca_inferior_l'] alone, whose text describes little weakness beside a hemiparesis)
+  'l_m1_thrombectomy@24': [15, { '1b': 2, '1c': 1, 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 2, 10: 1 }, ['mca_inferior_l', 'striatocapsular_l']],
+  // C5-F1 drift: was 12; C1-F1: a mild (sev 1) Wernicke aphasia scores 9 = 1 and 1b = 1, 1c = 0 (was
+  // 10); Y2-2: as at 24 h (was ['mca_inferior_l'])
+  'l_m1_thrombectomy@2160': [7, { '1b': 1, 4: 1, '5r': 1, '6r': 1, 8: 1, 9: 1, 10: 1 }, ['mca_inferior_l', 'striatocapsular_l']],
   // C1-F2: hemianopia (3: 1 → 2); C4-F2: consciousness follows the midline shift, 3.4 mm at 24 h
   // (alert), not a fixed drowsiness (1a: 1 → 0); was 17
   'r_m1_malignant@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
@@ -306,8 +311,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'l_lacune@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
   // C5-F1 drift: was 6 (6r 2); C6-F1: drift of arm and leg left, the face compensated (was 5, 4: 1, 5r: 3)
   'l_lacune@2160': [2, { '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
-  // C6-F5: ataxic hemiparesis from a lenticulostriate branch in the corona radiata (new scenario)
-  'l_cr_lacune@24': [4, { 4: 1, '5r': 1, '6r': 1, 7: 1 }, ['lacunar_ataxic_hemiparesis_l']],
+  // C6-F5: ataxic hemiparesis from a lenticulostriate branch in the corona radiata (new scenario).
+  // Y2-8: item 7 counts limbs, and a moderate ataxia of the right side is its arm and its leg (7:
+  // 1 → 2; was 4); mild by 3 months, one limb (7 = 1)
+  'l_cr_lacune@24': [5, { 4: 1, '5r': 1, '6r': 1, 7: 2 }, ['lacunar_ataxic_hemiparesis_l']],
   'l_cr_lacune@2160': [3, { '5r': 1, '6r': 1, 7: 1 }, ['lacunar_ataxic_hemiparesis_l']],
   // C6-F2: three 5-minute attacks of one branch, then a lasting occlusion from 6 h (new scenario)
   'capsular_warning@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['capsular_warning_l', 'lacunar_pure_motor_l']],
@@ -357,28 +364,31 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'basilar_stuttering@24': [0, {}, []],
   // C5-F1 anarthria: 1b = 1; C3-F1: as basilar_mid@2160
   'basilar_stuttering@2160': [20, { '1b': 1, 2: 2, 4: 3, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 10: 2 }, ['locked_in_incomplete']],
-  // C7-F4: a mild facial weakness on the lesion side and dysarthria (4: 0 → 1, 10: 0 → 1; was 2)
-  'r_wallenberg@24': [4, { 4: 1, 7: 1, 8: 1, 10: 1 }, ['wallenberg_r']],
+  // C7-F4: a mild facial weakness on the lesion side and dysarthria (4: 0 → 1, 10: 0 → 1; was 2).
+  // Y2-8: the moderate ataxia of the right arm and leg is two limbs (7: 1 → 2; was 4)
+  'r_wallenberg@24': [5, { 4: 1, 7: 2, 8: 1, 10: 1 }, ['wallenberg_r']],
   // C7-F4: the dysarthria is not yet fully compensated at 3 months (10: 0 → 1; was 2)
   'r_wallenberg@2160': [3, { 7: 1, 8: 1, 10: 1 }, ['wallenberg_r']],
   // C5-F2: its lateral medullary signs (Horner, crossed pain/temperature loss) are named too;
   // C7-F4: the lateral medulla adds a mild facial weakness and dysarthria (4: 0 → 1, 10: 0 → 1);
   // C4-F3: a 34 mL cerebellar infarct is a warning to monitor, with no brainstem compression
-  // (gaze palsy, 2: 1 → 0); was 3
-  'r_pica@24': [4, { 4: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
+  // (gaze palsy, 2: 1 → 0); was 3. Y2-8: a moderate hemiataxia is two limbs (7: 1 → 2; was 4)
+  'r_pica@24': [5, { 4: 1, 7: 2, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
   'r_pica@2160': [2, { 7: 1, 8: 1 }, ['pica_cerebellar_r', 'wallenberg_r']],
   // C4-F3: new template, PICA + SCA (58 mL) swells on day 2–3. MERGE: its lateral medulla gives
   // the mild facial weakness of C7-F4 (4: 1 at 24 h) and the Wallenberg signs that name it (C5-F2)
   'cerebellar_swelling@24': [6, { 2: 1, 4: 1, 7: 2, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'sca_r', 'wallenberg_r']],
   'cerebellar_swelling@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['pica_cerebellar_r', 'sca_r', 'wallenberg_r']],
-  'l_aica@24': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
+  // Y2-8: a moderate hemiataxia is two limbs (7: 1 → 2; was 5)
+  'l_aica@24': [6, { 4: 3, 7: 2, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'l_aica@2160': [5, { 4: 3, 7: 1, 8: 1 }, ['aica_l', 'labyrinthine_l']],
   'r_sca@24': [5, { 2: 1, 7: 2, 8: 1, 10: 1 }, ['sca_r']],
   'r_sca@2160': [4, { 2: 1, 7: 1, 8: 1, 10: 1 }, ['sca_r']],
   'l_pontine@24': [13, { 2: 2, 4: 2, '5r': 4, '6r': 4, 10: 1 }, ['foville_l']],
   'l_pontine@2160': [7, { 2: 2, 4: 2, '5r': 1, '6r': 1, 7: 1 }, ['foville_l']], // C5-F1 drift: was 9
-  // C6-F1: ataxic hemiparesis — mild weakness, so the ataxia is scored (was 11, 4: 2, 5l: 4, 6l: 4, no 7)
-  'r_pontine_lacune@24': [5, { 4: 1, '5l': 1, '6l': 1, 7: 1, 10: 1 }, ['pontine_lacunar_r']],
+  // C6-F1: ataxic hemiparesis — mild weakness, so the ataxia is scored (was 11, 4: 2, 5l: 4, 6l: 4, no 7).
+  // Y2-8: "marked ataxia of the same limbs", the arm and the leg (7: 1 → 2; was 5)
+  'r_pontine_lacune@24': [6, { 4: 1, '5l': 1, '6l': 1, 7: 2, 10: 1 }, ['pontine_lacunar_r']],
   // C5-F1 drift: was 7 (6l 2); C6-F1: (was 6, 4: 1, 5l: 3, no 7)
   'r_pontine_lacune@2160': [4, { '5l': 1, '6l': 1, 7: 1, 10: 1 }, ['pontine_lacunar_r']],
   'r_asa@24': [9, { '5l': 4, '6l': 4, 10: 1 }, ['dejerine_r']],

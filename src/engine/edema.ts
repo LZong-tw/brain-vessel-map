@@ -41,7 +41,8 @@
  * Calibration: a malignant right M1 infarct with poor collaterals (~300 mL) swells by ~30 %
  * (~90 mL, ~15 % of the hemisphere) and shifts the midline ~12–13 mm around day 3; an untreated
  * left M1 with good collaterals (~150 mL) only a few mm. This is the model's only midline shift:
- * simulate() reads the level of consciousness from it (cascade.consciousnessFromShift, C4-F2).
+ * simulate() reads the level of consciousness from it (cascade.consciousnessFromShift, C4-F2),
+ * counting the swelling of both hemispheres together when both swell (massEffectMm, Y2-13).
  * TODO(medical-review): all magnitudes and time constants are educational approximations.
  */
 
@@ -363,6 +364,14 @@ export function computeEdema(input: EdemaInput): EdemaState {
   let midlineShiftMm = Math.min(SHIFT_MAX_MM, SHIFT_MM_PER_ML * Math.max(0, Math.abs(diff) - SHIFT_RESERVE_ML));
   if (decompressed) midlineShiftMm *= DECOMPRESSION_SHIFT;
   const shiftFrom: Side | null = midlineShiftMm > 0 ? (diff > 0 ? 'r' : 'l') : null;
+  // ── mass effect: the swelling of both hemispheres together, on the same scale (Y2-13) ──
+  // Ropper related consciousness to the lateral shift of one-sided masses. Two swollen hemispheres
+  // push the brain down rather than across (central rather than lateral displacement), so a
+  // symmetric swelling leaves the midline in place while it compresses the diencephalon and
+  // midbrain all the same. The model counts the swelling of both together, as it would one
+  // hemisphere's: a model choice, equal to the midline shift when only one hemisphere swells.
+  let massEffectMm = Math.min(SHIFT_MAX_MM, SHIFT_MM_PER_ML * Math.max(0, push.r + push.l - SHIFT_RESERVE_ML));
+  if (decompressed) massEffectMm *= DECOMPRESSION_SHIFT;
 
   // ── ventricles ──
   // supratentorial swelling compresses the lateral ventricle(s) …
@@ -390,6 +399,7 @@ export function computeEdema(input: EdemaInput): EdemaState {
     extraVolume: { supra: { r: extra.r, l: extra.l }, infra: extra.infra },
     midlineShiftMm,
     shiftFrom,
+    massEffectMm,
     ventricleChange,
   };
 }

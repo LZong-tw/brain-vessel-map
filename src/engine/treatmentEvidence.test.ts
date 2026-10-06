@@ -38,9 +38,10 @@ const ANTERIOR_EN = 'suited to mechanical thrombectomy';
 const ANTERIOR_ZH = '適合動脈取栓';
 
 describe('C2-F1: the treatment-window story follows the occlusion site', () => {
-  it('a NIHSS-2 Wallenberg (V4 occlusion) is not called a thrombectomy target', () => {
+  // (Y2-8: its moderate hemiataxia now scores two limbs on item 7, so the NIHSS is 5, not 4)
+  it('a low-NIHSS Wallenberg (V4 occlusion) is not called a thrombectomy target', () => {
     const r = run('r_wallenberg');
-    expect(r.nihss.total).toBeLessThan(5);
+    expect(r.nihss.total).toBeLessThanOrEqual(5);
     const d = windowText(r);
     expect(d.en).not.toContain(ANTERIOR_EN);
     expect(d.zh).not.toContain(ANTERIOR_ZH);
@@ -100,9 +101,9 @@ describe('C2-F1: the treatment-window story follows the occlusion site', () => {
 
   it('text only: NIHSS and syndromes of these cases do not change', () => {
     // the values of nonMotor.test.ts PINNED at 24 h, which the window text does not move (the
-    // Wallenberg 4 includes the facial weakness and dysarthria of C7-F4, the basilar tip 37 the
-    // hemianopia of C1-F3)
-    expect(run('r_wallenberg').nihss.total).toBe(4);
+    // Wallenberg 5 includes the facial weakness and dysarthria of C7-F4 and, Y2-8, the ataxia of
+    // the arm and the leg as two limbs; the basilar tip 37 the hemianopia of C1-F3)
+    expect(run('r_wallenberg').nihss.total).toBe(5);
     expect(run('ica_isolated').nihss.total).toBe(18);
     expect(run('basilar_tip').nihss.total).toBe(37);
   });
@@ -223,7 +224,8 @@ describe('C2-F7: lacunar strokes get the hyperacute story', () => {
   it.each([
     // NIHSS as pinned in nonMotor.test.ts (a single lacune is mild to moderate, C6-F1)
     ['l_lacune', 3],
-    ['r_pontine_lacune', 5],
+    // Y2-8: the marked ataxia of the arm and the leg is two limbs (was 5)
+    ['r_pontine_lacune', 6],
   ])('%s: ischaemic cascade, a small DWI lesion and the IV thrombolysis window', (id, nihss) => {
     const r = run(id);
     const ids = r.cascade.events.map((e) => e.id);

@@ -63,6 +63,10 @@ function runs(): Run[] {
   // both ventral occipitotemporal (colour) areas without cortical blindness: achromatopsia, which
   // is not listed inside a blind field (R1-5)
   out.push({ o: [{ vessel: 'pca_temporal_r', severity: 1 }, { vessel: 'pca_temporal_l', severity: 1 }], c: 'poor', v: [], map: 93 });
+  // both parieto-occipital arteries, sight left: Balint syndrome, named for its signs, which a blind
+  // patient cannot be tested for (Y2-14); both M1 arteries: both frontal eye fields (Y2-13)
+  out.push({ o: [{ vessel: 'pca_parietooccipital_r', severity: 1 }, { vessel: 'pca_parietooccipital_l', severity: 1 }], c: 'poor', v: [], map: 93 });
+  out.push({ o: [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], c: 'good', v: [], map: 93 });
   return out;
 }
 

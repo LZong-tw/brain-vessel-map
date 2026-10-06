@@ -7,7 +7,7 @@ import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { fmtMl, midlineShiftOf, pct, shortTitle, stopIndexAtOrAfter, stopTime, symptomLabel } from '../ui/format';
-import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, silencedVolume, unexaminableNow } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, silencedVolume, unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
 
 const SEV_RANK: Record<EventSeverity, number> = { danger: 0, warn: 1, good: 2, info: 3 };
 const bySeverity = (a: CascadeEvent, b: CascadeEvent) => SEV_RANK[a.severity] - SEV_RANK[b.severity] || a.onsetH - b.onsetH;
@@ -97,6 +97,8 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   // what cannot be examined at this level of consciousness has not improved; it is named apart (X1-2)
   const improved = prev ? improvedSince(prev.symptoms, sim.symptoms, sim.unexaminable) : [];
   const unexaminable = unexaminableNow(sim);
+  // why they cannot be examined: the level of consciousness, blindness or akinetic mutism (Y2-14, Y2-15)
+  const unexaminableHead = unexaminableHeading(unexaminable, lang);
   const noBackup = tH >= NO_BACKUP_FROM_H ? sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s)).sort((a, b) => b.sev - a.sev) : [];
   recoveryShown ||= noBackup.length > 0;
 
@@ -124,10 +126,10 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
       )}
       {unexaminable.length > 0 && (
         <SymptomLine
-          label={rt.unexaminableLabel}
-          title={rt.unexaminableTitle}
+          label={unexaminableHead.label}
+          title={unexaminableHead.title}
           cls="unexaminable"
-          items={unexaminable.map((s) => ({ s, text: '' }))}
+          items={unexaminable.map((s) => ({ s, text: unexaminableHead.tag(s) }))}
         />
       )}
       {noBackup.length > 0 && <SymptomLine label={rt.noBackupLabel} cls="nobackup" items={noBackup.map((s) => ({ s, text: '' }))} />}

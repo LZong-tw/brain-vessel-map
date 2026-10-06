@@ -105,7 +105,8 @@ const other = (s: Side): Side => (s === 'r' ? 'l' : 'r');
 const MOTOR_OR_ATAXIC = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'ataxia_limb'];
 const weakOn = (q: SymptomQuery, bodySide: Side) => ['arm_weak', 'leg_weak'].some((id) => q.on(id, bodySide));
 
-const MCA_CORTEX = [
+/** the cortical areas of the MCA territory (also the large-hemispheric-infarction rule, clinical.ts) */
+export const MCA_CORTEX = [
   'precentral_face_arm',
   'postcentral_face_arm',
   'broca',
@@ -239,8 +240,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '中大腦動脈下分支症候群', en: 'MCA inferior-division syndrome' },
     desc: {
-      zh: '通常沒有明顯無力。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
-      en: "Usually little weakness. Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
+      zh: '通常沒有明顯無力；若有偏癱，表示深部的豆紋動脈區（殼核、內囊）也梗塞了，例如 M1 阻塞早期打通之後（見「紋狀體內囊梗塞」）。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
+      en: "Usually little weakness; a hemiparesis means the deep (lenticulostriate) territory — putamen, internal capsule — is infarcted too, as after an M1 occlusion reopened early (see the striatocapsular label). Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
     },
     test: (c, s) =>
       c.hasAny(['superior_temporal_posterior', 'angular'], s, 0.3) && !c.has('precentral_face_arm', s, 0.3),
@@ -356,6 +357,12 @@ export const SYNDROMES: SyndromeDef[] = [
     // both banks of the calcarine fissure on both sides (one bank on each side leaves bilateral
     // quadrantic defects; spared poles leave central vision); named for the blindness itself
     // (C1-F7). Anton syndrome: 3 of 25 in Aldrich MS et al. Ann Neurol 1987;21:149-158 (PMID 3827223).
+    // The blindness decides it (Y2-18): the symptom rule (clinical.ts) reads both banks on both
+    // sides and the poles at the symptom threshold, on the region dysfunction as listed (a
+    // secondary occipital infarct included). A second region rule here, at 30 % of the primary
+    // pattern, was stricter: once the oedema had gone, 27–29 % of each cuneus stayed infarcted
+    // after both P2 arteries closed, and the patient was listed as blind under the labels of two
+    // one-sided PCA syndromes, each describing a hemianopia.
     id: 'cortical_blindness',
     group: 'posterior',
     lateral: false,
@@ -364,7 +371,7 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '雙側枕葉受損：完全看不見但瞳孔反射正常。少數病人（25 人中約 3 人）堅稱自己看得到並編造所見（Anton 症候群）。常見於基底動脈頂端栓塞；中風造成的皮質盲恢復通常很差。',
       en: 'Both occipital lobes: complete blindness with normal pupillary reflexes. A few patients (about 3 in 25) insist they can see and confabulate (Anton syndrome). Typical of basilar-tip emboli; cortical blindness from stroke usually recovers poorly.',
     },
-    test: (c) => (['r', 'l'] as Side[]).every((s) => c.has('cuneus', s, 0.3) && c.has('lingual', s, 0.3)),
+    test: () => true,
     requires: (q) => q.has('cortical_blindness'),
     supersedes: ['pca'],
   },
@@ -380,6 +387,11 @@ export const SYNDROMES: SyndromeDef[] = [
     test: (c) =>
       c.hasAny(['superior_parietal', 'lateral_occipital', 'angular'], 'r', 0.35) &&
       c.hasAny(['superior_parietal', 'lateral_occipital', 'angular'], 'l', 0.35),
+    // named for its signs (Y2-14): the simultanagnosia or the optic ataxia must be listed. Balint
+    // syndrome is a disorder of the higher visual system (Heutink J et al. Neuropsychol Rehabil
+    // 2019;29:1489-1508, PMID 29366371) and presupposes sight: in a blind patient its signs cannot
+    // be examined (clinical.NEEDS_SIGHT), and the label is not given then
+    requires: (q) => q.has('simultanagnosia') || q.has('optic_ataxia'),
   },
   {
     id: 'thalamic_sensory',
@@ -857,14 +869,21 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '紋狀體內囊梗塞', en: 'Striatocapsular infarction' },
     desc: {
-      zh: '整群豆紋動脈（或 M1 起始處阻塞、皮質靠側枝撐住）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）。最常見的是以手臂為主的對側偏癱，合併皮質徵象（左側失語、右側忽略、失用）：急性期來自皮質灌流不足，之後則歸因於遠隔效應（diaschisis）。只有手臂或手臂加臉無力、沒有皮質徵象時，通常恢復得很好。',
-      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm). Most often an arm-predominant contralateral hemiparesis with cortical signs (aphasia on the left, neglect on the right, dyspraxia): acutely from cortical hypoperfusion, later attributed to diaschisis. With arm or arm-and-face weakness alone and no cortical signs, recovery is usually excellent — Donnan et al., Brain 1991.',
+      zh: '整群豆紋動脈（或 M1 阻塞而皮質靠側枝撐住，或 M1 早期打通時深部核團已經壞死、皮質大多救回）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）；部分皮質（如腦島、顳葉）也可能梗塞，另以它自己的標籤標示。最常見的是以手臂為主的對側偏癱，合併皮質徵象（左側失語、右側忽略、失用）：急性期來自皮質灌流不足，之後則歸因於遠隔效應（diaschisis）。只有手臂或手臂加臉無力、沒有皮質徵象時，通常恢復得很好。',
+      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals, or an M1 occlusion reopened early, after the deep nuclei have died but while most of the cortex could be saved) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm); part of the cortex (insula, temporal lobe) may be infarcted too, named by its own label. Most often an arm-predominant contralateral hemiparesis with cortical signs (aphasia on the left, neglect on the right, dyspraxia): acutely from cortical hypoperfusion, later attributed to diaschisis. With arm or arm-and-face weakness alone and no cortical signs, recovery is usually excellent — Donnan et al., Brain 1991.',
     },
+    // the deep (comma-shaped) pattern with the cortex not infarcted to the extent of a complete
+    // MCA syndrome (fewer than four of its cortical areas, which mca_complete needs). Some cortex
+    // may be involved: an M1 occlusion reopened early (thrombectomy) leaves the deep nuclei, which
+    // have no collaterals, infarcted, and often the insula or part of the temporal lobe; Donnan's
+    // patients had cortical signs too. Requiring no cortex at all (as before) left that infarct,
+    // and its dense hemiparesis, named only by the inferior-division label, which describes
+    // little weakness (Y2-2); the cortical part keeps its own label next to this one.
     test: (c, s) =>
       c.has('putamen', s, 0.4) &&
       c.hasAny(['caudate_body', 'caudate_head'], s, 0.3) &&
       c.hasAny(['ic_posterior_limb', 'ic_genu', 'ic_anterior_limb'], s, 0.3) &&
-      c.cortexCount(s, 0.3) === 0,
+      mcaCount(c, s) < 4,
     supersedes: ['lacunar_pure_motor', 'lacunar_sensorimotor'],
   },
   {

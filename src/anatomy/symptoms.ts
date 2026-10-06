@@ -319,7 +319,12 @@ export const SYMPTOMS: SymptomDef[] = [
     system: 'balance',
     lateralised: true,
     sideWord: 'body',
-    nihss: { item: '7', pts: [1, 1, 2] },
+    // NIHSS 7 counts ataxic limbs: 1 = one limb, 2 = two (Brott T et al. Stroke 1989;20:864-870,
+    // PMID 2749846; the scale's instructions in Torab-Miandoab 2020, Appendix 3). A mild ataxia is
+    // read as one limb; a moderate or marked one of a body side as its arm and its leg, as the
+    // lacunar, lateral medullary and cerebellar syndromes give it (Y2-8). estimateNihss leaves it
+    // out when it is not out of proportion to weakness, and caps the item at 2.
+    nihss: { item: '7', pts: [1, 2, 2] },
   },
   {
     id: 'ataxia_gait',
@@ -746,6 +751,25 @@ export const SYMPTOMS: SymptomDef[] = [
     lateralised: true,
     sideWord: 'gaze',
     nihss: { item: '2', pts: [1, 1, 2] },
+  },
+  {
+    // Both frontal eye fields lost (clinical.ts merges the two opposite deviations into this one,
+    // Y2-13). The frontal eye field disengages fixation and triggers voluntary saccades
+    // (Pierrot-Deseilligny C et al. Ann Neurol 1995;37:557-567, PMID 7755349); bilateral
+    // frontoparietal infarcts gave an acquired ocular motor apraxia, with disordered saccades and
+    // pursuit (Pierrot-Deseilligny C et al. Ann Neurol 1988;23:199-202, PMID 3270327, a case). NIHSS
+    // item 2 scores a gaze palsy that voluntary or reflexive activity overcomes as 1, a total one
+    // that the oculocephalic manoeuvre does not overcome as 2 (Torab-Miandoab 2020, Appendix 3):
+    // a supranuclear palsy, which the manoeuvre overcomes, scores 1.
+    id: 'gaze_paresis_bilateral',
+    name: { zh: '兩側自主水平注視困難（雙側額葉眼動區）', en: 'Voluntary horizontal gaze impaired to both sides (both frontal eye fields)' },
+    desc: {
+      zh: '兩側的額葉眼動區都受損。單側受損時眼睛會被拉向病灶側；兩側都受損時兩股拉力抵消，眼睛不會偏向任何一邊，但病人很難自己把眼睛轉向左或右（眼動變慢或做不出來）；轉動頭部時（洋娃娃眼反射）眼睛仍會動，因為腦幹的凝視中樞完好。雙側額頂葉梗塞後曾有「後天性眼球運動失用」的報告。NIHSS 第 2 項：可被反射動作克服的凝視麻痺記 1 分。',
+      en: 'Both frontal eye fields are damaged. One alone pulls the eyes towards the side of the lesion; with both the pulls cancel, so the eyes are not pushed to either side, but the patient can hardly look voluntarily to the left or to the right (eye movements are slow or fail), while turning the head (the doll’s-eye reflex) still moves the eyes, because the brainstem gaze centres are intact. An acquired ocular motor apraxia has been reported after bilateral frontoparietal infarcts. NIHSS item 2: a gaze palsy that reflex movement overcomes scores 1.',
+    },
+    system: 'eye',
+    lateralised: false,
+    nihss: { item: '2', pts: [1, 1, 1] },
   },
   {
     id: 'gaze_palsy_horizontal',

@@ -3,6 +3,7 @@ import { REGION_BY_ID, regionName, tr } from '../anatomy';
 import type { SymptomSystem } from '../anatomy';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
+import type { SymptomItem } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
 import { CELL_DETAIL_UI } from '../i18n/uiCellDetail';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
@@ -22,7 +23,7 @@ import {
   systemOf,
 } from '../ui/format';
 import { systemCellDetail } from '../ui/cellDetail';
-import { COMPENSATION_SHOWN, UNEXAMINABLE_FILL, compensatedShare, nihssFill, withHatch } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, UNEXAMINABLE_FILL, compensatedShare, nihssFill, unexaminableHeading, withHatch } from '../ui/recoveryFormat';
 import { StopGrid, type StopRow } from './StopGrid';
 
 /** systems in which some deficit is partly compensated by other pathways */
@@ -47,7 +48,8 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
     const compStop = series.map(compensatedSystems);
     const out: StopRow[] = [];
     let anyHatch = false;
-    let anyUnexaminable = false;
+    /** the signs that cannot be examined, at the stops where a whole system is drawn as such */
+    const anyUnexaminable: SymptomItem[] = [];
     for (const sys of SYSTEM_ORDER) {
       const levels = perStop.map((m) => m[sys] ?? 0);
       // what the lesion gives in this system but cannot be examined at that stop (X1-2)
@@ -63,12 +65,12 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
           anyHatch ||= comp;
           const level = lv > 0 || !hidden[i].length ? `${t.sevWords[lv]}${lv > 0 ? ` (${lv}/3)` : ''}` : '';
           const notExamined = hidden[i].length
-            ? `${rt.unexaminableLabel}${lang === 'en' ? ': ' : '：'}${hidden[i].map((x) => symptomLabel(x, lang, t)).join(lang === 'en' ? '; ' : '、')}`
+            ? `${unexaminableHeading(hidden[i], lang).label}${lang === 'en' ? ': ' : '：'}${hidden[i].map((x) => symptomLabel(x, lang, t)).join(lang === 'en' ? '; ' : '、')}`
             : '';
           const title = `${tr(SYSTEM_LABEL[sys], lang)} — ${[level, notExamined].filter(Boolean).join(' · ')}`;
           // a stop at which every deficit of the system cannot be examined is not drawn as "none"
           const color = fill ? (comp ? withHatch(fill) : fill) : hidden[i].length ? UNEXAMINABLE_FILL : null;
-          anyUnexaminable ||= !fill && hidden[i].length > 0;
+          if (!fill) anyUnexaminable.push(...hidden[i]);
           return { color, title: comp ? `${title} · ${rt.hatchCell}` : title };
         }),
       });
@@ -99,7 +101,7 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
         cells: series.map((s) => ({ color: nihssFill(s.nihss), title: rt.nihssCell(s.nihss.total) })),
       });
     }
-    return { rows: out, hatched: anyHatch, unexaminable: anyUnexaminable };
+    return { rows: out, hatched: anyHatch, unexaminable: anyUnexaminable.length ? unexaminableHeading(anyUnexaminable, lang) : null };
   }, [series, t, rt, lang]);
 
   return (
@@ -125,9 +127,9 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
               </span>
             )}
             {unexaminable && (
-              <span title={rt.unexaminableTitle}>
+              <span title={unexaminable.title}>
                 <span className="sw" style={{ background: UNEXAMINABLE_FILL }} />
-                {rt.unexaminableLabel}
+                {unexaminable.label}
               </span>
             )}
             {rows.some((r) => r.key === 'swelling') && (
@@ -225,8 +227,8 @@ function CellDetailBox({ rowKey, series, onClose }: { rowKey: string; series: Si
           </ul>
         )}
         {d.unexaminable.length > 0 && (
-          <p className="small muted cd-unexaminable" title={RECOVERY_UI[lang].unexaminableTitle}>
-            {ct.unexaminable}：
+          <p className="small muted cd-unexaminable" title={unexaminableHeading(d.unexaminable, lang).title}>
+            {ct.unexaminable(unexaminableHeading(d.unexaminable, lang).label)}：
             {d.unexaminable.map((s) => `${SYMPTOM_BY_ID[s.id] ? tr(SYMPTOM_BY_ID[s.id].name, lang) : s.id}${s.side ? `（${sideWord(s.side)}）` : ''}`).join('、')}
           </p>
         )}

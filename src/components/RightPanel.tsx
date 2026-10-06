@@ -44,8 +44,7 @@ import { STACK_UI } from '../i18n/uiStack';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { OUTCOME_UI } from '../i18n/uiOutcome';
 import { treatmentSummary } from '../ui/treatment';
-import { RECOVERY_UI } from '../i18n/uiRecovery';
-import { unexaminableNow } from '../ui/recoveryFormat';
+import { unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
   const lang = useApp((s) => s.lang);
@@ -521,6 +520,7 @@ function Results({ sim }: { sim: SimResult }) {
   // the oedema model's shift when it reports one, else the cascade's estimate
   const shift = midlineShiftOf(sim);
   const nihssItems = NIHSS_ORDER.filter((k) => (sim.nihss.items[k] ?? 0) > 0);
+  const unexaminableHead = unexaminableHeading(sim.unexaminable, lang);
 
   const bySystem = new Map<SymptomSystem, typeof sim.symptoms>();
   for (const s of sim.symptoms) {
@@ -686,13 +686,14 @@ function Results({ sim }: { sim: SimResult }) {
         {/* what the lesion gives but cannot be examined at this level of consciousness has not gone (X1-2) */}
         {sim.unexaminable.length > 0 && (
           <div className="sym-group unexaminable">
-            <h4 title={RECOVERY_UI[lang].unexaminableTitle}>{RECOVERY_UI[lang].unexaminableLabel}</h4>
-            <p className="muted small">{RECOVERY_UI[lang].unexaminableTitle}</p>
+            <h4 title={unexaminableHead.title}>{unexaminableHead.label}</h4>
+            <p className="muted small">{unexaminableHead.title}</p>
             <ul className="bullets">
               {unexaminableNow(sim).map((s) => (
                 <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}
+                  {unexaminableHead.tag(s) && <span className="muted small"> · {unexaminableHead.tag(s)}</span>}
                 </li>
               ))}
             </ul>

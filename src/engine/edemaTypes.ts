@@ -42,6 +42,13 @@ export interface EdemaState {
   midlineShiftMm: number;
   /** hemisphere the midline is pushed AWAY from (the swollen side), or null */
   shiftFrom: Side | null;
+  /**
+   * the swelling of both hemispheres together as the midline shift it would give on one side (mm):
+   * what the level of consciousness and an uncal herniation follow (Y2-13). Equal to the midline
+   * shift when only one hemisphere swells; swelling of both pushes the brain down rather than
+   * across, so it adds up here while the midline hardly moves.
+   */
+  massEffectMm: number;
   /** relative change of ventricle size: < 0 compressed by swelling, > 0 enlarged (hydrocephalus / ex vacuo) */
   ventricleChange: number;
 }
@@ -56,5 +63,6 @@ export const NO_EDEMA: EdemaState = {
   extraVolume: { supra: { r: 0, l: 0 }, infra: 0 },
   midlineShiftMm: 0,
   shiftFrom: null,
+  massEffectMm: 0,
   ventricleChange: 0,
 };

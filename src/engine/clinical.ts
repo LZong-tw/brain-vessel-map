@@ -6,7 +6,7 @@ import { REGIONS, REGION_BY_ID } from '../anatomy';
 import type { DeficitRef, NihssItem, Region, Side } from '../anatomy';
 import { REGION_DEFS } from '../anatomy/regions';
 import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
-import { SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
+import { MCA_CORTEX, SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
 import { indexById } from '../anatomy/indexById';
 import { lesionSides, symptomCompensation } from './recovery';
 import type { SymptomRecovery } from './recoveryTypes';
@@ -20,7 +20,16 @@ export interface SymptomItem {
   delayed: boolean;
   /** how far spared pathways have taken this deficit over (from its dominant source), if it comes from a region */
   recovery?: SymptomRecovery;
+  /** set on the signs that cannot be examined now (SimResult.unexaminable): why not (see examinability) */
+  why?: UnexaminableWhy;
 }
+
+/**
+ * Why a sign the lesion gives cannot be examined now: the level of consciousness (stupor, coma, a
+ * disorder of consciousness: X1), blindness (no sight to test recognition, reading or reaching by:
+ * Y2-14), or akinetic mutism (an awake patient without spontaneous action or speech: Y2-15).
+ */
+export type UnexaminableWhy = 'consciousness' | 'blind' | 'akinetic';
 
 export interface NihssResult {
   total: number;
@@ -84,6 +93,32 @@ function comaBecomes(baseId: string, side: Side | 'm', regionInf: Record<string,
     reaches(regionInf[`${baseId}_l`], EXTENSIVE);
   if (extensive) return 'disorder_of_consciousness';
   return HYPERSOMNIA_SOURCES.includes(baseId) ? 'hypersomnia' : null;
+}
+
+/**
+ * Both hemispheres largely out of action (Y2-13): at least two-thirds of the cortical areas of each
+ * MCA territory dysfunctional, the extent that defines a large hemispheric infarction ("at least
+ * two-thirds of the MCA territory": Huang H et al. Neurocrit Care 2020;33:376-388, PMID 32705419,
+ * which puts early disorders of consciousness at about 77 % of such patients, whose infarct is
+ * usually in one hemisphere). Simultaneous occlusion of both MCAs is rare and usually devastating, a high
+ * NIHSS with a lowered level of consciousness being a clue to it (Phuyal S et al. J Neurosci Rural
+ * Pract 2024;15:381-383, PMID 38746493, a case and a review of the literature). The model lists
+ * at least drowsiness then (NIHSS 1a = 1), whatever the swelling, in the first two weeks of the
+ * newer of the two lesions, like the drowsiness of a region (somnolence is the acute picture);
+ * how much the level falls beyond that follows the swelling of both hemispheres together
+ * (edema.massEffectMm). A model choice: no series gives the level of consciousness by extent.
+ */
+const LARGE_HEMISPHERIC_SHARE = 2 / 3;
+export const BILATERAL_DROWSY_UNTIL_H = DELAYED_ONSET_H;
+export function bilateralHemispheric(regionDys: Record<string, number>, ageOfRegion: (rid: string) => number = () => 0): boolean {
+  let newest = Infinity;
+  for (const side of ['r', 'l'] as Side[]) {
+    const hit = MCA_CORTEX.map((b) => `${b}_${side}`).filter((rid) => reaches(regionDys[rid]));
+    if (hit.length < LARGE_HEMISPHERIC_SHARE * MCA_CORTEX.length - 1e-9) return false;
+    // when this hemisphere's lesion began (its oldest involved area)
+    newest = Math.min(newest, Math.max(...hit.map(ageOfRegion)));
+  }
+  return newest < BILATERAL_DROWSY_UNTIL_H;
 }
 
 /**
@@ -198,6 +233,9 @@ export const NEEDS_AWAKE = [
   'amnesia',
   'abulia',
   'emotional',
+  // akinetic mutism is a state of an awake patient: in stupor or coma it cannot be told apart from
+  // the unresponsiveness (Y2-15)
+  'akinetic_mutism',
   // what only the patient can report (X1-12); the signs the examiner sees (nystagmus, misaligned
   // eyes, the pupils) stay listed
   'vertigo',
@@ -245,6 +283,50 @@ const ATTENTION_SIGNS = ['neglect'];
  */
 const NEEDS_ALERT = ['peduncular_hallucinosis', 'visual_release_hallucinations', 'holmes_tremor'];
 
+/**
+ * Higher visual functions that need sight to be tested: recognising faces and objects by sight,
+ * reading, finding the way by landmarks, seeing a scene as a whole, reaching under visual guidance
+ * and the visuospatial (constructional) tasks. They are disorders of the higher visual system
+ * (visual agnosia and Balint syndrome: Heutink J et al. Neuropsychol Rehabil 2019;29:1489-1508,
+ * PMID 29366371) and presuppose sight: failing to recognise what is not seen at all is no agnosia.
+ * So in a blind patient (cortical blindness, or both half-fields lost without spared central
+ * vision) none of them can be tested (Y2-14): they are named apart, as for reduced consciousness,
+ * and listed again once vision partly returns. Release hallucinations, seen in the blind field
+ * itself, stay listed; colour is already left out where nothing is seen.
+ */
+export const NEEDS_SIGHT = ['prosopagnosia', 'visual_agnosia', 'simultanagnosia', 'optic_ataxia', 'visuospatial', 'topographic', 'alexia'];
+/**
+ * Akinetic mutism (bilateral medial frontal and anterior cingulate cortex): awake, eyes open and
+ * following, but almost no spontaneous movement or speech, and no response to commands (Y2-15).
+ * From moderate severity on, nothing that needs the patient to act on request, answer or report
+ * can be examined (praxis, the alien hand, reaching, recognition, reading, writing and calculation,
+ * memory, the finger–nose test, the aphasia type, what only the patient can tell): those signs are
+ * named apart, as for reduced consciousness. What the examiner sees stays listed (the behaviour
+ * itself: abulia, disinhibition, emotional expression; neglect, which the NIHSS scores whenever it
+ * is seen). Mute (severity 3), the dysarthria and the hoarse voice cannot be heard either. The NIHSS
+ * items are scored from the state itself (estimateNihss).
+ */
+export const AKINETIC_OBSERVED = ['akinetic_mutism', 'disinhibition', 'emotionalism', 'emotional_facial_paresis', 'abulia', 'emotional'];
+const APHASIA_TYPES = [...Object.keys(APHASIA_FEATURES), 'aphasia_thalamic'];
+/**
+ * the severity of a listed (non-delayed) akinetic mutism in an awake patient, 0 without one (in
+ * stupor, coma or a disorder of consciousness it cannot be examined, and the scale's own rules for
+ * those states apply)
+ */
+const akineticLevel = (symptoms: SymptomItem[]) =>
+  consciousnessItem(symptoms) >= 2 || symptoms.some((s) => s.id === 'disorder_of_consciousness')
+    ? 0
+    : symptoms.reduce((m, s) => (s.id === 'akinetic_mutism' && !s.delayed ? Math.max(m, s.sev) : m), 0);
+/**
+ * Nothing is seen: cortical blindness, or both half-fields lost without spared central vision (the
+ * same rule that leaves colour out, lesionSymptoms).
+ */
+export const isBlind = (symptoms: SymptomItem[]) =>
+  symptoms.some((s) => s.id === 'cortical_blindness') ||
+  (symptoms.some((s) => s.id === 'hemianopia' && s.side === 'r') &&
+    symptoms.some((s) => s.id === 'hemianopia' && s.side === 'l') &&
+    !symptoms.some((s) => s.id === 'macular_sparing'));
+
 /** NIHSS item 1a given by the listed level-of-consciousness symptoms (0 alert … 3 coma) */
 function consciousnessItem(symptoms: SymptomItem[]): number {
   let loc = 0;
@@ -256,25 +338,48 @@ function consciousnessItem(symptoms: SymptomItem[]): number {
 }
 
 /**
- * Whether a sign cannot be examined at the level of consciousness of `symptoms` (the symptom list
- * it would join), and so is not listed: see NEEDS_AWAKE, SPEECH_SIGNS, ATTENTION_SIGNS and
- * NEEDS_ALERT.
+ * Why a sign cannot be examined in a patient whose lesion gives `symptoms` (the symptom list it
+ * would join), or null when it can: the level of consciousness (NEEDS_AWAKE, SPEECH_SIGNS,
+ * ATTENTION_SIGNS and NEEDS_ALERT), blindness (NEEDS_SIGHT) or akinetic mutism (see
+ * AKINETIC_OBSERVED). The first reason that applies is given.
  */
-export function unexaminable(id: string, symptoms: SymptomItem[]): boolean {
+export function examinability(id: string, symptoms: SymptomItem[]): UnexaminableWhy | null {
   const doc = symptoms.some((s) => s.id === 'disorder_of_consciousness');
-  if (NEEDS_ALERT.includes(id)) return doc || symptoms.some((s) => s.id === 'coma');
   const loc = consciousnessItem(symptoms);
-  if (NEEDS_AWAKE.includes(id)) return loc >= 2 || doc;
-  if (SPEECH_SIGNS.includes(id)) return loc >= 3 || doc;
-  if (ATTENTION_SIGNS.includes(id)) return loc >= 3;
-  return false;
+  if (NEEDS_ALERT.includes(id)) {
+    if (doc || symptoms.some((s) => s.id === 'coma')) return 'consciousness';
+  } else if (NEEDS_AWAKE.includes(id)) {
+    if (loc >= 2 || doc) return 'consciousness';
+  } else if (SPEECH_SIGNS.includes(id)) {
+    if (loc >= 3 || doc) return 'consciousness';
+  } else if (ATTENTION_SIGNS.includes(id) && loc >= 3) return 'consciousness';
+  if (NEEDS_SIGHT.includes(id) && isBlind(symptoms)) return 'blind';
+  const akinetic = akineticLevel(symptoms);
+  if (akinetic >= 2) {
+    if (NEEDS_AWAKE.includes(id) && !AKINETIC_OBSERVED.includes(id)) return 'akinetic';
+    if (APHASIA_TYPES.includes(id)) return 'akinetic';
+    if (akinetic >= 3 && SPEECH_SIGNS.includes(id)) return 'akinetic';
+  }
+  return null;
 }
 
-/** The symptom list as shown (what can be examined now) and what is left out of it for the level of consciousness. */
+/** Whether a sign cannot be examined now (examinability), and so is not listed. */
+export function unexaminable(id: string, symptoms: SymptomItem[]): boolean {
+  return examinability(id, symptoms) !== null;
+}
+
+/**
+ * The symptom list as shown (what can be examined now) and what is left out of it, each with why:
+ * the level of consciousness, blindness or akinetic mutism (examinability).
+ */
 export function byConsciousness(symptoms: SymptomItem[]): { shown: SymptomItem[]; unexaminable: SymptomItem[] } {
   const shown: SymptomItem[] = [];
   const hidden: SymptomItem[] = [];
-  for (const s of symptoms) (unexaminable(s.id, symptoms) ? hidden : shown).push(s);
+  for (const s of symptoms) {
+    const why = examinability(s.id, symptoms);
+    if (why) hidden.push({ ...s, why });
+    else shown.push(s);
+  }
   return { shown, unexaminable: hidden };
 }
 const SPASTICITY_SENSORY = ['sens_face_arm', 'sens_leg', 'sens_hemibody', 'pain_temp_body', 'proprio_loss'];
@@ -452,6 +557,43 @@ export function lesionSymptoms(
   // merges
   const get = (id: string, side: SymptomItem['side']) => map.get(`${id}|${side ?? ''}`);
   const del = (id: string, side: SymptomItem['side']) => map.delete(`${id}|${side ?? ''}`);
+  // a deficit of both body sides (from a midline region: the upper cervical cord) and the same
+  // deficit of one side (from another region) are one deficit of each side, at the worse
+  // severity, not a third entry beside them (Y2-17)
+  for (const both of [...map.values()].filter((s) => s.side === 'both')) {
+    if (!get(both.id, 'r') && !get(both.id, 'l')) continue;
+    for (const fs of ['r', 'l'] as Side[]) {
+      const one = get(both.id, fs);
+      if (!one) {
+        map.set(`${both.id}|${fs}`, { ...both, side: fs, sources: [...both.sources] });
+        continue;
+      }
+      if (both.sev > one.sev) {
+        one.sev = both.sev;
+        if (both.recovery) one.recovery = both.recovery;
+      }
+      for (const src of both.sources) if (!one.sources.includes(src)) one.sources.push(src);
+    }
+    del(both.id, 'both');
+  }
+  // Each frontal eye field turns the eyes towards its own side; it disengages fixation and
+  // triggers voluntary saccades (Pierrot-Deseilligny C et al. Ann Neurol 1995;37:557-567, PMID
+  // 7755349). With both lost the eyes cannot deviate to the right and to the left at once: the
+  // pulls cancel, and what is left is a voluntary gaze paresis to both sides, which the
+  // oculocephalic manoeuvre overcomes (acquired ocular motor apraxia after bilateral frontoparietal
+  // infarcts: Pierrot-Deseilligny C et al. Ann Neurol 1988;23:199-202, PMID 3270327). When one side
+  // is the worse, the other still pulls a little harder: the eyes deviate towards the worse side,
+  // less forcefully (Y2-13).
+  const gazeR = get('gaze_deviation', 'r');
+  const gazeL = get('gaze_deviation', 'l');
+  if (gazeR && gazeL) {
+    const [hi, lo] = gazeR.sev >= gazeL.sev ? [gazeR, gazeL] : [gazeL, gazeR];
+    const sources = [...new Set([...hi.sources, ...lo.sources])];
+    del('gaze_deviation', 'r');
+    del('gaze_deviation', 'l');
+    if (hi.sev > lo.sev) map.set(`gaze_deviation|${hi.side}`, { ...hi, sev: (hi.sev - lo.sev) as 1 | 2 | 3, sources });
+    else map.set('gaze_paresis_bilateral|', { ...hi, id: 'gaze_paresis_bilateral', side: null, sources });
+  }
   for (const fs of ['r', 'l'] as Side[]) {
     const sup = get('quadrant_sup', fs);
     const inf = get('quadrant_inf', fs);
@@ -631,8 +773,12 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   const ataxia = { r: 0, l: 0 };
   /** body sides with pinprick-type (item 8) loss that comes from the brainstem alone */
   const brainstemSensory = new Set<Side>();
+  // akinetic mutism (Y2-15): no aphasia type can be graded in a patient who speaks too little to
+  // grade it (moderate) or not at all (severe); items 9, 1b and 1c are scored from the state itself
+  const akinetic = akineticLevel(symptoms);
   for (const s of symptoms) {
     if (s.delayed) continue;
+    if (akinetic >= 2 && APHASIA_TYPES.includes(s.id)) continue;
     const n = SYMPTOM_BY_ID[s.id]?.nihss;
     if (!n) continue;
     const p = pts(s.id, s.sev);
@@ -651,7 +797,8 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
         }
         break;
       case '7':
-        // item 7 counts limbs: arm and leg on the same side score 2
+        // item 7 counts limbs: a mild ataxia is one limb (1), a moderate or marked one the arm and
+        // the leg of that side (2: symptoms.ts, Y2-8); both sides add up, to at most 2
         for (const sd of sides) ataxia[sd] = Math.max(ataxia[sd], Math.min(2, p));
         break;
       case '1a':
@@ -668,7 +815,12 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
         break;
       case '8':
         set('8', p, 2);
-        if (s.sources.length > 0 && s.sources.every((src) => REGION_BY_ID[src]?.category === 'brainstem'))
+        // (the upper cervical cord just below the medulla may share it: Y2-17 merges its loss of
+        // both sides into each side's loss from the medulla)
+        if (
+          s.sources.some((src) => REGION_BY_ID[src]?.category === 'brainstem') &&
+          s.sources.every((src) => ['brainstem', 'spinal'].includes(REGION_BY_ID[src]?.category))
+        )
           for (const sd of sides) brainstemSensory.add(sd);
         break;
       case '9':
@@ -685,14 +837,16 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
     }
   }
   const has = (id: string) => symptoms.some((s) => s.id === id && !s.delayed);
-  // the aphasia type with poor comprehension (global, Wernicke, mixed transcortical), if any
-  const poorComprehension = symptoms.find((s) => !s.delayed && POOR_COMPREHENSION_APHASIA.includes(s.id));
+  // the aphasia type with poor comprehension (global, Wernicke, mixed transcortical), if any (none
+  // can be graded in a moderate or severe akinetic mutism)
+  const poorComprehension = akinetic >= 2 ? undefined : symptoms.find((s) => !s.delayed && POOR_COMPREHENSION_APHASIA.includes(s.id));
   // limb ataxia is scored only if out of proportion to weakness, and is absent in a patient who
   // cannot understand or is paralysed: not on a side whose arm cannot move against gravity or
   // whose leg cannot move at all, and not at all in a stuporous patient (1a ≥ 2, who cannot do
-  // the finger-nose test), one in a disorder of consciousness (who follows no command, below) or
-  // one whose aphasia leaves too little comprehension to follow it
-  const cannotCooperate = (items['1a'] ?? 0) >= 2 || has('disorder_of_consciousness') || (poorComprehension?.sev ?? 0) >= 2;
+  // the finger-nose test), one in a disorder of consciousness (who follows no command, below), one
+  // whose aphasia leaves too little comprehension to follow it, or one in akinetic mutism, who
+  // does not act on request (Y2-15)
+  const cannotCooperate = (items['1a'] ?? 0) >= 2 || has('disorder_of_consciousness') || (poorComprehension?.sev ?? 0) >= 2 || akinetic >= 2;
   const ax = cannotCooperate
     ? 0
     : (['r', 'l'] as Side[]).reduce((a, sd) => a + (armSide[sd] >= 3 || legSide[sd] >= 4 ? 0 : ataxia[sd]), 0);
@@ -708,7 +862,7 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   if (poorComprehension && poorComprehension.sev >= 2) {
     set('1b', 2, 2);
     set('1c', 1, 2);
-  } else if (poorComprehension || has('aphasia_broca') || has('aphasia_tc_sensory')) {
+  } else if (akinetic < 2 && (poorComprehension || has('aphasia_broca') || has('aphasia_tc_sensory'))) {
     set('1b', 1, 2);
   }
   // a disorder of consciousness after coma (unresponsive wakefulness, a minimally conscious state,
@@ -726,6 +880,19 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   if (has('disorder_of_consciousness')) {
     set('9', 3, 3);
     set('1b', 2, 2);
+  }
+  // Akinetic mutism (Y2-15): awake (1a = 0), but almost no speech and no response to commands. The
+  // scale scores what the patient does: severe, mute, so item 9 is 3 ("mute"; 1c and 10 follow from
+  // it below) and, unable to speak for a reason other than aphasia, 1b is 1; moderate, little speech
+  // (9 = 2) and only one of the two commands performed (1c = 1). (Torab-Miandoab 2020, Appendix 3:
+  // 1b scores 1 for a patient who cannot speak for any reason not secondary to aphasia, 2 only for
+  // an aphasic or stuporous patient who does not comprehend; 1c is scored on what is performed.)
+  if (akinetic >= 3) {
+    set('9', 3, 3);
+    set('1b', 1, 2);
+  } else if (akinetic === 2) {
+    set('9', 2, 3);
+    set('1c', 1, 2);
   }
   // "a score of 3 [on item 9] should be used only if the patient is mute and follows no one-step
   // commands": such a patient performs neither command (1c = 2) and, being mute, scores 2 on

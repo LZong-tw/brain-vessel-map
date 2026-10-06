@@ -125,10 +125,14 @@ export const SCENARIOS: Scenario[] = [
     group: 'anterior',
     title: { zh: '暫時性腦缺血發作（TIA）：左 MCA 上分支 5 分鐘', en: 'Transient ischaemic attack (TIA): left MCA superior division for 5 minutes' },
     summary: {
-      zh: '小栓子卡住左中大腦動脈上分支，約 5 分鐘後自行溶解。發作當下說不出話、右臉右手出現症狀；血流一恢復症狀就消失（把時間軸從「發生時」往後拉）。依組織學定義，TIA 不留下梗塞；若缺血期間已有組織壞死（擴散加權 MRI 看得到），就算是小中風——模型會不會留下病灶，取決於組織能撐多久的參數。TIA 後幾天內中風風險最高，要當急症處理。',
-      en: 'A small embolus lodges in the left MCA superior division and breaks up after about 5 minutes. During the attack speech fails and the right face and arm are affected; once flow returns the symptoms are gone (move the timeline on from "Onset"). By the tissue-based definition a TIA leaves no infarct; if tissue died during the ischaemia (visible on diffusion MRI) it is a minor stroke — whether the model leaves a lesion depends on how long its tissue parameters let ischaemic tissue survive. Stroke risk is highest in the days after a TIA, so it is an emergency.',
+      zh: '小栓子卡住左中大腦動脈上分支，約 5 分鐘後自行溶解。發作當下說不出話（布洛卡型失語），右臉與右手無力、麻木；血流一恢復症狀就消失（把時間軸從「發生時」往後拉）。範本假設側枝循環中等：側枝很好時，運動皮質可能還有足夠血流，就只出現失語與麻木、沒有無力。依組織學定義，TIA 不留下梗塞；若缺血期間已有組織壞死（擴散加權 MRI 看得到），就算是小中風——模型會不會留下病灶，取決於組織能撐多久的參數。TIA 後幾天內中風風險最高，要當急症處理。',
+      en: 'A small embolus lodges in the left MCA superior division and breaks up after about 5 minutes. During the attack speech fails (Broca-type aphasia) and the right face and arm go weak and numb; once flow returns the symptoms are gone (move the timeline on from "Onset"). The template assumes moderate collaterals: with good ones the motor cortex may keep enough flow, leaving aphasia and numbness without weakness. By the tissue-based definition a TIA leaves no infarct; if tissue died during the ischaemia (visible on diffusion MRI) it is a minor stroke — whether the model leaves a lesion depends on how long its tissue parameters let ischaemic tissue survive. Stroke risk is highest in the days after a TIA, so it is an emergency.',
     },
     occlusions: [{ vessel: 'mca_m2_sup_l', severity: 1, fromH: 0, toH: 1 / 12 }],
+    // moderate, so that the attack shows the classic superior-division picture, face and arm
+    // weakness with a Broca aphasia (Y2-4); with good collaterals the model keeps the motor strip
+    // above the symptom threshold and only the aphasia and the numbness are seen
+    collateral: 'moderate',
     tH: 0,
     view: 'left',
   },
@@ -326,8 +330,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '右椎動脈阻塞：華倫堡氏症候群', en: 'Right vertebral occlusion: Wallenberg' },
     summary: {
-      zh: '眩暈、吞嚥困難、聲音沙啞、右側霍納、走路時身體被拉向右側、「右臉左身」痛溫覺喪失；這個梗塞大、往腹側延伸，所以左臉的痛溫覺也較輕地減退（50 人中 12 人兩側臉都有，典型的交叉型只有 13 人）。手腳卻不會無力——NIHSS 可能只有 4 分。前 10 天要注意睡眠中的呼吸。',
-      en: 'Vertigo, dysphagia, hoarseness, right Horner, a gait pulled to the right, pain/temperature loss on the right face and left body; this infarct is large and reaches ventrally, so the left face is dulled too, more mildly (both sides of the face in 12 of 50 patients, the classic crossed pattern in only 13). But no weak limbs — NIHSS may be only 4. Watch breathing in sleep for the first 10 days.',
+      zh: '眩暈、吞嚥困難、聲音沙啞、右側霍納、走路時身體被拉向右側、「右臉左身」痛溫覺喪失；這個梗塞大、往腹側延伸，所以左臉的痛溫覺也較輕地減退（50 人中 12 人兩側臉都有，典型的交叉型只有 13 人）。手腳卻不會無力——NIHSS 可能只有 5 分。前 10 天要注意睡眠中的呼吸。',
+      en: 'Vertigo, dysphagia, hoarseness, right Horner, a gait pulled to the right, pain/temperature loss on the right face and left body; this infarct is large and reaches ventrally, so the left face is dulled too, more mildly (both sides of the face in 12 of 50 patients, the classic crossed pattern in only 13). But no weak limbs — NIHSS may be only 5. Watch breathing in sleep for the first 10 days.',
     },
     // the sensory patterns: Kim JS et al. Neurology 1997;49:1557–1563 (PMID 9409346), R2-6
     occlusions: [{ vessel: 'va_v4_dist_r', severity: 1 }],
@@ -398,8 +402,8 @@ export const SCENARIOS: Scenario[] = [
     group: 'posterior',
     title: { zh: '左橋腦旁正中穿通支：交叉性癱瘓（Foville）', en: 'Left pontine perforator: crossed paralysis (Foville)' },
     summary: {
-      zh: '雙眼無法看向左邊（水平凝視麻痺）、左臉整側麻痺，右側手腳癱瘓——腦神經徵象在病灶側、肢體在對側。這樣的「經典」交叉症候群在 MRI 上其實不常見：孤立橋腦梗塞最常見的是前內側型（對側無力、構音障礙、運動失調），交叉性缺損少見且多不符合經典描述（Bassetti 1996）。',
-      en: 'Neither eye can look to the left (horizontal gaze palsy), whole left face paralysed, right limbs weak — cranial-nerve signs on the lesion side, limbs on the other. Such classic crossed syndromes are actually uncommon on MRI: the commonest isolated pontine infarct is anteromedial (contralateral weakness, dysarthria, ataxia), and crossed deficits are rare and seldom match the classic descriptions (Bassetti 1996).',
+      zh: '雙眼無法看向左邊（水平凝視麻痺）、左臉周邊型無力（整側臉連額頭；起初比手腳輕，之後幾天水腫時加重），右側手腳癱瘓——腦神經徵象在病灶側、肢體在對側（右側下半臉也會無力）。這樣的「經典」交叉症候群在 MRI 上其實不常見：孤立橋腦梗塞最常見的是前內側型（對側無力、構音障礙、運動失調），交叉性缺損少見且多不符合經典描述（Bassetti 1996）。',
+      en: 'Neither eye can look to the left (horizontal gaze palsy), the left face weak including the forehead (peripheral type; milder than the limbs at first, worse while the swelling peaks over the next days), right limbs weak — cranial-nerve signs on the lesion side, limbs on the other (the right lower face is weak too). Such classic crossed syndromes are actually uncommon on MRI: the commonest isolated pontine infarct is anteromedial (contralateral weakness, dysarthria, ataxia), and crossed deficits are rare and seldom match the classic descriptions (Bassetti 1996).',
     },
     occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1 }],
     tH: 24,

@@ -5,6 +5,7 @@
 
 import type { Lang } from '../anatomy/types';
 import type { RedundancyKind } from '../anatomy/redundancy';
+import type { UnexaminableWhy } from '../engine/clinical';
 
 export interface RecoveryStrings {
   // ── region panel: status of the region's function now ──
@@ -58,6 +59,13 @@ export interface RecoveryStrings {
   /** signs the lesion gives that cannot be examined at the patient's level of consciousness (X1-2) */
   unexaminableLabel: string;
   unexaminableTitle: string;
+  /**
+   * the same for each reason a sign cannot be examined (Y2-14, Y2-15): `label` and `title` when it
+   * is the only reason, `tag` after each sign when there are several
+   */
+  unexaminableBy: Record<UnexaminableWhy, { label: string; title: string; tag: string }>;
+  /** the heading when signs cannot be examined for more than one reason */
+  unexaminableMixedLabel: string;
 }
 
 const zh: RecoveryStrings = {
@@ -119,6 +127,27 @@ const zh: RecoveryStrings = {
   unexaminableLabel: '意識下降，目前無法檢查',
   unexaminableTitle:
     '病灶仍會造成這些缺損，只是病人昏睡、昏迷或處於意識障礙時檢查不出來（需要病人清醒、配合或自己說出來），所以暫時不列在症狀清單裡，也不算改善；能檢查時會再列出。',
+  unexaminableBy: {
+    consciousness: {
+      label: '意識下降，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，只是病人昏睡、昏迷或處於意識障礙時檢查不出來（需要病人清醒、配合或自己說出來），所以暫時不列在症狀清單裡，也不算改善；能檢查時會再列出。',
+      tag: '意識下降',
+    },
+    blind: {
+      label: '看不見，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但認臉、認物、閱讀、看路、伸手拿看到的東西與視覺空間能力，都要先看得見才能檢查；病人目前看不見（皮質盲，或兩側半邊視野都看不到、中心視力也沒保留），所以暫時不列在症狀清單裡，也不算改善。視力部分恢復時會再列出。',
+      tag: '看不見',
+    },
+    akinetic: {
+      label: '無動性緘默，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但病人雖然清醒，卻幾乎不會自己動、不說話，也不照指令做，所以需要病人動手、回答或自己說出來的檢查（失用、異己手、伸手、認物、讀寫算、記憶、失語的類型等）都做不了；暫時不列在症狀清單裡，也不算改善。看得到的表現（意志缺失、情緒等）仍會列出。',
+      tag: '無動性緘默',
+    },
+  },
+  unexaminableMixedLabel: '目前無法檢查',
 };
 
 const en: RecoveryStrings = {
@@ -186,6 +215,27 @@ const en: RecoveryStrings = {
   unexaminableLabel: 'Cannot be examined at this level of consciousness',
   unexaminableTitle:
     'The lesion still causes these deficits, but they cannot be examined while the patient is stuporous, comatose or in a disorder of consciousness (they need an awake, cooperating patient, or the patient’s own report), so they are left out of the symptom list for now and do not count as improved; they are listed again once they can be examined.',
+  unexaminableBy: {
+    consciousness: {
+      label: 'Cannot be examined at this level of consciousness',
+      title:
+        'The lesion still causes these deficits, but they cannot be examined while the patient is stuporous, comatose or in a disorder of consciousness (they need an awake, cooperating patient, or the patient’s own report), so they are left out of the symptom list for now and do not count as improved; they are listed again once they can be examined.',
+      tag: 'reduced consciousness',
+    },
+    blind: {
+      label: 'Cannot be tested: the patient cannot see',
+      title:
+        'The lesion still causes these deficits, but recognising faces and objects, reading, finding the way, reaching for what is seen and visuospatial tasks can only be tested in someone who sees; the patient is blind now (cortical blindness, or both half-fields lost without spared central vision), so they are left out of the symptom list for now and do not count as improved. They are listed again once vision partly returns.',
+      tag: 'blind',
+    },
+    akinetic: {
+      label: 'Cannot be examined: akinetic mutism',
+      title:
+        'The lesion still causes these deficits, but the patient, although awake, hardly moves or speaks and does not act on request, so nothing that needs the patient to act, answer or report can be tested (praxis, the alien hand, reaching, recognition, reading, writing and calculation, memory, the type of aphasia …); they are left out of the symptom list for now and do not count as improved. What can be seen (abulia, emotional expression) is still listed.',
+      tag: 'akinetic mutism',
+    },
+  },
+  unexaminableMixedLabel: 'Cannot be examined now',
 };
 
 export const RECOVERY_UI: Record<Lang, RecoveryStrings> = { 'zh-TW': zh, en };
