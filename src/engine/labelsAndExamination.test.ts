@@ -103,7 +103,7 @@ describe('Y2-4: the superior-division TIA shows the classic picture during the a
 });
 
 describe('Y2-8: NIHSS item 7 counts ataxic limbs', () => {
-  const only = (...s: SymptomItem[]) => estimateNihss(s, []).items['7'] ?? 0;
+  const only = (...s: SymptomItem[]) => estimateNihss(s).items['7'] ?? 0;
   it('a mild ataxia of one side is one limb (1), a moderate or marked one the arm and the leg (2)', () => {
     expect(only(sym('ataxia_limb', 'l', 1))).toBe(1);
     expect(only(sym('ataxia_limb', 'l', 2))).toBe(2);
@@ -264,7 +264,7 @@ describe('Y2-15: akinetic mutism is scored as what the patient does', () => {
   it('the scale is not lowered by what cannot be examined', () => {
     for (const tH of STOPS) {
       const r = both(tH);
-      expect(estimateNihss([...r.symptoms, ...r.unexaminable], []).items, `${tH} h`).toEqual(r.nihss.items);
+      expect(estimateNihss([...r.symptoms, ...r.unexaminable]).items, `${tH} h`).toEqual(r.nihss.items);
     }
   });
 });

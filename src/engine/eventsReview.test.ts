@@ -59,10 +59,11 @@ const DROWSY_TITLE = 'Reduced consciousness → aspiration pneumonia';
  * the swallow screen of a large infarct (R3-1; X3-1, X3-3: not the dysphagia title before the
  * dysphagia appears, nor after it has cleared).
  */
-function checkFollows(name: string, input: SimInput) {
+function checkFollows(name: string, input: SimInput, lesions?: number[]) {
   const first = at(input, STOPS[0]);
   const onset = first.schedule.onsetH;
-  const runs = STOPS.map((h) => onset + h).map((h) => [h, at(input, h)] as const);
+  // Y3-19: with stacked occlusions, the first two weeks of each lesion that leaves an infarct
+  const runs = [...new Set((lesions ?? [onset]).flatMap((l) => STOPS.map((h) => l + h)))].sort((a, b) => a - b).map((h) => [h, at(input, h)] as const);
   // the index attack left no infarct and its flow came back
   const tia = first.volumes.finalInfarct < 0.05 && (input.reperfusionH != null || input.occlusions.every((o) => o.toH != null));
   if (tia) {
@@ -138,6 +139,22 @@ describe('R3-1: the aspiration warning follows the listed deficits, in both dire
   it.each(['poor', 'moderate', 'good'] as CollateralGrade[])('key single occlusions (%s collaterals)', (c) => {
     for (const v of ['mca_m1_l', 'mca_m2_sup_r', 'mca_m2_inf_r', 'aca_a2_r', 'aca_callosomarginal_l', 'pca_p2_l', 'acha_r', 'basilar_mid', 'pica_r', 'va_v4_prox_r', 'lat_medullary_perf_l'])
       checkFollows(`${v} ${c}`, occInput([{ vessel: v, severity: 1 }], c));
+  });
+
+  // Y3-19: a basilar occlusion a month before or after a left M1 occlusion (the EXTRA cases of
+  // invariants.test.ts): each lesion's dysphagia and coma have their warning from its own onset
+  it.each([
+    ['basilar_upper, then mca_m1_l at 1 month, poor', 'basilar_upper', 'mca_m1_l'],
+    ['mca_m1_l, then basilar_upper at 1 month, poor', 'mca_m1_l', 'basilar_upper'],
+  ])('%s', (name, a, b) => {
+    const input = occInput(
+      [
+        { vessel: a, severity: 1, fromH: 0 },
+        { vessel: b, severity: 1, fromH: 720 },
+      ],
+      'poor',
+    );
+    checkFollows(name, input, [0, 720]);
   });
 
   it('a 5-minute M1 occlusion (TIA) still carries none', () => {
@@ -232,7 +249,7 @@ describe('R3-2, R3-3: a lacune with dysphagia raises the aspiration warning', ()
 });
 
 /** the cardiac warning running at `h` (simulation clock): 'cardiac', and 'cardiac_2' once a stupor or coma makes the stroke severe (X3-4) */
-const cardiacAt = (r: SimResult, h: number) => r.cascade.events.find((e) => /^cardiac(_2)?$/.test(e.id) && e.onsetH <= h + 1e-9 && h < (e.endH ?? Infinity));
+const cardiacAt = (r: SimResult, h: number) => r.cascade.events.find((e) => /^cardiac(_\d+)?$/.test(e.id) && e.onsetH <= h + 1e-9 && h < (e.endH ?? Infinity));
 
 describe('R3-4: the cardiac warning calls a comatose stroke severe', () => {
   it('top of the basilar (coma) and a cerebellar infarct that swells into coma', () => {
@@ -260,7 +277,8 @@ describe('R3-4: the cardiac warning calls a comatose stroke severe', () => {
         comaSeen ||= coma;
         const e = cardiacAt(r, h)!;
         expect(e, `${c} ${h} h`).toBeDefined();
-        if (!comaSeen && r.volumes.finalInfarct < 60) {
+        // (Y3-5: severity is clinical — an NIHSS of 16 or more, or stupor or coma — not the volume)
+        if (!comaSeen && r.nihss.total < 16) {
           expect(e.desc.en, `${c} ${h} h (NIHSS ${r.nihss.total})`).not.toContain('This is a severe stroke');
           expect(e.desc.zh, `${c} ${h} h`).not.toContain('這是嚴重的中風');
           expect(e.severity, `${c} ${h} h`).toBe(e.regions.length ? 'warn' : 'info');

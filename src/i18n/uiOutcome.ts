@@ -5,7 +5,7 @@
  */
 
 import type { Lang } from '../anatomy/types';
-import type { FatalRisk } from '../engine/cascade';
+import type { FatalRisk, SurvivalCaveat } from '../engine/cascade';
 import type { DeficitGroup } from '../ui/finalOutcome';
 
 export interface OutcomeStrings {
@@ -57,6 +57,8 @@ export interface OutcomeStrings {
   at6mIfSurvives: string;
   /** shown next to the NIHSS: what usually happens instead, and that the figures assume survival */
   fatal: Record<FatalRisk, string>;
+  /** shown next to the NIHSS: a state with a substantial mortality of its own, the figures a survivor's (Y3-11) */
+  survival: Record<SurvivalCaveat, string>;
   // ── deficits ──
   deficitsTitle: string;
   deficitsAt: string;
@@ -98,9 +100,9 @@ const zh: OutcomeStrings = {
   rowNihss3: 'NIHSS（3 個月）',
   rowNihss6: 'NIHSS（6 個月）',
   rowLasting: '6 個月時的缺損',
-  rowLastingNote: '列出的缺損，加上意識下降、目前無法檢查但仍存在的缺損',
-  rowFatal: { herniation: '很可能死亡（疝脫）', posterior_fossa: '危及生命（腦幹受壓、未手術）' },
-  fatalYes: { herniation: '很可能', posterior_fossa: '是' },
+  rowLastingNote: '列出的缺損，加上意識下降、目前無法檢查但仍存在的缺損；標示「可能出現」的晚期表現不算在內',
+  rowFatal: { herniation: '很可能死亡（疝脫）', posterior_fossa: '危及生命（腦幹受壓、未手術）', basilar: '常會死亡（基底動脈未打通、昏迷）' },
+  fatalYes: { herniation: '很可能', posterior_fossa: '是', basilar: '常會' },
   fatalNo: '—',
   items: (n) => `${n} 項`,
   compareNote: '「未治療」是同樣的阻塞、但沒有打通血管的模擬。',
@@ -117,6 +119,14 @@ const zh: OutcomeStrings = {
       '未減壓的天幕切跡疝脫通常致命：完整中大腦動脈區梗塞的 55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）；三個隨機試驗的合併分析中，沒有手術的一年存活率只有 29%（手術 78%；Vahedi 2007）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是假如病人存活（少數）的結果；存活者多數仍可達 mRS 0–4。',
     posterior_fossa:
       '小腦腫脹壓迫腦幹而昏迷、又沒有枕下減壓，會危及生命；AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除。不手術的死亡率沒有可靠的數字（研究沒有未手術的昏迷對照組）。模型不模擬死亡：下面的 NIHSS 是假如病人存活的結果。',
+    basilar:
+      '基底動脈阻塞沒有打通、又有木僵、昏迷或意識障礙時，常會致命：兩個取栓試驗中只接受內科治療的對照組，90 天死亡率是 55%（ATTENTION）與 42%（BAOCHE）；一個病例系列的系統性分析中，沒有再通的病人幾乎沒有好的預後（約 2%）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果。',
+  },
+  survival: {
+    locked_in:
+      '閉鎖症候群的死亡率不低：早年 139 例的文獻回顧中報告的死亡率約 60%，血管性病因的存活預後比非血管性的差，呼吸與肺部照護不可少。這不是「通常致命」，但下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果，不是確定的結局。',
+    bilateral_medulla:
+      '雙側延髓內側梗塞的預後差：38 例的系統性回顧中，住院死亡率 23.8%、需要他人照顧 61.9%（呼吸衰竭是風險之一）。下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果，不是確定的結局。',
   },
   deficitsTitle: '留下的缺損',
   deficitsAt: '時間點',
@@ -161,9 +171,13 @@ const en: OutcomeStrings = {
   rowNihss3: 'NIHSS (3 months)',
   rowNihss6: 'NIHSS (6 months)',
   rowLasting: 'Deficits at 6 months',
-  rowLastingNote: 'The deficits listed, plus those still there that cannot be examined at the patient’s level of consciousness',
-  rowFatal: { herniation: 'Death likely (herniation)', posterior_fossa: 'Life-threatening (brainstem compression, no surgery)' },
-  fatalYes: { herniation: 'likely', posterior_fossa: 'yes' },
+  rowLastingNote: 'The deficits listed, plus those still there that cannot be examined at the patient’s level of consciousness; late signs listed as “Possible” are not counted',
+  rowFatal: {
+    herniation: 'Death likely (herniation)',
+    posterior_fossa: 'Life-threatening (brainstem compression, no surgery)',
+    basilar: 'Often fatal (basilar not reopened, coma)',
+  },
+  fatalYes: { herniation: 'likely', posterior_fossa: 'yes', basilar: 'often' },
   fatalNo: '—',
   items: (n) => `${n}`,
   compareNote: '"Untreated" is the same occlusion simulated without reopening the artery.',
@@ -180,6 +194,14 @@ const en: OutcomeStrings = {
       'Transtentorial herniation without decompression is usually fatal: of 55 patients with complete MCA-territory infarction 78% died of herniation and brain death (Hacke 1996); in the pooled analysis of three randomised trials 1-year survival without surgery was only 29% (78% with it; Vahedi 2007). The model does not represent death: the 3- and 6-month NIHSS below are those of a patient who survives (a minority); most survivors still reach mRS 0–4.',
     posterior_fossa:
       'Coma from a swollen cerebellum compressing the brainstem, without suboccipital decompression, is life-threatening; the AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate. There is no reliable figure for mortality without surgery (the studies had no untreated comatose control group). The model does not represent death: the NIHSS below is that of a patient who survives.',
+    basilar:
+      'A basilar-artery occlusion that is not reopened, with stupor, coma or a disorder of consciousness, is often fatal: in the control arms of two thrombectomy trials, with medical care alone, 90-day mortality was 55% (ATTENTION) and 42% (BAOCHE); in a systematic analysis of case series a good outcome without recanalisation was close to nil (about 2%). The model does not represent death: the 3- and 6-month NIHSS below are those of a patient who survives.',
+  },
+  survival: {
+    locked_in:
+      'Locked-in syndrome carries a substantial mortality: the reported mortality was about 60% in an early review of 139 cases, with a worse outlook for survival when the cause was vascular than when it was not, and pulmonary care is essential. It is not "usually fatal", but the 3- and 6-month NIHSS below are those of a patient who survives, not a certain outcome.',
+    bilateral_medulla:
+      'Bilateral medial medullary infarction has a poor outcome: in a systematic review of 38 cases inpatient mortality was 23.8% and dependency 61.9% (respiratory failure is one of the risks). The 3- and 6-month NIHSS below are those of a patient who survives, not a certain outcome.',
   },
   deficitsTitle: 'Lasting deficits',
   deficitsAt: 'Time point',

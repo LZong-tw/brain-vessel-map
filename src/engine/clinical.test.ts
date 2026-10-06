@@ -48,10 +48,7 @@ describe('NIHSS "uncaptured" flag', () => {
 describe('NIHSS item rules', () => {
   type Sym = { id: string; side: Side | 'both' | null; sev: 1 | 2 | 3; sources?: string[] };
   const items = (...list: Sym[]) =>
-    estimateNihss(
-      list.map((s) => ({ id: s.id, side: s.side, sev: s.sev, sources: s.sources ?? [], delayed: false })),
-      [],
-    ).items;
+    estimateNihss(list.map((s) => ({ id: s.id, side: s.side, sev: s.sev, sources: s.sources ?? [], delayed: false }))).items;
   const scenario = (id: string, tH: number) => {
     const sc = SCENARIOS.find((s) => s.id === id)!;
     return simulate({

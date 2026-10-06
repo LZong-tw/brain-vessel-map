@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { SymptomItem } from '../engine/clinical';
 import type { Occlusion } from '../engine/hemodynamics';
@@ -85,8 +86,10 @@ describe('treated vs untreated', () => {
     expect(out.course.m3.input.tH).toBe(2160);
     expect(out.course.m6.input.tH).toBe(4320);
     // lasting deficits = symptoms still present at 6 months, listed or there but not examinable
-    // at the patient's level of consciousness (X1-2)
-    const deficits = (r: ReturnType<typeof at>) => r.symptoms.length + r.unexaminable.length;
+    // at the patient's level of consciousness (X1-2), but not a late sign listed only as possible
+    // (Y3-9: pathological crying, central pain …)
+    const deficits = (r: ReturnType<typeof at>) => [...r.symptoms, ...r.unexaminable].filter((x) => !SYMPTOM_BY_ID[x.id].possible).length;
+    expect(at(4320, 2).symptoms.some((x) => SYMPTOM_BY_ID[x.id].possible)).toBe(true);
     expect(out.course.lasting).toBe(deficits(at(4320, 2)));
     expect(out.untreated!.lasting).toBe(deficits(at(4320, null)));
     expect(out.untreated!.finalInfarct).toBeCloseTo(at(4320, null).volumes.finalInfarct, 6);
@@ -101,7 +104,7 @@ describe('treated vs untreated', () => {
     expect(u.m6.symptoms.map((x) => x.id)).toContain('disorder_of_consciousness');
     expect(u.m6.unexaminable.length).toBeGreaterThan(0);
     expect(tip.course.m6.unexaminable).toEqual([]);
-    expect(u.lasting).toBe(u.m6.symptoms.length + u.m6.unexaminable.length);
+    expect(u.lasting).toBe([...u.m6.symptoms, ...u.m6.unexaminable].filter((x) => !SYMPTOM_BY_ID[x.id].possible).length);
     expect(u.lasting).toBeGreaterThan(tip.course.lasting);
   });
 

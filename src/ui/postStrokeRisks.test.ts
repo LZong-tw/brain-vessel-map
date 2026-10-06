@@ -136,8 +136,12 @@ describe('no personalised number', () => {
     expect(thal.nihss.category).toBe('minor');
     expect(caseNotes(risk('depression'), thal)).toEqual([]);
     // risks whose sources name no factor the model has get no note
-    for (const id of ['anxiety', 'fatigue', 'insomnia', 'sleep_apnoea', 'emotionalism', 'dementia'])
+    for (const id of ['anxiety', 'fatigue', 'insomnia', 'sleep_apnoea', 'dementia'])
       expect(caseNotes(risk(id) as PostStrokeRisk, m6)).toEqual([]);
+    // Y3-9: emotionalism gets one when the case lists it as possible, from a site linked to it
+    // (the frontal lobe here), so the population figure does not stand beside it unexplained
+    expect(m6.symptoms.map((s) => s.id)).toContain('emotionalism');
+    expect(caseNotes(risk('emotionalism'), m6).map((n) => n.en)).toEqual([expect.stringMatching(/names it as possible; lesions there are associated with a higher risk/)]);
   });
 
   // X1-12: memory and initiative cannot be examined in a disorder of consciousness and are not

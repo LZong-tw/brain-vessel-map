@@ -328,6 +328,11 @@ export interface SymptomDef {
   /** a late consequence of dead tissue (not in the acute NIHSS), from `onsetH` or 2 weeks */
   delayed?: boolean;
   /**
+   * a late consequence that only some patients develop, even after a lesion at its site: listed as
+   * a possibility (its name says so), and not counted among the lasting deficits (Y3-9)
+   */
+  possible?: boolean;
+  /**
    * appears only where tissue has died (from the start, not only in the chronic phase): for a
    * deficit described after infarcts but not during passing ischaemia
    */

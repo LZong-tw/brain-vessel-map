@@ -80,7 +80,21 @@ export interface EventSymptom {
   untilH?: number;
 }
 
-export type FatalRisk = 'herniation' | 'posterior_fossa';
+/**
+ * A course that usually or often ends in death, which the model does not represent: a
+ * transtentorial herniation without decompression, coma from a swollen cerebellum without
+ * suboccipital decompression, or a basilar occlusion that is not reopened, with stupor, coma or a
+ * disorder of consciousness (Y3-11).
+ */
+export type FatalRisk = 'herniation' | 'posterior_fossa' | 'basilar';
+
+/**
+ * A lighter caveat: a state with a substantial mortality in its own series, whose 3- and 6-month
+ * picture is that of a survivor (Y3-11): a locked-in syndrome that does not clear when blood
+ * returns (about 60 % in an early review: Patterson & Grabois 1986), and a bilateral medial
+ * medullary infarct (in-hospital mortality 23.8 %: Pongmoragot 2013).
+ */
+export type SurvivalCaveat = 'locked_in' | 'bilateral_medulla';
 
 export type BedEffectKind = 'secondary' | 'compressed' | 'diaschisis' | 'degeneration';
 
@@ -141,14 +155,27 @@ export interface CascadeInput {
   /** mean arterial pressure (mmHg); left out, no blood-pressure note */
   map?: number;
   /**
-   * what the case's symptom list shows in the first two weeks (R3-1), and the brainstem labels
-   * over the whole course (X2-10): simulate() samples it in a second pass, so the aspiration
-   * warning, the cardiac severity and the brainstem consciousness events follow the listed
-   * deficits and labels exactly (lacunes and deficits that appear later included). Left out (the
-   * first pass), there is no aspiration warning and no brainstem consciousness event, and "severe"
-   * rests on the volume and locked-in state.
+   * what the case's symptom list shows in the first two weeks of each lesion (R3-1, Y3-19), from
+   * day 2 to day 30 of each lesion (Y3-7), and the brainstem labels over the whole course (X2-10):
+   * simulate() samples it in a second pass, so the aspiration, cardiac and venous-thrombosis
+   * warnings and the brainstem consciousness events follow the listed deficits and labels exactly
+   * (lacunes and deficits that appear later included). Left out (the first pass), there is no
+   * aspiration or venous-thrombosis warning and no brainstem consciousness event, and the cardiac
+   * warning runs for the index lesion without calling it severe.
    */
   listed?: ListedCourse;
+  /**
+   * per region, when it first became ischaemic (clinical clock; before the index onset for an
+   * earlier lesion): the central-fever risk of the brainstem tegmentum starts with its own lesion
+   * (Y3-19). Left out, every lesion dates from the index onset.
+   */
+  regionOnsetH?: Record<string, number>;
+  /**
+   * a complete basilar occlusion of the case is never reopened lastingly (no treatment, a failed
+   * one, a reocclusion, and no reopening by itself): with stupor or coma listed, the course is
+   * often fatal (Y3-11)
+   */
+  basilarNotReopened?: boolean;
   /**
    * the midline shift the oedema model (engine/edema.ts) gives a malignant hemispheric oedema
    * without decompression, per side of the swelling, worked out by simulate(): an uncal
@@ -160,25 +187,55 @@ export interface CascadeInput {
 }
 
 /**
- * One stretch of the first two weeks in which the symptom list shows what makes swallowing
+ * One stretch of a lesion's first two weeks in which the symptom list shows what makes swallowing
  * unsafe (clinical clock): dysphagia, or else a reduced level of consciousness (somnolence, stupor
  * or coma, a disorder of consciousness).
  */
 export interface SwallowStretch {
   kind: 'dysphagia' | 'drowsy';
   fromH: number;
-  /** when the list first shows something else, or null: still listed at the end of the two weeks */
-  untilH: number | null;
+  /** when the list first shows something else, or the end of the lesion's two weeks */
+  untilH: number;
   /** the regions the listed dysphagia comes from */
   regions: string[];
 }
 
-/** what the symptom list shows over the first two weeks after onset (clinical clock) */
-export interface ListedCourse {
-  /** the stretches with dysphagia or reduced consciousness, in time order, none overlapping (X3-1, X3-3) */
-  swallow: SwallowStretch[];
+/**
+ * The first two weeks of a lesion (clinical clock; those of lesions less than two weeks apart
+ * merged), in which the aspiration and cardiac warnings run (Y3-19). A lesion is the index onset,
+ * or another occlusion start that leaves an infarct of its own.
+ */
+export interface ListedWindow {
+  fromH: number;
+  untilH: number;
   /** when stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness, is first listed, or null */
   comaFromH: number | null;
+  /**
+   * when the stroke is first severe (Prosser 2007's predictor is clinical severity; Y3-5): an
+   * NIHSS of 16 or more, or stupor, coma or a disorder of consciousness listed; null: never
+   */
+  severeFromH: number | null;
+  /** it became severe by stupor or coma (not by the NIHSS alone) */
+  severeByComa: boolean;
+  /** when it stops being severe for the rest of the window (a deficit cleared by a reopening), or null */
+  severeEndH: number | null;
+  /** the insular cortex acutely ischaemic (≥ 30 %) at a lesion onset in the window */
+  insula: string[];
+}
+
+/** what the symptom list shows after each lesion (clinical clock) */
+export interface ListedCourse {
+  /** the stretches with dysphagia or reduced consciousness, in time order, none overlapping (X3-1, X3-3, Y3-19) */
+  swallow: SwallowStretch[];
+  /** the first two weeks of each lesion, in time order, none overlapping */
+  windows: ListedWindow[];
+  /**
+   * the stretches from day 2 to day 30 of a lesion in which the patient is immobile (Y3-7): a leg
+   * that is barely or not at all lifted against gravity (leg weakness of severity 2 or more), stupor
+   * or coma, a disorder of consciousness, or a moderate or severe akinetic mutism — the patients who
+   * cannot walk to the toilet unaided (CLOTS 3)
+   */
+  immobile: { fromH: number; untilH: number }[];
   /**
    * the brainstem consciousness course the labels show (X2-7, X2-10, X2-11, X2-15): coma with
    * quadriplegia, a disorder of consciousness after it, classical or incomplete locked-in syndrome,
@@ -520,11 +577,17 @@ export interface CascadeOutput {
   /** when the acute obstructive episode is over (the 'hydrocephalus' event's endH) */
   hydrocephalusEndH: number | null;
   /**
-   * courses that usually end in death, which the model does not represent: a transtentorial
-   * herniation without decompression, or brainstem compression with coma from a swollen
-   * cerebellum without suboccipital decompression (C4-F1). The late course then assumes survival.
+   * courses that usually or often end in death, which the model does not represent: a
+   * transtentorial herniation without decompression, brainstem compression with coma from a
+   * swollen cerebellum without suboccipital decompression (C4-F1), or a basilar occlusion that is
+   * not reopened, with stupor or coma (Y3-11). The late course then assumes survival.
    */
   fatalRisk: FatalRisk[];
+  /**
+   * states with a substantial mortality of their own, not usually fatal (Y3-11): the late course
+   * is that of a survivor. Left empty when a fatal risk already says so.
+   */
+  survivalCaveat: SurvivalCaveat[];
   /**
    * from when a palatal tremor may be listed (h), or null: only after a clear infarct of the
    * dentate nucleus, the red nucleus region or the pontine tegmentum (C3-F11)
@@ -1160,6 +1223,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // Both hemispheres infarcted to a size that gives mass effect (Y2-13): their swelling is counted
   // together (edema.massEffectMm: it pushes the brain down rather than across), so together they
   // can reach the malignant course and the coma range although the midline hardly moves
+  /** texts that quote the final volumes, written once the herniations' secondary infarcts are placed (Y3-3) */
+  const withVolumes: ((wholeMl: number, secondaryMl: Record<Side, number>) => void)[] = [];
   const bothSwell = vol.supra.r >= MASS_EFFECT_ML && vol.supra.l >= MASS_EFFECT_ML;
   const jointMalignant = bothSwell && (earlySupra.r + earlySupra.l >= MALIGNANT_EARLY_ML || vol.supra.r + vol.supra.l >= MALIGNANT_FINAL_ML);
   for (const s of ['r', 'l'] as Side[]) {
@@ -1216,7 +1281,16 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
                     (peakMm ?? 0) >= STUPOR_SHIFT_MM ? ': the patient becomes stuporous' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? ': the patient becomes drowsy' : ', too little to lower consciousness'
                   }, and does not herniate. A lesion this size is still at high risk; in practice it is watched closely and decompression is considered (the trials operated within 48 h).`,
                 };
-      events.push({
+      // The volumes (Y3-3): the early lesion is the risk criterion; "in the end" is the figure the
+      // Outcome tab shows as the final infarct — with the infarcts the herniation adds (the ACA and
+      // PCA territories it compresses), when it adds any, which are known only once its effects
+      // are placed (withVolumes below)
+      const early = earlySupra[s].toFixed(0);
+      const rest = {
+        zh: `腫脹的半球把中線推向對側，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
+        en: ` The swollen hemisphere pushes the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
+      };
+      const event: CascadeEvent = {
         id: `malignant_edema_${s}`,
         kind: 'secondary',
         severity: 'danger',
@@ -1228,12 +1302,32 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           decompression || herniates
             ? { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` }
             : { zh: `${sideZh}大腦半球：惡性腦水腫高風險`, en: `${sideEn === 'right' ? 'Right' : 'Left'} hemisphere: high risk of malignant oedema` },
-        desc: {
-          zh: `發病 14 小時內的梗塞已約 ${earlySupra[s].toFixed(0)} mL（> 145 mL 為惡性水腫高風險），最終約 ${v.toFixed(0)} mL。腫脹的半球把中線推向對側，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
-          en: `Infarct ≈ ${earlySupra[s].toFixed(0)} mL within 14 h (> 145 mL carries high risk), ≈ ${v.toFixed(0)} mL in the end. The swollen hemisphere pushes the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
-        },
+        desc: { zh: '', en: '' },
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
+      };
+      withVolumes.push((wholeMl, secondaryMl) => {
+        const primary = v.toFixed(0);
+        const withSecondary = (v + secondaryMl[s]).toFixed(0);
+        const shown = secondaryMl[s] >= 0.5 ? withSecondary : primary;
+        // other infarcts (the other hemisphere, the posterior fossa) make the whole brain's figure larger
+        const whole = wholeMl.toFixed(0);
+        const own = whole !== shown;
+        const note = own
+          ? { zh: `（全腦合計約 ${whole} mL，即「最終」頁的最終梗塞）`, en: ` (≈ ${whole} mL in the whole brain, the final infarct on the Outcome tab)` }
+          : { zh: '', en: '' };
+        const here = own ? { zh: '這一側', en: ' in this hemisphere' } : { zh: '', en: '' };
+        event.desc =
+          secondaryMl[s] >= 0.5
+            ? {
+                zh: `發病 14 小時內的原發梗塞已約 ${early} mL（> 145 mL 為惡性水腫高風險），${here.zh}最終約 ${primary} mL；加上疝脫造成的續發梗塞，${here.zh}最終約 ${withSecondary} mL${note.zh}。${rest.zh}`,
+                en: `Primary infarct ≈ ${early} mL within 14 h (> 145 mL carries high risk), ≈ ${primary} mL${here.en} in the end; with the secondary infarcts from the herniation ≈ ${withSecondary} mL${here.en} in the end${note.en}.${rest.en}`,
+              }
+            : {
+                zh: `發病 14 小時內的梗塞已約 ${early} mL（> 145 mL 為惡性水腫高風險），${here.zh}最終約 ${primary} mL${note.zh}。${rest.zh}`,
+                en: `Infarct ≈ ${early} mL within 14 h (> 145 mL carries high risk), ≈ ${primary} mL${here.en} in the end${note.en}.${rest.en}`,
+              };
       });
+      events.push(event);
       if (decompression) {
         events.push({
           id: `hemicraniectomy_${s}`,
@@ -1580,10 +1674,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           zh: `血流在發作後 ${formatHours(h, 'zh-TW')}恢復，兩側沒有形成梗塞：這個狀態隨之解除。`,
           en: ` Blood returned ${formatHours(h, 'en')} after onset before both sides infarcted, so the state resolves then.`,
         };
-  // locked-in once the ventral pons is infarcted on both sides; the tegmentum (arousal) failing on
-  // both sides as well gives coma, not locked-in (C3-F1)
-  const lockedIn = bilateral(acute, PONS_BASIS);
-  const tegmentalComa = bilateral(acute, PONS_TEG_ROSTRAL) || bilateral(acute, MIDBRAIN_PARAMEDIAN);
+  // the tegmentum (arousal) failing on both sides gives coma (C3-F1): acutely ischaemic at the index
+  // onset, or at the onset of a lesion of its own before or after it (Y3-19)
+  const ischaemicOnBoth = ([r, l]: [string, string]) =>
+    (acute(r) || input.regionOnsetH?.[r] !== undefined) && (acute(l) || input.regionOnsetH?.[l] !== undefined);
   // extensive damage to the tegmentum of both sides: a disorder of consciousness follows the coma
   // from two weeks on (clinical.ts comaBecomes, the same threshold; C3-F2)
   const persistentDoc = bilateral((r) => infarcted(r, 0.5), PONS_TEG_ROSTRAL) || bilateral((r) => infarcted(r, 0.5), MIDBRAIN_PARAMEDIAN);
@@ -1622,15 +1716,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // Neurol 2009;62:86–92). A risk, not a symptom: fever after a stroke is mostly infection (Grau AJ
   // et al. J Neurol Sci 1999;171:115–120).
   const extensive = (r: string) => infarcted(r, 0.5);
-  const hyperthermiaRisk = tegmentalComa && (bilateral(extensive, PONS_TEG_ROSTRAL) || bilateral(extensive, MIDBRAIN_PARAMEDIAN));
-  if (hyperthermiaRisk) {
+  // from the onset of the tegmental lesion itself (Y3-19): when the second of its two halves became
+  // ischaemic (a stacked basilar occlusion a month before or after the index event has its own),
+  // the bilateral tegmental coma of Parvizi & Damasio 2003
+  const hotPairs = [...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].filter((p) => ischaemicOnBoth(p) && extensive(p[0]) && extensive(p[1]));
+  if (hotPairs.length) {
+    const lesionH = (rid: string) => input.regionOnsetH?.[rid] ?? 0;
+    const fromH = Math.min(...hotPairs.map(([r, l]) => Math.max(lesionH(r), lesionH(l))));
     events.push({
       id: 'central_hyperthermia',
       kind: 'complication',
       severity: 'warn',
-      onsetH: 0,
-      peakH: 24,
-      endH: 336,
+      onsetH: fromH,
+      peakH: fromH + 24,
+      endH: fromH + 336,
       title: { zh: '中樞性高熱的風險（腦幹被蓋兩側受損）', en: 'Risk of central hyperthermia (brainstem tegmentum on both sides)' },
       desc: {
         zh: '上橋腦（或中腦—視丘旁正中）被蓋兩側大範圍受損又昏迷時，體溫調節可能失控：發病頭一天內體溫急升到 39 °C 以上、劇烈起伏，退燒藥可能無效。缺血性中風後這很少見（74 位中樞性高熱病人中只有 4% 是大範圍皮質梗塞、3% 是基底動脈阻塞，其餘是出血），而且是排除診斷：中風後發燒要先找感染（肺炎、尿路感染），找過都沒有才考慮中樞性。預後很差：一項腦幹昏迷研究的 9 位中有 4 位出現高熱、在沒有感染下死亡；另一個系列近 70% 在一個月內死亡。',
@@ -1692,6 +1791,43 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
   }
 
+  // A basilar occlusion that is not reopened, with stupor, coma or a disorder of consciousness
+  // (Y3-11): 90-day mortality with medical care alone was 55 % in ATTENTION (Tao C et al. N Engl J
+  // Med 2022;387:1361-1372, PMID 36239644; within 12 h) and 42 % in BAOCHE (Jovin TG et al. N Engl
+  // J Med 2022;387:1373-1384, PMID 36239645; 6-24 h), the control arms; without recanalisation a
+  // good outcome was close to nil, about 2 % (Lindsberg PJ, Mattle HP. Stroke 2006;37:922-928, PMID
+  // 16439705). The model does not represent death, so the rest of the course is a survivor's.
+  const comaWindow = input.listed?.windows.find((w) => w.comaFromH !== null);
+  if (input.basilarNotReopened && comaWindow) {
+    fatalRisk.add('basilar');
+    events.push({
+      id: 'basilar_fatal',
+      kind: 'secondary',
+      severity: 'danger',
+      onsetH: comaWindow.comaFromH!,
+      title: { zh: '基底動脈沒有打通又昏迷：常會致命', en: 'Basilar artery not reopened, with coma: often fatal' },
+      desc: {
+        zh: '基底動脈阻塞沒有打通、又有木僵、昏迷或意識障礙時，常會致命：兩個取栓試驗中只接受內科治療的對照組，90 天死亡率是 55%（ATTENTION，發作 12 小時內）與 42%（BAOCHE，6–24 小時）；一個病例系列的系統性分析中，沒有再通的病人幾乎沒有好的預後（約 2%）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是「假如病人存活」的情況。',
+        en: 'A basilar-artery occlusion that is not reopened, with stupor, coma or a disorder of consciousness, is often fatal: in the control arms of two thrombectomy trials, with medical care alone, 90-day mortality was 55% (ATTENTION, within 12 h of onset) and 42% (BAOCHE, 6–24 h); in a systematic analysis of case series a good outcome without recanalisation was close to nil (about 2%). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show what happens if the patient survives.',
+      },
+      regions: [],
+    });
+  }
+  // A lighter caveat where the cascade gives no fatal risk (Y3-11): a locked-in syndrome that does
+  // not clear when blood returns (mortality about 60 % in an early review of 139 cases: Patterson &
+  // Grabois 1986, above) and both medial medullae infarcted (in-hospital mortality 23.8 % in a
+  // systematic review of 38 cases: Pongmoragot J et al. J Stroke Cerebrovasc Dis 2013;22:775-780,
+  // PMID 22541608) — not "usually fatal", but the 3- and 6-month picture is a survivor's
+  const survival = new Set<SurvivalCaveat>();
+  const bc = input.listed?.brainstem;
+  if (
+    bc?.segments.some(
+      (g) => (g.state === 'classical' || g.state === 'incomplete') && !(g.untilH !== null && bc.reopenH.some((h) => Math.abs(h - g.untilH!) < 1e-6)),
+    )
+  )
+    survival.add('locked_in');
+  if (bilateral((r) => finalLevel(r) >= SIGNS_THR, [['medulla_medial_r', 'medulla_medial_l']])) survival.add('bilateral_medulla');
+
   // ── 6. systemic complications ──────────────────────────────────
   // The aspiration risk follows what the case lists (C1-F4, R3-1 … R3-3): dysphagia (one-sided
   // hemispheric, lacunar and later-appearing ones included) or a reduced level of consciousness,
@@ -1706,19 +1842,27 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // depending on how it was tested (Martino 2005), so the swallow is screened anyway — titling it
   // "dysphagia" from onset when the dysphagia appears only on day 3 named a deficit the case did
   // not show (X3-3).
+  // With stacked occlusions each lesion that leaves an infarct has its own two weeks, from its own
+  // onset (Y3-19): a basilar occlusion a month before the index M1 lists dysphagia and coma from
+  // its onset, so its warning runs then, not from the M1.
   // A TIA (blood back before any tissue died) leaves no swallowing problem or immobility behind:
   // its symptoms clear when the flow returns, so the complications of a lasting deficit (aspiration,
   // venous thrombosis) are not told for it; ischaemia that lasts without infarction keeps them
   const tia = noInfarct && input.flowReturnsH != null;
   const listed = input.listed;
   const largeSupra = vol.supra.r + vol.supra.l > 60;
+  /** the lesion window that contains the index onset */
+  const indexWindow = listed?.windows.find((w) => w.fromH <= 1e-9 && w.untilH > 1e-9);
   if (listed && !tia) {
     // (a locked-in patient's dysphagia is in the list from the start, so it needs no rule of its own)
     const stretches = listed.swallow;
-    const phases: { kind: SwallowStretch['kind'] | 'screen'; fromH: number; untilH: number | null; regions: string[] }[] = [];
-    const firstH = stretches.length ? stretches[0].fromH : null;
-    if (largeSupra && (firstH === null || firstH > 0)) phases.push({ kind: 'screen', fromH: 0, untilH: firstH, regions: [] });
-    phases.push(...stretches);
+    const phases: { kind: SwallowStretch['kind'] | 'screen'; fromH: number; untilH: number; regions: string[] }[] = [...stretches];
+    const covered = stretches.some((st) => st.fromH <= 1e-9 && st.untilH > 1e-9);
+    if (largeSupra && indexWindow && !covered) {
+      const next = stretches.find((st) => st.fromH > 0 && st.fromH < indexWindow.untilH);
+      phases.push({ kind: 'screen', fromH: 0, untilH: next ? next.fromH : indexWindow.untilH, regions: [] });
+    }
+    phases.sort((a, b) => a.fromH - b.fromH);
     phases.forEach((ph, i) => {
       const { kind } = ph;
       events.push({
@@ -1726,7 +1870,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         kind: 'complication',
         severity: 'warn',
         onsetH: ph.fromH,
-        endH: Math.min(ph.untilH ?? 336, 336),
+        endH: ph.untilH,
         title:
           kind === 'dysphagia'
             ? { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' }
@@ -1768,44 +1912,74 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // 2017;81:502-511, PMID 28253544; left insula and adverse cardiac outcome at 1 year: Laowattana S
   // et al. Neurology 2006;66:477-483, PMID 16505298). Prolonged monitoring newly finds atrial
   // fibrillation in 23.7 % (Sposato LA et al. Lancet Neurol 2015;14:377-387, PMID 25748102) —
-  // cause-finding, not a complication. "Severe" stands for stroke severity: a large infarct
-  // (≥ 60 mL) or a locked-in state from onset, and stupor or coma from when the symptom list first
-  // shows it in the first two weeks (R3-4: a comatose top-of-the-basilar or swollen cerebellar
-  // stroke is severe whatever its volume). Until then the warning does not call the stroke severe:
-  // a cerebellar infarct that swells into coma on day 2 is a mild, alert stroke before that (X3-4),
-  // so the warning has a second stretch, 'cardiac_2', from the stupor on.
+  // cause-finding, not a complication. "Severe" is Prosser's predictor, the stroke's clinical
+  // severity, read from the symptom list (Y3-5): an NIHSS of 16 or more (the scale's
+  // moderate-to-severe and severe bands here), or stupor, coma or a disorder of consciousness —
+  // not the infarct volume, which the study did not analyse (a 135-mL ACA infarct with an NIHSS of
+  // 6 is not a severe stroke; a 58-mL M1 infarct with an NIHSS of 17–23 is). The warning is not
+  // called severe before the list shows it (X3-4: a cerebellar infarct that swells into coma on
+  // day 2 is an alert, mild stroke before that), and once a reopening has cleared the deficit for
+  // the rest of the two weeks it says the stroke was severe, not that it is. One warning per
+  // lesion's two weeks (Y3-19), split where these change.
   const brainInfarct = anyIschemia && !eyeOnly && !earInfarct && !noInfarct;
-  if (brainInfarct) {
-    const insula = (['insula_r', 'insula_l'] as const).filter((r) => acute(r, 0.3));
-    const severeFromH = vol.total >= 60 || lockedIn ? 0 : (listed?.comaFromH ?? null);
-    const sideZh = (r: string) => (r.endsWith('_r') ? '右' : '左');
-    const sideEn = (r: string) => (r.endsWith('_r') ? 'right' : 'left');
-    const stretches: { fromH: number; endH: number; severe: boolean }[] =
-      severeFromH !== null && severeFromH > 0 && severeFromH < 336
-        ? [
-            { fromH: 0, endH: severeFromH, severe: false },
-            { fromH: severeFromH, endH: 336, severe: true },
-          ]
-        : [{ fromH: 0, endH: 336, severe: severeFromH !== null && severeFromH < 336 }];
-    stretches.forEach(({ fromH, endH, severe }, i) => {
+  const insulaAcute = (['insula_r', 'insula_l'] as const).filter((r) => acute(r, 0.3));
+  const cardiacWindows: ListedWindow[] = listed
+    ? listed.windows
+    : brainInfarct
+      ? [{ fromH: 0, untilH: 336, comaFromH: null, severeFromH: null, severeByComa: false, severeEndH: null, insula: insulaAcute }]
+      : [];
+  const sideZh = (r: string) => (r.endsWith('_r') ? '右' : '左');
+  const sideEn = (r: string) => (r.endsWith('_r') ? 'right' : 'left');
+  /** what the warning says about severity, in each stretch of a window */
+  const severityText = (w: ListedWindow, state: 'none' | 'now' | 'past'): L => {
+    if (state === 'none' || w.severeFromH === null) return { zh: '', en: '' };
+    const fromOnset = w.severeFromH <= w.fromH + 1e-6;
+    if (state === 'now')
+      return fromOnset
+        ? {
+            zh: `這是嚴重的中風（${w.severeByComa ? '木僵或昏迷' : 'NIHSS 16 分以上'}），風險較高。`,
+            en: ` This is a severe stroke (${w.severeByComa ? 'stupor or coma' : 'an NIHSS of 16 or more'}), which carries a higher risk.`,
+          }
+        : {
+            zh: `這是嚴重的中風（${w.severeByComa ? '已出現木僵或昏迷' : 'NIHSS 已達 16 分以上'}），風險較高。`,
+            en: ` This is a severe stroke (${w.severeByComa ? 'it has brought stupor or coma' : 'its NIHSS has reached 16 or more'}), which carries a higher risk.`,
+          };
+    return fromOnset
+      ? { zh: '這次中風在發作時很嚴重，風險較高。', en: ' The stroke was severe at onset, which carries a higher risk.' }
+      : {
+          zh: `這次中風曾經很嚴重（${w.severeByComa ? '出現過木僵或昏迷' : 'NIHSS 曾達 16 分以上'}），風險較高。`,
+          en: ` The stroke was severe for a time (${w.severeByComa ? 'stupor or coma' : 'an NIHSS of 16 or more'}), which carries a higher risk.`,
+        };
+  };
+  let cardiacN = 0;
+  for (const w of cardiacWindows) {
+    // the index lesion's window only for a brain infarct (no eye or inner-ear infarct, no TIA)
+    if (w === indexWindow && !brainInfarct) continue;
+    const insula = w.insula;
+    const stretches: { fromH: number; endH: number; state: 'none' | 'now' | 'past' }[] = [];
+    if (w.severeFromH === null) stretches.push({ fromH: w.fromH, endH: w.untilH, state: 'none' });
+    else {
+      if (w.severeFromH > w.fromH + 1e-9) stretches.push({ fromH: w.fromH, endH: w.severeFromH, state: 'none' });
+      stretches.push({ fromH: w.severeFromH, endH: w.severeEndH ?? w.untilH, state: 'now' });
+      if (w.severeEndH !== null) stretches.push({ fromH: w.severeEndH, endH: w.untilH, state: 'past' });
+    }
+    for (const { fromH, endH, state } of stretches) {
+      const sev = severityText(w, state);
+      cardiacN++;
       events.push({
-        id: i === 0 ? 'cardiac' : `cardiac_${i + 1}`,
+        id: cardiacN === 1 ? 'cardiac' : `cardiac_${cardiacN}`,
         kind: 'complication',
-        severity: severe || insula.length > 0 ? 'warn' : 'info',
+        severity: state !== 'none' || insula.length > 0 ? 'warn' : 'info',
         onsetH: fromH,
         endH,
         title: { zh: '中風後的心臟：心律不整、心肌受損', en: 'The heart after a stroke: arrhythmia, cardiac injury' },
         desc: {
-          zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；較長時間的心律監測約可新發現四分之一的心房顫動——這是在找中風的原因，不是中風造成的併發症。${
-            severe ? (fromH > 0 ? '這是嚴重的中風（已出現木僵或昏迷），風險較高。' : '這是嚴重的中風，風險較高。') : ''
-          }${
+          zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；較長時間的心律監測約可新發現四分之一的心房顫動——這是在找中風的原因，不是中風造成的併發症。${sev.zh}${
             insula.length
               ? `梗塞包含${insula.map(sideZh).join('、')}側島葉：島葉參與心臟的自主神經控制，但哪一側比較重要，證據不一致——右側背前島葉與 troponin 上升有關，左側島葉與之後一年的心臟事件有關。`
               : ''
           }`,
-          en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; longer rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${
-            severe ? (fromH > 0 ? ' This is a severe stroke (it has brought stupor or coma), which carries a higher risk.' : ' This is a severe stroke, which carries a higher risk.') : ''
-          }${
+          en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; longer rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${sev.en}${
             insula.length
               ? ` The infarct involves the ${insula.map(sideEn).join(' and ')} insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.`
               : ''
@@ -1813,25 +1987,31 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         },
         regions: [...insula],
       });
-    });
+    }
   }
-  const legWeak = ['paracentral', 'ic_posterior_limb', 'midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis', 'medulla_medial'].some(
-    (b) => acute(`${b}_r`) || acute(`${b}_l`),
-  );
-  if (!tia && (legWeak || lockedIn)) {
-    events.push({
-      id: 'dvt',
-      kind: 'complication',
-      severity: 'warn',
-      onsetH: 48,
-      endH: 720,
-      title: { zh: '深部靜脈血栓與肺栓塞', en: 'Deep-vein thrombosis & pulmonary embolism' },
-      desc: {
-        zh: '癱瘓的腿不動，靜脈血流停滯形成血栓，可能流到肺部。需早期活動與間歇性氣動加壓。',
-        en: 'A paralysed leg does not pump venous blood; clots can form and travel to the lungs. Early mobilisation and intermittent pneumatic compression help.',
-      },
-      regions: [],
-    });
+  // Venous thrombosis follows immobility (Y3-7): the risk group is the patients who cannot walk to
+  // the toilet unaided, those enrolled from day 0 to 3 in CLOTS 3, where intermittent pneumatic
+  // compression lowered proximal deep-vein thrombosis within 30 days from 12.1 % to 8.5 % (CLOTS
+  // Trials Collaboration. Lancet 2013;382:516-524, PMID 23727163). From the symptom list, from day
+  // 2 to day 30 of each lesion: a leg barely or not lifted against gravity, stupor or coma, a
+  // disorder of consciousness or akinetic mutism; not after a deficit that cleared before day 2
+  // (a basilar occlusion reopened at 2 h), and ending when the patient can move again.
+  if (listed && !tia) {
+    listed.immobile.forEach((st, i) =>
+      events.push({
+        id: i === 0 ? 'dvt' : `dvt_${i + 1}`,
+        kind: 'complication',
+        severity: 'warn',
+        onsetH: st.fromH,
+        endH: st.untilH,
+        title: { zh: '深部靜脈血栓與肺栓塞', en: 'Deep-vein thrombosis & pulmonary embolism' },
+        desc: {
+          zh: '腿不動（癱瘓，或意識不清、幾乎不動）時，靜脈血流停滯形成血栓，可能流到肺部。高風險的是無法自己走到廁所的病人（CLOTS 3 試驗的收案條件；這個試驗中，間歇性氣動加壓讓 30 天內的近端深部靜脈血栓從 12.1% 降到 8.5%）。需早期活動與間歇性氣動加壓。模型從第 2 天起、在病人無法自己活動的期間顯示這個警示，最多到第 30 天。',
+          en: 'A leg that does not move — paralysed, or in a patient who is not awake enough to move — does not pump venous blood; clots can form and travel to the lungs. The patients at risk are those who cannot walk to the toilet unaided (the entry criterion of the CLOTS 3 trial, in which intermittent pneumatic compression lowered proximal deep-vein thrombosis within 30 days from 12.1% to 8.5%). Early mobilisation and intermittent pneumatic compression help. The model shows this warning from day 2 while the patient is immobile, up to day 30.',
+        },
+        regions: [],
+      }),
+    );
   }
   // Seizures (C4-F4). Early, acute symptomatic seizures (≤ 7 days): 4.1% after a first stroke,
   // lobar infarct 5.9% vs deep infarct 0.6%, status epilepticus in 27% of them, NIHSS not an
@@ -2138,8 +2318,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 4320,
       title: { zh: '神經可塑性與復原', en: 'Neuroplasticity & recovery' },
       desc: {
-        zh: `${fatalRisk.size ? (fatalRisk.has('herniation') ? '假如病人存活（未減壓時是少數）：' : '假如病人存活：') : ''}周圍與對側的腦區會重新分工，大部分自發性恢復發生在前 3 個月，之後仍可透過密集復健緩慢進步。死掉的神經元不會再生，恢復靠的是「重新接線」。`,
-        en: `${fatalRisk.size ? (fatalRisk.has('herniation') ? 'If the patient survives (a minority without decompression): s' : 'If the patient survives: s') : 'S'}urrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.`,
+        zh: `${fatalRisk.size || survival.size ? (fatalRisk.has('herniation') ? '假如病人存活（未減壓時是少數）：' : '假如病人存活：') : ''}周圍與對側的腦區會重新分工，大部分自發性恢復發生在前 3 個月，之後仍可透過密集復健緩慢進步。死掉的神經元不會再生，恢復靠的是「重新接線」。`,
+        en: `${fatalRisk.size || survival.size ? (fatalRisk.has('herniation') ? 'If the patient survives (a minority without decompression): s' : 'If the patient survives: s') : 'S'}urrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.`,
       },
       regions: [],
     });
@@ -2253,7 +2433,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   // ── 9. flow redistribution notes ──────────────────────────────
   // subclavian steal: basilar flow at rest (Harper C et al. J Vasc Surg 2008;48:859–864) and
-  // symptoms by arm pressure difference (Labropoulos N et al. Ann Surg 2010;252:166–170)
+  // symptoms by arm pressure difference (Labropoulos N et al. Ann Surg 2010;252:166–170); the
+  // phenomenon (reversed vertebral flow) and the syndrome (with symptoms) told apart (Osiro S et al.
+  // Med Sci Monit 2012;18:RA57-63; Y3-10)
   const rev = hemo.reversed;
   if (rev.some((v) => v.startsWith('va_'))) {
     events.push({
@@ -2263,8 +2445,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 0,
       title: { zh: '血流反轉：竊血現象', en: 'Flow reversal: steal' },
       desc: {
-        zh: '椎動脈血流倒流去供應手臂（鎖骨下竊血）。超音波上很常見，多半沒有症狀：手臂也能經胸壁與頸部的側枝得到血液，基底動脈通常仍由另一側椎動脈供應、維持順向。兩手血壓差超過 40–50 mmHg 時較常出現症狀——手臂用力時後循環血流被「偷走」而頭暈、視力模糊、走不穩，或手臂痠痛無力。',
-        en: 'Vertebral flow reverses to feed the arm (subclavian steal). It is common on ultrasound and usually without symptoms: the arm is also fed through chest-wall and neck collaterals, and the basilar artery usually keeps flowing forwards, fed by the other vertebral artery. Symptoms are more frequent when the arm pressures differ by more than 40–50 mmHg: exercising that arm "steals" posterior-circulation blood, causing dizziness, blurred vision or unsteadiness, or the arm itself tires and aches.',
+        zh: '椎動脈血流倒流去供應手臂（鎖骨下竊血「現象」；有症狀時才稱為竊血「症候群」）。超音波上很常見，多半沒有症狀：手臂也能經胸壁與頸部的側枝得到血液，基底動脈通常仍由另一側椎動脈供應、維持順向。兩手血壓差超過 40–50 mmHg 時較常出現症狀——手臂用力時後循環血流被「偷走」而頭暈、視力模糊、走不穩，或手臂痠痛無力。',
+        en: 'Vertebral flow reverses to feed the arm (the subclavian steal phenomenon; only with symptoms is it called the subclavian steal syndrome). It is common on ultrasound and usually without symptoms: the arm is also fed through chest-wall and neck collaterals, and the basilar artery usually keeps flowing forwards, fed by the other vertebral artery. Symptoms are more frequent when the arm pressures differ by more than 40–50 mmHg: exercising that arm "steals" posterior-circulation blood, causing dizziness, blurred vision or unsteadiness, or the arm itself tires and aches.',
       },
       regions: [],
     });
@@ -2287,11 +2469,18 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   events.sort((a, b) => a.onsetH - b.onsetH);
   // tissue that dies later from herniation / compression of other arteries (permanent effects)
   let secondaryLoss = 0;
+  // … per side of the herniation that causes it (the event ids end in the side)
+  const secondaryBySide: Record<Side, number> = { r: 0, l: 0 };
   for (const b of BEDS) {
     if (REGION_BY_ID[b.region].compartment === 'none') continue;
-    if ((bedEffects[b.id] ?? []).some((e) => e.kind === 'secondary' && e.endH === undefined))
-      secondaryLoss += (1 - (bedFinal[b.id] ?? 0)) * b.volume;
+    const lasting = (bedEffects[b.id] ?? []).filter((e) => e.kind === 'secondary' && e.endH === undefined);
+    if (!lasting.length) continue;
+    const ml = (1 - (bedFinal[b.id] ?? 0)) * b.volume;
+    secondaryLoss += ml;
+    const side = /_(r|l)$/.exec(lasting[0].event)?.[1] as Side | undefined;
+    if (side) secondaryBySide[side] += ml;
   }
+  withVolumes.forEach((write) => write(vol.total + secondaryLoss, secondaryBySide));
   return {
     events,
     bedEffects,
@@ -2300,6 +2489,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     hydrocephalusOnsetH,
     hydrocephalusEndH,
     fatalRisk: [...fatalRisk],
+    survivalCaveat: fatalRisk.size ? [] : [...survival],
     palatalTremorFromH,
   };
 }

@@ -1060,15 +1060,23 @@ export const SYNDROMES: SyndromeDef[] = [
     supersedes: ['watershed'],
   },
   {
+    // Named for the flow reversal, a vascular pattern (Y3-10): the haemodynamic steal phenomenon is
+    // the reversed vertebral flow; only with vertebrobasilar or arm symptoms is it the subclavian
+    // steal syndrome (Osiro S et al. Med Sci Monit 2012;18:RA57-63, PMID 22534720). Of 514 patients
+    // with an arm pressure difference above 20 mmHg (the screening threshold), 38 had symptoms — 32
+    // of the posterior circulation, 4 of arm and 2 of cardiac ischaemia — and differences above
+    // 40–50 mmHg went with symptoms (Labropoulos N et al. Ann Surg 2010;252:166-170, PMID 20531004).
+    // So it is marked clinically silent while no symptom is listed.
     id: 'subclavian_steal',
     group: 'other',
     lateral: true,
-    name: { zh: '鎖骨下動脈竊血症候群', en: 'Subclavian steal syndrome' },
+    name: { zh: '鎖骨下動脈竊血（血流反轉）', en: 'Subclavian steal (flow reversal)' },
     desc: {
-      zh: '鎖骨下動脈近端阻塞，同側椎動脈血流反轉去供應手臂。手臂用力時可能頭暈、視力模糊、走不穩；兩手血壓差超過 15–20 mmHg 是重要線索。',
-      en: 'The proximal subclavian is blocked, so the same-side vertebral artery flows backwards to feed the arm. Arm exercise can trigger dizziness, blurred vision or unsteadiness; a > 15–20 mmHg difference in arm blood pressures is a key clue.',
+      zh: '鎖骨下動脈近端狹窄或阻塞，同側椎動脈血流反轉去供應手臂：這是竊血「現象」，超音波上常見，多半沒有症狀。有症狀時才稱為鎖骨下動脈竊血「症候群」：手臂用力時頭暈、視力模糊、走不穩（後循環缺血），或手臂痠痛無力。兩手收縮壓差是線索：一個大型超音波系列以相差超過 20 mmHg 來篩檢鎖骨下動脈的阻塞（514 人中只有 38 人有症狀），相差超過 40–50 mmHg 時較常出現症狀。',
+      en: 'The proximal subclavian artery is narrowed or blocked, so the same-side vertebral artery flows backwards to feed the arm: this is the steal phenomenon, common on ultrasound and usually silent. Only with symptoms is it called subclavian steal syndrome: dizziness, blurred vision or unsteadiness when the arm is exercised (posterior-circulation ischaemia), or a tired, aching arm. The arm blood pressures are a clue: a large ultrasound series screened for subclavian obstruction with a difference of more than 20 mmHg (38 of 514 such patients had symptoms), and symptoms were more frequent with a difference of more than 40–50 mmHg.',
     },
     test: (c, s) => c.occluded('subclavian_prox', s) && (c.reversed('va_extracranial', s) || c.reversed('va_v4_prox', s)),
+    pattern: true,
   },
   {
     id: 'amaurosis',

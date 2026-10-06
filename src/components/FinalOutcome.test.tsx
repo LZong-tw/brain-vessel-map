@@ -120,7 +120,10 @@ describe('最終 tab', () => {
     const untreated = untreatedAt6m();
     expect(row('最終梗塞')).toEqual([`${fmtMl(treated.volumes.finalInfarct)} mL`, `${fmtMl(untreated.volumes.finalInfarct)} mL`]);
     expect(row('NIHSS（6 個月）')).toEqual([String(treated.nihss.total), String(untreated.nihss.total)]);
-    expect(row('6 個月時的缺損')).toEqual([`${treated.symptoms.length} 項`, `${untreated.symptoms.length} 項`]);
+    // (Y3-9: a late sign listed only as possible, such as pathological crying, is not counted)
+    const definite = (r: typeof treated) => [...r.symptoms, ...r.unexaminable].filter((s) => !SYMPTOM_BY_ID[s.id].possible).length;
+    expect(treated.symptoms.some((s) => SYMPTOM_BY_ID[s.id].possible)).toBe(true);
+    expect(row('6 個月時的缺損')).toEqual([`${definite(treated)} 項`, `${definite(untreated)} 項`]);
     within(table).getByRole('rowheader', { name: 'NIHSS（3 個月）' });
     // the treated course saved tissue, shown next to the final infarct
     screen.getByText('治療救回');
@@ -351,6 +354,37 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     render(<RightPanel sim={simOf()} />);
     const tr = within(within(screen.getByRole('table')).getByRole('rowheader', { name: 'Death likely (herniation)' }).closest('tr')!);
     expect(tr.getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', 'likely']);
+  });
+
+  // Y3-11: a comatose top-of-the-basilar occlusion that is not reopened is often fatal
+  it('a basilar occlusion not reopened, with coma: the trial mortality, and the NIHSS as if the patient survives', () => {
+    useApp.getState().loadScenario('basilar_tip');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const callout = within(nihss).getByText(/ATTENTION/);
+    expect(callout.className).toContain('danger');
+    expect(callout.textContent).toMatch(/55%.*42%/);
+    within(nihss).getByText('3 個月（假如存活）');
+    cleanup();
+    // reopened at 4 h: not for the treated course, still for the untreated one
+    useApp.setState({ rightTab: 'final', reperfusionH: 4, lang: 'en' });
+    render(<RightPanel sim={simOf()} />);
+    const tr = within(within(screen.getByRole('table')).getByRole('rowheader', { name: 'Often fatal (basilar not reopened, coma)' }).closest('tr')!);
+    expect(tr.getAllByRole('cell').map((c) => c.textContent)).toEqual(['—', 'often']);
+  });
+
+  // Y3-11: a locked-in syndrome is not "usually fatal", but its 3- and 6-month NIHSS is a survivor's
+  it('a locked-in syndrome: a lighter caveat with its own mortality, and the NIHSS as if the patient survives', () => {
+    useApp.getState().loadScenario('basilar_mid');
+    useApp.setState({ rightTab: 'final' });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    const callout = within(nihss).getByText(/139/);
+    expect(callout.className).toContain('warn');
+    expect(callout.textContent).toContain('60%');
+    expect(nihss.querySelector('.callout.danger')).toBeNull();
+    within(nihss).getByText('6 個月（假如存活）');
   });
 });
 

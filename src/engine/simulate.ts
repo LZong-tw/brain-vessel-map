@@ -19,7 +19,9 @@
  *     swell and evolve on the index clock (nothing before the index onset); only each region's
  *     late symptoms, compensation and coma relabelling count from when that region itself became
  *     ischaemic (R6-6), and the brainstem consciousness events follow the labels these give, so
- *     they run on that clock too (brainstemCourse, X2-11);
+ *     they run on that clock too (brainstemCourse, X2-11); so do the warnings that follow the
+ *     symptom list (aspiration, cardiac, venous thrombosis) and the central-fever risk, from the
+ *     onset of each lesion that leaves an infarct (listedCourse, Y3-19);
  *   • the final infarct is taken FINAL_H after the last occlusion start or reopening;
  *   • the acute deficit pattern and the flow the cascade sees are those of the index onset, and
  *     "reperfusion" for the oedema model is the first reopening (treatment or spontaneous) of
@@ -74,6 +76,7 @@ import {
   type CascadeTreatment,
   type HerniationShift,
   type ListedCourse,
+  type ListedWindow,
   type SwallowStretch,
 } from './cascade';
 import {
@@ -709,6 +712,17 @@ interface Model {
    * simulation clock) at which it became ischaemic: a new lesion, which the hold does not cover
    */
   ischaemiaStarts: Record<string, number[]>;
+  /**
+   * the lesions (simulation clock, sorted): the index onset and every other occlusion start whose
+   * own loss is an infarct (startCredits ≥ ONSET_MIN_ML). Each has its own two weeks of aspiration
+   * and cardiac warnings, and its own days 2–30 of venous-thrombosis risk (Y3-19)
+   */
+  lesionStarts: number[];
+  /**
+   * the occlusion starts (simulation clock) at which tissue of the vertebrobasilar circulation
+   * becomes ischaemic: the NIHSS caveat for posterior strokes applies from the first (Y3-6)
+   */
+  posteriorStarts: number[];
 }
 
 const modelCache = new Map<string, Model>();
@@ -828,6 +842,13 @@ function modelFor(input: SimInput): Model {
     map: input.map,
   };
   const edemaReperfusionH = episodeEndH === null ? null : episodeEndH - onsetH;
+  const allStarts = [...new Set(occlusions.map(startOf))].sort((a, b) => a - b);
+  const ischaemiaStarts = ischaemiaStartsOf(allStarts, course, hemoAtT);
+  // when each region first became ischaemic, on the clinical clock (Y3-19)
+  const regionOnsetH: Record<string, number> = {};
+  for (const [rid, list] of Object.entries(ischaemiaStarts)) regionOnsetH[rid] = list[0] - onsetH;
+  cascadeInput.regionOnsetH = regionOnsetH;
+  cascadeInput.basilarNotReopened = basilarNotReopened(input, plan);
   // first pass: everything but what reads the symptom list (the aspiration warning and the
   // cardiac severity carry no symptoms, so the list sampled below is the same with either pass),
   // with the uncal herniations timed by the oedema model's midline shift (R6-5)
@@ -858,7 +879,9 @@ function modelFor(input: SimInput): Model {
     regionStarts: regionIschaemiaStarts(input, course, hemoAtT),
     reopenings: reopeningTimes(occlusions, plan && plan.reopened.length ? opensH : null),
     heldAt: new Map(),
-    ischaemiaStarts: ischaemiaStartsOf([...new Set(occlusions.map(startOf))].sort((a, b) => a - b), course, hemoAtT),
+    ischaemiaStarts,
+    lesionStarts: lesionStartsOf(input, course, finalH, untreated, x, onsetH),
+    posteriorStarts: allStarts.filter((h) => posteriorIschaemiaAt(input, course, hemoAtT, h)),
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -869,7 +892,7 @@ function modelFor(input: SimInput): Model {
   model.finish = () => {
     if (done) return;
     done = true;
-    const second = computeCascade({ ...shiftedInput, listed: { ...listedCourse(input, onsetH), brainstem: brainstemCourse(input, model) } });
+    const second = computeCascade({ ...shiftedInput, listed: { ...listedCourse(input, model), brainstem: brainstemCourse(input, model) } });
     model.cascade = second;
     model.shownCascade = shownCascadeOf(second, onsetH, prodromal);
   };
@@ -878,29 +901,118 @@ function modelFor(input: SimInput): Model {
 
 /** what makes swallowing unsafe: a reduced level of consciousness */
 const DROWSY_IDS = ['coma', 'somnolence', 'disorder_of_consciousness'];
-/** … of which stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness, is a severe stroke */
+/** … of which stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness */
 const comaLike = (s: SymptomItem) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness';
-/** the first two weeks, in which the aspiration and cardiac warnings run */
+/**
+ * a severe stroke, the predictor of cardiac events in Prosser J et al. Stroke 2007;38:2295-2302
+ * (a clinical, not a volume, measure; Y3-5): an NIHSS of 16 or more (the scale's
+ * moderate-to-severe and severe bands here), or stupor, coma or a disorder of consciousness
+ */
+export const SEVERE_NIHSS = 16;
+/**
+ * immobile, the patients at risk of venous thrombosis (CLOTS 3: who cannot walk to the toilet
+ * unaided; Y3-7): a leg barely or not lifted against gravity, stupor or coma, a disorder of
+ * consciousness, or a moderate or severe akinetic mutism
+ */
+const immobileSign = (s: SymptomItem) =>
+  (s.id === 'leg_weak' && s.sev >= 2) || comaLike(s) || (s.id === 'akinetic_mutism' && s.sev >= 2);
+/** the first two weeks of a lesion, in which the aspiration and cardiac warnings run */
 const LISTED_WINDOW_H = 336;
+/** the venous-thrombosis warning runs from day 2 to day 30 of a lesion */
+const DVT_FROM_H = 48;
+const DVT_UNTIL_H = 720;
 
 /** a change in what the list shows between two samples is placed to within (gap / 2^LISTED_BISECT) */
 const LISTED_BISECT = 8;
 
-/**
- * What the symptom list shows over the first two weeks after the index onset (clinical clock):
- * the stretches with dysphagia or, without it, a reduced level of consciousness (X3-1, X3-3), and
- * when stupor or coma is first listed (X3-4). Sampled at the time stops a learner can see — those
- * of the clinical clock and those of the simulation clock from the onset on — with a change
- * between two samples found by bisection, so that the warnings that follow the list also agree
- * with it between the stops. Runs on a cached model (its first-pass cascade), so each sample
- * costs only the per-time part.
- */
-function listedCourse(input: SimInput, onsetH: number): ListedCourse {
-  const times = new Set<number>();
-  for (const s of TIME_STOPS) {
-    if (s.h < LISTED_WINDOW_H) times.add(onsetH + s.h);
-    if (s.h >= onsetH && s.h - onsetH < LISTED_WINDOW_H) times.add(s.h);
+/** the intervals, overlapping ones merged, in time order */
+function mergeIntervals(list: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const [a, b] of [...list].sort((x, y) => x[0] - y[0])) {
+    const last = out[out.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
   }
+  return out;
+}
+
+/**
+ * The lesions of a schedule (simulation clock, sorted; Y3-19): the index onset, and every other
+ * occlusion start whose own loss is an infarct (startCredits ≥ ONSET_MIN_ML) — not a TIA that
+ * reopened before any tissue died (the prodromal attacks have their own story).
+ */
+function lesionStartsOf(input: SimInput, course: Course, finalH: number, other: Course | null, x: number, onsetH: number): number[] {
+  const starts = new Set<number>([onsetH]);
+  if (new Set(input.occlusions.map(startOf)).size > 1)
+    for (const [s, ml] of startCredits(input, course, finalH, other, x)) if (ml >= ONSET_MIN_ML) starts.add(s);
+  return [...starts].sort((a, b) => a - b);
+}
+
+/** the arterial families of the vertebrobasilar circulation (Y3-6) */
+const VERTEBROBASILAR: ReadonlySet<string> = new Set(['VA', 'BA', 'PCA', 'THAL', 'PICA', 'AICA', 'SCA', 'ASA']);
+
+/**
+ * a vessel of the vertebrobasilar circulation; with a fetal-type PCA the PCA beyond the PComm, and
+ * the thalamogeniculate artery from it, are fed by the carotid instead (anterior circulation)
+ */
+function vertebrobasilar(vesselId: string, variants: readonly string[]): boolean {
+  const v = VESSEL_BY_ID[vesselId];
+  if (!v || !VERTEBROBASILAR.has(v.family)) return false;
+  const fetal = variants.includes(`fetal_pca_${v.side}`);
+  return !(fetal && ((v.family === 'PCA' && v.baseId !== 'pca_p1') || v.baseId === 'thalamogeniculate'));
+}
+
+/**
+ * Tissue of the vertebrobasilar circulation (brain or inner ear) becomes ischaemic at the
+ * occlusion start `h`: a unit fed by such an artery falls below the penumbra threshold, or a single
+ * branch of one closes then. An MCA or carotid infarct that reaches the occipital pole is not a
+ * posterior-circulation stroke (Y3-6).
+ */
+function posteriorIschaemiaAt(input: SimInput, course: Course, hemoAt: (tH: number) => HemoResult, h: number): boolean {
+  const hemo = hemoAt(h);
+  const tissue = (bed: string) => {
+    const c = REGION_BY_ID[BED_BY_ID[bed].region].category;
+    return BRAIN.has(c) || c === 'ear';
+  };
+  if (
+    course.units.some(
+      (u) => tissue(u.bed) && vertebrobasilar(u.vessel, input.variants) && (hemo.unitRel[u.id] ?? 1) < tissueParamsForBed(u.bed).penumbraRel,
+    )
+  )
+    return true;
+  return [...course.lacunes.values()].some((list) => list.some((o) => startOf(o) === h && vertebrobasilar(o.vessel, input.variants)));
+}
+
+const BASILAR_TRUNK = ['basilar_lower', 'basilar_mid', 'basilar_upper', 'basilar_tip'];
+
+/**
+ * a complete basilar occlusion of the case is never reopened lastingly (Y3-11): it lasts (no
+ * reopening by itself) and no treatment reopens it, or the treatment failed (eTICI 0) or the
+ * artery closed again
+ */
+function basilarNotReopened(input: SimInput, plan: TreatmentPlan | null): boolean {
+  return input.occlusions.some(
+    (o) =>
+      BASILAR_TRUNK.includes(o.vessel) &&
+      o.severity >= 1 &&
+      !o.branch &&
+      endOf(o) === null &&
+      !(plan && !plan.failed && plan.reocclusionH === null && plan.reopened.includes(o)),
+  );
+}
+
+/**
+ * What the symptom list shows after each lesion (clinical clock): in its first two weeks the
+ * stretches with dysphagia or, without it, a reduced level of consciousness (X3-1, X3-3), when
+ * stupor or coma is first listed (X3-4) and how severe the stroke is (Y3-5); from day 2 to day 30
+ * the stretches of immobility (Y3-7). Each lesion counts from its own onset (Y3-19), the windows of
+ * lesions less than two weeks apart merged. Sampled at the time stops a learner can see — those of
+ * each lesion's clock and those of the simulation clock — with a change between two samples found
+ * by bisection, so that the warnings that follow the list also agree with it between the stops.
+ * Runs on a cached model (its first-pass cascade), so each sample costs only the per-time part.
+ */
+function listedCourse(input: SimInput, model: Model): ListedCourse {
+  const { onsetH, lesionStarts } = model;
   const memo = new Map<number, SymptomItem[]>();
   const listAt = (tAbs: number) => {
     let l = memo.get(tAbs);
@@ -912,6 +1024,8 @@ function listedCourse(input: SimInput, onsetH: number): ListedCourse {
     return l.some((s) => s.id === 'dysphagia') ? 'dysphagia' : l.some((s) => DROWSY_IDS.includes(s.id)) ? 'drowsy' : null;
   };
   const comaAt = (tAbs: number) => listAt(tAbs).some(comaLike);
+  const severeAt = (tAbs: number) => comaAt(tAbs) || estimateNihss(listAt(tAbs)).total >= SEVERE_NIHSS;
+  const immobileAt = (tAbs: number) => listAt(tAbs).some(immobileSign);
   /** the first time in (a, b] at which f has the value it has at b, where f(a) differs from it */
   const edge = <T>(f: (t: number) => T, a: number, b: number) => {
     const before = f(a);
@@ -922,26 +1036,64 @@ function listedCourse(input: SimInput, onsetH: number): ListedCourse {
     }
     return b;
   };
-  const sorted = [...times].sort((a, b) => a - b);
-  const swallow: SwallowStretch[] = [];
-  let comaFromH: number | null = null;
-  let prev: number | null = null;
-  for (const tAbs of sorted) {
-    const kind = swallowAt(tAbs);
-    const before = prev === null ? null : swallowAt(prev);
-    if (prev === null || kind !== before) {
-      const from = prev === null ? tAbs : edge(swallowAt, prev, tAbs);
-      const open = swallow[swallow.length - 1];
-      if (open && open.untilH === null) open.untilH = from - onsetH;
-      if (kind) swallow.push({ kind, fromH: from - onsetH, untilH: null, regions: [] });
+  /** the time stops in [a, b) on the simulation clock and on each lesion's clock, and a itself */
+  const stopsIn = (a: number, b: number) => {
+    const times = new Set<number>([a]);
+    for (const st of TIME_STOPS) {
+      if (st.h >= a && st.h < b) times.add(st.h);
+      for (const l of lesionStarts) if (l + st.h >= a && l + st.h < b) times.add(l + st.h);
     }
-    const open = swallow[swallow.length - 1];
-    if (kind === 'dysphagia' && open?.untilH === null)
-      for (const s of listAt(tAbs)) if (s.id === 'dysphagia') open.regions.push(...s.sources.filter((r) => !open.regions.includes(r)));
-    if (comaFromH === null && comaAt(tAbs)) comaFromH = (prev === null ? tAbs : edge(comaAt, prev, tAbs)) - onsetH;
-    prev = tAbs;
+    return [...times].sort((x, y) => x - y);
+  };
+  /** the stretches over [a, b) in which f keeps one value, with the samples in each */
+  const runs = <T>(f: (t: number) => T, a: number, b: number) => {
+    const out: { v: T; from: number; until: number; at: number[] }[] = [];
+    let prev: number | null = null;
+    for (const t of stopsIn(a, b)) {
+      const v = f(t);
+      if (prev === null || v !== f(prev)) {
+        const from = prev === null ? t : edge(f, prev, t);
+        if (out.length) out[out.length - 1].until = from;
+        out.push({ v, from, until: b, at: [] });
+      }
+      out[out.length - 1].at.push(t);
+      prev = t;
+    }
+    return out;
+  };
+  const swallow: SwallowStretch[] = [];
+  const windows: ListedWindow[] = [];
+  for (const [a, b] of mergeIntervals(lesionStarts.map((l) => [l, l + LISTED_WINDOW_H]))) {
+    for (const r of runs(swallowAt, a, b)) {
+      if (!r.v) continue;
+      const regions: string[] = [];
+      if (r.v === 'dysphagia')
+        for (const t of r.at) for (const s of listAt(t)) if (s.id === 'dysphagia') for (const src of s.sources) if (!regions.includes(src)) regions.push(src);
+      swallow.push({ kind: r.v, fromH: r.from - onsetH, untilH: r.until - onsetH, regions });
+    }
+    const coma = runs(comaAt, a, b).find((r) => r.v);
+    const severe = runs(severeAt, a, b);
+    const first = severe.find((r) => r.v);
+    const last = severe[severe.length - 1];
+    const insula = new Set<string>();
+    for (const l of lesionStarts.filter((x) => x >= a && x < b)) {
+      const lv = ischaemicLevels(model.course, model.hemoAt, l);
+      for (const r of ['insula_r', 'insula_l']) if ((lv[r] ?? 0) >= 0.3) insula.add(r);
+    }
+    windows.push({
+      fromH: a - onsetH,
+      untilH: b - onsetH,
+      comaFromH: coma ? coma.from - onsetH : null,
+      severeFromH: first ? first.from - onsetH : null,
+      severeByComa: first ? comaAt(first.from) : false,
+      severeEndH: first && !last.v ? last.from - onsetH : null,
+      insula: ['insula_r', 'insula_l'].filter((r) => insula.has(r)),
+    });
   }
-  return { swallow, comaFromH };
+  const immobile: ListedCourse['immobile'] = [];
+  for (const [a, b] of mergeIntervals(lesionStarts.map((l) => [l + DVT_FROM_H, l + DVT_UNTIL_H])))
+    for (const r of runs(immobileAt, a, b)) if (r.v) immobile.push({ fromH: r.from - onsetH, untilH: r.until - onsetH });
+  return { swallow, windows, immobile };
 }
 
 /** the labels of the bilateral ventral pons and the state of the brainstem course each names (cascade.brainstemEvents) */
@@ -1631,8 +1783,10 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   // akinetic mutism is left out of the list and named apart (R5-7, X1-2, X1-12, Y2-14, Y2-15)
   const { shown: symptoms, unexaminable } = byConsciousness(all);
   if (symptomsOnly) return symptoms;
-  const affected = REGIONS.filter((r) => rDys[r.id] >= 0.2 || rInf[r.id] >= 0.2).map((r) => r.id);
-  const nihss = estimateNihss(symptoms, affected);
+  // the NIHSS caveat for posterior strokes (Y3-6): tissue of the vertebrobasilar circulation has
+  // become ischaemic by now, and the patient has a symptom (listed, or there but not examinable)
+  const posterior = model.posteriorStarts.some((h) => h <= tAbs + 1e-9) && symptoms.length + unexaminable.length > 0;
+  const nihss = estimateNihss(symptoms, posterior);
 
   const occl = new Set(episode.active.filter((o) => o.severity >= 1).map((o) => o.vessel));
   const rev = new Set(episodeHemo.reversed);

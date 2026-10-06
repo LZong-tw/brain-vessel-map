@@ -39,10 +39,7 @@ const aphasias = (r: SimResult) => r.symptoms.filter((s) => s.id.startsWith('aph
 const GRADES: CollateralGrade[] = ['good', 'moderate', 'poor'];
 const STOPS = TIME_STOPS.map((s) => s.h);
 const items = (...list: Pick<SymptomItem, 'id' | 'side' | 'sev'>[]) =>
-  estimateNihss(
-    list.map((s) => ({ ...s, sources: [], delayed: false })),
-    [],
-  ).items;
+  estimateNihss(list.map((s) => ({ ...s, sources: [], delayed: false }))).items;
 
 describe('R1-1: a score of 3 on item 9 is a mute patient who follows no command', () => {
   // NIHSS instructions (Torab-Miandoab et al. 2020, Appendix 3): item 9 "a score of 3 should be

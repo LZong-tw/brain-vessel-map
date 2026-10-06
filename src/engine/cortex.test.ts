@@ -108,7 +108,7 @@ describe('C1-F1: one aphasia type at a time (Kertesz & Poole taxonomy)', () => {
   });
 
   it('Wernicke aphasia is graded on item 9: a mild one scores 1', () => {
-    const items = estimateNihss([{ id: 'aphasia_wernicke', side: null, sev: 1, sources: [], delayed: false }], []).items;
+    const items = estimateNihss([{ id: 'aphasia_wernicke', side: null, sev: 1, sources: [], delayed: false }]).items;
     expect(items['9']).toBe(1);
     const m3 = scenario('l_m2_inf', 2160);
     expect(get(m3, 'aphasia_wernicke')[0]?.sev).toBe(1);
@@ -296,7 +296,7 @@ describe('C1-F7: cortical blindness and Anton syndrome', () => {
     const got = aggregateSymptoms(lvl, lvl, 24);
     expect(has(got, 'cortical_blindness')).toBe(false);
     expect(sym(got)).toEqual(expect.arrayContaining(['hemianopia(r)', 'hemianopia(l)', 'macular_sparing(-)']));
-    expect(estimateNihss(got, []).items['3']).toBe(3);
+    expect(estimateNihss(got).items['3']).toBe(3);
   });
 
   it('both occipital lobes including the poles: cortical blindness, without an automatic Anton syndrome', () => {

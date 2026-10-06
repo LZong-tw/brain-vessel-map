@@ -98,7 +98,11 @@ const DEAD = 0.25;
  *     a severe one early on;
  *   • urinary incontinence — weakness with a visual field defect or dysphagia early on, not a
  *     lacunar syndrome (Patel 2001);
- *   • infections — dysphagia early on (pneumonia: Martino 2005).
+ *   • infections — dysphagia early on (pneumonia: Martino 2005);
+ *   • emotionalism — the case lists it as possible at 6 months, from a lesion at a site the
+ *     symptom's own sources associate with it (lentiform nucleus and internal capsule, ventral
+ *     pons, frontal lobe: Kim & Choi-Kwon 2000, House 1989; Y3-9), so the population figure is not
+ *     shown beside it without saying why the case names it.
  * The early picture is the case one day after onset (`earlyOf`).
  */
 export function caseNotes(risk: PostStrokeRisk, m6: SimResult): L[] {
@@ -144,6 +148,11 @@ export function caseNotes(risk: PostStrokeRisk, m6: SimResult): L[] {
     out.push({
       zh: '此病例的梗塞涉及基底核或外側視丘；這些部位的梗塞與較高的中風後不自主運動風險相關，但它仍不常見，多半會消退。',
       en: 'This case’s infarct involves the basal ganglia or the lateral thalamus; infarcts there are associated with a higher risk of post-stroke movement disorders, which still remain uncommon and mostly regress.',
+    });
+  if (risk.id === 'emotionalism' && m6.symptoms.some((s) => s.id === 'emotionalism'))
+    out.push({
+      zh: '此病例的梗塞位在與病理性哭笑較有關的部位（豆狀核—內囊、橋腦腹側或額葉），所以症狀清單把它列為「可能出現」；這些部位的病灶與較高的風險相關，但仍不是每個人都會出現。',
+      en: 'This case’s infarct lies at a site linked to emotionalism (the lentiform nucleus and internal capsule, the ventral pons or the frontal lobe), so the symptom list names it as possible; lesions there are associated with a higher risk, though not everyone develops it.',
     });
   if (risk.id === 'apathy' && hasLastingCognitive(m6))
     out.push({

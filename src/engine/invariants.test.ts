@@ -113,6 +113,44 @@ describe('output invariants', () => {
 });
 
 
+const comaLike = (s: { id: string; sev: number }) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness';
+/** the warnings that read the symptom list agree with the list at `tH` (Y3-5, Y3-6, Y3-7, Y3-19) */
+function warningsFollowList(where: string, r: SimResult, tH: number) {
+  const running = (re: RegExp) => r.cascade.events.filter((e) => re.test(e.id) && e.onsetH <= tH + 1e-9 && tH < (e.endH ?? Infinity));
+  const has = (f: (s: SimResult['symptoms'][number]) => boolean) => r.symptoms.some(f);
+  const dysphagia = has((s) => s.id === 'dysphagia');
+  const drowsy = has((s) => ['coma', 'somnolence', 'disorder_of_consciousness'].includes(s.id));
+  const asp = running(/^aspiration(_\d+)?$/);
+  expect(asp.length, `${where}: aspiration`).toBeLessThanOrEqual(1);
+  for (const e of asp) {
+    if (e.title.en.startsWith('Dysphagia')) expect(dysphagia, `${where}: ${e.title.en}`).toBe(true);
+    if (e.title.en.startsWith('Reduced consciousness')) expect(!dysphagia && drowsy, `${where}: ${e.title.en}`).toBe(true);
+    if (e.title.en.startsWith('Aspiration risk')) expect(dysphagia || drowsy, `${where}: ${e.title.en}`).toBe(false);
+  }
+  const immobile = has((s) => (s.id === 'leg_weak' && s.sev >= 2) || comaLike(s) || (s.id === 'akinetic_mutism' && s.sev >= 2));
+  if (running(/^dvt(_\d+)?$/).length) expect(immobile, `${where}: venous thrombosis while mobile`).toBe(true);
+  const cardiac = running(/^cardiac(_\d+)?$/);
+  expect(cardiac.length, `${where}: cardiac`).toBeLessThanOrEqual(1);
+  const severe = r.nihss.total >= 16 || has(comaLike);
+  for (const c of cardiac) {
+    const now = c.desc.en.includes('This is a severe stroke');
+    if (now) expect(r.nihss.total, `${where}: "severe" at NIHSS 0`).toBeGreaterThan(0);
+    if (/The stroke was severe/.test(c.desc.en)) expect(severe, `${where}: "was severe" while severe`).toBe(false);
+    if (severe) expect(now, `${where}: severe (NIHSS ${r.nihss.total}) but not said`).toBe(true);
+  }
+  if (r.nihss.posteriorCaveat) {
+    expect(r.nihss.total, `${where}: posterior caveat`).toBeLessThanOrEqual(6);
+    expect(r.symptoms.length + r.unexaminable.length, `${where}: posterior caveat without a symptom`).toBeGreaterThan(0);
+  }
+}
+
+describe('the warnings that read the symptom list, with each collateral grade (Y3)', () => {
+  it.each(SCENARIOS.map((s) => [s.id]))('%s', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const)
+      for (const stop of TIME_STOPS) warningsFollowList(`${id} ${collateral} ${stop.h} h`, simulate(inputOf(id, { collateral, tH: stop.h })), stop.h);
+  });
+});
+
 /**
  * Named syndromes and cascade events must agree with the symptom list shown at the same time:
  * a syndrome named for its signs only with those signs, a label named for the vascular pattern
@@ -482,7 +520,7 @@ describe('syndromes and events agree with the symptoms', () => {
   // consciousness is scored as a mute patient who follows no command
   it.each(CASES)('%s: leaving out what cannot be examined never changes the NIHSS (X1-5)', (name) => {
     series(name).forEach((r, i) => {
-      const all = estimateNihss([...r.symptoms, ...r.unexaminable], []);
+      const all = estimateNihss([...r.symptoms, ...r.unexaminable]);
       expect(r.nihss.items, `${name} ${STOPS[i]} h: ${r.unexaminable.map((s) => s.id).join(', ')}`).toEqual(all.items);
     });
   });
@@ -503,6 +541,14 @@ describe('syndromes and events agree with the symptoms', () => {
       if (running.includes('basilar_coma'))
         expect(r.symptoms.some((s) => (s.id === 'coma' && s.sev >= 2) || s.id === 'disorder_of_consciousness'), `${name} ${tH} h`).toBe(true);
     });
+  });
+
+  // Y3-5, Y3-6, Y3-7, Y3-19: the warnings that read the symptom list say only what it shows — the
+  // aspiration title what is listed, the venous-thrombosis warning only for an immobile patient,
+  // the cardiac warning "severe" by clinical severity (and not in the present tense at NIHSS 0),
+  // the posterior-stroke caveat only with a symptom and a low NIHSS
+  it.each(CASES)('%s: the aspiration, cardiac and venous-thrombosis warnings and the posterior caveat follow the list (Y3)', (name) => {
+    series(name).forEach((r, i) => warningsFollowList(`${name} ${STOPS[i]} h`, r, STOPS[i]));
   });
 
   it.each(CASES)('%s: every active cascade event that adds a symptom has it in the symptom list', (name) => {

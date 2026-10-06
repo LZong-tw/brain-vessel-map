@@ -434,7 +434,7 @@ describe('what cannot be examined follows the level of consciousness of stacked 
         expect(hidden(r), `${tH} h ${id}`).toContain(id);
       }
       expect(aphasias(r.symptoms), `${tH} h`).toEqual([]);
-      expect(estimateNihss([...r.symptoms, ...r.unexaminable], []).items, `${tH} h`).toEqual(r.nihss.items);
+      expect(estimateNihss([...r.symptoms, ...r.unexaminable]).items, `${tH} h`).toEqual(r.nihss.items);
     }
   });
 });

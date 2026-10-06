@@ -22,7 +22,7 @@ import { EventItem } from './EventItem';
 import { useSimSeries } from './useSimSeries';
 
 /** the risks the comparison can show, in this order */
-const FATAL_RISKS: FatalRisk[] = ['herniation', 'posterior_fossa'];
+const FATAL_RISKS: FatalRisk[] = ['herniation', 'posterior_fossa', 'basilar'];
 
 /** regions listed before "+ n more" */
 const REGIONS_SHOWN = 12;
@@ -174,14 +174,20 @@ export function FinalOutcome() {
 
       <section className="nihss outcome-nihss">
         <h3>{o.nihssTitle}</h3>
-        {/* the course usually ends in death, which the model does not represent (C4-F1) */}
+        {/* the course usually or often ends in death, which the model does not represent (C4-F1, Y3-11) */}
         {out.fatal.map((k) => (
           <p key={k} className="callout danger">
             {o.fatal[k]}
           </p>
         ))}
-        <NihssLine label={out.fatal.length ? o.at3mIfSurvives : o.at3m} n={course.m3.nihss} />
-        <NihssLine label={out.fatal.length ? o.at6mIfSurvives : o.at6m} n={m6.nihss} />
+        {/* a state with a substantial mortality of its own: the figures are a survivor's (Y3-11) */}
+        {out.caveats.map((k) => (
+          <p key={k} className="callout warn">
+            {o.survival[k]}
+          </p>
+        ))}
+        <NihssLine label={out.fatal.length || out.caveats.length ? o.at3mIfSurvives : o.at3m} n={course.m3.nihss} />
+        <NihssLine label={out.fatal.length || out.caveats.length ? o.at6mIfSurvives : o.at6m} n={m6.nihss} />
         <p className="muted small">{t.nihssNote}</p>
         {(course.m3.nihss.uncaptured || m6.nihss.uncaptured) && <p className="callout warn">{t.nihssUncaptured}</p>}
         {(course.m3.nihss.posteriorCaveat || m6.nihss.posteriorCaveat) && <p className="callout warn">{t.posteriorCaveat}</p>}

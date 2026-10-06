@@ -149,8 +149,7 @@ describe('temporary dysfunction (oedema, diaschisis)', () => {
       inf[r.id] = d3.regions[r.id].infarct;
     }
     const without = aggregateSymptoms(dysWithout, inf, 72);
-    const affected = REGIONS.filter((r) => dysWithout[r.id] >= 0.2 || inf[r.id] >= 0.2).map((r) => r.id);
-    expect(d3.nihss.total).toBeGreaterThan(estimateNihss(without, affected).total);
+    expect(d3.nihss.total).toBeGreaterThan(estimateNihss(without).total);
     // … and it is gone once the oedema has settled
     const w4 = sim({ ...L_M1, tH: 720 });
     for (const r of REGIONS) expect(w4.regions[r.id].dys, r.id).toBeLessThan(w4.regions[r.id].infarct + 0.02);

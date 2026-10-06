@@ -761,7 +761,7 @@ export function aggregateSymptoms(...args: Parameters<typeof lesionSymptoms>): S
  * brainstem stroke with bilateral loss of sensation scores 2 on item 8; a 3 on item 9 means mute
  * and following no one-step command, so 1c and 10 score 2 with it.
  */
-export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]): NihssResult {
+export function estimateNihss(symptoms: SymptomItem[], posteriorCirculation = false): NihssResult {
   const items: Record<string, number> = {};
   const set = (k: string, v: number, cap: number) => (items[k] = Math.min(cap, Math.max(items[k] ?? 0, v)));
   const pts = (id: string, sev: number) => {
@@ -914,11 +914,12 @@ export function estimateNihss(symptoms: SymptomItem[], affectedRegions: string[]
   const total = Object.values(items).reduce((a, b) => a + b, 0);
   const category: NihssResult['category'] =
     total === 0 ? 'none' : total <= 4 ? 'minor' : total <= 15 ? 'moderate' : total <= 20 ? 'moderate_severe' : 'severe';
-  const posterior = affectedRegions.some((r) => {
-    const reg = REGION_BY_ID[r];
-    return reg && (reg.category === 'brainstem' || reg.category === 'cerebellum' || /^(cuneus|lingual|occipital_pole)/.test(reg.baseId));
-  });
-  return { total, items, category, posteriorCaveat: posterior && total <= 6, uncaptured: total === 0 && symptoms.length > 0 };
+  // the caveat that the scale underrates posterior strokes: the cut-off for a good outcome was an
+  // NIHSS of 5 or less after posterior- and 8 or less after anterior-circulation strokes (Sato S et
+  // al. Neurology 2008;70:2371-2377, PMID 18434640). Whether the stroke is in the posterior
+  // circulation is the caller's (simulate: ischaemic tissue of a vertebrobasilar artery and a
+  // symptom; Y3-6) — not an occipital region, which an MCA infarct can reach too
+  return { total, items, category, posteriorCaveat: posteriorCirculation && total <= 6, uncaptured: total === 0 && symptoms.length > 0 };
 }
 
 /** The symptom list as the syndrome rules ask about it (see SymptomQuery). */

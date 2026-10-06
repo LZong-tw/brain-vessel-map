@@ -372,6 +372,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'motor',
     lateralised: true,
+    possible: true,
     sideWord: 'body',
     delayed: true,
     // listed from its median onset, as the other late symptoms are from theirs (C10-F2): about
@@ -394,6 +395,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'motor',
     lateralised: true,
+    possible: true,
     sideWord: 'body',
     delayed: true,
   },
@@ -539,6 +541,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'sensory',
     lateralised: true,
+    possible: true,
     sideWord: 'body',
     delayed: true,
     onsetH: 336,
@@ -556,6 +559,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'sensory',
     lateralised: true,
+    possible: true,
     sideWord: 'body',
     delayed: true,
     onsetH: 336,
@@ -704,6 +708,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'vision',
     lateralised: true,
+    possible: true,
     sideWord: 'field',
     fromInfarct: true,
     onsetH: 48,
@@ -1231,6 +1236,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'cognition',
     lateralised: false,
+    possible: true,
   },
 
   // ── Mood & emotional expression ─────────────────────────────────
@@ -1261,15 +1267,19 @@ export const SYMPTOMS: SymptomDef[] = [
     // Sacco S et al. Arch Phys Med Rehabil 2008;89:775–778 (locked-in syndrome — 4 cases).
     // Onset: within the first month (House: 15 % at 1 month; Gillespie 2016: 17 % within the
     // first month) — listed from about 3 weeks (`onsetH`, illustrative). C10-F2
+    // A possibility, not a certain deficit, even at the sites that carry it (Y3-9): at most about
+    // half of the patients with such a lesion in Kim & Choi-Kwon 2000, and 15–21 % of all strokes
+    // in House 1989.
     id: 'emotionalism',
-    name: { zh: '病理性哭笑（情緒失禁）', en: 'Pathological crying or laughing (emotionalism)' },
+    name: { zh: '可能出現：病理性哭笑（情緒失禁）', en: 'Possible: pathological crying or laughing (emotionalism)' },
     desc: {
-      zh: '突然哭出來（較少是笑）、很難停下來。通常是被真實的情緒線索引發（一句關心、一個悲傷的畫面），但反應的強度和持續時間與當下的感受不成比例，也控制不住。中風後幾週到幾個月常見，與豆狀核—內囊、橋腦腹側與額葉（包括中大腦動脈供應的額葉）的病灶有關；兩側橋腦腹側受損（閉鎖症候群）時特別明顯。常隨時間減輕。',
-      en: 'Sudden bouts of crying (less often laughing) that are hard to stop. They usually follow a real emotional cue — a kind word, a sad picture — but are out of proportion to it, last longer than the feeling and cannot be held back. Common in the weeks to months after a stroke and linked to lesions of the lentiform nucleus and internal capsule, the ventral pons and the frontal lobe (including its MCA-supplied part); especially marked when the ventral pons is damaged on both sides (locked-in syndrome). It often lessens over time.',
+      zh: '突然哭出來（較少是笑）、很難停下來。通常是被真實的情緒線索引發（一句關心、一個悲傷的畫面），但反應的強度和持續時間與當下的感受不成比例，也控制不住。中風後幾週到幾個月常見，與豆狀核—內囊、橋腦腹側與額葉（包括中大腦動脈供應的額葉）的病灶有關；兩側橋腦腹側受損（閉鎖症候群）時特別明顯。但即使病灶在這些部位，也不是每個人都會出現：一個研究中單一中風後 2–4 個月約三分之一有，豆狀核—內囊或橋腦腹側病灶的約一半；另一個研究中 6 個月時約五分之一。所以這裡列為「可能出現」，不算進留下的缺損。常隨時間減輕。',
+      en: 'Sudden bouts of crying (less often laughing) that are hard to stop. They usually follow a real emotional cue — a kind word, a sad picture — but are out of proportion to it, last longer than the feeling and cannot be held back. Common in the weeks to months after a stroke and linked to lesions of the lentiform nucleus and internal capsule, the ventral pons and the frontal lobe (including its MCA-supplied part); especially marked when the ventral pons is damaged on both sides (locked-in syndrome). Even with a lesion at these sites not everyone develops it: in one study about a third of patients had it 2–4 months after a single stroke, about half of those with a lentiform–capsular or ventral pontine lesion; in another about a fifth at 6 months. So it is listed as possible and not counted among the lasting deficits. It often lessens over time.',
     },
     system: 'mood',
     lateralised: false,
     delayed: true,
+    possible: true,
     onsetH: 504,
   },
 
@@ -1446,6 +1456,7 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'cranial',
     lateralised: false,
+    possible: true,
     delayed: true,
   },
 
