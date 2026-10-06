@@ -1756,7 +1756,7 @@ function herniationShifts(
   cascade: CascadeOutput,
   decompression: boolean,
   sides: Side[],
-): { sides: Partial<Record<Side, HerniationShift>>; central: HerniationShift | null } {
+): { sides: Partial<Record<Side, HerniationShift>>; central: HerniationShift | null; lateralPeakMm: number } {
   const memo = new Map<number, ReturnType<typeof shiftAt>>();
   const at = (t: number) => {
     let v = memo.get(t);
@@ -1841,7 +1841,13 @@ function herniationShifts(
           null,
         )
       : null;
-  return { sides: out, central };
+  // the largest midline shift sampled, from either side, refined about its sample (T1-1)
+  let lateralPeakMm = 0;
+  let lateralT: number | null = null;
+  for (const [t, v] of memo) if (v.lateral > lateralPeakMm) [lateralPeakMm, lateralT] = [v.lateral, t];
+  if (lateralT !== null)
+    for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) lateralPeakMm = Math.max(lateralPeakMm, at(lateralT + d).lateral);
+  return { sides: out, central, lateralPeakMm };
 }
 
 /**
@@ -1863,18 +1869,25 @@ function herniationFollowsShift(
   const bedEffects: Record<string, BedEffect[]> = {};
   for (const [id, list] of Object.entries(cascade.bedEffects)) bedEffects[id] = list.filter((e) => !HERNIATION_EVENT.test(e.event));
   const primary = herniationShifts(model, { ...cascade, bedEffects }, decompression, sides);
-  const firstInput: CascadeInput = { ...input, shift: primary.sides, ...(primary.central ? { centralShift: primary.central } : {}) };
+  const firstInput: CascadeInput = {
+    ...input,
+    shift: primary.sides,
+    ...(primary.central ? { centralShift: primary.central } : {}),
+    shownLateralPeakMm: primary.lateralPeakMm,
+  };
   const next = computeCascade(firstInput);
   const still = next.herniated ?? [];
   if (!still.length) return { cascade: next, input: firstInput };
   // the input is returned too, so that the second pass (R3-1) keeps the same herniation timing
   // (whether one side herniates, and to its side or downward with the other, is decided on the first
-  // timing; so is a central herniation without secondary infarcts, whose timing they do not change)
-  const timed = herniationShifts(model, next, decompression, still);
+  // timing; so is a central herniation without secondary infarcts, whose timing they do not change).
+  // The shift is followed on every side that may herniate, for the largest midline shift the
+  // herniations' infarcts give, which the text quotes (T1-1); the timing is read for those that do.
+  const timed = herniationShifts(model, next, decompression, sides);
   const shift = { ...primary.sides };
   for (const s of still) shift[s] = { ...timed.sides[s]!, lateralPeakMm: primary.sides[s]!.lateralPeakMm, acrossMm: primary.sides[s]!.acrossMm };
   const central = primary.central && still.length === 2 && timed.central ? { ...timed.central } : primary.central;
-  const finalInput: CascadeInput = { ...firstInput, shift, ...(central ? { centralShift: central } : {}) };
+  const finalInput: CascadeInput = { ...firstInput, shift, ...(central ? { centralShift: central } : {}), shownLateralPeakMm: timed.lateralPeakMm };
   return { cascade: computeCascade(finalInput), input: finalInput };
 }
 

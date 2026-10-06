@@ -236,6 +236,14 @@ export interface CascadeInput {
    */
   centralShift?: HerniationShift;
   /**
+   * the largest midline shift (mm) over the course, from either side, as the oedema model shows it:
+   * with the secondary infarcts of the herniations it decides on (simulate). The text of two
+   * hemispheres swelling unequally quotes it; `shift`'s lateral peaks, which leave those infarcts
+   * out, decide how they herniate (T1-1: "at most about 7.5 mm" beside a midline shift of 9.35 mm
+   * on the Now tab). Left out, the largest of `shift`'s lateral peaks
+   */
+  shownLateralPeakMm?: number;
+  /**
    * when each hemisphere's and the posterior fossa's own lesion began (clinical clock; before the
    * index onset for an earlier lesion): the occlusion start credited with most of its infarct. Its
    * swelling, herniation and oedema events run on that clock (V1-1). Left out, every lesion dates
@@ -2100,16 +2108,18 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const final = input.untreatedFinalBy?.(h) ?? bedFinalUntreated;
     return BEDS.filter((b) => b.region.endsWith(`_${sd}`) && b.supply.some((x) => supply.test(x.v)) && stillAlive(final[b.id]));
   };
+  // (the midline moves little only when the two swell alike; otherwise the larger swelling still
+  // pushes it across, by less than alone: U1-0. Both as the Now tab shows the midline shift, with the
+  // herniations' own infarcts, T1-1: "at most about 7.5 mm" was quoted beside a shown 9.35 mm)
+  /** the largest midline shift while both swell, from either side */
+  const across = input.shownLateralPeakMm ?? Math.max(input.shift?.r?.lateralPeakMm ?? 0, input.shift?.l?.lateralPeakMm ?? 0);
   /** whether the midline stays nearly in place while both swell (the shift pushing from either side never reaches LATERAL_MM) */
-  const alike = bothSwell && (['r', 'l'] as Side[]).every((sd) => (input.shift?.[sd]?.lateralPeakMm ?? 0) < LATERAL_MM);
+  const alike = bothSwell && across < LATERAL_MM;
   for (const s of ['r', 'l'] as Side[]) {
     const v = vol.supra[s];
     const sideZh = s === 'r' ? '右' : '左';
     const sideEn = s === 'r' ? 'right' : 'left';
     const o: Side = s === 'r' ? 'l' : 'r';
-    // (the midline moves little only when the two swell alike; otherwise the larger swelling still
-    // pushes it across, by less than alone: U1-0)
-    const across = Math.max(input.shift?.r?.lateralPeakMm ?? 0, input.shift?.l?.lateralPeakMm ?? 0);
     const bilateralNote: L = !bothSwell
       ? { zh: '', en: '' }
       : alike
@@ -2335,6 +2345,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         // is in the coma range (≥ 8 mm, Ropper 1986), so a survivor wakes as the swelling subsides
         // instead of at a fixed two weeks (C4-F1); the event itself ends then too, while the
         // secondary occipital infarct stays (R6-2, R6-7).
+        // (its end on the clock of this hemisphere's own lesion, named when that is not the index
+        // onset: a right herniation that eased 279 h after the right M1 closed was told as "about
+        // -441 h after onset" when a left M1 a month later became the index event, T1-3, and moved
+        // with when the left M1 closed, T1-12)
+        const indexLesion = Math.abs(sideOnset(s)) < 1e-9;
+        const endsAt: L =
+          herniationEndH === null
+            ? { zh: '', en: '' }
+            : indexLesion
+              ? { zh: `（這裡約在發病後 ${Math.round(herniationEndH)} 小時）`, en: ` (here about ${Math.round(herniationEndH)} h after onset)` }
+              : {
+                  zh: `（這裡約在這一側梗塞開始後 ${Math.round(herniationEndH - sideOnset(s))} 小時）`,
+                  en: ` (here about ${Math.round(herniationEndH - sideOnset(s))} h after this hemisphere's infarct began)`,
+                };
         events.push({
           id: `uncal_${s}`,
           kind: 'secondary',
@@ -2346,13 +2370,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           desc: {
             zh: `內側顳葉從小腦天幕切跡擠下去：壓迫同側動眼神經（${sideZh}側瞳孔放大）、壓扁中腦（昏迷、去大腦姿勢）、夾住${sideZh}側後大腦動脈造成枕葉續發梗塞；對側大腦腳被頂到天幕邊緣（Kernohan 切跡）會讓「同側」肢體也無力。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。若病人存活，${
               bothSwell
-                ? `疝脫要等這一側的腫脹消退、降到昏迷的範圍以下${herniationEndH === null ? '' : `（這裡約在發病後 ${Math.round(herniationEndH)} 小時）`}才緩解，昏迷則要等兩側合計的腫脹降到昏迷範圍（換算 8 mm）以下才逐漸解除`
-                : `昏迷要等水腫消退、中線偏移降到 8 mm以下${herniationEndH === null ? '' : `（這裡約在發病後 ${Math.round(herniationEndH)} 小時）`}才逐漸解除`
+                ? `疝脫要等這一側的腫脹消退、降到昏迷的範圍以下${endsAt.zh}才緩解，昏迷則要等兩側合計的腫脹降到昏迷範圍（換算 8 mm）以下才逐漸解除`
+                : `昏迷要等水腫消退、中線偏移降到 8 mm以下${endsAt.zh}才逐漸解除`
             }；枕葉的續發梗塞會留下來。`,
             en: `The medial temporal lobe slides through the tentorial notch: it compresses the ${sideEn} oculomotor nerve (dilated ${sideEn} pupil), squeezes the midbrain (coma, posturing) and kinks the ${sideEn} PCA causing a secondary occipital infarct; the opposite peduncle pressed on the tentorium (Kernohan notch) weakens the SAME-side limbs. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal. If the patient survives, ${
               bothSwell
-                ? `the herniation eases as this hemisphere's swelling subsides below the coma range${herniationEndH === null ? '' : ` (here about ${Math.round(herniationEndH)} h after onset)`}, and the coma lifts only gradually as the swelling of both hemispheres together falls below it (8 mm, counted as one side’s shift)`
-                : `the coma lifts only gradually as the oedema subsides and the midline shift falls below 8 mm${herniationEndH === null ? '' : ` (here about ${Math.round(herniationEndH)} h after onset)`}`
+                ? `the herniation eases as this hemisphere's swelling subsides below the coma range${endsAt.en}, and the coma lifts only gradually as the swelling of both hemispheres together falls below it (8 mm, counted as one side’s shift)`
+                : `the coma lifts only gradually as the oedema subsides and the midline shift falls below 8 mm${endsAt.en}`
             }; the secondary occipital infarct remains.`,
           },
           regions: [...new Set([...pca.map((b) => b.region), ...mid.map((b) => b.region)])],
@@ -2536,22 +2560,50 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // Hauw JJ. Neurology 1990;40:1383–1390, autopsy series). Pooled mortality after suboccipital
   // decompressive craniectomy 20% (Ayling OGS et al. World Neurosurg 2018;110:450–459).
   const cbTotal = vol.cerebellum.r + vol.cerebellum.l;
-  // (classified by the posterior fossa's own lesion, the beds whose lesion began within a day of it,
-  // as a hemisphere's swelling is: a cerebellar infarct that begins later does not retitle the
-  // swelling of the first from before it began, U1-2. An earlier one still swelling when it begins
-  // counts with it, as the oedema model sizes them together: unlike a hemisphere's, whose computed
-  // midline shift can still make its swelling malignant, the posterior fossa's course is told by
-  // the infarct's volume alone)
-  let cbMain = 0;
+  // (classified by the cerebellar infarcts whose swelling overlaps the posterior fossa's own lesion's,
+  // earlier or later, whichever is larger: unlike a hemisphere's, whose computed midline shift can
+  // still make its swelling malignant, the posterior fossa's course is told by the infarct's volume
+  // alone, and the oedema model sizes them together. A right PICA infarct with a left SCA infarct
+  // three days later swelled malignantly into coma when the later one was the larger, and not at all
+  // the other way round, T1-0)
+  /** the cerebellar beds whose lesion's swelling overlaps the posterior fossa's own, and the cerebellar infarct (mL) of each lesion onset */
+  const cbBeds: Bed[] = [];
+  const cbByOnset = new Map<number, number>();
   for (const b of BEDS) {
     const reg = REGION_BY_ID[b.region];
     if (reg.compartment !== 'infra' || reg.category === 'brainstem') continue;
     const o = input.bedOnsetH?.[b.id] ?? 0;
-    if (Math.abs(o - infraOnset) <= OEDEMA_ONSET_H || (o < infraOnset && infraOnset - o < OEDEMA_END_H - OEDEMA_ONSET_H)) cbMain += (bedFinal[b.id] ?? 0) * b.volume;
+    if (Math.abs(o - infraOnset) >= OEDEMA_END_H - OEDEMA_ONSET_H) continue;
+    cbBeds.push(b);
+    cbByOnset.set(o, (cbByOnset.get(o) ?? 0) + (bedFinal[b.id] ?? 0) * b.volume);
   }
+  const cbMain = [...cbByOnset.values()].reduce((a, v) => a + v, 0);
   if (cbMain >= CEREBELLAR_SPACE_ML) {
     const bs = BEDS.filter((b) => /^(pons|medulla)_/.test(b.region));
     const malignant = cbMain >= CEREBELLAR_MALIGNANT_ML;
+    // The course runs from when the infarcts of the occlusions begun by then reach its size (T1-0):
+    // a later infarct that makes the swelling malignant does not date it back to the first one's
+    // onset, and one that only adds to a swelling already malignant does not put it off. A course
+    // told before the later one began is kept as it was (keepTheBegun: an event that has begun is
+    // not retitled).
+    const onsets = [...cbByOnset.entries()].filter(([, v]) => v >= 0.5).sort((a, b) => a[0] - b[0]);
+    /** the cerebellar infarct (mL) of the occlusions begun by `h`, as far as this course has it */
+    const begunBy = (h: number) => {
+      const by = input.untreatedFinalBy?.(h) ?? bedFinalUntreated;
+      return cbBeds.reduce((a, b) => a + Math.min(bedFinal[b.id] ?? 0, by[b.id] ?? 0) * b.volume, 0);
+    };
+    const cbOnset = onsets.find(([o]) => begunBy(o) >= (malignant ? CEREBELLAR_MALIGNANT_ML : CEREBELLAR_SPACE_ML) - 1e-9)?.[0] ?? infraOnset;
+    /** two infarcts or more, begun at different times, swell together here */
+    const joint = onsets.length > 1;
+    /** the clock its coma times count from, named when it is not the index onset (T1-3) */
+    const cbClock: L =
+      Math.abs(cbOnset) < 1e-9
+        ? { zh: '發病', en: 'onset' }
+        : joint
+          ? cbOnset === onsets[onsets.length - 1][0]
+            ? { zh: '較晚的小腦梗塞開始', en: 'the later cerebellar infarct began' }
+            : { zh: '較早的小腦梗塞開始', en: 'the earlier cerebellar infarct began' }
+          : { zh: '小腦梗塞開始', en: 'the cerebellar infarct began' };
     const brainstemToo = vol.brainstem >= 1;
     const sideCb: Side = vol.cerebellum.r >= vol.cerebellum.l ? 'r' : 'l';
     const riskZh = malignant
@@ -2568,30 +2620,32 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const surgeryEn = decompression
       ? ' Suboccipital decompressive craniectomy (± an external ventricular drain) has been performed: most recover well, but pooled mortality is still about 20%.'
       : ' Suboccipital decompressive craniectomy is indicated when consciousness falls (AHA/ASA 2014). A ventricular drain alone, without decompression, can let the cerebellum herniate upward through the tentorial notch, so drainage should be combined with suboccipital decompression; in patients who are awake or only drowsy, surgery was not better than medical care.';
-    // (on the clock of the posterior fossa's own lesion, like its swelling: V1-1)
+    // (on the clock of the posterior fossa's own lesion, like its swelling: V1-1; of the infarcts
+    // that make it this large: T1-0)
     events.push({
       id: 'cerebellar_edema',
       kind: 'secondary',
       severity: malignant ? 'danger' : 'warn',
-      onsetH: infraOnset + 24,
-      peakH: infraOnset + 72,
-      endH: infraOnset + 336,
+      onsetH: cbOnset + 24,
+      peakH: cbOnset + 72,
+      endH: cbOnset + 336,
       title: malignant
         ? { zh: '占位性小腦梗塞：可能惡性腫脹，壓迫第四腦室與腦幹', en: 'Space-occupying cerebellar infarct: malignant swelling likely, compressing the 4th ventricle and brainstem' }
         : { zh: '占位性小腦梗塞：有腫脹風險，需密切觀察', en: 'Space-occupying cerebellar infarct: risk of swelling, watch closely' },
       desc: {
-        zh: `小腦梗塞約 ${cbMain.toFixed(0)} mL（${cbTotal >= cbMain + 0.5 ? `加上另一次在不同時間開始的小腦梗塞，合計約 ${cbTotal.toFixed(0)} mL；` : ''}後下與上小腦動脈的梗塞都可能腫脹）。後顱窩空間很小：腫脹會壓住第四腦室造成阻塞性水腦（整個腦室系統擴大、頭痛嘔吐、意識下降），並直接壓迫橋腦與延髓（意識下降、早期角膜反射消失、瞳孔縮小）；嚴重時小腦扁桃體向下疝脫壓迫延髓呼吸中樞。惡化通常在第 2–4 天、第 3 天最多，但一個系列中約 40% 的惡性腫脹發生在第 3 天之後，所以要觀察超過 72 小時。${riskZh}${brainstemZh}${surgeryZh}`,
-        en: `Cerebellar infarct ≈ ${cbMain.toFixed(0)} mL (${cbTotal >= cbMain + 0.5 ? `≈ ${cbTotal.toFixed(0)} mL with a cerebellar infarct that began at another time; ` : ''}PICA and SCA infarcts can both swell). The posterior fossa is tight: swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness), and compresses the pons and medulla (falling consciousness, early loss of corneal reflexes, small pupils); tonsillar herniation can then compress the medullary respiratory centre. Deterioration typically comes on days 2–4, most often on day 3, but in one series about 40% of malignant swellings came after day 3, so monitoring has to continue beyond 72 h.${riskEn}${brainstemEn}${surgeryEn}`,
+        zh: `小腦梗塞${joint ? '合計' : ''}約 ${cbMain.toFixed(0)} mL（${joint ? '幾次在不同時間開始、同時腫脹的梗塞；' : ''}${cbTotal >= cbMain + 0.5 ? `加上另一次在不同時間開始的小腦梗塞，合計約 ${cbTotal.toFixed(0)} mL；` : ''}後下與上小腦動脈的梗塞都可能腫脹）。後顱窩空間很小：腫脹會壓住第四腦室造成阻塞性水腦（整個腦室系統擴大、頭痛嘔吐、意識下降），並直接壓迫橋腦與延髓（意識下降、早期角膜反射消失、瞳孔縮小）；嚴重時小腦扁桃體向下疝脫壓迫延髓呼吸中樞。惡化通常在第 2–4 天、第 3 天最多，但一個系列中約 40% 的惡性腫脹發生在第 3 天之後，所以要觀察超過 72 小時。${riskZh}${brainstemZh}${surgeryZh}`,
+        en: `${joint ? `Cerebellar infarcts ≈ ${cbMain.toFixed(0)} mL together (begun at different times, swelling at the same time; ` : `Cerebellar infarct ≈ ${cbMain.toFixed(0)} mL (`}${cbTotal >= cbMain + 0.5 ? `≈ ${cbTotal.toFixed(0)} mL with a cerebellar infarct that began at another time; ` : ''}PICA and SCA infarcts can both swell). The posterior fossa is tight: swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness), and compresses the pons and medulla (falling consciousness, early loss of corneal reflexes, small pupils); tonsillar herniation can then compress the medullary respiratory centre. Deterioration typically comes on days 2–4, most often on day 3, but in one series about 40% of malignant swellings came after day 3, so monitoring has to continue beyond 72 h.${riskEn}${brainstemEn}${surgeryEn}`,
       },
       regions: [...new Set(bs.map((b) => b.region))],
     });
     if (malignant && !decompression) {
       // consciousness follows the swelling (R6-1): stupor from day 3, coma around the peak, then
       // stupor and drowsiness again as it subsides, if the patient survives
-      // (the texts give the times after the lesion's own onset; the events run on the clinical clock)
+      // (the texts give the times on the course's own clock, named when it is not the index onset:
+      // T1-3; the events run on the clinical clock)
       const { comaFromH, comaUntilH, stuporUntilH, drowsyUntilH } = CEREBELLAR_COURSE;
       const h = (x: number) => Math.round(x);
-      const at = (x: number) => infraOnset + x;
+      const at = (x: number) => cbOnset + x;
       hydrocephalusOnsetH = at(CEREBELLAR_DETERIORATION_H);
       hydrocephalusEndH = at(stuporUntilH);
       bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: at(CEREBELLAR_DETERIORATION_H), endH: at(drowsyUntilH), event: 'brainstem_compression' }));
@@ -2604,8 +2658,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         endH: at(drowsyUntilH),
         title: { zh: '小腦腫脹壓迫腦幹', en: 'Swollen cerebellum compresses the brainstem' },
         desc: {
-          zh: `腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。未手術時意識隨腫脹變化：第 3 天木僵，腫脹高峰前後（這裡約發病後 ${h(comaFromH)}–${h(comaUntilH)} 小時）昏迷，之後隨腫脹消退回到木僵、嗜睡，約 ${h(drowsyUntilH)} 小時後清醒（假如病人存活）。小腦腫脹讓病人延遲陷入昏迷是有記載的（一個上小腦動脈梗塞的解剖病理系列中，有小腦與前庭症狀的 9 位中有 6 位）；每個腫脹程度對應哪一種意識程度是模型的選擇，比照大腦半球腫脹時中線偏移的分級。`,
-          en: `The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists. Without surgery consciousness follows the swelling: stupor from day 3, coma around its peak (here about ${h(comaFromH)}–${h(comaUntilH)} h after onset), then stupor and drowsiness again as it subsides, alert from about ${h(drowsyUntilH)} h if the patient survives. Delayed coma from cerebellar swelling is described (6 of the 9 with cerebellar and vestibular signs in an autopsy series of SCA infarcts); which level goes with how much swelling is a model choice, following the midline-shift bands of a swollen hemisphere.`,
+          zh: `腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。未手術時意識隨腫脹變化：第 3 天木僵，腫脹高峰前後（這裡約${cbClock.zh}後 ${h(comaFromH)}–${h(comaUntilH)} 小時）昏迷，之後隨腫脹消退回到木僵、嗜睡，約 ${h(drowsyUntilH)} 小時後清醒（假如病人存活）。小腦腫脹讓病人延遲陷入昏迷是有記載的（一個上小腦動脈梗塞的解剖病理系列中，有小腦與前庭症狀的 9 位中有 6 位）；每個腫脹程度對應哪一種意識程度是模型的選擇，比照大腦半球腫脹時中線偏移的分級。`,
+          en: `The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists. Without surgery consciousness follows the swelling: stupor from day 3, coma around its peak (here about ${h(comaFromH)}–${h(comaUntilH)} h after ${cbClock.en}), then stupor and drowsiness again as it subsides, alert from about ${h(drowsyUntilH)} h if the patient survives. Delayed coma from cerebellar swelling is described (6 of the 9 with cerebellar and vestibular signs in an autopsy series of SCA infarcts); which level goes with how much swelling is a model choice, following the midline-shift bands of a swollen hemisphere.`,
         },
         regions: [...new Set(bs.map((b) => b.region))],
         symptoms: [
@@ -2646,8 +2700,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         endH: at(comaUntilH),
         title: { zh: '危及生命：腦幹受壓合併昏迷，未減壓', en: 'Life-threatening: brainstem compression with coma, no decompression' },
         desc: {
-          zh: `小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況，昏迷隨腫脹消退而解除（這裡約在發病後 ${h(comaUntilH)} 小時）。`,
-          en: `Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives, the coma lifting as the swelling subsides (here about ${h(comaUntilH)} h after onset).`,
+          zh: `小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況，昏迷隨腫脹消退而解除（這裡約在${cbClock.zh}後 ${h(comaUntilH)} 小時）。`,
+          en: `Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives, the coma lifting as the swelling subsides (here about ${h(comaUntilH)} h after ${cbClock.en}).`,
         },
         regions: [],
         symptoms: [{ id: 'coma', side: null, sev: 3 }],

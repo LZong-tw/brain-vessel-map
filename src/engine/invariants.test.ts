@@ -1261,6 +1261,12 @@ describe('syndromes and events agree with the symptoms', () => {
       ['pica_l', 'pontine_paramedian_rostral_l', 'moderate', 0],
       ['thalamogeniculate_l', 'pica_l', 'good', 0],
       ['va_v4_dist_l', 'mca_m2_sup_l', 'moderate', 168],
+      // T1-0: two cerebellar infarcts whose swelling overlaps, mirrored and reversed
+      ['sca_l', 'pica_r', 'moderate', 168],
+      ['pica_r', 'sca_l', 'moderate', 72],
+      ['sca_l', 'pica_r', 'moderate', 72],
+      ['pica_r', 'pica_l', 'moderate', 168],
+      ['pica_l', 'pica_r', 'moderate', 168],
     ];
     const occ = (vessel: string, fromH: number): Occlusion => (fromH ? { vessel, severity: 1, fromH } : { vessel, severity: 1 });
     const inputs = new Map<string, SimInput>();
@@ -1407,6 +1413,124 @@ describe('syndromes and events agree with the symptoms', () => {
         expect(r.symptoms.find((x) => x.id === 'disorder_of_consciousness')?.sev, name).toBe(3);
         expect(r.nihss.items['1a'], name).toBe(3);
         expect(r.cascade.survivalCaveat, name).toContain('bilateral_hemispheres');
+      },
+    );
+
+    /**
+     * T1: the posterior fossa's staged swelling and the herniation texts. Classes of contradiction:
+     * the order in which two cerebellar infarcts whose swelling overlaps began deciding whether, or
+     * when, their swelling is malignant, or a malignant course told before the infarcts that make it
+     * malignant began (T1-0: malignant with coma in one order, an alert patient in the other); a peak
+     * midline shift a text quotes that the Now tab exceeds (T1-1: "at most about 7.5 mm" beside a
+     * shown 9.35 mm, across the 8 mm coma band); and a time a text gives on a clock other than the
+     * one it names, or before that clock began (T1-3: "about -441 h after onset"; T1-12: a right
+     * herniation's end moved by when the left artery closed).
+     */
+    const CEREBELLAR: [string, string][] = [
+      ['pica_r', 'sca_l'],
+      ['pica_r', 'pica_l'],
+      ['sca_r', 'pica_l'],
+      ['aica_r', 'pica_l'],
+      ['sca_r', 'sca_l'],
+    ];
+    const compression = (r: SimResult) => r.cascade.events.find((e) => e.id === 'brainstem_compression')?.onsetH ?? null;
+    it.each(CEREBELLAR.flatMap(([a, b]) => [72, 168].flatMap((t) => (['moderate', 'poor'] as const).map((c) => [`${a} + ${b}, ${t} h apart, ${c}`, a, b, t, c] as const))))(
+      '%s: the order does not decide whether or when their swelling is malignant, nor is it malignant before the infarcts that make it so began (T1-0)',
+      (name, a, b, t, c) => {
+        const ab = endOfCase(`T1 ${a}+${b}@${t} ${c}`, { occlusions: [occ(a, 0), occ(b, t)], variants: [], collateral: c, map: 93, tH: 0, reperfusionH: null, decompression: false });
+        const ba = endOfCase(`T1 ${b}+${a}@${t} ${c}`, { occlusions: [occ(b, 0), occ(a, t)], variants: [], collateral: c, map: 93, tH: 0, reperfusionH: null, decompression: false });
+        expect(ab.cascade.fatalRisk.includes('posterior_fossa'), name).toBe(ba.cascade.fatalRisk.includes('posterior_fossa'));
+        expect(compression(ab), name).toBe(compression(ba));
+        for (const [first, pair] of [[a, ab], [b, ba]] as const) {
+          const alone = compression(single(first, c, 0));
+          const now = compression(pair);
+          if (alone === null && now !== null) expect(now, `${name}: ${first} first`).toBeGreaterThanOrEqual(t + 48 - 1e-6);
+        }
+      },
+    );
+
+    /** every case whose texts describe the midline shift of two hemispheres swelling together */
+    const BILATERAL_NOTE = /at most about [\d.]+ mm|so the midline moves little/;
+    const quoting = () =>
+      [...CASES.map(([n]) => [n, series(n)[STOPS.length - 1].input] as [string, SimInput]), ...inputs].filter(([n, i]) =>
+        (inputs.has(n) ? endOfCase(n, i) : series(n)[STOPS.length - 1]).cascade.events.some((e) => BILATERAL_NOTE.test(e.desc.en)),
+      );
+    it('the cases that tell how far two hemispheres push the midline across are there to check (T1-1)', () => {
+      expect(quoting().filter(([n]) => /at most about/.test((inputs.has(n) ? endOfCase(n, inputs.get(n)!) : series(n)[STOPS.length - 1]).cascade.events.map((e) => e.desc.en).join())).length).toBeGreaterThanOrEqual(3);
+    });
+    it.each(quoting())('%s: how far two hemispheres swelling together push the midline across, as a text tells it, is what the Now tab shows (T1-1)', (name, input) => {
+      const r = inputs.has(name) ? endOfCase(name, input) : series(name)[STOPS.length - 1];
+      const starts = input.occlusions.map(startOf);
+      // (the largest shift shown at all, and once both lesions have begun, which the text is about:
+      // before the later occlusion begins the Now tab shows the case as it stood then)
+      let shown = 0;
+      let both = 0;
+      for (let tH = Math.min(...starts) + 12; tH <= Math.max(...starts) + 400; tH += 3) {
+        const x = simulate({ ...input, tH }).edema.midlineShiftMm;
+        shown = Math.max(shown, x);
+        if (tH >= Math.max(...starts)) both = Math.max(both, x);
+      }
+      for (const e of r.cascade.events.filter((x) => BILATERAL_NOTE.test(x.desc.en))) {
+        const where = `${name}: ${e.id}, the Now tab shows up to ${shown.toFixed(2)} mm (${both.toFixed(2)} mm once both have begun)`;
+        if (/so the midline moves little/.test(e.desc.en)) {
+          expect(e.desc.zh, where).toContain('中線移動不多');
+          expect(both, where).toBeLessThan(4.2);
+          continue;
+        }
+        const x = +/at most about ([\d.]+) mm/.exec(e.desc.en)![1];
+        expect(+/這裡最多約 ([\d.]+) mm/.exec(e.desc.zh)![1], where).toBe(x);
+        expect(x, where).toBeGreaterThanOrEqual(both - 0.2);
+        expect(x, where).toBeLessThanOrEqual(shown + 0.2);
+      }
+    });
+
+    /**
+     * the time (on the simulation clock) a herniation text's "(here about N h after …)" counts from:
+     * the index onset ("onset"), the herniating hemisphere's infarct, or the cerebellar infarct whose
+     * malignant swelling it tells
+     */
+    const clockOf = (r: SimResult, id: string, clock: string): number | null => {
+      if (clock === 'onset' || clock === '發病') return r.schedule.onsetH;
+      if (clock === "this hemisphere's infarct began" || clock === '這一側梗塞開始') {
+        const swelling = r.cascade.events.filter((e) => e.id.startsWith(`malignant_edema_${id.slice(-1)}`));
+        return swelling.length ? Math.max(...swelling.map((e) => e.onsetH)) - 24 : null;
+      }
+      if (/cerebellar infarct began$|小腦梗塞開始$/.test(clock)) {
+        const swelling = r.cascade.events.filter((e) => /^cerebellar_edema/.test(e.id) && e.severity === 'danger');
+        return swelling.length ? Math.max(...swelling.map((e) => e.onsetH)) - 24 : null;
+      }
+      return null;
+    };
+    const TOLD_END = /^(uncal_[rl]|central_herniation|posterior_fossa_fatal)$/;
+    it.each([...CASES.map(([n]) => [n, null] as [string, SimInput | null]), ...inputs])(
+      '%s: a herniation text gives its end on the clock it names, never before that clock began (T1-3, T1-12)',
+      (name, input) => {
+        const r = input ? endOfCase(name, input) : series(name)[STOPS.length - 1];
+        for (const e of r.cascade.events) {
+          for (const text of [e.desc.en, e.desc.zh]) {
+            expect(text, `${name}: ${e.id}`).not.toMatch(/-\d+(\.\d+)?(–\d+)? h after|後 -\d|約 -\d/);
+          }
+          if (!TOLD_END.test(e.id) || e.endH === undefined) continue;
+          const en = /\(here about (\d+) h after ([^)]*)\)/.exec(e.desc.en);
+          const zh = /（這裡約在(.*?)後 (\d+) 小時）/.exec(e.desc.zh);
+          if (!en) continue;
+          const where = `${name}: ${e.id} "${en[0]}"`;
+          expect(zh, where).not.toBeNull();
+          expect(+zh![2], where).toBe(+en[1]);
+          const clock = clockOf(r, e.id, en[2]);
+          expect(clock, where).not.toBeNull();
+          expect(clockOf(r, e.id, zh![1]), where).toBe(clock);
+          expect(Math.abs(+en[1] - (e.endH - clock!)), where).toBeLessThanOrEqual(0.5 + 1e-6);
+        }
+        // (the coma of a malignant cerebellar swelling, on the clock its text names)
+        const bc = r.cascade.events.find((e) => e.id === 'brainstem_compression');
+        const fatal = r.cascade.events.find((e) => e.id === 'posterior_fossa_fatal');
+        if (bc && fatal) {
+          const m = /\(here about (\d+)–(\d+) h after ([^)]*)\)/.exec(bc.desc.en)!;
+          const clock = clockOf(r, bc.id, m[3])!;
+          expect(Math.abs(+m[1] - (fatal.onsetH - clock)), `${name}: ${m[0]}`).toBeLessThanOrEqual(0.5 + 1e-6);
+          expect(Math.abs(+m[2] - (fatal.endH! - clock)), `${name}: ${m[0]}`).toBeLessThanOrEqual(0.5 + 1e-6);
+        }
       },
     );
   });

@@ -5,7 +5,8 @@
  * consciousness, whether or not a herniation adds infarcts (U1-4); tissue a herniation has killed
  * stays dead when a later occlusion begins (U1-3); an earlier lesion keeps its fatal herniation and
  * is not joined with a lesion months later (U1-14); and a later occlusion in the same hemisphere
- * does not relabel the earlier swelling or swell it at once (U1-2).
+ * does not relabel the earlier swelling or swell it at once (U1-2). Ninth round (T1): staged
+ * cerebellar infarcts, the bilateral shift text and the clock of a herniation’s end (below).
  */
 import { describe, expect, it } from 'vitest';
 import { BEDS, REGION_BY_ID } from '../anatomy';
@@ -238,5 +239,103 @@ describe('U3-13: a herniation infarct keeps the age of the lesion whose swelling
     expect(spastic(at(alone, 336))).toBe(false);
     expect(spastic(at(pair, 336))).toBe(false);
     expect(spastic(at(pair, 720))).toBe(spastic(at(alone, 720)));
+  });
+});
+
+/**
+ * The posterior-fossa staging and the herniation texts (ninth review round, group T1): two
+ * cerebellar infarcts whose swelling overlaps swell together whichever began first, from the
+ * later one's onset (T1-0); the "at most about X mm" of two hemispheres swelling unequally is the
+ * midline shift the Now tab shows (T1-1); and a herniation's end is told on the clock of the
+ * hemisphere that herniated, never as negative hours (T1-3), nor moved by when the other
+ * hemisphere's artery closed (T1-12).
+ */
+describe('T1-0: two cerebellar infarcts whose swelling overlaps swell together in either order, from when the later one began', () => {
+  /** the course of a malignant cerebellar swelling: its events and their times */
+  const course = (r: SimResult) =>
+    r.cascade.events
+      .filter((e) => /^(brainstem_compression|hydrocephalus|posterior_fossa_fatal)$/.test(e.id))
+      .map((e) => `${e.id} ${e.onsetH.toFixed(1)}–${e.endH?.toFixed(1)}`)
+      .sort();
+  // [one, the other, how far apart they begin (h)]: none of these infarcts reaches 38 mL alone
+  const PAIRS: [string, string, number][] = [
+    ['pica_r', 'sca_l', 72],
+    ['pica_r', 'sca_l', 168],
+    ['pica_r', 'pica_l', 168],
+    ['pica_l', 'pica_r', 24],
+  ];
+  it.each(PAIRS)('%s and %s, %s h apart (moderate): malignant in both orders, on the same course from the later onset', (a, b, t) => {
+    const ab = input([o(a), o(b, t)], 'moderate');
+    const ba = input([o(b), o(a, t)], 'moderate');
+    const [x, y] = [at(ab, 4320), at(ba, 4320)];
+    expect(x.cascade.fatalRisk).toContain('posterior_fossa');
+    expect(y.cascade.fatalRisk).toContain('posterior_fossa');
+    expect(course(x)).toEqual(course(y));
+    // (deterioration from day 3 of the later infarct: never before it began)
+    expect(event(x, 'brainstem_compression')!.onsetH).toBeCloseTo(t + 48, 6);
+    for (const tH of [t + 72, t + 120, t + 168]) expect(at(ab, tH).nihss.items['1a'] ?? 0, `${tH} h`).toBe(at(ba, tH).nihss.items['1a'] ?? 0);
+  });
+
+  it('right PICA, then the left SCA at 72 h (moderate): the swelling told before the SCA began stays, the joint one follows from its first day', () => {
+    const i = input([o('pica_r'), o('sca_l', 72)], 'moderate');
+    const begun = event(at(i, 71), 'cerebellar_edema')!;
+    expect(begun.title.en).toMatch(/risk of swelling/);
+    const r = at(i, 4320);
+    expect(event(r, 'cerebellar_edema')).toMatchObject({ onsetH: begun.onsetH, title: begun.title, endH: 96 });
+    const joint = event(r, 'cerebellar_edema_2')!;
+    expect(joint.onsetH).toBeCloseTo(96, 6);
+    expect(joint.title.en).toMatch(/malignant swelling likely/);
+    expect(joint.desc.en).toMatch(/≈ 59 mL together/);
+    expect(joint.desc.zh).toMatch(/合計約 59 mL/);
+    // (the coma times on the clock they name: the later infarct's)
+    expect(event(r, 'brainstem_compression')!.desc.en).toContain('(here about 58–160 h after the later cerebellar infarct began)');
+    expect(event(r, 'brainstem_compression')!.desc.zh).toContain('（這裡約較晚的小腦梗塞開始後 58–160 小時）');
+    expect(event(r, 'posterior_fossa_fatal')!.onsetH).toBeCloseTo(72 + 57.5, 0);
+    expect(at(i, 192).nihss.items['1a']).toBe(3);
+  });
+});
+
+describe('T1-1: the most two hemispheres swelling unequally push the midline across is the shift the Now tab shows', () => {
+  const PAIRS: [string, SimInput][] = [
+    ['right M1 + left M2 superior (poor)', input([o('mca_m1_r'), o('mca_m2_sup_l')], 'poor')],
+    ['right carotid T + left M2 inferior (moderate)', input([o('ica_terminal_r'), o('mca_m2_inf_l')], 'moderate')],
+    ['left carotid T + right M2 superior (good)', input([o('ica_terminal_l'), o('mca_m2_sup_r')])],
+  ];
+  it.each(PAIRS)('%s: "at most about X mm" is the largest midline shift shown, in both languages', (_n, i) => {
+    let shown = 0;
+    for (let tH = 24; tH <= 336; tH += 2) shown = Math.max(shown, at(i, tH).edema.midlineShiftMm);
+    const r = at(i, 4320);
+    const told = r.cascade.events.filter((e) => /at most about/.test(e.desc.en));
+    expect(told.length).toBeGreaterThan(0);
+    for (const e of told) {
+      const x = +/at most about ([\d.]+) mm/.exec(e.desc.en)![1];
+      expect(+/這裡最多約 ([\d.]+) mm/.exec(e.desc.zh)![1], e.id).toBe(x);
+      expect(x, e.id).toBeCloseTo(shown, 0);
+      expect(x, e.id).toBeGreaterThanOrEqual(shown - 0.15);
+    }
+  });
+});
+
+describe('T1-3, T1-12: a herniation’s end is told on the clock of the hemisphere that herniated', () => {
+  const end = (r: SimResult, id: string) => {
+    const e = event(r, id)!;
+    const en = /\(here about (-?\d+) h after ([^)]*)\)/.exec(e.desc.en)!;
+    const zh = /（這裡約在(.*?)後 (-?\d+) 小時）/.exec(e.desc.zh)!;
+    return { endH: e.endH!, n: +en[1], clock: en[2], nZh: +zh[2], clockZh: zh[1] };
+  };
+  it.each([48, 60, 72, 96, 120, 720])('the right M1 (poor), then the left M1 at %s h: the right uncal herniation eases about 279 h after the right infarct began', (t) => {
+    const r = at(input([o('mca_m1_r'), o('mca_m1_l', t)], 'poor'), 4320);
+    const u = end(r, 'uncal_r');
+    expect(u.endH).toBeCloseTo(278.5, 0);
+    expect(u.n).toBe(Math.round(u.endH));
+    expect(u.clock).toBe("this hemisphere's infarct began");
+    expect(u.nZh).toBe(u.n);
+    expect(u.clockZh).toBe('這一側梗塞開始');
+  });
+  it('the right M1 (poor), then the left M1 at 1 month: the later left herniation, the index lesion, keeps "after onset"', () => {
+    const r = at(input([o('mca_m1_r'), o('mca_m1_l', 720)], 'poor'), 4320);
+    const u = end(r, 'uncal_l');
+    expect(u.clock).toBe('onset');
+    expect(u.n).toBe(Math.round(u.endH - 720));
   });
 });
