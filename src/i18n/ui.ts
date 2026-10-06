@@ -174,9 +174,11 @@ const zh = {
   nowTitle: '此刻發生什麼',
   nowPhase: (time: string | null, phase: string) => (time ? `發作後 ${time} · ${phase}` : `發作當下 · ${phase}`),
   nowOnset: (pen: string) => `血流剛中斷：神經元約 10 秒內停止放電，症狀立刻出現；組織還沒壞死，但約 ${pen} mL 已經缺血。`,
-  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string }) =>
-    `梗塞核心正在擴大：過去 ${a.since}內多了 ${a.grew} mL（目前約 ${a.core} mL），半影區還有約 ${a.pen} mL 可救。`,
+  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string; penNote: 'saved' | 'atRisk' | 'late' }) =>
+    `梗塞核心正在擴大：過去 ${a.since}內多了 ${a.grew} mL（目前約 ${a.core} mL），` +
+    (a.penNote === 'saved' ? `半影區還有約 ${a.pen} mL 可救。` : `約 ${a.pen} mL 的半影區仍可能壞死${a.penNote === 'late' ? '（已過了再通治療的時間）' : ''}。`),
   nowHolding: (a: { core: string; pen: string }) => `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 的半影區靠側枝勉強維持。`,
+  nowHoldingNoCore: (pen: string) => `幾乎還沒有組織壞死；約 ${pen} mL 缺血，暫時靠側枝血流撐著。`,
   nowRecanalized: (a: { at: string; saved: string }) => `血管已在發作後 ${a.at}再通：半影區停止惡化，模型估計救回約 ${a.saved} mL。`,
   nowSettled: (core: string) => `梗塞範圍大致定型（約 ${core} mL）；接下來的變化主要來自水腫與對其他腦區的續發影響。`,
   nowChronic: (core: string) => `壞死組織（約 ${core} mL）正被清除、形成疤痕與腦軟化；其餘腦區透過可塑性慢慢代償。`,
@@ -505,9 +507,13 @@ const en: Strings = {
   nowTitle: 'What is happening now',
   nowPhase: (time: string | null, phase: string) => (time ? `${time} after onset · ${phase}` : `At onset · ${phase}`),
   nowOnset: (pen: string) => `Flow has just stopped: neurons fall silent within ~10 s and symptoms start at once. Nothing has died yet, but about ${pen} mL is already ischaemic.`,
-  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string }) =>
-    `The infarct core is still growing: ${a.grew} mL more in the last ${a.since} (now about ${a.core} mL); about ${a.pen} mL of penumbra can still be saved.`,
+  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string; penNote: 'saved' | 'atRisk' | 'late' }) =>
+    `The infarct core is still growing: ${a.grew} mL more in the last ${a.since} (now about ${a.core} mL); ` +
+    (a.penNote === 'saved'
+      ? `about ${a.pen} mL of penumbra can still be saved.`
+      : `about ${a.pen} mL of penumbra may still be lost${a.penNote === 'late' ? ' (too late now to reopen the artery)' : ''}.`),
   nowHolding: (a: { core: string; pen: string }) => `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL of penumbra is just holding on through collaterals.`,
+  nowHoldingNoCore: (pen: string) => `Almost nothing has died yet; about ${pen} mL is ischaemic and survives on collateral flow for now.`,
   nowRecanalized: (a: { at: string; saved: string }) => `The vessel was reopened ${a.at} after onset: the penumbra stopped dying — the model estimates about ${a.saved} mL saved.`,
   nowSettled: (core: string) => `The infarct has largely settled (about ${core} mL); what changes next comes from swelling and knock-on effects on other regions.`,
   nowChronic: (core: string) => `The dead tissue (about ${core} mL) is being cleared into a scar (encephalomalacia); the rest of the brain slowly compensates through plasticity.`,

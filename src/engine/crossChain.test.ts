@@ -95,7 +95,14 @@ describe('one aphasia type at a time (C1-F1) with the thalamic aphasia (C9-F4)',
 
 describe('the TIA story (C3-F8) for the single-branch attacks of a capsular warning syndrome (C6-F2)', () => {
   it('each crescendo attack before the lacunar stroke is a TIA, an emergency', () => {
-    for (const tH of [0, 1, 3.5]) {
+    // (Z4-11: while an attack lasts it is an acute stroke with its treatment windows; the TIA story
+    // follows once its deficit has cleared)
+    for (const tH of [0, 1, 3]) {
+      const ev = active(scenario('capsular_warning', tH));
+      expect(ev, `${tH} h`).toContain('treatment_window');
+      expect(ev, `${tH} h`).not.toContain('tia_urgent');
+    }
+    for (const tH of [0.25, 2, 3.5]) {
       const ev = active(scenario('capsular_warning', tH));
       expect(ev, `${tH} h`).toContain('tia_urgent');
       expect(ev, `${tH} h`).toContain('ischemia_no_infarct');

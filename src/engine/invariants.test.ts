@@ -383,6 +383,14 @@ describe('syndromes and events agree with the symptoms', () => {
       ],
       'moderate',
     ],
+    // Z4-11: an M1 attack of 5 minutes, and a mid-basilar occlusion reopened at 30 min before
+    // anything died (locked-in for the first hours after the reopening): no infarct, a TIA
+    ['mca_m1_l 5 min', [{ vessel: 'mca_m1_l', severity: 1, toH: 1 / 12 }], 'good'],
+    ['basilar_mid good reopened 30 min', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 0.5],
+    // Z4-14: an A2 infarct that spares the paracentral lobule, and a pericallosal infarct in
+    // border-zone beds (each was labelled watershed), beside the haemodynamic watershed template
+    ['aca_a2_l moderate', [{ vessel: 'aca_a2_l', severity: 1 }], 'moderate'],
+    ['aca_pericallosal_l good', [{ vessel: 'aca_pericallosal_l', severity: 1 }], 'good'],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -724,6 +732,36 @@ describe('syndromes and events agree with the symptoms', () => {
       const where = `${name} ${STOPS[i]} h`;
       if ((items['1a'] ?? 0) >= 2) expect([items['1b'], (items['1c'] ?? 0) >= 1], where).toEqual([2, true]);
       if ((items['9'] ?? 0) >= 2) expect(items['1b'] ?? 0, where).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // Z4-11: nobody can tell at the bedside that a deficit will clear. While a deficit of the brain
+  // or the inner ear is listed, the TIA story ("symptoms gone does not mean safe", the antiplatelet
+  // advice) is not told; within a day of the occlusion's start the treatment windows are
+  const TIA_STORY = ['ischemia_no_infarct', 'imaging_no_infarct', 'tia_urgent'];
+  it.each(CASES)('%s: no TIA story while a deficit is listed, and the treatment windows within a day of its start (Z4-11)', (name) => {
+    series(name).forEach((r, i) => {
+      const tH = STOPS[i];
+      const active = r.cascade.events.filter((e) => e.onsetH <= tH && tH < (e.endH ?? Infinity)).map((e) => e.id);
+      const deficit = [...r.symptoms, ...r.unexaminable].some((s) => s.sources.some((src) => ['cortex', 'deep', 'brainstem', 'cerebellum', 'ear'].includes(REGION_BY_ID[src]?.category)));
+      if (!deficit || !TIA_STORY.some((id) => r.cascade.events.some((e) => e.id === id))) return;
+      for (const id of TIA_STORY) expect(active, `${name} ${tH} h: ${id}`).not.toContain(id);
+      const since = tH - Math.max(...r.input.occlusions.map((o) => Math.max(0, o.fromH ?? 0)).filter((h) => h <= tH));
+      if (since < 24) expect(active.filter((id) => id === 'treatment_window' || id === 'ear_stroke_workup'), `${name} ${tH} h`).toHaveLength(1);
+    });
+  });
+
+  // Z4-14: a watershed label names a border-zone infarct of haemodynamic origin, as its text says:
+  // low blood pressure, or a tight stenosis or occlusion of the carotid or M1 on its side (not a
+  // single distal branch whose territory happens to lie in border-zone beds)
+  it.each(CASES)('%s: a watershed label only with low blood pressure or a tight carotid or M1 lesion on its side (Z4-14)', (name) => {
+    series(name).forEach((r, i) => {
+      for (const m of r.syndromes.filter((x) => x.def.id === 'watershed' || x.def.id === 'man_in_barrel'))
+        for (const side of m.side ? [m.side] : (['r', 'l'] as const)) {
+          const proximal = new RegExp(`^(aortic_arch|cca_${side}|ica_[a-z_]+_${side}|mca_m1_${side}${side === 'r' ? '|brachiocephalic' : ''})$`);
+          const setting = r.input.map < 70 || r.input.occlusions.some((o) => (o.fromH ?? 0) <= STOPS[i] && o.severity >= 0.7 && proximal.test(o.vessel));
+          expect(setting, `${name} ${STOPS[i]} h: ${m.def.id}/${side}`).toBe(true);
+        }
     });
   });
 

@@ -280,6 +280,24 @@ describe('最終 tab', () => {
     const marked = container.querySelector('.og-marked') as HTMLElement;
     within(marked).getByText(/單眼/);
   });
+
+  // Z4-18: a loss that lasts months over an infarcted retina is a central retinal artery occlusion;
+  // amaurosis fugax is a transient loss by definition
+  it.each(['zh-TW', 'en'] as const)('%s: the lasting monocular blindness is not named amaurosis fugax', (lang) => {
+    useApp.getState().loadScenario('amaurosis');
+    useApp.setState({ rightTab: 'final', lang });
+    expect(at6m().regions.retina_r.infarct).toBeGreaterThan(0.9);
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const marked = (container.querySelector('.og-marked') as HTMLElement).textContent ?? '';
+    expect(marked).toMatch(lang === 'en' ? /monocular vision loss/i : /單眼視力喪失/);
+    expect(marked).not.toMatch(lang === 'en' ? /amaurosis fugax/i : /一過性黑矇/);
+    // the symptom's description gives both names, each for its own course
+    const d = SYMPTOM_BY_ID.monocular_blind.desc;
+    expect(d.en).toMatch(/amaurosis fugax/);
+    expect(d.en).toMatch(/central retinal artery occlusion/);
+    expect(d.zh).toContain('一過性黑矇');
+    expect(d.zh).toContain('視網膜中央動脈阻塞');
+  });
 });
 
 describe('最終 tab: a course that usually ends in death (C4-F1)', () => {

@@ -641,11 +641,14 @@ export const SYMPTOMS: SymptomDef[] = [
     nihss: { item: '3', pts: [3, 3, 3] },
   },
   {
+    // Z4-18: amaurosis fugax is a transient loss by definition; a loss that lasts, over an
+    // infarcted retina, is a central retinal artery occlusion (Mac Grory B et al. Stroke
+    // 2021;52:e282–e294), so the name says neither and the description gives both
     id: 'monocular_blind',
-    name: { zh: '單眼視力喪失（一過性黑矇）', en: 'Monocular vision loss (amaurosis fugax)' },
+    name: { zh: '單眼視力喪失', en: 'Monocular vision loss' },
     desc: {
-      zh: '像一片窗簾從上往下遮住一隻眼睛；是頸動脈疾病的重要警訊。',
-      en: 'Like a curtain falling over one eye; an important warning sign of carotid disease.',
+      zh: '一隻眼睛突然看不見，常像一片窗簾從上往下遮住。幾分鐘內就恢復的叫一過性黑矇（眼睛的暫時性缺血）；持續不退表示視網膜已經梗塞，是視網膜中央動脈阻塞。兩者都是頸動脈疾病的重要警訊。',
+      en: 'Sudden loss of sight in one eye, often like a curtain falling over it. If it clears within minutes it is amaurosis fugax (a transient ischaemic attack of the eye); if it lasts, the retina has infarcted: a central retinal artery occlusion. Both are important warning signs of carotid disease.',
     },
     system: 'vision',
     lateralised: true,

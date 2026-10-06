@@ -705,7 +705,7 @@ function Results({ sim }: { sim: SimResult }) {
         <h3>{t.timeline}</h3>
         <ol className="events">
           {visibleEvents.map((e) => (
-            <EventItem key={e.id} e={e} tH={tH} onJump={() => setTIndex(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
+            <EventItem key={`${e.id}@${e.onsetH}`} e={e} tH={tH} onJump={() => setTIndex(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
           ))}
         </ol>
         {events.length > visibleEvents.length || showAllEvents ? (

@@ -267,6 +267,13 @@ export interface ListedCourse {
    * occlusion that is not reopened begins (Z3-2). Left out: no such occlusion.
    */
   basilarComaFromH?: number | null;
+  /**
+   * when, after the index onset, no deficit of the brain or the inner ear is listed any more, or
+   * null: not within the first two weeks, or not before the next occlusion begins (Z4-11). The TIA
+   * story of brain ischaemia that leaves no infarct starts then. Left out: from when the flow
+   * comes back.
+   */
+  deficitClearsH?: number | null;
 }
 
 /** what the bilateral ventral pontine labels show (syndromes.ts): basilar_coma, pontine_doc, locked_in, locked_in_incomplete */
@@ -796,6 +803,12 @@ function pushEyeEvents(events: CascadeEvent[]): void {
  * the first DWI missed 12 % of strokes within 48 h (Kattah JC et al. Stroke 2009;40:3504–3510,
  * PMID 19762709).
  */
+/** sudden deafness with vertigo is a stroke emergency (the inner-ear story, and an inner-ear attack while it lasts: Z4-11) */
+const EAR_WORKUP: L = {
+  zh: '突發單側耳聾合併眩暈，可能是小腦前下動脈或基底動脈中風的第一個徵兆：82 例 AICA 梗塞中，有 13 例在之前一個月內出現過短暫的眩暈或聽覺症狀；另一系列 29 位椎基底動脈缺血造成突發耳聾的人中，9 位一開始只有耳朵的症狀，腦部的徵象之後才出現。要當成中風急症處理：盡快做腦部與血管影像，並開始中風預防。床邊的甩頭測試在這類中風也可能異常、看起來像內耳炎，所以不能只靠它排除中風。',
+  en: 'Sudden one-sided deafness with vertigo can be the first sign of an AICA or basilar stroke: 13 of 82 AICA infarcts were preceded by transient vertigo or hearing episodes within the month before, and of 29 people with sudden deafness from vertebrobasilar ischaemia, 9 first had only the ear symptoms and the brain signs came later. Treat it as a stroke emergency: urgent imaging of the brain and its arteries, and stroke prevention. The bedside head-impulse test can be abnormal in such strokes and look like vestibular neuritis, so it cannot rule a stroke out on its own.',
+};
+
 function pushEarEvents(events: CascadeEvent[]): void {
   events.push({
     id: 'labyrinthine_infarction',
@@ -817,10 +830,7 @@ function pushEarEvents(events: CascadeEvent[]): void {
     onsetH: 0,
     endH: 168,
     title: { zh: '內耳中風是腦中風的警訊', en: 'An inner-ear stroke is a brain-stroke warning' },
-    desc: {
-      zh: '突發單側耳聾合併眩暈，可能是小腦前下動脈或基底動脈中風的第一個徵兆：82 例 AICA 梗塞中，有 13 例在之前一個月內出現過短暫的眩暈或聽覺症狀；另一系列 29 位椎基底動脈缺血造成突發耳聾的人中，9 位一開始只有耳朵的症狀，腦部的徵象之後才出現。要當成中風急症處理：盡快做腦部與血管影像，並開始中風預防。床邊的甩頭測試在這類中風也可能異常、看起來像內耳炎，所以不能只靠它排除中風。',
-      en: 'Sudden one-sided deafness with vertigo can be the first sign of an AICA or basilar stroke: 13 of 82 AICA infarcts were preceded by transient vertigo or hearing episodes within the month before, and of 29 people with sudden deafness from vertebrobasilar ischaemia, 9 first had only the ear symptoms and the brain signs came later. Treat it as a stroke emergency: urgent imaging of the brain and its arteries, and stroke prevention. The bedside head-impulse test can be abnormal in such strokes and look like vestibular neuritis, so it cannot rule a stroke out on its own.',
-    },
+    desc: EAR_WORKUP,
     regions: [],
   });
   events.push({
@@ -843,30 +853,92 @@ function pushEarEvents(events: CascadeEvent[]): void {
  * Tissue-based definition of TIA: Easton JD et al. Stroke 2009;40:2276–2293. Short-term dual
  * antiplatelet therapy after a high-risk TIA or minor stroke: CHANCE (Wang Y et al. N Engl J Med
  * 2013;369:11–19) and POINT (Johnston SC et al. N Engl J Med 2018;379:215–225).
+ *
+ * Z4-11: nobody can tell at the bedside that a deficit will clear. While it lasts it is an acute
+ * stroke: brain imaging at once, reperfusion treatment for a disabling deficit (IV thrombolysis is
+ * not recommended for a mild deficit that is not disabling), and antiplatelet drugs only once
+ * imaging has excluded a haemorrhage; after IV thrombolysis aspirin generally waits 24 h, until a
+ * follow-up scan (Powers WJ et al. Stroke 2019;50:e344–e418). So an attack has the treatment
+ * windows of its occlusions while its deficit lasts, and the TIA story ("symptoms gone does not
+ * mean safe", the antiplatelet advice) from when the deficit has cleared — not from its onset.
  */
-function pushNoInfarctEvents(events: CascadeEvent[]): void {
-  events.push(...noInfarctEvents(0, Infinity));
+export interface AttackStory {
+  /**
+   * when no deficit of the brain or the inner ear is listed any more, on the clock of the attack's
+   * start; null when it has not cleared before the next attack begins (or within two weeks)
+   */
+  clearsH: number | null;
+  /** the treatment windows for the occlusions of the attack */
+  window: L;
+  /** the flow came back with IV thrombolysis (alone or before thrombectomy) */
+  thrombolysed: boolean;
+  /**
+   * only the inner ear is ischaemic: while the deafness and vertigo last, the inner-ear stroke
+   * emergency instead of the brain's treatment windows
+   */
+  earOnly?: boolean;
 }
 
+/** what the treatment windows say first while the deficit of an attack lasts (Z4-11) */
+const ATTACK_WINDOW_INTRO: L = {
+  zh: '此刻還無法知道這個缺損會不會自行消失。只要症狀還在，就是急性中風，不等著看它是不是 TIA：立即做腦部影像，有失能性缺損時考慮下列再通治療；抗血小板藥物要等影像排除出血之後才給。',
+  en: 'Nobody can tell yet whether this deficit will clear by itself. While it lasts it is an acute stroke, handled without waiting to see whether it is a TIA: brain imaging at once and, for a disabling deficit, the reperfusion treatments below; antiplatelet drugs only once imaging has excluded a bleed.',
+};
+
+/** … and for an attack of the inner ear alone */
+const ATTACK_EAR_INTRO: L = {
+  zh: '此刻還無法知道耳聾與眩暈會不會自行消失；只要症狀還在，就不等著看它是不是 TIA。',
+  en: 'Nobody can tell yet whether the deafness and vertigo will clear by themselves; while they last, nobody waits to see whether it is a TIA.',
+};
+
 /**
- * The TIA story for brain ischaemia that began at `fromH` and left no infarct, cut off at `untilH`
- * (when a later occlusion starts a new episode). simulate() also tells it for a reopened phase
- * before the index event, such as the prodromal attack of a progressive basilar thrombosis (C3-F8).
+ * The story of brain ischaemia that began at `fromH` and left no infarct, cut off at `untilH`
+ * (when a later occlusion starts a new episode): the treatment windows while its deficit lasts
+ * (within a day of its start), and the TIA story from when the deficit has cleared (Z4-11).
+ * simulate() also tells it for a reopened phase before the index event, such as the prodromal
+ * attack of a progressive basilar thrombosis (C3-F8).
  */
-export function noInfarctEvents(fromH: number, untilH: number): CascadeEvent[] {
-  const at = (h: number) => fromH + h;
-  const until = (h: number) => Math.min(at(h), untilH);
+export function noInfarctEvents(fromH: number, untilH: number, attack: AttackStory): CascadeEvent[] {
   const events: CascadeEvent[] = [];
+  const clears = attack.clearsH !== null && attack.clearsH < untilH ? Math.max(fromH, attack.clearsH) : null;
+  const windowEnd = Math.min(clears ?? Infinity, untilH, fromH + 24);
+  if (windowEnd > fromH)
+    events.push(
+      attack.earOnly
+        ? {
+            id: 'ear_stroke_workup',
+            kind: 'treatment',
+            severity: 'warn',
+            onsetH: fromH,
+            endH: windowEnd,
+            title: { zh: '突發耳聾與眩暈：當作中風急症', en: 'Sudden deafness and vertigo: a stroke emergency' },
+            desc: { zh: ATTACK_EAR_INTRO.zh + EAR_WORKUP.zh, en: `${ATTACK_EAR_INTRO.en} ${EAR_WORKUP.en}` },
+            regions: [],
+          }
+        : {
+            id: 'treatment_window',
+            kind: 'treatment',
+            severity: 'warn',
+            onsetH: fromH,
+            endH: windowEnd,
+            title: { zh: '治療時間窗', en: 'Treatment windows' },
+            desc: { zh: ATTACK_WINDOW_INTRO.zh + attack.window.zh, en: `${ATTACK_WINDOW_INTRO.en} ${attack.window.en}` },
+            regions: [],
+          },
+    );
+  // the TIA story only once the deficit has gone
+  if (clears === null) return events;
+  const until = (h: number) => Math.min(h, untilH);
   events.push({
     id: 'ischemia_no_infarct',
     kind: 'mechanism',
     severity: 'warn',
-    onsetH: at(0),
-    endH: until(6),
+    onsetH: clears,
+    endH: until(clears + 6),
     title: { zh: '缺血但沒有梗塞', en: 'Ischaemia without infarction' },
     desc: {
-      zh: '血流中斷約 10 秒內神經元停止放電而出現症狀。這次在組織壞死之前，血流就恢復了（或側枝循環撐住），所以症狀可以完全消失、沒有留下梗塞——這就是暫時性腦缺血（TIA）。',
-      en: 'Within ~10 s of lost flow neurons stop firing and symptoms begin. This time flow came back (or collaterals held) before tissue died, so the symptoms can clear completely without an infarct — a transient ischaemic attack (TIA).',
+      zh: '血流中斷約 10 秒內神經元停止放電而出現症狀。這次在組織壞死之前，血流就恢復了（或側枝循環撐住），所以症狀已完全消失、沒有留下梗塞——這就是暫時性腦缺血（TIA）。',
+      en: 'Within ~10 s of lost flow neurons stop firing and symptoms begin. This time flow came back (or collaterals held) before tissue died, so the symptoms have cleared completely without an infarct — a transient ischaemic attack (TIA).',
     },
     regions: [],
   });
@@ -874,8 +946,8 @@ export function noInfarctEvents(fromH: number, untilH: number): CascadeEvent[] {
     id: 'imaging_no_infarct',
     kind: 'imaging',
     severity: 'info',
-    onsetH: at(0.1),
-    endH: until(336),
+    onsetH: clears,
+    endH: until(Math.max(fromH + 336, clears + 24)),
     title: { zh: '影像：預期 DWI 沒有梗塞', en: 'Imaging: DWI expected to show no infarct' },
     desc: {
       zh: '模型裡沒有組織壞死，所以擴散加權 MRI 預期是陰性。真實世界裡，持續較久的 TIA 常在 DWI 上看得到小病灶——那時依定義就算輕微中風，而不是 TIA。',
@@ -887,12 +959,12 @@ export function noInfarctEvents(fromH: number, untilH: number): CascadeEvent[] {
     id: 'tia_urgent',
     kind: 'treatment',
     severity: 'warn',
-    onsetH: at(0),
-    endH: until(168),
+    onsetH: clears,
+    endH: until(Math.max(fromH + 168, clears + 24)),
     title: { zh: '症狀消失不代表沒事', en: 'Symptoms gone does not mean safe' },
     desc: {
-      zh: 'TIA 後最初幾天發生真正中風的風險最高，應當天就醫、盡快完成腦與血管檢查。醫師通常會立即開始抗血小板藥物（高風險者短期併用兩種：CHANCE、POINT 試驗），並找出頸動脈狹窄、心房顫動等原因。反覆、越來越頻繁的發作（尤其後循環）可能是大血管即將完全阻塞的前兆。',
-      en: 'The risk of a real stroke is highest in the first days after a TIA: seek care the same day and complete brain and vessel imaging promptly. Antiplatelet treatment is usually started at once (two drugs for a short time in high-risk cases: the CHANCE and POINT trials), and causes such as carotid stenosis or atrial fibrillation are sought. Repeated, increasingly frequent attacks (especially in the posterior circulation) can herald a complete large-vessel occlusion.',
+      zh: `TIA 後最初幾天發生真正中風的風險最高，應當天就醫、盡快完成腦與血管檢查。腦部影像排除出血後，醫師通常會立即開始抗血小板藥物（高風險者短期併用兩種：CHANCE、POINT 試驗）${attack.thrombolysed ? '；打過靜脈血栓溶解劑時，通常等 24 小時後的追蹤影像沒有出血才開始' : ''}，並找出頸動脈狹窄、心房顫動等原因。反覆、越來越頻繁的發作（尤其後循環）可能是大血管即將完全阻塞的前兆。`,
+      en: `The risk of a real stroke is highest in the first days after a TIA: seek care the same day and complete brain and vessel imaging promptly. Once brain imaging has excluded a bleed, antiplatelet treatment is usually started at once (two drugs for a short time in high-risk cases: the CHANCE and POINT trials)${attack.thrombolysed ? '; after thrombolysis it usually waits until a follow-up scan at 24 h shows no bleeding' : ''}, and causes such as carotid stenosis or atrial fibrillation are sought. Repeated, increasingly frequent attacks (especially in the posterior circulation) can herald a complete large-vessel occlusion.`,
     },
     regions: [],
   });
@@ -927,6 +999,37 @@ const MEVO = ['mca_m2_sup', 'mca_m2_inf', 'aca_a1', 'aca_a2', 'pca_p1', 'pca_p2'
 const LARGE_CORE_ML = 70;
 /** above this the core is larger than most of those trials enrolled (mL) */
 const BEYOND_TRIALS_ML = 100;
+
+/** the tissue whose ischaemia a story is told for: the brain, the inner ear and the retina */
+const STORY_TISSUE: ReadonlySet<string | undefined> = new Set(['cortex', 'deep', 'brainstem', 'cerebellum', 'ear', 'eye']);
+
+/** which treatment-window story fits the complete occlusions in effect, with the core when treatment is decided (mL), if known */
+function windowStoryOf(occlusions: readonly Occlusion[], coreMl: number | null): WindowStory {
+  const occluded = occlusions.filter((o) => o.severity >= 1);
+  const occludedBases = new Set(occluded.map((o) => baseOf(o.vessel)));
+  const anteriorSides = new Set(occluded.filter((o) => ANTERIOR_LVO.includes(baseOf(o.vessel))).map((o) => sideOf(o.vessel)));
+  const basilar = BASILAR.some((b) => occludedBases.has(b));
+  const anterior = anteriorSides.size > 0;
+  return {
+    anterior,
+    basilar,
+    basilarTip: occludedBases.has('basilar_tip'),
+    cervicalIsolated: occluded.some((o) => baseOf(o.vessel) === 'ica_cervical' && !anteriorSides.has(sideOf(o.vessel))),
+    v4: !basilar && VERTEBRAL_V4.some((b) => occludedBases.has(b)),
+    mevo: !anterior && !basilar && MEVO.some((b) => occludedBases.has(b)),
+    coreMl,
+  };
+}
+
+/**
+ * The treatment windows for an attack before the index event (simulate's prodromal attacks,
+ * Z4-11): those of its complete occlusions, or of a lacunar stroke when only single branches are
+ * shut.
+ */
+export function attackWindow(occlusions: readonly Occlusion[]): L {
+  const vessels = occlusions.filter((o) => !o.branch);
+  return vessels.length ? treatmentWindowDesc(windowStoryOf(vessels, null)) : LACUNAR_WINDOW;
+}
 
 interface WindowStory {
   /** intracranial ICA or M1 occluded (with or without a cervical ICA occlusion: a tandem lesion) */
@@ -1278,46 +1381,48 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     mcaFinal[s] += mca * (bedFinal[b.id] ?? 0) * b.volume;
   }
   const lacuneIschaemia = input.lacuneIschaemia ?? [];
-  const vesselIschemia = Object.values(regionAcute).some((x) => x >= 0.05);
-  const anyIschemia = vesselIschemia || lacuneIschaemia.length > 0;
+  const vesselIschemia = Object.entries(regionAcute).some(([rid, x]) => x >= 0.05 && STORY_TISSUE.has(REGION_BY_ID[rid]?.category));
   // lacunar (single-branch) occlusions do not enter regionAcute; alone they get their own window
   // story (C2-F7)
   const lacunarOnly = !vesselIschemia && lacuneIschaemia.length > 0;
-  const occluded = input.occlusions.filter((o) => o.severity >= 1);
-  const occludedBases = new Set(occluded.map((o) => baseOf(o.vessel)));
-  const anteriorSides = new Set(occluded.filter((o) => ANTERIOR_LVO.includes(baseOf(o.vessel))).map((o) => sideOf(o.vessel)));
-  const basilar = BASILAR.some((b) => occludedBases.has(b));
-  const anterior = anteriorSides.size > 0;
   const decisionSupra: Record<Side, number> = { r: 0, l: 0 };
   if (input.bedAtDecision)
     for (const b of BEDS) {
       const reg = REGION_BY_ID[b.region];
       if (reg.compartment === 'supra') decisionSupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedAtDecision[b.id] ?? 0) * b.volume;
     }
-  const story: WindowStory = {
-    anterior,
-    basilar,
-    basilarTip: occludedBases.has('basilar_tip'),
-    cervicalIsolated: occluded.some((o) => baseOf(o.vessel) === 'ica_cervical' && !anteriorSides.has(sideOf(o.vessel))),
-    v4: !basilar && VERTEBRAL_V4.some((b) => occludedBases.has(b)),
-    mevo: !anterior && !basilar && MEVO.some((b) => occludedBases.has(b)),
-    coreMl: input.bedAtDecision ? Math.max(decisionSupra.r, decisionSupra.l) : null,
-  };
+  const story = windowStoryOf(input.occlusions, input.bedAtDecision ? Math.max(decisionSupra.r, decisionSupra.l) : null);
 
   // ── 1–2. hyperacute mechanisms, imaging and treatment windows ──────
   // which story fits: only the retina is ischaemic (eye stroke), brain ischaemia that leaves no
-  // infarct (a TIA, or tissue held by collaterals), or a brain infarct
-  const ischaemicRegions = [...new Set([...Object.keys(regionAcute).filter((rid) => regionAcute[rid] >= 0.05), ...lacuneIschaemia])];
-  const eyeOnly = anyIschemia && ischaemicRegions.every((rid) => REGION_BY_ID[rid]?.category === 'eye');
+  // infarct (a TIA, or tissue held by collaterals), or a brain infarct. Ischaemia of the spinal
+  // cord, an arm or the face alone is none of these (Z4-11: an anterior spinal artery occlusion
+  // that infarcts the cord, or an external carotid or distal subclavian occlusion, was told as a
+  // TIA of the brain).
+  const ischaemicRegions = [...new Set([...Object.keys(regionAcute).filter((rid) => regionAcute[rid] >= 0.05), ...lacuneIschaemia])].filter((rid) =>
+    STORY_TISSUE.has(REGION_BY_ID[rid]?.category),
+  );
+  const eyeOnly = ischaemicRegions.length > 0 && ischaemicRegions.every((rid) => REGION_BY_ID[rid].category === 'eye');
+  /** the brain or the inner ear is ischaemic: a brain-stroke, inner-ear or TIA story */
+  const brainStory = ischaemicRegions.length > 0 && !eyeOnly;
   // only the inner ear, and it infarcts (C7-F7): an end-organ infarct that the brain volume does
   // not count; a labyrinthine artery that reopens in time stays a TIA
-  const earInfarct =
-    anyIschemia && ischaemicRegions.every((rid) => REGION_BY_ID[rid]?.category === 'ear') && ischaemicRegions.some((rid) => infarcted(rid, 0.25));
-  const noInfarct = anyIschemia && !eyeOnly && !earInfarct && vol.total < 0.05;
+  const earInfarct = brainStory && ischaemicRegions.every((rid) => REGION_BY_ID[rid].category === 'ear') && ischaemicRegions.some((rid) => infarcted(rid, 0.25));
+  const noInfarct = brainStory && !earInfarct && vol.total < 0.05;
   if (eyeOnly) pushEyeEvents(events);
   else if (earInfarct) pushEarEvents(events);
-  else if (noInfarct) pushNoInfarctEvents(events);
-  else if (anyIschemia) {
+  else if (noInfarct)
+    events.push(
+      ...noInfarctEvents(0, Infinity, {
+        // when the deficit cleared, as the symptom list shows it (the first pass: when the flow came back)
+        clearsH: input.listed?.deficitClearsH !== undefined ? input.listed.deficitClearsH : input.flowReturnsH ?? null,
+        window: lacunarOnly ? LACUNAR_WINDOW : treatmentWindowDesc(story),
+        earOnly: ischaemicRegions.every((rid) => REGION_BY_ID[rid].category === 'ear'),
+        thrombolysed:
+          reperfusionH !== null && input.occlusions.some(isTreatable) && !!input.treatment && input.treatment.method !== 'evt' && !input.treatment.failed,
+      }),
+    );
+  else if (brainStory) {
     // energy failure → excitotoxicity → calcium, free radicals, inflammation
     // (Dirnagl, Iadecola & Moskowitz, Trends Neurosci 1999)
     events.push({
@@ -1376,7 +1481,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   let reperfusion: { at: number; make: (avoided: FatalRisk[], treatedFatal: boolean) => CascadeEvent } | null = null;
   // the infarct the treatment spares lies mostly in the right hemisphere (Woo 1999)
   const rightSided = untreatedSupra.r > untreatedSupra.l;
-  if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable && treatment) {
+  if (reperfusionH !== null && brainStory && !earInfarct && reopenable && treatment) {
     // hours from the onset of the (most recent) reopened occlusion, as in the settings panel
     const starts = input.occlusions.filter((o) => reopenedByTreatment(o, reperfusionH)).map(startOf);
     const delayH = starts.length ? reperfusionH - Math.max(...starts) : reperfusionH;
@@ -1386,7 +1491,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     };
     events.push(reperfusion.make([], false));
     pushTreatmentComplications(events, treatment, reperfusionH);
-  } else if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable) {
+  } else if (reperfusionH !== null && brainStory && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
     const make = (avoided: FatalRisk[], treatedFatal: boolean): CascadeEvent => {
       const o = outcomeSentence(input.reperfusionOutcome, savedVolume, avoided, treatedFatal, rightSided);
@@ -2174,7 +2279,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // day 2 is an alert, mild stroke before that), and once a reopening has cleared the deficit for
   // the rest of the two weeks it says the stroke was severe, not that it is. One warning per
   // lesion's two weeks (Y3-19), split where these change.
-  const brainInfarct = anyIschemia && !eyeOnly && !earInfarct && !noInfarct;
+  const brainInfarct = brainStory && !earInfarct && !noInfarct;
   const insulaAcute = (['insula_r', 'insula_l'] as const).filter((r) => acute(r, 0.3));
   const cardiacWindows: ListedWindow[] = listed
     ? listed.windows
@@ -2583,7 +2688,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // thrombolysis limits: Sandset EC et al. 2025 update to the ESO guideline on blood pressure
   // management, Eur Stroke J 2026;11:aakag004; induced hypertension: Bang OY et al. Neurology
   // 2019;93:e1955–e1963 (n = 153, Class III); ENCHANTED2/MT: Yang P et al. Lancet 2022;400:1585–1596
-  if (input.map !== undefined && input.map >= HIGH_MAP && ((anyIschemia && !eyeOnly) || lacunarOnly)) {
+  if (input.map !== undefined && input.map >= HIGH_MAP && (brainStory || lacunarOnly)) {
     events.push({
       id: 'high_blood_pressure',
       kind: 'treatment',

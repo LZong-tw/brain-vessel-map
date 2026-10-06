@@ -64,6 +64,7 @@ import type { DeficitRef, Side } from '../anatomy';
 import {
   COMA_SHIFT_MM,
   UNCAL_ONSET_H,
+  attackWindow,
   computeCascade,
   consciousnessFromShift,
   noInfarctEvents,
@@ -128,7 +129,7 @@ import {
 import { LACUNE_DYSFUNCTION, LACUNE_ML, canBeLacunar, lacuneSiteOf } from '../anatomy/lacunes';
 import { DELAYED_ONSET_H } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { LOCKED_IN_BASES_FLOOR, isWatershedPicture } from '../anatomy/syndromes';
+import { LOCKED_IN_BASES_FLOOR, haemodynamicSetting, isWatershedPicture } from '../anatomy/syndromes';
 import { NEURONS_PER_ML, infarctFractionOf, lossSteps, silentAfterReflow, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
@@ -532,17 +533,29 @@ function startCredits(input: SimInput, course: Course, finalH: number, other: Co
   return credit;
 }
 
+/** an attack before the index onset that reopened by itself and left no infarct (simulation clock) */
+interface Prodrome {
+  fromH: number;
+  /** when the next attack (or the index event) begins */
+  untilH: number;
+  /** when its occlusions reopened (the flow came back) */
+  flowBackH: number;
+  /** its occlusions */
+  occlusions: Occlusion[];
+  /** only the inner ear is ischaemic (a labyrinthine branch) */
+  earOnly: boolean;
+}
+
 /**
- * The TIA story for each attack that began before the index onset, reopened by itself and left no
- * infarct while it made brain tissue ischaemic (such as the prodromal attack of a progressive
- * basilar thrombosis: Ferbert A et al. Stroke 1990;21:1135–1142; von Campe G et al. J Neurol
- * Neurosurg Psychiatry 2003;74:1621–1626). An attack is a complete occlusion (C3-F8) or one of a
- * single branch, which the flow model does not see but whose tissue stops working while it is shut
- * (C6-F2): the crescendo of capsular or pontine attacks before a lacunar stroke (Donnan GA et al.
- * Neurology 1993;43:957–962) is a run of TIAs, each an emergency. Each story is cut off where the
- * next attack begins. Simulation clock.
+ * Each attack that began before the index onset, reopened by itself and left no infarct while it
+ * made brain tissue ischaemic (such as the prodromal attack of a progressive basilar thrombosis:
+ * Ferbert A et al. Stroke 1990;21:1135–1142; von Campe G et al. J Neurol Neurosurg Psychiatry
+ * 2003;74:1621–1626). An attack is a complete occlusion (C3-F8) or one of a single branch, which
+ * the flow model does not see but whose tissue stops working while it is shut (C6-F2): the
+ * crescendo of capsular or pontine attacks before a lacunar stroke (Donnan GA et al. Neurology
+ * 1993;43:957–962) is a run of TIAs, each an emergency. Each lasts until the next attack begins.
  */
-function prodromalEvents(input: SimInput, course: Course, finalH: number, onsetH: number, other: Course | null, x: number): CascadeEvent[] {
+function prodromalAttacks(input: SimInput, course: Course, finalH: number, onsetH: number, other: Course | null, x: number): Prodrome[] {
   const credit = startCredits(input, course, finalH, other, x);
   const attack = (o: Occlusion) => isTreatable(o) || (!!o.branch && o.severity >= 1);
   const attackStarts = [...new Set(input.occlusions.filter(attack).map(startOf))].sort((a, b) => a - b);
@@ -551,15 +564,27 @@ function prodromalEvents(input: SimInput, course: Course, finalH: number, onsetH
     [...course.lacunes].some(
       ([rid, list]) => (BRAIN.has(REGION_BY_ID[rid].category) || REGION_BY_ID[rid].category === 'ear') && list.some((o) => startOf(o) === h && inWindow(o, h)),
     );
-  const out: CascadeEvent[] = [];
+  const out: Prodrome[] = [];
   for (const s of attackStarts) {
     if (s >= onsetH) break;
-    const reopens = input.occlusions.some((o) => attack(o) && startOf(o) === s && endOf(o) !== null);
-    if (!reopens || (credit.get(s) ?? 0) >= ONSET_MIN_ML || !(ischaemicAt(course, s) || branchIschaemicAt(s))) continue;
-    const next = attackStarts.find((h) => h > s) ?? onsetH;
-    out.push(...noInfarctEvents(s, next));
+    const own = input.occlusions.filter((o) => attack(o) && startOf(o) === s);
+    const ends = own.map(endOf).filter((e): e is number => e !== null);
+    if (!ends.length || (credit.get(s) ?? 0) >= ONSET_MIN_ML || !(ischaemicAt(course, s) || branchIschaemicAt(s))) continue;
+    const earOnly = !ischaemicAt(course, s) && [...course.lacunes].every(([rid, list]) => REGION_BY_ID[rid].category === 'ear' || !list.some((o) => startOf(o) === s && inWindow(o, s)));
+    out.push({ fromH: s, untilH: attackStarts.find((h) => h > s) ?? onsetH, flowBackH: Math.min(...ends), occlusions: own, earOnly });
   }
   return out;
+}
+
+/**
+ * The story of each prodromal attack (simulation clock): its treatment windows while its deficit
+ * lasts, the TIA story once the deficit has cleared (cascade.noInfarctEvents, Z4-11), `clearsAt`
+ * telling when that is.
+ */
+function prodromalEvents(attacks: Prodrome[], clearsAt: (a: Prodrome) => number | null): CascadeEvent[] {
+  return attacks.flatMap((a) =>
+    noInfarctEvents(a.fromH, a.untilH, { clearsH: clearsAt(a), window: attackWindow(a.occlusions), thrombolysed: false, earOnly: a.earOnly }),
+  );
 }
 
 /**
@@ -881,7 +906,9 @@ function modelFor(input: SimInput): Model {
     { course, untreated, x, unitSaved, hemoAcute, hemoAfter, onsetH, edemaReperfusionH },
     input.decompression,
   );
-  const prodromal = onsetH > 0 ? prodromalEvents(input, course, finalH, onsetH, untreated, x) : [];
+  const prodromes = onsetH > 0 ? prodromalAttacks(input, course, finalH, onsetH, untreated, x) : [];
+  // (the first pass: an attack's deficit counts as cleared when its flow comes back)
+  const prodromal = prodromalEvents(prodromes, (a) => a.flowBackH);
   const model: Model = {
     course,
     untreated,
@@ -915,13 +942,16 @@ function modelFor(input: SimInput): Model {
   model.finish = () => {
     if (done) return;
     done = true;
+    const listAt = listMemo(input);
     const second = computeCascade({
       ...shiftedInput,
-      listed: { ...listedCourse(input, model), brainstem: brainstemCourse(input, model) },
+      listed: { ...listedCourse(input, model, listAt), brainstem: brainstemCourse(input, model) },
       ...(cascadeInput.reperfusionH !== null && plan && !plan.failed && plan.reopened.length ? { reperfusionOutcome: reperfusionOutcomeOf(input, model) } : {}),
     });
     model.cascade = second;
-    model.shownCascade = shownCascadeOf(second, onsetH, prodromal);
+    // each prodromal attack's TIA story from when the list shows its deficit cleared (Z4-11)
+    const clears = deficitClearing(input, listAt);
+    model.shownCascade = shownCascadeOf(second, onsetH, prodromalEvents(prodromes, (a) => clears(a.fromH, a.untilH, [a.flowBackH])));
   };
   return model;
 }
@@ -1059,6 +1089,53 @@ function ownBasilarSource(model: Model, src: string, t: number): boolean {
   return !reg.beds.some((b) => effectsAt(model.cascade, b, t).some((e) => e.kind === 'compressed' || e.kind === 'secondary'));
 }
 
+/** the symptom list at each time (simulation clock), each computed once */
+function listMemo(input: SimInput): (tAbs: number) => SymptomItem[] {
+  const memo = new Map<number, SymptomItem[]>();
+  return (tAbs) => {
+    let l = memo.get(tAbs);
+    if (!l) memo.set(tAbs, (l = symptomsAt({ ...input, tH: tAbs })));
+    return l;
+  };
+}
+
+/** the tissue whose deficit a TIA is about: the brain and the inner ear (not the retina, spinal cord, an arm or the face) */
+const ATTACK_TISSUE: ReadonlySet<string> = new Set([...BRAIN, 'ear']);
+/** a listed deficit of the brain or the inner ear (one an event adds, without a region, counts too) */
+const attackDeficit = (list: SymptomItem[]) => list.some((x) => !x.sources.length || x.sources.some((src) => ATTACK_TISSUE.has(REGION_BY_ID[src]?.category)));
+
+/**
+ * When, in [a, b) on the simulation clock, the symptom list first shows no deficit of the brain or
+ * the inner ear, or null if it always does (Z4-11). Sampled at a, at the time stops of the
+ * simulation clock and of a's own clock, and at `extra` (when the flow comes back), with the edge
+ * between the last sample with a deficit and the first without one found by bisection.
+ */
+function deficitClearing(input: SimInput, listAt: (tAbs: number) => SymptomItem[] = listMemo(input)) {
+  return (a: number, b: number, extra: number[] = []): number | null => {
+    const times = new Set<number>([a, ...extra.filter((h) => h >= a && h < b)]);
+    for (const st of TIME_STOPS) {
+      if (st.h >= a && st.h < b) times.add(st.h);
+      if (a + st.h < b) times.add(a + st.h);
+    }
+    let prev: number | null = null;
+    for (const t of [...times].sort((x, y) => x - y)) {
+      if (!attackDeficit(listAt(t))) {
+        if (prev === null) return t;
+        let lo = prev;
+        let hi = t;
+        for (let k = 0; k < LISTED_BISECT; k++) {
+          const m = (lo + hi) / 2;
+          if (attackDeficit(listAt(m))) lo = m;
+          else hi = m;
+        }
+        return hi;
+      }
+      prev = t;
+    }
+    return null;
+  };
+}
+
 /**
  * What the symptom list shows after each lesion (clinical clock): in its first two weeks the
  * stretches with dysphagia or, without it, a reduced level of consciousness (X3-1, X3-3), when
@@ -1069,14 +1146,8 @@ function ownBasilarSource(model: Model, src: string, t: number): boolean {
  * by bisection, so that the warnings that follow the list also agree with it between the stops.
  * Runs on a cached model (its first-pass cascade), so each sample costs only the per-time part.
  */
-function listedCourse(input: SimInput, model: Model): ListedCourse {
+function listedCourse(input: SimInput, model: Model, listAt: (tAbs: number) => SymptomItem[] = listMemo(input)): ListedCourse {
   const { onsetH, lesionStarts } = model;
-  const memo = new Map<number, SymptomItem[]>();
-  const listAt = (tAbs: number) => {
-    let l = memo.get(tAbs);
-    if (!l) memo.set(tAbs, (l = symptomsAt({ ...input, tH: tAbs })));
-    return l;
-  };
   const swallowAt = (tAbs: number): SwallowStretch['kind'] | null => {
     const l = listAt(tAbs);
     return l.some((s) => s.id === 'dysphagia') ? 'dysphagia' : l.some((s) => DROWSY_IDS.includes(s.id)) ? 'drowsy' : null;
@@ -1168,7 +1239,13 @@ function listedCourse(input: SimInput, model: Model): ListedCourse {
       }
     }
   }
-  return { swallow, windows, immobile, basilarComaFromH };
+  // when the deficit of the index event is first gone (Z4-11): the TIA story of brain ischaemia
+  // that leaves no infarct begins then, not while the deficit lasts
+  const nextStart = input.occlusions.map(startOf).filter((h) => h > onsetH);
+  const clearUntil = Math.min(onsetH + LISTED_WINDOW_H, ...nextStart);
+  const flowBack = model.edemaReperfusionH === null ? [] : [onsetH + model.edemaReperfusionH];
+  const cleared = deficitClearing(input, listAt)(onsetH, clearUntil, flowBack);
+  return { swallow, windows, immobile, basilarComaFromH, deficitClearsH: cleared === null ? null : cleared - onsetH };
 }
 
 /** the labels of the bilateral ventral pons and the state of the brainstem course each names (cascade.brainstemEvents) */
@@ -1896,6 +1973,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
     occluded: (base, side) => occl.has(idOf(base, side)) || (!side && (occl.has(`${base}_r`) || occl.has(`${base}_l`))),
     reversed: (base, side) => rev.has(idOf(base, side)),
     border: (side) => borderBySide[side],
+    haemodynamic: (side) => haemodynamicSetting(input.map, input.occlusions.filter((o) => startOf(o) <= tAbs), side),
     cortexCount: (side, thr = 0.2) =>
       REGIONS.filter((r) => r.side === side && r.category === 'cortex' && rPrim[r.id] >= thr).length,
     map: input.map,

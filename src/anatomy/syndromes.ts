@@ -36,6 +36,12 @@ export interface SyndromeCtx {
   reversed(base: string, side?: Side | 'm'): boolean;
   /** affected mL in border-zone beds of a hemisphere and in total */
   border(side: Side): { border: number; total: number; kinds: string[] };
+  /**
+   * a haemodynamic setting for a border-zone infarct on this side (haemodynamicSetting, Z4-14): a
+   * low blood pressure, or a tight stenosis or occlusion of the carotid or M1 on this side begun by
+   * the displayed time
+   */
+  haemodynamic(side: Side): boolean;
   /** number of dysfunctional cortical regions on a side */
   cortexCount(side: Side, thr?: number): number;
   map: number;
@@ -154,6 +160,30 @@ function crescendo(episodes: BranchEpisode[], tH: number): boolean {
  */
 export const isWatershedPicture = (b: { border: number; total: number }) => b.border >= 4 && b.border / Math.max(b.total, 1e-6) >= 0.35;
 
+/** below this mean arterial pressure (mmHg) the whole brain is underperfused (also the case summary's "hypoperfusion") */
+export const LOW_MAP = 70;
+/** a stenosis from this severity is tight (NASCET severe: 70 % or more) */
+const TIGHT_STENOSIS = 0.7;
+
+/**
+ * Whether the setting of a border-zone (watershed) infarct of hemisphere `side` is haemodynamic
+ * (Z4-14): a mean arterial pressure below LOW_MAP, or a tight stenosis or an occlusion, begun by the
+ * displayed time, of an artery that feeds the whole hemisphere's border zones — the common or
+ * internal carotid on that side (any segment), the brachiocephalic trunk for the right, the aortic
+ * arch for both — or of its M1 segment. One-sided watershed infarcts mostly come with carotid
+ * occlusion or tight stenosis plus a haemodynamic factor (Bogousslavsky J, Regli F. Neurology
+ * 1986;36:373–377); with an MCA stenosis, chains of deep border-zone infarcts were the commonest
+ * pattern of multiple infarcts (11 of 15: Wong KS et al. Ann Neurol 2002;52:74–81). A single
+ * distal branch occluded by an embolus leaves a branch-territory infarct even where it lies in
+ * border-zone beds (an A2 or pericallosal occlusion was labelled watershed).
+ */
+export function haemodynamicSetting(map: number, occlusions: readonly { vessel: string; severity: number }[], side: Side): boolean {
+  if (map < LOW_MAP) return true;
+  const feeds = [`cca_${side}`, `ica_cervical_${side}`, `ica_petrous_cavernous_${side}`, `ica_ophthalmic_seg_${side}`, `ica_terminal_${side}`, `mca_m1_${side}`, 'aortic_arch'];
+  if (side === 'r') feeds.push('brachiocephalic');
+  return occlusions.some((o) => o.severity >= TIGHT_STENOSIS && feeds.includes(o.vessel));
+}
+
 /** both sides of the ventral pons (upper or lower) involved, at least `thr` */
 const bothBases = (c: SyndromeCtx, thr: number) => c.both('pons_rostral_basis', thr) || c.both('pons_caudal_basis', thr);
 /** the coma comes from the arousal network of the upper pontine or paramedian midbrain tegmentum */
@@ -253,10 +283,13 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '前大腦動脈症候群', en: 'ACA syndrome' },
     desc: {
-      zh: '對側腿明顯無力與感覺喪失（手臂較輕、臉通常正常）、尿失禁、意志缺失；可能出現異己手、左側受損時經皮質運動性失語。',
-      en: 'Contralateral leg weakness and sensory loss (arm milder, face spared), urinary incontinence, abulia; possibly alien hand and, on the left, transcortical motor aphasia.',
+      zh: '對側腿明顯無力與感覺喪失（手臂較輕、臉通常正常）、尿失禁、意志缺失；可能出現異己手（胼胝體）、左側受損時經皮質運動性失語。側枝保住旁中央小葉時，腿只輕微無力或不無力，內側額葉、扣帶迴與胼胝體的梗塞主要表現為意志缺失、尿失禁與這些徵象。',
+      en: 'Contralateral leg weakness and sensory loss (arm milder, face spared), urinary incontinence, abulia; possibly alien hand (corpus callosum) and, on the left, transcortical motor aphasia. When collaterals save the paracentral lobule the leg is weak only mildly or not at all, and the infarct of the medial frontal and cingulate cortex and the corpus callosum shows mainly as abulia, incontinence and these signs.',
     },
-    test: (c, s) => c.has('paracentral', s, 0.3) && c.hasAny(['medial_frontal', 'cingulate'], s, 0.3),
+    // Z4-14: the territory, with or without its paracentral lobule (which collaterals often save):
+    // the medial frontal or cingulate cortex together with another region of the ACA territory
+    test: (c, s) =>
+      c.hasAny(['medial_frontal', 'cingulate'], s, 0.3) && ['paracentral', 'medial_frontal', 'cingulate', 'corpus_callosum'].filter((b) => c.has(b, s, 0.3)).length >= 2,
   },
   {
     id: 'aca_bilateral',
@@ -1032,7 +1065,9 @@ export const SYNDROMES: SyndromeDef[] = [
     // Bogousslavsky J, Regli F. Unilateral watershed cerebral infarcts. Neurology 1986;36:373-377
     // (PMID 3951705): 51 patients, a characteristic picture per type, syncope 37 %, limb shaking
     // 12 %, 75 % with ICA occlusion or tight stenosis plus a haemodynamic factor
-    test: (c, s) => isWatershedPicture(c.border(s)),
+    // Z4-14: only in a haemodynamic setting (haemodynamicSetting): a distal branch occluded by an
+    // embolus is a branch-territory infarct, also where it lies in border-zone beds
+    test: (c, s) => isWatershedPicture(c.border(s)) && c.haemodynamic(s),
   },
   {
     // bilateral anterior border-zone infarcts: bilateral brachial paralysis, worst proximally
@@ -1054,7 +1089,7 @@ export const SYNDROMES: SyndromeDef[] = [
     test: (c) =>
       (['r', 'l'] as Side[]).every((s) => {
         const b = c.border(s);
-        return isWatershedPicture(b) && b.kinds.some((k) => k.startsWith('ACA|MCA')) && !c.has('paracentral', s, 0.3);
+        return isWatershedPicture(b) && b.kinds.some((k) => k.startsWith('ACA|MCA')) && !c.has('paracentral', s, 0.3) && c.haemodynamic(s);
       }),
     requires: (q) => q.on('arm_weak_proximal', 'r', 2) && q.on('arm_weak_proximal', 'l', 2),
     supersedes: ['watershed'],
@@ -1084,8 +1119,8 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '視網膜缺血（一過性黑矇／視網膜中央動脈阻塞）', en: 'Retinal ischaemia (amaurosis fugax / CRAO)' },
     desc: {
-      zh: '單眼視力突然變暗或全黑，是「眼睛的中風」，同時也是同側頸動脈疾病的警訊，需要與腦中風同等緊急處理。',
-      en: 'Sudden darkening or loss of vision in one eye — a "stroke of the eye" and a warning sign of same-side carotid disease; as urgent as a brain stroke.',
+      zh: '單眼視力突然變暗或全黑，是「眼睛的中風」，同時也是同側頸動脈疾病的警訊，需要與腦中風同等緊急處理。幾分鐘內恢復的是一過性黑矇；持續不退、視網膜梗塞的是視網膜中央動脈阻塞。',
+      en: 'Sudden darkening or loss of vision in one eye — a "stroke of the eye" and a warning sign of same-side carotid disease; as urgent as a brain stroke. Clearing within minutes it is amaurosis fugax; lasting, with the retina infarcted, it is a central retinal artery occlusion.',
     },
     test: (c, s) => c.has('retina', s, 0.3),
   },

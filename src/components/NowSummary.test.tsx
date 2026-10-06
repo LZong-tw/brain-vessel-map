@@ -126,3 +126,42 @@ describe('"what is happening now" names the bottleneck where it is (Z2-10)', () 
     expect(sentence('basilar_mid', 720, 'zh-TW')).toMatch(/在腹側橋腦一起被截斷/);
   });
 });
+
+// Z4-13: the tissue sentence says the penumbra "can still be saved" only while a reopening is still
+// offered (within a day of the occlusion: REPERFUSION_STOPS), and calls a small infarct that keeps
+// growing — such as one in the brainstem — growing, not "not growing for now"
+describe('"what is happening now": the penumbra after the treatment window, and a small growing core (Z4-13)', () => {
+  const tissue = (id: string, collateral: 'good' | 'moderate' | 'poor', h: number, lang: Lang) => {
+    const series = seriesOf(id, collateral);
+    useApp.setState({ lang, tIndex: at(h) });
+    const { container } = render(<NowSummary sim={series[at(h)]} series={series} />);
+    const text = container.querySelector('p')?.textContent ?? '';
+    cleanup();
+    return text;
+  };
+
+  it('a reopening is still offered at 1 day: the penumbra can still be saved', () => {
+    expect(tissue('l_m1', 'good', 24, 'en')).toMatch(/can still be saved/);
+    expect(tissue('l_m1', 'good', 24, 'zh-TW')).toContain('可救');
+  });
+
+  it.each([48, 72])('after the treatment window (%s h) the penumbra may still be lost, not "saved"', (h) => {
+    // (the left PCA template has moderate collaterals)
+    for (const [id, collateral] of [['l_m1', 'good'], ['l_pca', 'moderate']] as const) {
+      const en = tissue(id, collateral, h, 'en');
+      expect(en, `${id} ${h} h`).toMatch(/still growing/);
+      expect(en, `${id} ${h} h`).not.toMatch(/can still be saved/);
+      expect(en, `${id} ${h} h`).toMatch(/may still be lost/);
+      const zh = tissue(id, collateral, h, 'zh-TW');
+      expect(zh, `${id} ${h} h`).not.toContain('可救');
+      expect(zh, `${id} ${h} h`).toContain('仍可能壞死');
+    }
+  });
+
+  it.each([1, 6, 12])('a mid-basilar infarct of a few millilitres that keeps growing is "still growing" at %s h', (h) => {
+    const en = tissue('basilar_mid', 'good', h, 'en');
+    expect(en).toMatch(/still growing/);
+    expect(en).not.toMatch(/not growing/);
+    expect(tissue('basilar_mid', 'good', h, 'zh-TW')).toContain('正在擴大');
+  });
+});

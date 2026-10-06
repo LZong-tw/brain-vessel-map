@@ -403,7 +403,11 @@ describe('transient occlusions (relative to the tissue parameters)', () => {
     const attack = events.find((e) => e.id === 'locked_in')!;
     expect(attack.onsetH).toBeCloseTo(0, 9);
     expect(attack.endH).toBeCloseTo(sc.occlusions[0].toH!, 9);
-    expect(events.filter((e) => !TIA.includes(e.id) && e !== attack).every((e) => e.onsetH >= 72)).toBe(true);
+    // (Z4-11: and the treatment windows of the attack while its deficit lasts)
+    const windows = events.find((e) => e.id === 'treatment_window' && e.onsetH < 1)!;
+    expect(windows.onsetH).toBe(0);
+    expect(windows.endH).toBeLessThan(0.25);
+    expect(events.filter((e) => !TIA.includes(e.id) && e !== attack && e !== windows).every((e) => e.onsetH >= 72)).toBe(true);
     const tia = events.filter((e) => TIA.includes(e.id)).sort((a, b) => a.id.localeCompare(b.id));
     expect(tia.map((e) => [e.id, e.onsetH < 1, (e.endH ?? Infinity) <= 72])).toEqual([...TIA].sort().map((id) => [id, true, true]));
   });

@@ -1,7 +1,8 @@
 import { REGION_BY_ID, regionName, tr } from '../anatomy';
-import { PHASE_LABEL, TIME_STOPS, formatHours, phaseOf } from '../anatomy/timeline';
+import { PHASE_LABEL, REPERFUSION_STOPS, TIME_STOPS, formatHours, phaseOf } from '../anatomy/timeline';
 import type { CascadeEvent, EventSeverity } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
+import { startOf } from '../engine/schedule';
 import type { SimResult } from '../engine/simulate';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
@@ -17,6 +18,18 @@ const SILENCED_ML = 1;
 const COMPENSATING_FROM = 0.15;
 /** name deficits without backup from this time (h), once compensation of the others is under way */
 const NO_BACKUP_FROM_H = 168;
+/** a volume shows as more than 0 mL from here (fmtMl) */
+const SHOWN_ML = 0.05;
+/**
+ * a change of the core, or a penumbra, is worth a sentence from 0.5 mL, or from a tenth of the
+ * core when that is smaller (a brainstem infarct of a few millilitres that doubles in a few hours
+ * is growing: Z4-13), as long as it shows as more than 0 mL
+ */
+const NOTABLE_ML = 0.5;
+const NOTABLE_SHARE = 0.1;
+const notable = (v: number, core: number) => v >= NOTABLE_ML || (v >= SHOWN_ML && v >= NOTABLE_SHARE * core);
+/** the model offers a reopening up to this long after an occlusion starts (h) */
+const REOPENING_OFFERED_H = Math.max(...REPERFUSION_STOPS);
 
 /**
  * "What is happening now": the phase, what the tissue is doing, swelling, temporary silencing and
@@ -38,7 +51,12 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
 
   // ── what the tissue is doing ──
   const sentences: string[] = [];
-  if (core < 0.5 && pen < 0.5) {
+  const grew = prev ? core - prev.volumes.core : 0;
+  // the penumbra "can still be saved" while a reopening is still offered: within a day of the
+  // start of an occlusion still in effect, before any reopening (Z4-13); after it, it may still be lost
+  const lastStart = Math.max(-Infinity, ...sim.activeOcclusions.map(startOf));
+  const penNote = sim.recanalized ? 'atRisk' : tH - lastStart <= REOPENING_OFFERED_H + 1e-9 ? 'saved' : 'late';
+  if (core < SHOWN_ML && !notable(pen, core)) {
     sentences.push(Object.values(sim.regions).some((r) => r.dominant === 'oligemia') ? t.nowOligemia : t.nowNothing);
   } else if (tH === 0) {
     sentences.push(t.nowOnset(fmtMl(core + pen)));
@@ -47,12 +65,10 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
     sentences.push(sim.edema.phase === 'atrophy' ? t.nowChronicLoss(fmtMl(core)) : t.nowChronic(fmtMl(core)));
   } else if (sim.recanalized && reperf !== null && saved >= 0.5 && tH < 168) {
     sentences.push(t.nowRecanalized({ at: formatHours(reperf, lang), saved: fmtMl(saved) }));
-  } else if (prev && core - prev.volumes.core >= 0.5 && pen >= 0.5) {
-    sentences.push(
-      t.nowCoreGrowing({ grew: fmtMl(core - prev.volumes.core), since: formatHours(tH - prevH, lang), core: fmtMl(core), pen: fmtMl(pen) }),
-    );
-  } else if (pen >= 0.5) {
-    sentences.push(t.nowHolding({ core: fmtMl(core), pen: fmtMl(pen) }));
+  } else if (notable(grew, core) && notable(pen, core)) {
+    sentences.push(t.nowCoreGrowing({ grew: fmtMl(grew), since: formatHours(tH - prevH, lang), core: fmtMl(core), pen: fmtMl(pen), penNote }));
+  } else if (notable(pen, core)) {
+    sentences.push(core < SHOWN_ML ? t.nowHoldingNoCore(fmtMl(pen)) : t.nowHolding({ core: fmtMl(core), pen: fmtMl(pen) }));
   } else {
     sentences.push(t.nowSettled(fmtMl(core)));
   }
@@ -188,7 +204,7 @@ function EventLine({ label, events }: { label: string; events: CascadeEvent[] })
       <span className="now-line-label">{label}</span>
       <span className="now-events">
         {events.slice(0, 5).map((e) => (
-          <span key={e.id} className={`now-event ev-${e.severity}`} title={tr(e.desc, lang)}>
+          <span key={`${e.id}@${e.onsetH}`} className={`now-event ev-${e.severity}`} title={tr(e.desc, lang)}>
             {shortTitle(tr(e.title, lang))}
           </span>
         ))}

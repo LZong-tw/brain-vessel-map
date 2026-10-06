@@ -6,6 +6,7 @@
 
 import { VESSEL_BY_ID, tr, vesselName } from '../anatomy';
 import { lacuneSitesOf } from '../anatomy/lacunes';
+import { LOW_MAP } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
@@ -28,8 +29,8 @@ export interface CaseState {
   decompression: boolean;
 }
 
-/** below this mean arterial pressure the whole brain is underperfused: a case even without an occlusion */
-export const LOW_MAP = 70;
+/** below this mean arterial pressure the whole brain is underperfused: a case even without an occlusion (the watershed label's setting too) */
+export { LOW_MAP };
 
 const SEP = ' · ';
 /** English summaries that start a header begin with a capital */

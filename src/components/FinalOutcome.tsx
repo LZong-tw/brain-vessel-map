@@ -274,7 +274,7 @@ export function FinalOutcome() {
         ) : (
           <ol className="events">
             {out.late.map((e) => (
-              <EventItem key={e.id} e={e} tH={H_6M} onJump={() => jumpTo(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
+              <EventItem key={`${e.id}@${e.onsetH}`} e={e} tH={H_6M} onJump={() => jumpTo(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
             ))}
           </ol>
         )}
