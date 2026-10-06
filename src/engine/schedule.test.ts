@@ -269,7 +269,9 @@ describe('stenosis, then occlusion', () => {
     for (const tH of [0, 1, 24, 48]) {
       const r = sim({ occlusions: phases, tH });
       expect(r.volumes.core, `t=${tH}`).toBeLessThan(0.05);
-      expect(r.cascade.events.filter((e) => e.onsetH <= tH)).toEqual([]);
+      // (only the circle of Willis: the posterior communicating arteries carry blood beyond the
+      // narrowing, which is why it stays silent: U2-5)
+      expect(r.cascade.events.filter((e) => e.onsetH <= tH).map((e) => [e.id, e.severity])).toEqual([['willis_compensation', 'good']]);
     }
     const after = sim({ occlusions: phases, tH: 120 });
     expect(after.volumes.core).toBeGreaterThan(1);
@@ -412,7 +414,10 @@ describe('transient occlusions (relative to the tissue parameters)', () => {
     const windows = events.find((e) => e.id === 'treatment_window' && e.onsetH < 1)!;
     expect(windows.onsetH).toBe(0);
     expect(windows.endH).toBeLessThan(0.25);
-    expect(events.filter((e) => !TIA.includes(e.id) && e !== attack && e !== windows).every((e) => e.onsetH >= 72)).toBe(true);
+    // (and the circle of Willis, whose posterior communicating arteries carry blood beyond the
+    // basilar clot and narrowing from the first attack on: U2-5)
+    expect(events.filter((e) => !TIA.includes(e.id) && e !== attack && e !== windows && e.id !== 'willis_compensation').every((e) => e.onsetH >= 72)).toBe(true);
+    expect(events.filter((e) => e.id === 'willis_compensation').map((e) => e.onsetH)).toEqual([0]);
     const tia = events.filter((e) => TIA.includes(e.id)).sort((a, b) => a.id.localeCompare(b.id));
     expect(tia.map((e) => [e.id, e.onsetH < 1, (e.endH ?? Infinity) <= 72])).toEqual([...TIA].sort().map((id) => [id, true, true]));
   });

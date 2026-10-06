@@ -6,14 +6,14 @@
   · Real cerebrum / cerebellum / brainstem / deep-nuclei meshes from the MNI ICBM152 2009c template, every surface point labelled with a functional region and an arterial territory
 - 180 段動脈（含腦幹穿通支、小腦動脈、38 段側枝），主幹位置校正到 MRA 統計圖譜
   · 180 arterial segments (brainstem perforators, cerebellar arteries, 38 collaterals), main trunks fitted to an MRA statistical atlas
-- Poiseuille 血流網路：Willis 環代償、竊血、自動調節、分水嶺、21 種解剖變異、側枝分級、腦幹軟腦膜側枝
-  · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 21 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
+- Poiseuille 血流網路：Willis 環代償（只在它把血送進阻塞之後的區域時才說）、竊血、自動調節、分水嶺、21 種解剖變異、側枝分級、腦幹軟腦膜側枝
+  · Poiseuille flow network: circle-of-Willis compensation (told only where it carries blood beyond an occlusion), steal, autoregulation, watershed, 21 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
 - 組織命運隨時間演變（核心／半影區／低灌流），壞死速度依缺血深度與時間、依大血管阻塞實測的梗塞擴大速度校正；內囊與放射冠比旁邊的紋狀體晚幾小時才壞死（依取栓後內囊梗塞的影像研究校正）；再通救回的組織要幾小時到幾天才恢復功能；後循環時間窗依基底動脈取栓試驗校正
   · Tissue fate over time (core / penumbra / oligaemia), lost by how deep and how long the ischaemia is, calibrated to the measured growth of the core in large-vessel occlusion; the internal capsule and corona radiata lost hours after the striatum beside them (calibrated to imaging of the capsule after thrombectomy); rescued tissue regaining its function over hours to days; posterior-circulation time window calibrated to the basilar thrombectomy trials
 - 分段病程：TIA、狹窄後才完全阻塞、自行再通，可在任一時間點治療；每個時間點顯示的是當時的病情，之後才開始的阻塞在開始前什麼都不改變；每個病灶依自己的時鐘腫脹、疝脫，較大的阻塞開始時，較早的梗塞不會失去腫脹或疝脫梗塞，已開始的腫脹病程也不會被拿掉或改標題
   · Staged course: TIAs, stenosis progressing to occlusion, spontaneous reopening, treatment at any point; each time shows the case as it stands then, and an occlusion that begins later changes nothing before it begins; each lesion swells and herniates on its own clock, so an earlier infarct keeps its swelling and its herniation infarct when a larger occlusion begins, and what has begun of the swelling course is not removed or retitled
-- 再通細節：治療方式、eTICI 再灌流程度、再阻塞、遠端栓塞、無再流，並附已發表數據；「已救回」包括治療避免的疝脫梗塞，治療時間窗在血管打通時結束
-  · Recanalisation details: method, eTICI grade, reocclusion, distal embolus, no-reflow, with published figures; "saved" includes the herniation infarcts the treatment prevents, and the treatment windows end when the artery is reopened
+- 再通細節：治療方式、eTICI 再灌流程度、再阻塞、遠端栓塞、無再流，並附已發表數據；「已救回」包括治療避免的疝脫梗塞，治療時間窗在血管打通時結束、再阻塞後再度出現；遠端栓塞時顯示血管攝影上的 eTICI；沒有打通任何阻塞的治療（例如腔隙性阻塞）不寫成再通；血管自行再通有自己的事件與救回量
+  · Recanalisation details: method, eTICI grade, reocclusion, distal embolus, no-reflow, with published figures; "saved" includes the herniation infarcts the treatment prevents, and the treatment windows end when the artery is reopened and come back after a reocclusion; with a distal embolus, the eTICI grade the angiogram shows; a treatment that reopens nothing (a lacunar occlusion, for example) is not told as a reopening; an artery that reopens by itself has its own event and saved volume
 - 水腫與腫脹（細胞毒性 → 離子性 → 血管性 → 消退 → 萎縮）、3D 變形、中線偏移
   · Oedema and swelling (cytotoxic → ionic → vasogenic → resolution → atrophy), 3D deformation, midline shift
 - 連鎖反應：腦疝脫（依各半球本身的腫脹；兩側腫得差不多時是向下的中央型疝脫，保留各自腫脹造成的續發梗塞）、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症

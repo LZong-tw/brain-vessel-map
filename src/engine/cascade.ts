@@ -35,7 +35,7 @@ import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/sympto
 import { MCA_CORTEX } from '../anatomy/syndromes';
 import { formatHours } from '../anatomy/timeline';
 import { resolveCurve, vasoRise } from './edema';
-import type { HemoResult, Occlusion } from './hemodynamics';
+import { circleRoutes, type CircleRoute, type HemoResult, type Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
 import { isTreatable, reopenedByTreatment, startOf } from './schedule';
 import { NOTICEABLE, gradeFactor, tapers } from './recovery';
@@ -107,6 +107,16 @@ const KEPT_WITH_FATAL: SurvivalCaveat[] = ['bilateral_hemispheres'];
 
 export type BedEffectKind = 'secondary' | 'compressed' | 'diaschisis' | 'degeneration';
 
+/** an index occlusion that reopens by itself (CascadeInput.spontaneous; U2-10) */
+export interface SpontaneousReopening {
+  /** when (clinical clock) */
+  atH: number;
+  /** the arteries that reopen then */
+  vessels: string[];
+  /** the final infarct (mL) of the same case had they stayed closed: arterial, and with its herniation's secondary infarcts */
+  stayedClosed: { total: number; withSecondary: number };
+}
+
 export interface BedEffect {
   kind: BedEffectKind;
   onsetH: number;
@@ -163,6 +173,12 @@ export interface CascadeInput {
    * then (V1-11)
    */
   reopensH?: number | null;
+  /**
+   * a complete occlusion of the index episode that reopens by itself, before any treatment reopens
+   * it, leaving an infarct (U2-10): told at its reopening, with what it saved against the final
+   * infarct of the same case had it stayed closed. Left out, none
+   */
+  spontaneous?: SpontaneousReopening;
   /**
    * how the treatment at reperfusionH went (engine/treatment.ts); left out for the default
    * treatment (complete, lasting reperfusion), which keeps the general event texts
@@ -254,6 +270,14 @@ export interface CascadeInput {
  * first herniation, and the cerebellar swelling.
  */
 export const SWELLING_EVENT = /^(malignant_edema|mass_effect)_[rl](_\d+)?$|^(subfalcine|uncal)_[rl]$|^central_herniation$|^herniation_fatal_(r|l|central)$|^cerebellar_edema(_\d+)?$/;
+/**
+ * The events of a treatment or a reopening and of what the course decided at them: the treatment
+ * windows, the recanalisation and what followed it (a reocclusion, a distal embolus), an artery
+ * reopening by itself, the circle of Willis switched on and the cortical signs of a striatocapsular
+ * infarct. Once begun they stay as a later occlusion begins, as the swelling course does (U2: a
+ * larger occlusion that became the index event took them away).
+ */
+export const STORY_EVENT = /^(treatment_window|reperfusion|reocclusion|distal_embolus|spontaneous_recanalisation|willis_compensation|striatocapsular_cortical_[rl])$/;
 /** the compartment of a swelling event that classifies a compartment's oedema, or null */
 const oedemaKey = (id: string): Side | 'infra' | null => {
   const m = /^(?:malignant_edema|mass_effect)_([rl])(?:_\d+)?$/.exec(id);
@@ -272,8 +296,8 @@ function keepTheBegun(events: CascadeEvent[], prior: { startH: number; events: C
   const { startH } = prior;
   const from = startH + OEDEMA_ONSET_H;
   const begun = prior.events.filter((e) => SWELLING_EVENT.test(e.id) && e.onsetH < startH - 1e-9);
-  if (!begun.length) return events;
-  const out = [...events];
+  const out = keepTheBegunStory(events, prior);
+  if (!begun.length) return out;
   const endOf = (p: CascadeEvent, f: CascadeEvent) => {
     const pe = p.endH ?? Infinity;
     return pe <= startH ? pe : Math.max(f.endH ?? Infinity, startH);
@@ -319,6 +343,34 @@ function keepTheBegun(events: CascadeEvent[], prior: { startH: number; events: C
     const i = out.findIndex((e) => e.id === p.id);
     if (i >= 0) out.splice(i, 1, kept);
     else out.push(kept);
+  }
+  return out;
+}
+
+/**
+ * Keep the treatment and reopening events (STORY_EVENT) a later occlusion found begun: each stays,
+ * with its onset, and does not end before the occlusion began. When the later occlusion becomes the
+ * index event, the cascade is told for it and these events of the earlier lesion were gone.
+ */
+function keepTheBegunStory(events: CascadeEvent[], prior: { startH: number; events: CascadeEvent[] }): CascadeEvent[] {
+  const { startH } = prior;
+  const out = [...events];
+  for (const p of prior.events) {
+    if (!STORY_EVENT.test(p.id) || p.onsetH >= startH - 1e-9) continue;
+    // (the circle of Willis switched on is one state of the circle, told as it stands now, from
+    // when it began)
+    const circle = p.id === 'willis_compensation' ? out.find((e) => e.id === p.id && e.onsetH > p.onsetH) : undefined;
+    if (circle) circle.onsetH = p.onsetH;
+    const same = out.find((e) => e.id === p.id && Math.abs(e.onsetH - p.onsetH) < 1e-6);
+    if (!same) {
+      out.push({ ...p });
+      continue;
+    }
+    const until = Math.min(p.endH ?? Infinity, startH);
+    if ((same.endH ?? Infinity) < until - 1e-9) {
+      if (p.endH === undefined) delete same.endH;
+      else same.endH = Math.max(until, same.endH ?? -Infinity);
+    }
   }
   return out;
 }
@@ -603,6 +655,14 @@ export interface CascadeTreatment {
   embolusRegions: string[];
   /** the branch lies outside the reopened artery's own tree (a new territory, e.g. the ACA for an M1) */
   embolusNewTerritory?: boolean;
+  /**
+   * the eTICI grade the final angiogram shows (treatment.angiographicGrade): `grade` lowered by the
+   * share of the territory a downstream branch blocked by the clot fragment supplies (U2-9); left
+   * out, `grade`
+   */
+  angioGrade?: ReperfusionGrade;
+  /** that branch's share of the reopened arteries' territory (treatment.embolusShare; 0 for a new territory) */
+  embolusShare?: number;
 }
 
 const METHOD_NAME: Record<TreatmentMethod, L> = {
@@ -776,6 +836,44 @@ function savedSplit(saved: number, secondary: number): L {
 }
 
 /**
+ * An artery that reopens by itself, leaving an infarct (U2-10): the course is that of a treated
+ * reopening at that time, and was told by nothing. Spontaneous recanalisation in about a quarter of
+ * occlusions (24.1 %, against 46.2 % after IV thrombolysis), and recanalisation linked to a good
+ * outcome at 3 months (odds ratio 4.43): Rha JH, Saver JL. Stroke 2007;38:967–973 (53 studies,
+ * 1985–2002), PMID 17272772.
+ */
+function spontaneousEvent(sp: SpontaneousReopening, saved: number, savedSecondary: number): CascadeEvent {
+  const names = sp.vessels.map((id) => VESSEL_BY_ID[id]).filter((v) => !!v);
+  const zh = names.map((v) => vesselName(v, 'zh-TW')).join('；');
+  const en = names.map((v) => lowerFirst(vesselName(v, 'en'))).join('; ');
+  const pen = (saved - savedSecondary).toFixed(0);
+  const sec = savedSecondary.toFixed(0);
+  const split: L =
+    savedSecondary < 0.5
+      ? { zh: '', en: '' }
+      : {
+          zh: `：約 ${pen} mL 是救回的半影區，約 ${sec} mL 是血管一直阻塞時腫脹造成疝脫、壓迫而梗塞的其他區域`,
+          en: `: ~${pen} mL of penumbra, and ~${sec} mL of the territories that the herniation of the swelling would have infarcted had it stayed closed`,
+        };
+  return {
+    id: 'spontaneous_recanalisation',
+    kind: 'mechanism',
+    severity: saved > 5 ? 'good' : 'info',
+    onsetH: sp.atH,
+    title: { zh: '血管自行再通', en: 'The artery reopens by itself' },
+    desc: {
+      zh: `發作後約 ${hoursZh(sp.atH)}，阻塞的血管（${zh}）在沒有任何治療下自行再通（自發性再通：血栓碎裂，或被身體自己的纖維蛋白溶解作用溶掉）。血流恢復時尚未壞死的半影區被救回，${
+        saved < 1 ? '但這裡比血管一直阻塞少不到 1 mL 的梗塞' : `模型估計比血管一直阻塞少了約 ${saved.toFixed(0)} mL 的梗塞${split.zh}`
+      }。和治療打通時一樣，救回的組織要數小時到數天才逐漸恢復功能，已經壞死的核心不會恢復。血管確實會自行打開：一項 53 個研究（1985–2002 年）的統合分析中，約四分之一的阻塞（24%）沒有治療就再通，靜脈血栓溶解後約 46%；再通與 3 個月時預後良好有關（勝算比 4.4）。`,
+      en: `About ${hoursEn(sp.atH)} after onset the occluded artery (${en}) reopens without any treatment (spontaneous recanalisation: the clot breaks up or is dissolved by the body's own fibrinolysis). Restored flow rescues penumbra that has not yet died — ${
+        saved < 1 ? 'here less than 1 mL, against an artery that stayed closed' : `the model estimates ~${saved.toFixed(0)} mL less infarct than if it had stayed closed${split.en}`
+      }. As after a treated reopening, the rescued tissue works again only over hours to days, and the dead core does not recover. Arteries do reopen by themselves: in a meta-analysis of 53 studies (1985–2002) about a quarter of occlusions (24 %) reopened without treatment, against 46 % after IV thrombolysis; recanalisation was linked to a good outcome at 3 months (odds ratio 4.4).`,
+    },
+    regions: [],
+  };
+}
+
+/**
  * The recanalisation event when the treatment details differ from the default: it names the
  * method and the eTICI grade, says how much of the territory got its flow back, and says so when
  * the attempt failed.
@@ -795,6 +893,18 @@ function reperfusionEvent(
   const g = GRADE_MEANING[t.grade];
   // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
   const ivtNote: L = t.method === 'ivt' ? ivtTimingNote(delayH) : { zh: '', en: '' };
+  // the grade the angiogram shows: a downstream branch that a clot fragment blocks counts as not
+  // reperfused, so eTICI 3 is never shown beside it (U2-9)
+  const shown = t.angioGrade ?? t.grade;
+  const gs = GRADE_MEANING[shown];
+  const ev = t.distalEmbolus !== null ? VESSEL_BY_ID[t.distalEmbolus] : undefined;
+  const cutBranch: L =
+    shown !== t.grade && ev
+      ? {
+          zh: `血栓碎片塞住了${vesselName(ev, 'zh-TW')}，約占這區的 ${pct(t.embolusShare ?? 0)}，最後的血管攝影把它算成沒有再灌流；其餘區域的再灌流相當於 eTICI ${t.grade}（${g.zh}）。`,
+          en: ` A clot fragment blocks the ${lowerFirst(vesselName(ev, 'en'))}, about ${pct(t.embolusShare ?? 0)} of the territory, which the final angiogram counts as not reperfused; the rest of the territory was reperfused as with eTICI ${t.grade} (${g.en}).`,
+        }
+      : { zh: '', en: '' };
   if (t.failed) {
     return {
       id: 'reperfusion',
@@ -823,10 +933,10 @@ function reperfusionEvent(
     kind: 'treatment',
     severity: reperfusionSeverity(outcome, savedVolume, avoided),
     onsetH: reperfusionH,
-    title: { zh: `血管再通：${m.zh}，eTICI ${t.grade}`, en: `Recanalisation: ${m.en}, eTICI ${t.grade}` },
+    title: { zh: `血管再通：${m.zh}，eTICI ${shown}`, en: `Recanalisation: ${m.en}, eTICI ${shown}` },
     desc: {
-      zh: `eTICI ${t.grade}：${g.zh}${ivtNote.zh}。${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-      en: `eTICI ${t.grade}: ${g.en}${ivtNote.en}.${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+      zh: `eTICI ${shown}：${gs.zh}${ivtNote.zh}。${cutBranch.zh}${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+      en: `eTICI ${shown}: ${gs.en}${ivtNote.en}.${cutBranch.en}${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
     },
     regions: [],
   };
@@ -899,6 +1009,11 @@ export interface CascadeOutput {
   savedVolume: number;
   /** … of which the infarcts a herniation of the untreated swelling would have added (V1-6) */
   savedSecondary: number;
+  /**
+   * an index occlusion that reopened by itself, leaving an infarct (U2-10): when, and what it saved
+   * against the same case had it stayed closed (mL; of which the infarcts of that course's herniation)
+   */
+  spontaneous: { atH: number; saved: number; savedSecondary: number } | null;
   hydrocephalusOnsetH: number | null;
   /** when the acute obstructive episode is over (the 'hydrocephalus' event's endH) */
   hydrocephalusEndH: number | null;
@@ -1130,6 +1245,12 @@ export interface AttackStory {
    */
   earOnly?: boolean;
 }
+
+/** what the treatment windows say first once the artery a treatment reopened has closed again (U2-1) */
+const REOCCLUDED_WINDOW_INTRO: L = {
+  zh: '打通的血管又塞住了：在再次打通之前，下列治療時間窗再度適用，仍從中風發作時起算。',
+  en: 'The reopened artery has closed again: until it is reopened, the treatment windows below apply again, still counted from the onset of the stroke.',
+};
 
 /** what the treatment windows say first while the deficit of an attack lasts (Z4-11) */
 const ATTACK_WINDOW_INTRO: L = {
@@ -1687,6 +1808,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // not count; a labyrinthine artery that reopens in time stays a TIA
   const earInfarct = brainStory && ischaemicRegions.every((rid) => REGION_BY_ID[rid].category === 'ear') && ischaemicRegions.some((rid) => infarcted(rid, 0.25));
   const noInfarct = brainStory && !earInfarct && vol.total < 0.05;
+  /** the event of an artery reopening by itself, made again once what it saved is known (U2-10) */
+  let spontaneousEv: CascadeEvent | null = null;
   if (eyeOnly) pushEyeEvents(events);
   else if (earInfarct) pushEarEvents(events);
   else if (noInfarct)
@@ -1751,6 +1874,28 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         desc: lacunarOnly ? LACUNAR_WINDOW : treatmentWindowDesc(story),
         regions: [],
       });
+    // an artery that reopens by itself, leaving an infarct, is told then, as a treated reopening is
+    // (U2-10); what it saved is known once this course's own secondary infarcts are (below)
+    if (input.spontaneous && !earInfarct) {
+      spontaneousEv = spontaneousEvent(input.spontaneous, 0, 0);
+      events.push(spontaneousEv);
+    }
+    // … and again once the artery a treatment reopened has closed again, for the rest of the first
+    // day: the reopening ended them only while the artery stayed open (U2-1)
+    const reclosedH = input.treatment && !input.treatment.failed ? input.treatment.reocclusionH : null;
+    if (reclosedH !== null && reclosedH >= windowEndH && reclosedH < 24) {
+      const w = treatmentWindowDesc(story);
+      events.push({
+        id: 'treatment_window',
+        kind: 'treatment',
+        severity: 'warn',
+        onsetH: reclosedH,
+        endH: 24,
+        title: { zh: '治療時間窗', en: 'Treatment windows' },
+        desc: { zh: REOCCLUDED_WINDOW_INTRO.zh + w.zh, en: `${REOCCLUDED_WINDOW_INTRO.en} ${w.en}` },
+        regions: [],
+      });
+    }
   }
 
   // the spinal cord has a story of its own, beside the brain's when the medulla is ischaemic too (W3-8)
@@ -3019,22 +3164,52 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       infarcted(`putamen_${s}`, 0.3);
     if (!deep || REGIONS.some((r) => r.side === s && r.category === 'cortex' && infarcted(r.id, 0.3))) continue;
     const left = s === 'l';
+    // Whether the cortex dies is decided by the course: when it was ischaemic at onset too (an M1
+    // occlusion), the picture is that of a striatocapsular infarct only once blood has returned to
+    // it, before which the whole territory is out of action (a complete MCA syndrome), and its
+    // function then comes back over hours (Y1-12), which the text says; when the occlusion never
+    // reached it (the lenticulostriate arteries alone), from onset (U2-6)
+    const cortexIschaemic = REGIONS.some((r) => r.side === s && r.category === 'cortex' && acute(r.id));
+    const fromH = cortexIschaemic && input.flowReturnsH != null ? input.flowReturnsH : 0;
+    // the deep structures that die, named as such (U2-6: the internal capsule, which an early
+    // reopening spares, was named beside a putamen, caudate and pallidum infarct)
+    const DEEP: [string[], L][] = [
+      [['putamen'], { zh: '殼核', en: 'putamen' }],
+      [['caudate_head', 'caudate_body'], { zh: '尾狀核', en: 'caudate' }],
+      [['globus_pallidus'], { zh: '蒼白球', en: 'globus pallidus' }],
+      [['ic_anterior_limb', 'ic_genu', 'ic_posterior_limb'], { zh: '內囊', en: 'internal capsule' }],
+    ];
+    const dead = DEEP.filter(([ids]) => ids.some((b) => (rf[`${b}_${s}`] ?? 0) >= 0.2));
+    const deadZh = dead.map(([, n]) => n.zh).join('、');
+    const deadEn = dead.map(([, n]) => n.en).join(', ');
     events.push({
       id: `striatocapsular_cortical_${s}`,
       kind: 'secondary',
       severity: 'warn',
-      onsetH: 0,
+      onsetH: fromH,
       endH: 2160,
       title: { zh: '紋狀體內囊梗塞的皮質徵象', en: 'Cortical signs of a striatocapsular infarct' },
       desc: {
-        zh: `梗塞只在深部（殼核、尾狀核、內囊），${left ? '左' : '右'}側大腦皮質沒有壞死，卻常出現皮質徵象：${
-          left ? '說話少而費力但能複誦的失語（皮質下失語，這裡列為經皮質運動性失語）與失用' : '左側空間忽略'
-        }。急性期歸因於皮質灌流不足（堵住豆紋動脈開口的 M1 起始處血栓或狹窄，也會減少皮質的血流），之後則歸因於深部與皮質之間的連結中斷（遠隔效應，diaschisis）。常在數週到數月內改善，部分會留下來；模型顯示前三個月。只有手臂或手臂加臉無力、沒有皮質徵象的病人，恢復通常最好。`,
-        en: `The infarct is deep (putamen, caudate, internal capsule) and the ${left ? 'left' : 'right'} cortex has not died, yet cortical signs are common: ${
-          left ? 'an aphasia with sparse, effortful speech but preserved repetition (a subcortical aphasia, listed here as transcortical motor aphasia) and apraxia' : 'neglect of the left side'
-        }. Acutely they are attributed to cortical hypoperfusion (the clot or stenosis at the MCA origin that blocks the lenticulostriate openings can also reduce cortical flow); later to the lost connections between the deep structures and the cortex (diaschisis). They often improve over weeks to months, and some remain; the model shows them for the first three months. Patients with arm or arm-and-face weakness alone and no cortical signs usually recover best.`,
+        zh: `${
+          fromH > 0
+            ? `血流在${left ? '左' : '右'}側大腦皮質壞死之前恢復：梗塞只在深部（${deadZh}）。皮質在接下來數小時逐漸恢復功能，之後留下的仍常是皮質徵象：`
+            : `梗塞只在深部（${deadZh}），${left ? '左' : '右'}側大腦皮質沒有壞死，卻常出現皮質徵象：`
+        }${left ? '說話少而費力但能複誦的失語（皮質下失語，這裡列為經皮質運動性失語）與失用' : '左側空間忽略'}。${
+          fromH > 0
+            ? '血流恢復之後，它們歸因於深部與皮質之間的連結中斷（遠隔效應，diaschisis）；動脈阻塞時則是皮質本身缺血。'
+            : '急性期歸因於皮質灌流不足（堵住豆紋動脈開口的 M1 起始處血栓或狹窄，也會減少皮質的血流），之後則歸因於深部與皮質之間的連結中斷（遠隔效應，diaschisis）。'
+        }常在數週到數月內改善，部分會留下來；模型顯示前三個月。只有手臂或手臂加臉無力、沒有皮質徵象的病人，恢復通常最好。`,
+        en: `${
+          fromH > 0
+            ? `Blood came back before the ${left ? 'left' : 'right'} cortex died: the infarct is deep (${deadEn}). As the cortex regains its function over the following hours, the signs it leaves are often cortical all the same: `
+            : `The infarct is deep (${deadEn}) and the ${left ? 'left' : 'right'} cortex has not died, yet cortical signs are common: `
+        }${left ? 'an aphasia with sparse, effortful speech but preserved repetition (a subcortical aphasia, listed here as transcortical motor aphasia) and apraxia' : 'neglect of the left side'}. ${
+          fromH > 0
+            ? 'With the flow back they are attributed to the lost connections between the deep structures and the cortex (diaschisis); while the artery was blocked, the cortex itself was ischaemic.'
+            : 'Acutely they are attributed to cortical hypoperfusion (the clot or stenosis at the MCA origin that blocks the lenticulostriate openings can also reduce cortical flow); later to the lost connections between the deep structures and the cortex (diaschisis).'
+        } They often improve over weeks to months, and some remain; the model shows them for the first three months. Patients with arm or arm-and-face weakness alone and no cortical signs usually recover best.`,
       },
-      regions: REGIONS.filter((r) => r.side === s && ['putamen', 'caudate_head', 'caudate_body', 'ic_posterior_limb', 'ic_genu', 'ic_anterior_limb'].includes(r.baseId) && acute(r.id)).map((r) => r.id),
+      regions: REGIONS.filter((r) => r.side === s && DEEP.some(([ids]) => ids.includes(r.baseId)) && (rf[r.id] ?? 0) >= 0.2).map((r) => r.id),
       symptoms: left
         ? [
             { id: 'aphasia_tc_motor', side: null, sev: 1 },
@@ -3386,16 +3561,46 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       regions: [],
     });
   }
-  if (rev.some((v) => /^(acomm|pcomm_|aca_a1_|ophthalmic_)/.test(v))) {
+  // the circle of Willis carries blood into the territory beyond the occlusions (U2-5): only from
+  // an occlusion before or within the circle, by the routes that actually carry it, and said to
+  // fall short where that territory still infarcts. A reversed communicating artery alone said
+  // nothing: on the right it reversed with an M1, M2 or A2 occlusion, beyond the circle, and on
+  // the left it never did
+  const circle = circleRoutes(hemo, input.occlusions);
+  if (circle.routes.length) {
+    let shortMl = 0;
+    for (const b of BEDS) {
+      if (REGION_BY_ID[b.region].compartment === 'none') continue;
+      // (a bed that the territory supplies in part counts whole: its infarct comes from what that part lost)
+      if (b.supply.some((x) => circle.beyond.has(x.v))) shortMl += (bedFinal[b.id] ?? 0) * b.volume;
+    }
+    const both = circle.pcommCount > 1;
+    const ROUTE: Record<CircleRoute, L> = {
+      acomm: { zh: '前交通動脈（從對側）', en: 'through the anterior communicating artery (from the other side)' },
+      pcomm: { zh: both ? '兩側後交通動脈' : '後交通動脈', en: both ? 'through both posterior communicating arteries' : 'through the posterior communicating artery' },
+      ophthalmic: { zh: '眼動脈逆流（從外頸動脈）', en: 'backwards through the ophthalmic artery (from the external carotid)' },
+    };
+    const names = circle.routes.map((r) => ROUTE[r]);
+    const en = names.length === 1 ? names[0].en : `${names.slice(0, -1).map((x) => x.en).join(', ')} and ${names[names.length - 1].en}`;
+    const short = shortMl >= 1;
+    const ml = Math.round(shortMl);
     events.push({
       id: 'willis_compensation',
       kind: 'mechanism',
-      severity: 'good',
+      severity: short ? 'info' : 'good',
       onsetH: 0,
       title: { zh: 'Willis 環側枝代償啟動', en: 'Circle of Willis collaterals switched on' },
       desc: {
-        zh: '血液改走前交通、後交通動脈或經眼動脈逆流，從其他動脈「借血」給缺血區——這就是有些人頸動脈完全阻塞卻沒有症狀的原因。',
-        en: 'Blood reroutes through the communicating arteries or backwards through the ophthalmic artery, borrowing from other trunks — why some people with a completely blocked carotid have no symptoms.',
+        zh:
+          `血液改走${names.map((x) => x.zh).join('、')}，送進阻塞之後的血管，從其他動脈「借血」。` +
+          (short
+            ? `但這裡還不夠：這些血管的供血區仍有約 ${ml} mL 梗塞，是這些通道補不足或到不了的地方。`
+            : '這裡足以避免梗塞：這就是為什麼 Willis 環之前或環上的狹窄或阻塞（甚至整條頸動脈阻塞），可能完全沒有症狀。'),
+        en:
+          `Blood reroutes ${en} into the arteries beyond the blockage, borrowing from other trunks.` +
+          (short
+            ? ` Here it is not enough: about ${ml} mL of their territory still infarcts, where these routes fall short or cannot reach.`
+            : ' Here it is enough to prevent an infarct: this is why a narrowing or an occlusion before or within the circle, even of a whole carotid artery, can cause no symptoms at all.'),
       },
       regions: [],
     });
@@ -3422,6 +3627,16 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   if (input.untreatedWithSecondary !== undefined) {
     savedVolume = Math.max(0, input.untreatedWithSecondary - (vol.total + secondaryLoss));
     savedSecondary = Math.max(0, savedVolume - savedPrimary);
+  }
+  // what an artery reopening by itself saved, against the same case had it stayed closed (U2-10)
+  const spontaneousAt = spontaneousEv ? events.indexOf(spontaneousEv) : -1;
+  let spontaneousOut: CascadeOutput['spontaneous'] = null;
+  if (spontaneousAt >= 0 && input.spontaneous) {
+    const sp = input.spontaneous;
+    const savedSelf = Math.max(0, sp.stayedClosed.withSecondary - (vol.total + secondaryLoss));
+    const savedSelfSecondary = Math.max(0, savedSelf - Math.max(0, sp.stayedClosed.total - vol.total));
+    events[spontaneousAt] = spontaneousEvent(sp, savedSelf, savedSelfSecondary);
+    spontaneousOut = { atH: sp.atH, saved: savedSelf, savedSecondary: savedSelfSecondary };
   }
   // what the treatment avoided, now that this course's own fatal risks and what it saves are known (Z2-3)
   if (reperfusion)
@@ -3539,6 +3754,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     volumes: { ...vol, withSecondary: vol.total + secondaryLoss },
     savedVolume,
     savedSecondary,
+    spontaneous: spontaneousOut,
     hydrocephalusOnsetH,
     hydrocephalusEndH,
     fatalRisk: [...fatalRisk],

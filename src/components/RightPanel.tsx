@@ -43,7 +43,7 @@ import { OccludeToggle } from './OccludeToggle';
 import { STACK_UI } from '../i18n/uiStack';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { OUTCOME_UI } from '../i18n/uiOutcome';
-import { treatmentSummary } from '../ui/treatment';
+import { reopenedVesselIds, treatmentSummary } from '../ui/treatment';
 import { unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
@@ -515,7 +515,8 @@ function Results({ sim }: { sim: SimResult }) {
   const sched = SCHEDULE_UI[lang];
   const series = useSimSeries();
   const tH = TIME_STOPS[tIndex].h;
-  const txSummary = reperfusionH !== null ? treatmentSummary(treatment, lang) : null;
+  // (the grade the final angiogram shows, and nothing when the treatment reopens nothing: U2-9, U2-8)
+  const txSummary = reperfusionH !== null ? treatmentSummary(treatment, lang, reopenedVesselIds(occlusions, reperfusionH)) : null;
   if (!occlusions.length && map >= 70) return <p className="muted">{t.noOcclusion}</p>;
   // the oedema model's shift when it reports one, else the cascade's estimate
   const shift = midlineShiftOf(sim);

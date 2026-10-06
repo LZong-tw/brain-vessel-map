@@ -73,6 +73,7 @@ import {
   COMA_SHIFT_MM,
   HERNIATION_EVENT,
   SUBFALCINE_LEAD_H,
+  STORY_EVENT,
   SWELLING_EVENT,
   UNCAL_ONSET_H,
   attackWindow,
@@ -93,6 +94,7 @@ import {
   type ListedCourse,
   type ListedWindow,
   type ReperfusionOutcome,
+  type SpontaneousReopening,
   type SwallowStretch,
 } from './cascade';
 import {
@@ -134,7 +136,9 @@ import {
   DEFAULT_TREATMENT,
   GRADE_REPERFUSED,
   REPERFUSION_GRADES,
+  angiographicGrade,
   downstreamBranches,
+  embolusShare,
   isDefaultTreatment,
   reperfusedFraction,
   type TreatmentOptions,
@@ -726,9 +730,10 @@ function untreatedFinalBy(input: SimInput, u: Course, finalH: number, onsetH: nu
 
 /**
  * The swelling course as the schedule known just before its last occlusion began showed it (W2-3:
- * the result at that time): its events of the swelling begun by then, on this model's clinical
- * clock (`onsetH` is this model's index onset), and when that occlusion begins. Undefined with one
- * start. The model of the schedule so far keeps its own earlier course in turn.
+ * the result at that time): its events of the swelling begun by then, and those of a treatment or
+ * a reopening (STORY_EVENT, U2), on this model's clinical clock (`onsetH` is this model's index
+ * onset), and when that occlusion begins. Undefined with one start. The model of the schedule so
+ * far keeps its own earlier course in turn.
  */
 function priorSwelling(input: SimInput, onsetH: number): { startH: number; events: CascadeEvent[] } | undefined {
   const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
@@ -738,7 +743,7 @@ function priorSwelling(input: SimInput, onsetH: number): { startH: number; event
   if (!known || !known.known.occlusions.length) return undefined;
   const before = modelFor(known.known);
   const shift = before.onsetH - onsetH;
-  const events = before.cascade.events.filter((e) => SWELLING_EVENT.test(e.id) && e.onsetH + before.onsetH < last - 1e-9);
+  const events = before.cascade.events.filter((e) => (SWELLING_EVENT.test(e.id) || STORY_EVENT.test(e.id)) && e.onsetH + before.onsetH < last - 1e-9);
   return { startH: last - onsetH, events: shiftTimes(events, shift) };
 }
 
@@ -1072,6 +1077,27 @@ function modelKey(input: SimInput): string {
   return t === DEFAULT_TREATMENT ? key : `${key}|${t.method}:${t.grade}:${t.reocclusionAfterH}:${t.distalEmbolus}:${t.noReflow}`;
 }
 
+/**
+ * An index occlusion that reopens by itself (U2-10): when, which arteries, and the final infarct of
+ * the same case had they stayed closed (each of them without its own reopening and without the
+ * phases of the same vessel after it), on the clinical clock, against which what the reopening saved
+ * is counted, as a treatment's saving is counted against the untreated course (V1-6).
+ */
+function stayedClosedOf(input: SimInput, reopened: Occlusion[], atH: number, onsetH: number): SpontaneousReopening {
+  const same = (a: Occlusion, b: Occlusion) => a.vessel === b.vessel && startOf(a) === startOf(b) && endOf(a) === endOf(b);
+  const occlusions: Occlusion[] = [];
+  for (const o of input.occlusions) {
+    const r = reopened.find((x) => same(x, o));
+    if (r) {
+      const closed: Occlusion = { ...o };
+      delete closed.toH;
+      occlusions.push(closed);
+    } else if (!reopened.some((x) => x.vessel === o.vessel && startOf(o) >= atH - 1e-9)) occlusions.push(o);
+  }
+  const closed = modelFor({ ...input, occlusions }).cascade.volumes;
+  return { atH: atH - onsetH, vessels: [...new Set(reopened.map((o) => o.vessel))], stayedClosed: { total: closed.total, withSecondary: closed.withSecondary } };
+}
+
 function modelFor(input: SimInput): Model {
   const key = modelKey(input);
   const hit = modelCache.get(key);
@@ -1114,7 +1140,13 @@ function modelFor(input: SimInput): Model {
     if (e !== null && e > onsetH && !progressed(occlusions, o)) ends.push(e);
   }
   // (when the index occlusion is first reopened: the treatment counts only when it reopens something)
-  const reopenedAtH = Math.min(opensH !== null && opensH >= onsetH && plan!.reopened.length ? opensH : Infinity, ...ends);
+  const treatedAtH = opensH !== null && opensH >= onsetH && plan!.reopened.length ? opensH : Infinity;
+  const reopenedAtH = Math.min(treatedAtH, ...ends);
+  // a complete occlusion of the index episode that reopens by itself before any treatment reopens
+  // it (U2-10): its reopening is told, with what it saved against the same case had it stayed closed
+  const selfAtH = Math.min(Infinity, ...ends);
+  const selfReopened =
+    selfAtH < treatedAtH ? onsetPiece.active.filter((o) => isTreatable(o) && endOf(o) === selfAtH && !progressed(occlusions, o) && causeOf(o) === null) : [];
   if (opensH !== null && opensH >= onsetH) ends.push(opensH);
   const episodeEndH = ends.length ? Math.min(...ends) : null;
   const hemoAcute = hemoAtT(onsetH);
@@ -1167,10 +1199,18 @@ function modelFor(input: SimInput): Model {
           distalEmbolus: plan.distalEmbolus,
           embolusRegions: plan.distalEmbolus === null ? [] : territoryRegions(plan.distalEmbolus, units),
           embolusNewTerritory: plan.distalEmbolus !== null && !plan.reopened.some((o) => downstreamBranches(o.vessel).includes(plan.distalEmbolus!)),
+          // the grade the final angiogram shows, lowered by a downstream branch the fragment blocks (U2-9)
+          angioGrade: angiographicGrade(plan.options, plan.reopened.map((o) => o.vessel)),
+          embolusShare: plan.distalEmbolus === null ? 0 : embolusShare(plan.reopened.map((o) => o.vessel), plan.distalEmbolus),
         }
       : undefined;
   // the core when treatment is decided: at the treatment, or 6 h after onset without one (text only)
   const decisionH = onsetH + (reperf !== null && reperf >= onsetH ? reperf - onsetH : 6);
+  // (only when it leaves an infarct: a reopening before anything died is the TIA story)
+  const spontaneous =
+    selfReopened.length && BEDS.reduce((a, b) => a + (BRAIN.has(REGION_BY_ID[b.region].category) ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0) >= 0.05
+      ? stayedClosedOf(input, selfReopened, selfAtH, onsetH)
+      : undefined;
   const cascadeInput: CascadeInput = {
     reperfusionH: treats ? reperf! - onsetH : null,
     decompression: input.decompression,
@@ -1191,6 +1231,7 @@ function modelFor(input: SimInput): Model {
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // … but the artery was reopened then, which ends the treatment windows (V1-11)
     reopensH: Number.isFinite(reopenedAtH) ? reopenedAtH - onsetH : null,
+    ...(spontaneous ? { spontaneous } : {}),
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
     bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
@@ -1902,7 +1943,10 @@ function regionAgesAt(starts: Record<string, number[]> | null, tAbs: number): Re
 function shownCascadeOf(cascade: CascadeOutput, onsetH: number, earlier: CascadeEvent[]): CascadeOutput {
   const shown = onsetH === 0 ? cascade : shiftTimes(cascade, onsetH);
   if (!earlier.length) return shown;
-  return { ...shown, events: [...earlier, ...shown.events].sort((a, b) => a.onsetH - b.onsetH) };
+  // (an event of an earlier attack that the cascade kept as begun, its treatment windows, is told
+  // once, by the attack's own story)
+  const told = (e: CascadeEvent) => earlier.some((x) => x.id === e.id && Math.abs(x.onsetH - e.onsetH) < 1e-6);
+  return { ...shown, events: [...earlier, ...shown.events.filter((e) => !told(e))].sort((a, b) => a.onsetH - b.onsetH) };
 }
 
 /** piece in which the latest occlusion start at or before t began (the episode in progress) */

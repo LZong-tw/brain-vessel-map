@@ -251,7 +251,7 @@ function TreatmentCard() {
   const setDecompression = useApp((s) => s.setDecompression);
   const c = CASE_UI[lang];
   return (
-    <Collapsible className="case-card" title={c.treatmentTitle} summary={treatmentLine({ reperfusionH, treatment, decompression }, lang)} defaultOpen>
+    <Collapsible className="case-card" title={c.treatmentTitle} summary={treatmentLine({ occlusions, reperfusionH, treatment, decompression }, lang)} defaultOpen>
       <label className="field">
         <span>{t.reperfusion}</span>
         <select value={reperfusionH ?? ''} onChange={(e) => setReperfusion(e.target.value === '' ? null : Number(e.target.value))}>

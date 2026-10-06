@@ -9,7 +9,7 @@ import { VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { RecanalisationEvidence } from '../anatomy/recanalisation';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { simulate } from '../engine/simulate';
-import { DEFAULT_TREATMENT, downstreamBranches } from '../engine/treatment';
+import { DEFAULT_TREATMENT, angiographicGrade, downstreamBranches } from '../engine/treatment';
 import { useApp } from '../state/store';
 import { LeftPanel, TreatmentDetails } from './LeftPanel';
 import { RightPanel } from './RightPanel';
@@ -275,5 +275,35 @@ describe('cluster C2 of the clinical-detail audit', () => {
     expect(within(box).queryByText(/靜脈血栓溶解後血栓也可能碎裂/)).toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: '靜脈血栓溶解' }));
     within(box).getByText(/靜脈血栓溶解後血栓也可能碎裂/);
+  });
+});
+
+// U2-9: eTICI grades the whole downstream territory on the final angiogram, so a branch that a clot
+// fragment blocks lowers it; the grade chosen is that of the rest of the territory
+describe('a distal embolus and the eTICI grade (U2-9)', () => {
+  it('a downstream branch: the details say what the angiogram shows, and the summary does not say eTICI 3', () => {
+    useApp.setState({ reperfusionH: 2 });
+    useApp.getState().setTreatment({ distalEmbolus: 'mca_m2_inf_l' });
+    const shown = angiographicGrade(useApp.getState().treatment, ['mca_m1_l']);
+    expect(shown).not.toBe('3');
+    render(<TreatmentDetails />);
+    screen.getByText(new RegExp(`最後的血管攝影是 eTICI ${shown}`));
+    cleanup();
+    useApp.setState({ lang: 'en' });
+    render(<TreatmentDetails />);
+    screen.getByText(new RegExp(`the final angiogram reads eTICI ${shown}`));
+    cleanup();
+    const s = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: 2, decompression: false, treatment: useApp.getState().treatment });
+    render(<RightPanel sim={s} />);
+    const line = screen.getByText(/^Treatment: /);
+    expect(line.textContent).toContain(`eTICI ${shown} (3 apart from the blocked branch)`);
+    expect(line.textContent).not.toMatch(/eTICI 3 ·/);
+  });
+
+  it('a new territory: no such note, the grade stays as chosen', () => {
+    useApp.setState({ reperfusionH: 2, lang: 'en' });
+    useApp.getState().setTreatment({ distalEmbolus: 'aca_a2_l' });
+    render(<TreatmentDetails />);
+    expect(screen.queryByText(/the final angiogram reads/)).toBeNull();
   });
 });

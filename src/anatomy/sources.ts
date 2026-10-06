@@ -305,6 +305,8 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Hacke W et al. Thrombolysis with alteplase 3 to 4.5 hours after acute ischemic stroke (ECASS III). N Engl J Med 2008;359:1317–1329.',
   'Wahlgren N et al. Thrombolysis with alteplase for acute ischaemic stroke in the Safe Implementation of Thrombolysis in Stroke-Monitoring Study (SITS-MOST). Lancet 2007;369:275–282.',
   'Alexandrov AV, Grotta JC. Arterial reocclusion in stroke patients treated with intravenous tissue plasminogen activator. Neurology 2002;59:862–867.',
+  'Rha JH, Saver JL. The impact of recanalization on ischemic stroke outcome: a meta-analysis. Stroke 2007;38:967–973. (53 studies, 2066 patients: spontaneous recanalisation in 24.1 %, after IV thrombolysis 46.2 %; recanalisation linked to a good outcome at 3 months, odds ratio 4.43: why an artery that reopens by itself is told as a reopening.)',
+  'Liebeskind DS, Bracard S, Guillemin F, et al. eTICI reperfusion: defining success in endovascular stroke therapy. J Neurointerv Surg 2019;11:433–438. (The expanded TICI grades the reperfused share of the target occlusion\'s downstream territory: 3 = 100 %, 2c = 90–99 %, 2b67 = 67–89 %, 2b50 = 50–66 %; so a branch blocked by a clot fragment lowers the grade the angiogram shows.)',
   'Mosimann PJ et al. Stroke 2018;49:2643–2651 (reocclusion after thrombectomy).',
   'Marto JP et al. Stroke 2019;50:2960–2963 (early reocclusion after thrombectomy).',
   'Beyeler M et al. J Neurointerv Surg 2022;14:326–332 (emboli to new territories during thrombectomy).',

@@ -88,12 +88,12 @@ export const LATE_FROM_H = 168;
  *     dysfunction, which the cascade never closes even when early treatment leaves no deficit);
  *     what actually remains is in the 6-month deficits and syndromes;
  *   • treatment events — reperfusion is part of the case, not an outcome; the treated/untreated
- *     comparison covers it.
+ *     comparison covers it; and so is an artery that reopens by itself (U2-10).
  */
 export function lateEvents(sim: SimResult): CascadeEvent[] {
   const onset = sim.schedule.onsetH;
   return sim.cascade.events
-    .filter((e) => e.kind !== 'treatment')
+    .filter((e) => e.kind !== 'treatment' && e.id !== 'spontaneous_recanalisation')
     .filter((e) => {
       const since = e.onsetH - onset;
       if (since >= LATE_FROM_H - 1e-6) return true;
@@ -159,7 +159,10 @@ export interface CourseEnd {
 export interface FinalOutcome {
   /** the case as set (with its treatment, if any) */
   course: CourseEnd;
-  /** the same case without treatment; null when no treatment is set */
+  /**
+   * the same case without treatment; null when no treatment is set, or when it reopens nothing (a
+   * lacunar occlusion, which the model does not reopen, or nothing complete occluded then: U2-8)
+   */
   untreated: CourseEnd | null;
   /** index onset (h on the simulation clock) */
   onsetH: number;
@@ -230,7 +233,9 @@ function changesAfter(input: OutcomeInput, m6: SimResult, finalH: number): { inf
 /** Everything the Outcome tab shows, from one simulation input (the displayed time is ignored). */
 export function finalOutcome(input: OutcomeInput, known?: { m3?: SimResult; m6?: SimResult }): FinalOutcome {
   const course = courseEnd(input, known);
-  const untreated = input.reperfusionH !== null ? courseEnd({ ...input, reperfusionH: null, treatment: undefined }) : null;
+  // (a treatment that reopens nothing has no untreated course to compare with: U2-8)
+  const reopens = !!course.m6.treatment && course.m6.treatment.reopened.length > 0;
+  const untreated = input.reperfusionH !== null && reopens ? courseEnd({ ...input, reperfusionH: null, treatment: undefined }) : null;
   const { onsetH, finalH } = course.m6.schedule;
   const changes = changesAfter(input, course.m6, finalH);
   return {

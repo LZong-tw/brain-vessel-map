@@ -370,3 +370,29 @@ describe('"what is happening now": macular sparing is not a deficit (V2-9)', () 
     expect(container.querySelector('.now-symptoms.improved')?.textContent ?? '').not.toContain(name('macular_sparing', lang));
   });
 });
+
+// U2-10: an artery that reopens by itself saves the penumbra as a treatment would, and the summary
+// says so, and that no treatment was given
+describe('"what is happening now" after an artery reopens by itself (U2-10)', () => {
+  const input = { occlusions: [{ vessel: 'mca_m1_l', severity: 1, toH: 2 }], variants: [], collateral: 'good' as const, map: 93, reperfusionH: null, decompression: false };
+  const series = TIME_STOPS.map((st) => simulate({ ...input, tH: st.h }));
+  const closed = simulate({ ...input, occlusions: [{ vessel: 'mca_m1_l', severity: 1 }], tH: 4320 }).volumes.finalInfarct;
+  const saved = closed - series[series.length - 1].volumes.finalInfarct;
+
+  it.each(['zh-TW', 'en'] as Lang[])('%s: at 2 h, the reopening without treatment and what it saved', (lang) => {
+    useApp.setState({ lang, tIndex: at(2) });
+    const { container } = render(<NowSummary sim={series[at(2)]} series={series} />);
+    const text = container.textContent ?? '';
+    expect(text).toMatch(lang === 'en' ? /reopened by itself 2 h after onset, without treatment/ : /發作後 2 小時自行再通（沒有治療）/);
+    const said = Number((lang === 'en' ? /about (\d+) mL saved/ : /約 (\d+) mL/).exec(text)?.[1]);
+    expect(Math.abs(said - saved)).toBeLessThanOrEqual(2);
+    // not "the infarct has largely settled" with nothing to say why
+    expect(text).not.toContain(UI[lang].nowSettled('30').split('30')[0]);
+  });
+
+  it('before the reopening it is not told', () => {
+    useApp.setState({ lang: 'en', tIndex: at(1) });
+    const { container } = render(<NowSummary sim={series[at(1)]} series={series} />);
+    expect(container.textContent).not.toMatch(/reopened by itself/);
+  });
+});

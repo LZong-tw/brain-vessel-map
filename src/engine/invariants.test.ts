@@ -9,12 +9,14 @@ import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, SPEECH_SIGNS, aggregateSym
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { endOf, progressed, startOf, successorOf } from './schedule';
+import { DEFAULT_TREATMENT, downstreamBranches, type TreatmentOptions } from './treatment';
 import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
 import { fmtMl, pctShare, regionComposition } from '../ui/format';
 import { deficitGroup, finalOutcome, finalRegions } from '../ui/finalOutcome';
 import { regionFunctionGroup, regionRecovery } from '../ui/recoveryFormat';
+import { treatmentLine } from '../ui/caseSummary';
 
 /** Relations between outputs that must hold for every scenario at every displayed time. */
 const inputOf = (id: string, over: Partial<SimInput> = {}): SimInput => {
@@ -1154,7 +1156,9 @@ describe('syndromes and events agree with the symptoms', () => {
       const { occlusions, reperfusionH } = r.input;
       if (!occlusions.every((o) => startOf(o) === 0)) return;
       const active = r.cascade.events.filter((e) => e.onsetH <= tH && tH < (e.endH ?? Infinity)).map((e) => e.id);
-      const treated = reperfusionH !== null && tH >= reperfusionH && !!r.treatment && !r.treatment.failed && r.treatment.reopened.length > 0;
+      // (U2-1: a treated artery that has closed again is offered the windows again)
+      const reclosed = r.treatment?.reocclusionH != null && tH >= r.treatment.reocclusionH;
+      const treated = reperfusionH !== null && tH >= reperfusionH && !!r.treatment && !r.treatment.failed && r.treatment.reopened.length > 0 && !reclosed;
       const infarctOpen = r.recanalized && !r.cascade.events.some((e) => e.id === 'ischemia_no_infarct');
       if (treated || infarctOpen) expect(active, `${name} ${tH} h`).not.toContain('treatment_window');
     });
@@ -1302,6 +1306,192 @@ describe('syndromes and events agree with the symptoms', () => {
    * a structure than the whole bundle closed for as long (W2-2); and, two days into a lesion, more
    * penumbra than the course will still lose (W2-10).
    */
+  /**
+   * U2: the treatment and reopening texts. Classes of contradiction: no treatment windows while a
+   * treated artery is closed again within the first day (U2-1); the circle of Willis said to help
+   * where it carries no blood beyond an occlusion, differently on the two sides, or through an
+   * artery that is absent (U2-5); an event decided by the final infarct told before the course has
+   * decided it, beside signs it contradicts (U2-6); a treatment that reopens nothing summarised as a
+   * reopening (U2-8); eTICI 3 beside a branch the treatment blocked (U2-9); an artery that reopens by
+   * itself, leaving an infarct, without a word (U2-10); and the events of a treatment or reopening
+   * that have begun removed, retitled or ended before a later occlusion began.
+   */
+  describe('the treatment and reopening texts (U2)', () => {
+    const TXD = (method: 'evt' | 'ivt' | 'bridging', over: Partial<TreatmentOptions> = {}): TreatmentOptions => ({ method, grade: '3', reocclusionAfterH: null, distalEmbolus: null, noReflow: 0, ...over });
+    const run = (occlusions: Occlusion[], collateral: CollateralGrade, over: Partial<SimInput> = {}): SimInput => ({
+      occlusions,
+      variants: [],
+      collateral,
+      map: 93,
+      tH: 0,
+      reperfusionH: null,
+      decompression: false,
+      ...over,
+    });
+    const activeAt = (r: SimResult, tH: number) => r.cascade.events.filter((e) => e.onsetH <= tH && tH < (e.endH ?? Infinity));
+
+    // (a reopened artery that closes again: by IV thrombolysis, thrombectomy and both, early and late)
+    const REOCCLUDED: [string, SimInput][] = [];
+    for (const v of ['mca_m1_l', 'mca_m1_r', 'ica_terminal_l', 'basilar_mid', 'mca_m2_sup_r'])
+      for (const c of ['good', 'moderate', 'poor'] as const)
+        for (const [m, at, after] of [['ivt', 2, 2], ['evt', 4.5, 6], ['bridging', 1, 12], ['ivt', 12, 4]] as const)
+          REOCCLUDED.push([`${v} ${c} ${m} at ${at} h, closed again ${after} h later`, run([{ vessel: v, severity: 1 }], c, { reperfusionH: at, treatment: TXD(m, { reocclusionAfterH: after }) })]);
+    it.each(REOCCLUDED)('%s: the treatment windows are offered again while it is closed within the first day, and not while it is open', (name, input) => {
+      for (const tH of STOPS) {
+        const r = simulate({ ...input, tH });
+        const windows = activeAt(r, tH).some((e) => e.id === 'treatment_window');
+        const reclosed = r.treatment!.reocclusionH !== null && tH >= r.treatment!.reocclusionH;
+        if (tH >= input.reperfusionH! && !reclosed) expect(windows, `${name} ${tH} h: open`).toBe(false);
+        if (reclosed && tH < 24) expect(windows, `${name} ${tH} h: closed again`).toBe(true);
+        if (tH >= 24) expect(windows, `${name} ${tH} h`).toBe(false);
+      }
+    });
+
+    // every occludable artery alone, and with the communicating arteries absent
+    const OCCLUDABLE = VESSELS.filter((v) => isOccludable(v.id));
+    const willis = (r: SimResult) => r.cascade.events.find((e) => e.id === 'willis_compensation');
+    /** beyond the circle: the MCA, the ACA beyond the anterior communicating artery and the PCA beyond the posterior one */
+    const BEYOND = (v: (typeof OCCLUDABLE)[number]) => v.family === 'MCA' || /^aca_(a2|pericallosal|callosomarginal|frontopolar|paracentral)/.test(v.id) || /^pca_(p2|calcarine|parieto|temporal|ant_temporal|post_temporal)/.test(v.id);
+    it.each((['good', 'poor'] as const).map((c) => [c]))('every artery alone, %s collaterals: no circle collaterals beyond the circle, the same on both sides, and the help told as it is', (c) => {
+      const seen = new Map<string, boolean>();
+      for (const v of OCCLUDABLE) {
+        const r = simulate(run([{ vessel: v.id, severity: 1 }], c, { tH: 24 }));
+        const e = willis(r);
+        seen.set(v.id, !!e);
+        if (BEYOND(v)) expect(e, `${v.id} ${c}`).toBeUndefined();
+        if (!e) continue;
+        // a green "it helps" only when nothing infarcts, and the shortfall in both languages
+        const short = /not enough/.test(e.desc.en);
+        expect(/還不夠/.test(e.desc.zh), `${v.id} ${c}`).toBe(short);
+        expect(e.severity === 'good', `${v.id} ${c}`).toBe(!short);
+        if (!short) expect(r.volumes.finalInfarct, `${v.id} ${c}`).toBeLessThan(1);
+      }
+      for (const v of OCCLUDABLE) {
+        const mirror = v.side === 'l' ? v.id.replace(/_l$/, '_r') : null;
+        if (mirror && seen.has(mirror)) expect(seen.get(v.id), `${v.id} vs ${mirror} ${c}`).toBe(seen.get(mirror));
+      }
+    });
+    it.each([['acomm_absent'], ['pcomm_absent_r'], ['acomm_absent+pcomm_absent_r']])('with %s: no route named through an absent artery', (vs) => {
+      const variants = vs.split('+');
+      for (const v of ['ica_cervical_r', 'ica_terminal_r', 'aca_a1_r', 'pca_p1_r', 'cca_r', 'basilar_mid'])
+        for (const c of ['good', 'poor'] as const) {
+          const e = willis(simulate(run([{ vessel: v, severity: 1 }], c, { tH: 24, variants })));
+          if (!e) continue;
+          if (variants.includes('acomm_absent')) expect(e.desc.en, `${v} ${c}`).not.toContain('anterior communicating');
+          if (variants.includes('pcomm_absent_r') && v.endsWith('_r') && !v.startsWith('basilar')) expect(e.desc.en, `${v} ${c}`).not.toContain('posterior communicating');
+        }
+    });
+
+    // the cortical signs of a striatocapsular infarct never beside the cortex still out of action
+    // (U2-6), over every case above and the M1 and lenticulostriate occlusions reopened early
+    const EARLY: [string, SimInput][] = [];
+    for (const v of ['mca_m1_l', 'mca_m1_r', 'lenticulostriate_l', 'lenticulostriate_r'])
+      for (const c of ['good', 'moderate', 'poor'] as const) {
+        for (const toH of [0.5, 1, 2]) EARLY.push([`${v} ${c} reopening by itself at ${toH} h`, run([{ vessel: v, severity: 1, toH }], c)]);
+        for (const [m, at] of [['ivt', 1], ['evt', 0.5], ['evt', 1], ['ivt', 2]] as const) EARLY.push([`${v} ${c} ${m} at ${at} h`, run([{ vessel: v, severity: 1 }], c, { reperfusionH: at, treatment: TXD(m) })]);
+      }
+    it.each([...CASES.map(([n]) => [n, null] as [string, SimInput | null]), ...EARLY])(
+      '%s: the cortical signs of a striatocapsular infarct only once blood is back in a cortex that was ischaemic, and beside the complete MCA syndrome or a global aphasia only as the cortex regains its function',
+      (name, input) => {
+        STOPS.forEach((tH, i) => {
+          const r = input ? simulate({ ...input, tH }) : series(name)[i];
+          for (const e of activeAt(r, tH).filter((x) => x.id.startsWith('striatocapsular_cortical_'))) {
+            const side = e.id.slice(-1);
+            const whole = r.symptoms.some((x) => x.id === 'aphasia_global') || r.syndromes.some((m) => m.def.id === 'mca_complete' && m.side === side);
+            if (!whole) continue;
+            expect(r.recanalized, `${name} ${tH} h`).toBe(true);
+            expect(e.desc.en, `${name} ${tH} h`).toMatch(/regains its function/);
+            expect(e.desc.zh, `${name} ${tH} h`).toContain('逐漸恢復功能');
+          }
+        });
+      },
+    );
+
+    // what the summary line says the treatment did, over every scenario and treatment (U2-8)
+    const TREATED: [string, SimInput][] = [];
+    for (const sc of SCENARIOS)
+      for (const [m, at] of [['ivt', 1], ['evt', 4.5], ['ivt', 12]] as const) TREATED.push([`${sc.id} ${m} at ${at} h`, inputOf(sc.id, { reperfusionH: at, treatment: TXD(m) })]);
+    for (const v of ['lenticulostriate_l', 'pontine_paramedian_caudal_r', 'thalamogeniculate_r'])
+      TREATED.push([`${v} lacune ivt at 2 h`, run([{ vessel: v, severity: 1, branch: true }], 'good', { reperfusionH: 2, treatment: TXD('ivt') })]);
+    TREATED.push(['basilar_mid 70 % ivt at 2 h', run([{ vessel: 'basilar_mid', severity: 0.7 }], 'good', { reperfusionH: 2, treatment: TXD('ivt') })]);
+    it.each(TREATED)('%s: told as reopened, with an eTICI grade, only when the treatment reopens something; and told as saving tissue only then', (name, input) => {
+      const r = simulate({ ...input, tH: 4320 });
+      const reopens = !!r.treatment && r.treatment.reopened.length > 0;
+      const state = { occlusions: input.occlusions, reperfusionH: input.reperfusionH, treatment: input.treatment ?? DEFAULT_TREATMENT, decompression: input.decompression };
+      const en = treatmentLine(state, 'en', true);
+      const zh = treatmentLine(state, 'zh-TW', true);
+      expect(en.startsWith('reopened at'), `${name}: ${en}`).toBe(reopens && !r.treatment!.failed);
+      if (!reopens) {
+        expect(en, name).not.toContain('eTICI');
+        expect(zh, name).not.toContain('eTICI');
+        expect(zh, name).not.toContain('再通');
+      }
+      expect(finalOutcome(input).untreated === null, name).toBe(!reopens);
+    });
+
+    // eTICI 3 never beside a branch the treatment's clot fragment blocks downstream (U2-9)
+    it.each(['mca_m1_l', 'mca_m1_r', 'ica_terminal_r', 'basilar_mid', 'mca_m2_sup_l'].map((v) => [v]))('%s: thrombectomy with each downstream distal embolus is never "eTICI 3"', (v) => {
+      for (const d of downstreamBranches(v).slice(0, 8))
+        for (const g of ['3', '2c'] as const) {
+          const r = simulate(run([{ vessel: v, severity: 1 }], 'moderate', { tH: 24, reperfusionH: 2, treatment: TXD('evt', { grade: g, distalEmbolus: d }) }));
+          const e = r.cascade.events.find((x) => x.id === 'reperfusion')!;
+          expect(e.title.en, `${v} → ${d} ${g}`).not.toMatch(/eTICI 3$/);
+          expect(e.desc.en, `${v} → ${d} ${g}`).not.toMatch(/complete reperfusion\./);
+        }
+    });
+
+    // an artery that reopens by itself, leaving an infarct, is told then (U2-10)
+    const SELF: [string, SimInput][] = [];
+    for (const v of OCCLUDABLE.filter((x) => x.family === 'MCA' || x.family === 'BA' || x.family === 'PCA' || x.family === 'ACA' || x.family === 'ICA').map((x) => x.id))
+      SELF.push([`${v} reopening by itself at 2 h`, run([{ vessel: v, severity: 1, toH: 2 }], 'good')]);
+    for (const v of ['mca_m1_l', 'basilar_mid', 'pca_p2_r']) for (const toH of [0.5, 6, 30]) SELF.push([`${v} reopening by itself at ${toH} h, poor`, run([{ vessel: v, severity: 1, toH }], 'poor')]);
+    it.each(SELF)('%s: an event at the reopening when it leaves an infarct, saying no treatment was given', (name, input) => {
+      const r = simulate({ ...input, tH: 4320 });
+      const toH = endOf(input.occlusions[0])!;
+      const e = r.cascade.events.find((x) => x.id === 'spontaneous_recanalisation');
+      // (a reopening that leaves no infarct is told as a TIA; and a tiny infarct that the case tells
+      // no story of, from tissue that was hardly ischaemic, has none to add it to)
+      if (r.volumes.finalInfarct < 0.05 || !r.cascade.events.some((x) => x.id === 'ischemic_cascade')) {
+        expect(e, name).toBeUndefined();
+        return;
+      }
+      expect(e, name).toBeDefined();
+      expect(e!.onsetH, name).toBeCloseTo(toH, 6);
+      expect(e!.desc.en, name).toMatch(/without any treatment/);
+      expect(e!.desc.zh, name).toContain('沒有任何治療');
+    });
+
+    // the events of a treatment or a reopening, once begun, stay as a later occlusion begins
+    const STORY = /^(treatment_window|reperfusion|reocclusion|distal_embolus|spontaneous_recanalisation|willis_compensation|striatocapsular_cortical_[rl])$/;
+    const LATER: [string, SimInput][] = [
+      ['mca_m1_r reopening by itself at 2 h, then mca_m1_l at 1 week, poor', run([{ vessel: 'mca_m1_r', severity: 1, toH: 2 }, { vessel: 'mca_m1_l', severity: 1, fromH: 168 }], 'poor')],
+      ['mca_m1_r thrombectomy at 2 h, then mca_m1_l at 1 week, poor', run([{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1, fromH: 168 }], 'poor', { reperfusionH: 2, treatment: TXD('evt') })],
+      ['mca_m1_r IV thrombolysis at 2 h closed again 2 h later, then mca_m1_l at 12 h, poor', run([{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1, fromH: 12 }], 'poor', { reperfusionH: 2, treatment: TXD('ivt', { reocclusionAfterH: 2 }) })],
+      ['mca_m1_l reopening by itself at 2 h, then mca_m2_sup_r at 24 h, moderate', run([{ vessel: 'mca_m1_l', severity: 1, toH: 2 }, { vessel: 'mca_m2_sup_r', severity: 1, fromH: 24 }], 'moderate')],
+      ['mca_m1_l reopening by itself at 30 min, then basilar_mid at 6 h, moderate', run([{ vessel: 'mca_m1_l', severity: 1, toH: 0.5 }, { vessel: 'basilar_mid', severity: 1, fromH: 6 }], 'moderate')],
+      ['ica_cervical_r, then mca_m1_l at 1 week, good', run([{ vessel: 'ica_cervical_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1, fromH: 168 }], 'good')],
+      ['mca_m1_l thrombectomy at 2 h with a distal embolus, then pca_p2_r at 48 h, moderate', run([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 48 }], 'moderate', { reperfusionH: 2, treatment: TXD('evt', { distalEmbolus: 'mca_m2_inf_l' }) })],
+    ];
+    const STAGED: [string, SimInput][] = [
+      ...SCENARIOS.filter((sc) => sc.occlusions.some((x) => startOf(x) > 0)).map((sc) => [sc.id, inputOf(sc.id, { tH: 0 })] as [string, SimInput]),
+      ...EXTRA.filter((e) => e[1].some((x) => startOf(x) > 0)).map(([n, occ, c, rh, map]) => [n, run(occ, c, { reperfusionH: rh ?? null, map: map ?? 93 })] as [string, SimInput]),
+      ...LATER,
+    ];
+    it.each(STAGED)('%s: the treatment and reopening events begun stay as a later occlusion begins: not removed, retitled or ended before then', (name, input) => {
+      for (const s of [...new Set(input.occlusions.map(startOf))].filter((h) => h > 0)) {
+        const before = simulate({ ...input, tH: s - 0.01 });
+        const now = simulate({ ...input, tH: s });
+        for (const e of before.cascade.events.filter((x) => STORY.test(x.id) && x.onsetH < s - 1e-9)) {
+          const where = `${name} at ${s} h: ${e.id} from ${e.onsetH} h`;
+          const kept = now.cascade.events.find((x) => x.id === e.id && Math.abs(x.onsetH - e.onsetH) < 1e-6);
+          expect(kept, where).toBeDefined();
+          expect(kept!.title, where).toEqual(e.title);
+          expect(kept!.endH ?? Infinity, where).toBeGreaterThanOrEqual(Math.min(e.endH ?? Infinity, s) - 1e-6);
+        }
+      }
+    });
+  });
+
   describe('the swelling and the timing of tissue loss (W2)', () => {
     const STOPS = TIME_STOPS.map((s) => s.h);
     const base = (occlusions: Occlusion[], collateral: CollateralGrade, reperfusionH: number | null = null): SimInput => ({

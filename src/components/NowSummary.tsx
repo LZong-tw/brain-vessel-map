@@ -64,6 +64,7 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   const pen = sim.volumes.penumbra - cord.penumbra;
   const saved = sim.volumes.saved;
   const reperf = sim.input.reperfusionH;
+  const spontaneous = sim.cascade.spontaneous;
   const cordShown = cord.core + cord.penumbra >= SHOWN_ML;
 
   // ── what the tissue is doing ──
@@ -87,6 +88,15 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
         at: formatHours(reperf, lang),
         saved: fmtMl(saved),
         ...(sim.volumes.savedSecondary >= 0.5 ? { secondary: fmtMl(sim.volumes.savedSecondary) } : {}),
+      }),
+    );
+  } else if (spontaneous && sim.recanalized && tH >= spontaneous.atH - 1e-9 && spontaneous.saved >= 0.5 && tH < 168) {
+    // an artery that reopened by itself: the same as after a treated reopening, said to be without treatment (U2-10)
+    sentences.push(
+      t.nowRecanalizedSelf({
+        at: formatHours(spontaneous.atH - sim.schedule.onsetH, lang),
+        saved: fmtMl(spontaneous.saved),
+        ...(spontaneous.savedSecondary >= 0.5 ? { secondary: fmtMl(spontaneous.savedSecondary) } : {}),
       }),
     );
   } else if (notable(grew, core) && notable(pen, core)) {

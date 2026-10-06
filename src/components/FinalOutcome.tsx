@@ -109,7 +109,8 @@ export function FinalOutcome() {
           <div className="stat-label">{m6.volumes.cord.core >= 0.05 ? o.neuronsLostBrain : o.neuronsLost}</div>
           <div className="stat-value small">{fmtNeurons(m6.neuronsLost, lang)}</div>
         </div>
-        {st.reperfusionH !== null && (
+        {/* (only a treatment that reopens something saves tissue: U2-8) */}
+        {untreated && (
           <div className="stat" title={o.savedNote}>
             <div className="stat-label">{o.saved}</div>
             <div className="stat-value" style={{ color: STATE_COLORS.salvaged }}>
@@ -188,6 +189,15 @@ export function FinalOutcome() {
             {o.compareNote} {o.savedNote}
           </p>
         </section>
+      ) : st.reperfusionH !== null ? (
+        // a treatment that reopens nothing (a lacunar occlusion, which the model does not reopen,
+        // or nothing complete occluded then): no treated course to compare (U2-8)
+        <p className="muted small outcome-treatment">
+          {o.treatmentLabel}
+          {lang === 'en' ? ': ' : '：'}
+          {treatmentLine(st, lang, true)}
+          {lang === 'en' ? '.' : '。'}
+        </p>
       ) : (
         <div className="outcome-hint">
           <p className="muted small">{o.noTreatmentHint}</p>

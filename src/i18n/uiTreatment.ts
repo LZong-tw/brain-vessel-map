@@ -95,6 +95,10 @@ export interface TreatmentStrings {
   /** summary line in the results */
   summaryLabel: string;
   summaryGrade: (g: string) => string;
+  /** the grade the final angiogram shows when a downstream branch is blocked, beside the grade chosen for the rest (U2-9) */
+  summaryGradeShown: (shown: string, chosen: string) => string;
+  /** under the distal-embolus select: the grade the final angiogram shows with that branch blocked (U2-9) */
+  distalGradeNote: (shown: string, chosen: string) => string;
   summaryReocclusion: (h: string) => string;
   summaryDistal: (v: string) => string;
   summaryNoReflow: (p: string) => string;
@@ -183,6 +187,9 @@ const zh: TreatmentStrings = {
     '中型／遠端血管阻塞：2025 年 ESCAPE-MeVO 與 DISTAL 試驗中取栓沒有改善預後；症狀性出血在 ESCAPE-MeVO 為 5.4% vs 2.2%、在 DISTAL 為 5.9% vs 2.6%（作者認為相近），只有 ESCAPE-MeVO 的死亡率較高——模型裡救回的組織，在試驗中並沒有變成較好的結果。優勢側近端 M2 沒有納入 DISTAL，仍不確定。',
   summaryLabel: '治療',
   summaryGrade: (g) => `eTICI ${g}`,
+  summaryGradeShown: (shown, chosen) => `eTICI ${shown}（栓塞分支以外為 ${chosen}）`,
+  distalGradeNote: (shown, chosen) =>
+    `eTICI 依整個下游區域有多少恢復灌流來分級，被碎片塞住的分支算作沒有再灌流：有這個遠端栓塞，最後的血管攝影是 eTICI ${shown}；上面選的分級（${chosen}）是其餘區域的結果。`,
   summaryReocclusion: (h) => `${h}後再阻塞`,
   summaryDistal: (v) => `遠端栓塞：${v}`,
   summaryNoReflow: (p) => `無再流 ${p}`,
@@ -273,6 +280,9 @@ const en: TreatmentStrings = {
     'Medium/distal vessel occlusion: in the 2025 ESCAPE-MeVO and DISTAL trials thrombectomy did not improve outcome; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), with higher mortality only in ESCAPE-MeVO. Tissue saved in the model did not translate into better outcomes in these trials. A dominant proximal M2 was excluded from DISTAL and remains uncertain.',
   summaryLabel: 'Treatment',
   summaryGrade: (g) => `eTICI ${g}`,
+  summaryGradeShown: (shown, chosen) => `eTICI ${shown} (${chosen} apart from the blocked branch)`,
+  distalGradeNote: (shown, chosen) =>
+    `eTICI grades how much of the whole downstream territory is reperfused, and a branch blocked by a fragment counts as not reperfused: with this distal embolus the final angiogram reads eTICI ${shown}; the grade chosen above (${chosen}) is that of the rest of the territory.`,
   summaryReocclusion: (h) => `reoccludes after ${h}`,
   summaryDistal: (v) => `distal embolus: ${v}`,
   summaryNoReflow: (p) => `no-reflow ${p}`,

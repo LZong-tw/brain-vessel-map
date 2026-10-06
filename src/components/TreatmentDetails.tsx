@@ -5,7 +5,7 @@ import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { Occlusion } from '../engine/hemodynamics';
 import { inWindow, isTreatable, startOf } from '../engine/schedule';
-import type { ReperfusionGrade, TreatmentMethod } from '../engine/treatment';
+import { angiographicGrade, type ReperfusionGrade, type TreatmentMethod } from '../engine/treatment';
 import { SCHEDULE_UI } from '../i18n/uiSchedule';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { useApp } from '../state/store';
@@ -85,6 +85,7 @@ export function TreatmentDetails({
   // a lacunar (single-branch) occlusion in effect then: thrombolysis applies, the model does not reopen it
   const lacunar = occlusions.some((o) => o.branch && o.severity >= 1 && inWindow(o, reperfusionH));
   const listed = [...distal.downstream, ...distal.newTerritory];
+  const shownGrade = angiographicGrade(tx, reopened);
   const kept = tx.distalEmbolus && !listed.includes(tx.distalEmbolus) ? [tx.distalEmbolus] : [];
   const name = (id: string) => (VESSEL_BY_ID[id] ? vesselName(VESSEL_BY_ID[id], lang) : id);
   const gradeOption = (g: ReperfusionGrade) => (
@@ -173,6 +174,8 @@ export function TreatmentDetails({
         </select>
       </label>
       <p className="muted small">{tx.method === 'ivt' ? s.distalHintIvt : s.distalHint}</p>
+      {/* a downstream branch blocked by the fragment counts as not reperfused on the final angiogram (U2-9) */}
+      {shownGrade !== tx.grade && <p className="callout note">{s.distalGradeNote(shownGrade, tx.grade)}</p>}
       <div className="tx-label" id="tx-noreflow">
         {s.noReflow} <span className="badge tx-limited">{s.limitedEvidence}</span>
       </div>

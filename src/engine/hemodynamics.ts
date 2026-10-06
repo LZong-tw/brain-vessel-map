@@ -833,3 +833,94 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   resultCache.set(key, result);
   return result;
 }
+
+/** the circle of Willis routes that can carry blood into the territory beyond an occlusion */
+export type CircleRoute = 'acomm' | 'pcomm' | 'ophthalmic';
+const CIRCLE_SEGMENTS: { id: string; route: CircleRoute }[] = [
+  { id: 'acomm', route: 'acomm' },
+  { id: 'pcomm_r', route: 'pcomm' },
+  { id: 'pcomm_l', route: 'pcomm' },
+  { id: 'ophthalmic_r', route: 'ophthalmic' },
+  { id: 'ophthalmic_l', route: 'ophthalmic' },
+];
+/**
+ * the rise in flow (mL/min) through a circle segment into the territory beyond an occlusion from
+ * which it counts as a route switched on: well above the normal small flows of the communicating
+ * arteries, which change a little with any occlusion (the anterior communicating artery carries
+ * about 3.5 mL/min at rest in this network, the posterior ones 17–19 mL/min)
+ */
+const ROUTE_MIN_RISE = 5;
+
+export interface CircleRoutes {
+  /** the routes carrying blood into the territory beyond the occlusions, each counted once */
+  routes: CircleRoute[];
+  /** how many posterior communicating arteries do (one or both) */
+  pcommCount: number;
+  /** the arteries of that territory: the occluded ones and every artery fed only through them */
+  beyond: Set<string>;
+}
+
+/**
+ * Whether the circle of Willis carries blood into the territory beyond an occlusion (U2-5). A
+ * junction is beyond the occlusions when every artery that feeds it at rest (communicating arteries
+ * and anastomoses aside) is occluded, narrowed or fed from a junction beyond them; a route is on when
+ * its flow into such a junction rises by more than ROUTE_MIN_RISE. So the anterior communicating
+ * artery bridges a blocked A1 or the carotid T to the ACA, the posterior communicating arteries a
+ * blocked carotid, P1 or basilar artery, and the ophthalmic artery, reversed, a carotid blocked
+ * below it; none reaches the territory of an occluded MCA, A2 or P2, which lies beyond the circle.
+ * The direction of a communicating artery's flow at rest is arbitrary in a symmetric network (here
+ * the anterior one runs from right to left), so a reversal of it says nothing on its own: on the
+ * right its flow reversed whenever the right carotid's runoff fell, an M1, M2 or A2 occlusion
+ * included, and on the left it never did (U2-5).
+ */
+export function circleRoutes(hemo: HemoResult, occlusions: readonly Occlusion[]): CircleRoutes {
+  const closed = new Set(occlusions.filter((o) => !o.branch).map((o) => o.vessel));
+  /** per junction, the arteries that feed it at rest: [artery, the junction it comes from] */
+  const inflows = new Map<string, [string, string][]>();
+  const add = (node: string, v: string, from: string) => {
+    const list = inflows.get(node);
+    if (list) list.push([v, from]);
+    else inflows.set(node, [[v, from]]);
+  };
+  const sourceOf = new Map<string, string>();
+  for (const v of FLOW_VESSELS) {
+    if (v.kind === 'communicating' || v.kind === 'collateral') continue;
+    const b = hemo.baselineFlow[v.id] ?? 0;
+    if (Math.abs(b) < 0.5) continue;
+    const [src, dst] = b >= 0 ? [v.from, v.to] : [v.to, v.from];
+    sourceOf.set(v.id, src);
+    add(dst, v.id, src);
+    add(`${v.id}@mid`, v.id, src);
+  }
+  const cut = new Set<string>();
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const [node, list] of inflows) {
+      if (cut.has(node)) continue;
+      if (list.every(([v, from]) => closed.has(v) || cut.has(from))) {
+        cut.add(node);
+        changed = true;
+      }
+    }
+  }
+  const routes = new Set<CircleRoute>();
+  let pcommCount = 0;
+  for (const seg of CIRCLE_SEGMENTS) {
+    const v = VESSEL_BY_ID[seg.id];
+    if (!v || !(seg.id in hemo.vesselFlow) || closed.has(seg.id)) continue;
+    const f = hemo.vesselFlow[seg.id];
+    const b = hemo.baselineFlow[seg.id] ?? 0;
+    // into the junction at either end, when it lies beyond the occlusions
+    const ends: [string, number][] = [
+      [v.to, 1],
+      [v.from, -1],
+    ];
+    const on = ends.some(([node, sign]) => cut.has(node) && f * sign - Math.max(0, b * sign) > ROUTE_MIN_RISE);
+    if (!on) continue;
+    routes.add(seg.route);
+    if (seg.route === 'pcomm') pcommCount++;
+  }
+  const beyond = new Set<string>([...closed].filter((id) => VESSEL_BY_ID[id]));
+  for (const [id, src] of sourceOf) if (cut.has(src)) beyond.add(id);
+  return { routes: (['acomm', 'pcomm', 'ophthalmic'] as CircleRoute[]).filter((r) => routes.has(r)), pcommCount, beyond };
+}

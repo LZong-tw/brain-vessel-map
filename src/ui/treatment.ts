@@ -10,7 +10,7 @@ import type { Lang } from '../anatomy/types';
 import { siteGroupOf as defaultSiteGroupOf, type EvidenceRange, type RecanalisationEvidence, type SiteGroup } from '../anatomy/recanalisation';
 import type { Occlusion } from '../engine/hemodynamics';
 import { inWindow, reopenedByTreatment, startOf } from '../engine/schedule';
-import { downstreamBranches, isDefaultTreatment, newTerritoryBranches, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
+import { angiographicGrade, downstreamBranches, isDefaultTreatment, newTerritoryBranches, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { formatClock } from './scheduleFormat';
 
@@ -274,11 +274,17 @@ export function treatmentWarnings(
   return out;
 }
 
-/** "取栓 · eTICI 2b67 · 6 小時後再阻塞", or null for the default (complete, lasting reperfusion) */
-export function treatmentSummary(t: TreatmentOptions, lang: Lang): string | null {
-  if (isDefaultTreatment(t)) return null;
+/**
+ * "取栓 · eTICI 2b67 · 6 小時後再阻塞", or null for the default (complete, lasting reperfusion).
+ * Given the arteries the treatment reopens (reopenedVesselIds), the grade is the one the final
+ * angiogram shows, beside the one chosen when a downstream distal embolus lowers it (U2-9); and
+ * when it reopens none, there are no details to tell (null: U2-8).
+ */
+export function treatmentSummary(t: TreatmentOptions, lang: Lang, reopened?: readonly string[]): string | null {
+  if (isDefaultTreatment(t) || (reopened && !reopened.length)) return null;
   const s = TREATMENT_UI[lang];
-  const parts = [s.methodShort[t.method], s.summaryGrade(t.grade)];
+  const shown = reopened ? angiographicGrade(t, reopened) : t.grade;
+  const parts = [s.methodShort[t.method], shown === t.grade ? s.summaryGrade(t.grade) : s.summaryGradeShown(shown, t.grade)];
   if (t.reocclusionAfterH !== null) parts.push(s.summaryReocclusion(formatHours(t.reocclusionAfterH, lang)));
   if (t.distalEmbolus) {
     const v = VESSEL_BY_ID[t.distalEmbolus];

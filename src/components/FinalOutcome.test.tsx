@@ -145,6 +145,29 @@ describe('最終 tab', () => {
     screen.getByText(/在「病例 → 治療」設定再通時間/);
   });
 
+  // U2-8: a treatment that reopens nothing (thrombolysis for a single perforator, which the model
+  // does not reopen) is no treated course to compare and saves nothing
+  it('IV thrombolysis for a lacunar occlusion: no comparison, nothing "saved", and the treatment line says it is not simulated', () => {
+    useApp.setState({
+      occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }],
+      reperfusionH: 2,
+      treatment: { ...useApp.getState().treatment, method: 'ivt' },
+      rightTab: 'final',
+    });
+    for (const lang of ['zh-TW', 'en'] as const) {
+      useApp.setState({ lang });
+      const { container } = render(<RightPanel sim={simOf()} />);
+      expect(screen.queryByRole('table')).toBeNull();
+      expect(screen.queryByText(OUTCOME_UI[lang].saved)).toBeNull();
+      expect(container.textContent).not.toMatch(/eTICI/);
+      expect(container.textContent).toContain(treatmentLine(useApp.getState(), lang, true));
+      expect(container.textContent).toMatch(lang === 'en' ? /not simulated for a lacunar occlusion/ : /模型不模擬它對腔隙性阻塞的效果/);
+      // a treatment is set, so the Outcome does not ask for one
+      expect(screen.queryByRole('button', { name: OUTCOME_UI[lang].setTreatment + ' →' })).toBeNull();
+      cleanup();
+    }
+  });
+
   it('the hint opens the case tab (and the left panel on a phone)', () => {
     useApp.getState().loadScenario('l_m1');
     useApp.setState({ rightTab: 'final', mobilePanel: 'right' });
