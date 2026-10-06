@@ -595,9 +595,13 @@ function Results({ sim }: { sim: SimResult }) {
           </div>
         </div>
       </div>
+      {/* the upper cervical cord's part of these volumes, named apart (W3-8) */}
+      {sim.volumes.cord.core + sim.volumes.cord.penumbra >= 0.05 && (
+        <p className="muted small">{t.cordInVolumes({ core: fmtMl(sim.volumes.cord.core), pen: fmtMl(sim.volumes.cord.penumbra) })}</p>
+      )}
       <div className="stat-row">
         <div className="stat">
-          <div className="stat-label">{t.neuronsLost}</div>
+          <div className="stat-label">{sim.volumes.cord.core >= 0.05 ? t.neuronsLostBrain : t.neuronsLost}</div>
           <div className="stat-value small">{fmtNeurons(sim.neuronsLost, lang)}</div>
         </div>
         <div className="stat">

@@ -13,6 +13,7 @@ import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
 import { regionComposition } from '../ui/format';
+import { finalRegions } from '../ui/finalOutcome';
 import { regionFunctionGroup, regionRecovery } from '../ui/recoveryFormat';
 
 /** Relations between outputs that must hold for every scenario at every displayed time. */
@@ -200,7 +201,7 @@ describe('the warnings that read the symptom list, with each collateral grade (Y
  */
 describe('syndromes and events agree with the symptoms', () => {
   /** every scenario at every displayed time, plus single occlusions that reach the gated labels */
-  const EXTRA: [string, Occlusion[], CollateralGrade, number?][] = [
+  const EXTRA: [string, Occlusion[], CollateralGrade, (number | null)?, number?][] = [
     ['aca_a2_r poor', [{ vessel: 'aca_a2_r', severity: 1 }], 'poor'],
     ['aca_pericallosal_r moderate', [{ vessel: 'aca_pericallosal_r', severity: 1 }], 'moderate'],
     ['mca_post_parietal_r poor', [{ vessel: 'mca_post_parietal_r', severity: 1 }], 'poor'],
@@ -408,6 +409,11 @@ describe('syndromes and events agree with the symptoms', () => {
       ],
       'poor',
     ],
+    // W3-8: the anterior spinal artery itself; W3-9: the superior division of the right side, and a
+    // tight left carotid stenosis at a low blood pressure (a haemodynamic picture of the whole territory)
+    ['anterior spinal artery good', [{ vessel: 'asa', severity: 1 }], 'good'],
+    ['mca_m2_sup_r good', [{ vessel: 'mca_m2_sup_r', severity: 1 }], 'good'],
+    ['ica_cervical_l 90 % at MAP 60', [{ vessel: 'ica_cervical_l', severity: 0.9 }], 'good', null, 60],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -417,7 +423,7 @@ describe('syndromes and events agree with the symptoms', () => {
       const extra = EXTRA.find((e) => e[0] === name);
       got = STOPS.map((tH) =>
         extra
-          ? simulate({ occlusions: extra[1], variants: [], collateral: extra[2], map: 93, tH, reperfusionH: extra[3] ?? null, decompression: false })
+          ? simulate({ occlusions: extra[1], variants: [], collateral: extra[2], map: extra[4] ?? 93, tH, reperfusionH: extra[3] ?? null, decompression: false })
           : simulate(inputOf(name, { tH })),
       );
       memo.set(name, got);
@@ -733,12 +739,13 @@ describe('syndromes and events agree with the symptoms', () => {
   });
 
   // W1-7: the bottleneck is named only when both sides are substantially lost there: for each side,
-  // a bottleneck region (cerebral peduncle, ventral pons) about a third infarcted or more
+  // a bottleneck region (cerebral peduncle, ventral pons) about a third infarcted or more (its
+  // function lost to dead tissue, a lacune's included: W3-5)
   const BOTTLENECK = ['midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis'];
   it.each(CASES)('%s: a deficit is named a bottleneck one only with both sides about a third lost there (W1-7)', (name) => {
     series(name).forEach((r, i) => {
       if (!r.symptoms.some((s) => s.recovery?.bottleneck)) return;
-      const lost = (side: 'r' | 'l') => Math.max(...BOTTLENECK.map((b) => r.regions[`${b}_${side}`]?.infarct ?? 0));
+      const lost = (side: 'r' | 'l') => Math.max(...BOTTLENECK.map((b) => r.regions[`${b}_${side}`]?.lost ?? 0));
       expect(Math.min(lost('r'), lost('l')), `${name} ${STOPS[i]} h`).toBeGreaterThanOrEqual(0.32);
     });
   });
@@ -832,6 +839,55 @@ describe('syndromes and events agree with the symptoms', () => {
         }
       }
     });
+  });
+
+  /**
+   * W3: what is shown about the same lesion agrees with itself. Classes of contradiction: a region
+   * list that holds more infarct than the final infarct above it, or none beside one (W3-5: a lacune
+   * listed at 80 % of its structure; W3-8: a spinal cord infarct left out of the final infarct); an
+   * infarct of the spinal cord without its own story or label (W3-8); and an MCA division label beside
+   * an aphasia of the other division (W3-9).
+   */
+  it.each(CASES)('%s: the regions listed at the end hold no more than the final infarct, and a final infarct lists its region (W3-5, W3-8)', (name) => {
+    const m6 = series(name)[STOPS.length - 1];
+    const fin = m6.volumes.finalInfarct;
+    const listed = finalRegions(m6);
+    expect(listed.reduce((a, r) => a + r.ml, 0), name).toBeLessThanOrEqual(fin + 0.01);
+    if (fin >= 0.05) expect(listed.length, name).toBeGreaterThan(0);
+  });
+
+  it.each(CASES)('%s: an infarct of the spinal cord has its own story and label (W3-8)', (name) => {
+    series(name).forEach((r, i) => {
+      const cord = Object.entries(r.regions).some(([rid, x]) => REGION_BY_ID[rid]?.category === 'spinal' && x.dys >= 0.25);
+      if (!cord) return;
+      const where = `${name} ${STOPS[i]} h`;
+      expect(r.cascade.events.some((e) => e.id === 'spinal_cord_infarction'), where).toBe(true);
+      expect(r.syndromes.some((m) => m.def.id === 'anterior_spinal'), where).toBe(true);
+      expect(r.volumes.cord.core + r.volumes.cord.penumbra, where).toBeGreaterThan(0);
+    });
+  });
+
+  // the aphasia of the superior division is a non-fluent (Broca or transcortical motor) one, that of
+  // the inferior division a fluent one with impaired comprehension or repetition; a global or mixed
+  // transcortical aphasia belongs to neither
+  const NOT_SUPERIOR = ['aphasia_wernicke', 'aphasia_tc_sensory', 'aphasia_conduction', 'aphasia_global', 'aphasia_mixed_tc'];
+  const NOT_INFERIOR = ['aphasia_broca', 'aphasia_tc_motor', 'aphasia_global', 'aphasia_mixed_tc'];
+  it.each(CASES)('%s: an MCA division label never sits beside the aphasia of the other division (W3-9)', (name) => {
+    series(name).forEach((r, i) => {
+      const listed = r.symptoms.map((s) => s.id);
+      const labels = r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}`);
+      if (labels.includes('mca_superior_l')) expect(listed.filter((id) => NOT_SUPERIOR.includes(id)), `${name} ${STOPS[i]} h`).toEqual([]);
+      if (labels.includes('mca_inferior_l')) expect(listed.filter((id) => NOT_INFERIOR.includes(id)), `${name} ${STOPS[i]} h`).toEqual([]);
+    });
+  });
+
+  // a label names no arterial segment (W3-9: 'Complete MCA syndrome (M1)' for a carotid stenosis at
+  // low blood pressure)
+  it('no label names an arterial segment the case need not have occluded (W3-9)', () => {
+    for (const d of SYNDROMES) {
+      expect(d.name.en, d.id).not.toMatch(/\((M1|M2|A1|A2|P1|P2|V4)\)/);
+      expect(d.name.zh, d.id).not.toMatch(/（(M1|M2|A1|A2|P1|P2|V4)）/);
+    }
   });
 
   /**

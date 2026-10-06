@@ -850,6 +850,65 @@ function pushEarEvents(events: CascadeEvent[]): void {
 }
 
 /**
+ * The spinal cord is ischaemic: the upper cervical cord, in the territory of the anterior spinal
+ * artery (W3-8). Neither the brain-stroke story nor none: an anterior spinal artery occlusion left a
+ * tetraparesis with only a venous-thrombosis warning beside it. The features and course of spinal
+ * cord infarction: 115 patients followed for a mean of 3 years (Robertson CE et al. Neurology
+ * 2012;78:114–121, PMID 22205760), 133 spontaneous infarcts and their MRI (Zalewski NL et al. JAMA
+ * Neurol 2019;76:56–63, PMID 30264146), 28 patients at 2 months (Masson C et al. J Neurol Neurosurg
+ * Psychiatry 2004;75:1431–1435, PMID 15377691).
+ */
+function pushCordEvents(events: CascadeEvent[], regions: string[], o: { infarct: boolean; brain: boolean }): void {
+  const brain = o.brain
+    ? { zh: '腦組織也有缺血，另由腦的事件說明。', en: ' Brain tissue is ischaemic as well; its own events tell that part.' }
+    : { zh: '這裡沒有腦組織缺血。', en: ' No brain tissue is ischaemic here.' };
+  const cleared = o.infarct
+    ? { zh: '', en: '' }
+    : { zh: '這次血流在脊髓壞死前就回來了，缺損會消失。', en: ' Here the flow came back before the cord died, so the deficit clears.' };
+  events.push({
+    id: 'spinal_cord_infarction',
+    kind: 'mechanism',
+    severity: 'danger',
+    onsetH: 0,
+    endH: 6,
+    title: o.infarct
+      ? { zh: '脊髓梗塞（前脊髓動脈）', en: 'Spinal cord infarction (anterior spinal artery)' }
+      : { zh: '脊髓缺血（前脊髓動脈）', en: 'Spinal cord ischaemia (anterior spinal artery)' },
+    desc: {
+      zh: `前脊髓動脈沿著脊髓前面往下走，供應脊髓的前三分之二：兩側的運動徑與痛溫覺路徑。它一阻塞，兩側在幾分鐘內一起失去功能：頸髓病灶以下四肢無力、痛覺與溫度覺喪失，而走在脊髓後方、由後脊髓動脈供應的位置覺與振動覺保留；膀胱也常受影響（115 人中 86% 在最嚴重時需要導尿）。多數人在數小時內就到最嚴重：115 人中 68% 在一小時內（Robertson 2012），133 例自發性脊髓梗塞中 77% 在 12 小時內（Zalewski 2019）。模型顯示的是上段頸髓（C1–C3），也就是這條動脈從兩側椎動脈的起始處供應的部分；症狀只列出無力與感覺喪失，沒有列出膀胱與呼吸（病灶延伸到 C3–C5 時可能讓橫膈無力）。打通這條動脈的治療沒有經過試驗；照護以支持性治療（血壓、膀胱、呼吸）與找出原因為主。${cleared.zh}${brain.zh}`,
+      en: `The anterior spinal artery runs down the front of the spinal cord and feeds its anterior two-thirds: the motor tracts and the pain and temperature pathways of both sides. When it closes, both sides fail together within minutes: weakness of the limbs below a cervical lesion and loss of pain and temperature sense, while position and vibration sense, carried at the back of the cord and fed by the posterior spinal arteries, are spared; the bladder is often affected too (86 % of 115 patients needed a catheter at their worst). Most patients are at their worst within hours: 68 % of those 115 within an hour (Robertson 2012), 77 % of 133 spontaneous spinal cord infarcts within 12 hours (Zalewski 2019). The model shows the upper cervical cord (C1–C3), the part this artery feeds from its origin at the two vertebral arteries; it lists the weakness and the sensory loss, not the bladder or breathing (a lesion that reaches C3–C5 can weaken the diaphragm). No treatment to reopen the artery has been tested in trials; care is supportive (blood pressure, bladder, breathing) and aimed at the cause.${cleared.en}${brain.en}`,
+    },
+    regions,
+  });
+  events.push({
+    id: 'imaging_spine',
+    kind: 'imaging',
+    severity: 'info',
+    onsetH: 0.1,
+    endH: 336,
+    title: { zh: '檢查：頸髓 MRI，腦部影像看不到', en: 'Examination: MRI of the cervical cord; brain imaging does not show it' },
+    desc: {
+      zh: '腦部影像看不到脊髓梗塞，需要做脊椎 MRI，也藉此排除治療方式不同的脊髓壓迫。T2 影像上，梗塞是沿著脊髓前方的一條亮帶（「鉛筆狀」，133 例自發性脊髓梗塞中 40%），或橫切面上兩個發亮的前角（「貓頭鷹眼」，65%）；有做擴散加權影像的 29 人中 19 人看得到擴散受限；第一次 MRI 有 24% 正常，需要重做；20% 找到旁邊動脈的剝離或阻塞（Zalewski 2019）。',
+      en: "Brain imaging does not show a spinal cord infarct: MRI of the spine is needed, also to rule out a compression of the cord, which is treated differently. On T2 the infarct is a bright strip down the front of the cord ('pencil-like', 40 % of 133 spontaneous spinal cord infarcts) or two bright anterior horns on axial images ('owl eyes', 65 %); diffusion imaging showed it in 19 of the 29 who had it, the first MRI was normal in 24 % and is repeated, and a dissection or occlusion of an artery beside it was found in 20 % (Zalewski 2019).",
+    },
+    regions: [],
+  });
+  if (!o.infarct) return;
+  events.push({
+    id: 'spinal_cord_course',
+    kind: 'recovery',
+    severity: 'info',
+    onsetH: 168,
+    title: { zh: '脊髓梗塞之後：恢復與留下的問題', en: 'After a spinal cord infarct: recovery and what remains' },
+    desc: {
+      zh: '恢復很慢、常不完全，出院後仍可能持續進步。115 人平均追蹤 3 年，23% 已過世；出院時坐輪椅的人中，41% 到最後追蹤時能走路，而存活者中仍有 42% 需要輪椅、54% 需要導尿、29% 有疼痛（Robertson 2012）。最嚴重時的缺損越重，結果越差；不過一開始很嚴重的人中，也有少數恢復得不錯，尤其是發病時位置覺正常的人（Masson 2004）。模型的恢復曲線描述的是腦：這裡脊髓造成的無力與感覺喪失到 6 個月改變不多。',
+      en: "Recovery is slow, often incomplete, and can go on long after leaving hospital. Of 115 patients followed for a mean of 3 years, 23 % had died; of those who left hospital in a wheelchair, 41 % were walking at the last follow-up, while among the survivors 42 % still used a wheelchair, 54 % a bladder catheter and 29 % had pain (Robertson 2012). The worse the deficit at its worst, the poorer the outcome, yet a few patients who were severely impaired at onset did well, especially those whose position sense was normal at onset (Masson 2004). The model's recovery curves describe the brain: here the cord's weakness and sensory loss change little by 6 months.",
+    },
+    regions: [],
+  });
+}
+
+/**
  * Brain ischaemia that leaves no infarct: the flow came back in time (a TIA) or collaterals held.
  * Tissue-based definition of TIA: Easton JD et al. Stroke 2009;40:2276–2293. Short-term dual
  * antiplatelet therapy after a high-risk TIA or minor stroke: CHANCE (Wang Y et al. N Engl J Med
@@ -1467,6 +1526,13 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       desc: lacunarOnly ? LACUNAR_WINDOW : treatmentWindowDesc(story),
       regions: [],
     });
+  }
+
+  // the spinal cord has a story of its own, beside the brain's when the medulla is ischaemic too (W3-8)
+  const cordRegions = Object.keys(regionAcute).filter((rid) => REGION_BY_ID[rid]?.category === 'spinal' && regionAcute[rid] >= 0.05);
+  if (cordRegions.length) {
+    const cordFinal = BEDS.reduce((a, b) => a + (REGION_BY_ID[b.region].category === 'spinal' ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0);
+    pushCordEvents(events, cordRegions, { infarct: cordFinal >= 0.05, brain: brainStory });
   }
 
   const treatment = input.treatment;

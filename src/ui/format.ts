@@ -57,6 +57,8 @@ export function fmtNeurons(n: number, lang: Lang): string {
 }
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
+/** a share of a region: "<1%" for a small part that is there but rounds to 0 % (W3-5) */
+export const pctShare = (x: number) => (x > 0 && Math.round(x * 100) === 0 ? '<1%' : pct(x));
 
 /** Arterial supply of a region: vessel → share (volume-weighted over its beds). */
 export function regionSupply(r: Region): { vessel: string; share: number }[] {

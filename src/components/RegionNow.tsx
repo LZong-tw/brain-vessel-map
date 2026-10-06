@@ -48,8 +48,10 @@ const COMP_ORDER: TissueState[] = ['core', 'penumbra', 'oligemia', 'salvaged', '
 const SHRINK_FILL = 'rgba(143, 184, 232, 0.55)';
 const DWI_COLOR = '#d6ecff';
 const T2_COLOR = '#a08cff';
-/** dead share of a region above which a vanished deficit counts as compensated rather than recovered */
+/** share of a region's function lost to dead tissue above which a vanished deficit counts as compensated rather than recovered */
 const DEAD_FOR_COMPENSATION = 0.2;
+/** the function lost exceeds the dead share by this much only for a lacune (W3-5) */
+const LACUNE_NOTE_FROM = 0.1;
 
 const fromRegion = (sim: SimResult, id: string) => sim.symptoms.filter((s) => s.sources.includes(id));
 /** what the region gives but cannot be examined at the patient's level of consciousness (X1-2) */
@@ -103,8 +105,9 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         else if (!earlier.has(k) && !later.has(k)) later.set(k, { s: sy, i });
       }
     });
-    // a deficit of dead tissue that has gone was taken over by other pathways, not recovered
-    const deadNow = (sim.regions[id]?.infarct ?? 0) >= DEAD_FOR_COMPENSATION && sim.recovery.progress > 0;
+    // a deficit of dead tissue that has gone was taken over by other pathways, not recovered (a
+    // lacune, small as it is, costs most of its tract's function: W3-5)
+    const deadNow = (sim.regions[id]?.lost ?? 0) >= DEAD_FOR_COMPENSATION && sim.recovery.progress > 0;
     const takenOver = (s: SymptomItem) => deadNow && !hasNoBackup(s) && symptomBackup(s) !== 'exempt';
     const gone = [...earlier.values()];
     return {
@@ -428,7 +431,8 @@ function RecoveryStatus({
               <span className="rec-head">
                 {rt.dead} <span className="num">{pct(rr.dead)}</span>
               </span>
-              <span className="muted small"> — {rt.deadNote}</span>
+              {/* a lacune costs the structure much more of its function than its share of it (W3-5) */}
+              <span className="muted small"> — {rr.lost >= rr.dead + LACUNE_NOTE_FROM ? rt.deadLacuneNote(pct(rr.lost)) : rt.deadNote}</span>
             </div>
           </li>
         )}

@@ -185,6 +185,12 @@ const zh = {
   nowChronicLoss: (core: string) => `約 ${core} mL 的腦組織已經永久失去；其餘腦區透過可塑性慢慢代償。`,
   nowOligemia: '只有輕度低灌流：組織仍在運作，目前沒有壞死。',
   nowNothing: '此刻沒有腦組織缺血。',
+  // the upper cervical cord (anterior spinal artery), told apart from the brain (W3-8)
+  nowCordOnly: '此刻沒有腦組織缺血或壞死，受影響的是脊髓。',
+  nowCordIschaemic: (pen: string) => `上段頸髓（前脊髓動脈的供應區）約 ${pen} mL 缺血：兩側的運動與痛溫覺路徑立刻停止運作，組織還沒壞死。`,
+  nowCordDying: (a: { core: string; pen: string }) => `上段頸髓已有約 ${a.core} mL 壞死，另有約 ${a.pen} mL 仍在缺血。`,
+  nowCordDead: (core: string) => `上段頸髓約 ${core} mL 已經壞死（脊髓梗塞）。`,
+  cordInVolumes: (a: { core: string; pen: string }) => `其中上段頸髓：梗塞核心 ${a.core} mL、半影區 ${a.pen} mL。`,
   edemaNow: {
     none: '',
     cytotoxic: '細胞毒性水腫形成中：缺氧的細胞吸水腫脹，DWI 上已經看得到，但腦的整體體積還幾乎沒變。',
@@ -231,6 +237,8 @@ const zh = {
   finalInfarct: '最終梗塞（預估）',
   saved: '治療救回',
   neuronsLost: '估計損失神經元',
+  /** when the spinal cord is part of the infarct: the estimate is the brain's (W3-8) */
+  neuronsLostBrain: '估計損失的腦神經元',
   cbf: '全腦血流',
   nihss: 'NIHSS 估計',
   midlineShift: '中線偏移',
@@ -520,6 +528,12 @@ const en: Strings = {
   nowChronicLoss: (core: string) => `About ${core} mL of brain tissue is permanently lost; the rest of the brain slowly compensates through plasticity.`,
   nowOligemia: 'Only mild hypoperfusion: the tissue still works and nothing has died.',
   nowNothing: 'No brain tissue is ischaemic right now.',
+  nowCordOnly: 'No brain tissue is ischaemic or dead; the spinal cord is affected.',
+  nowCordIschaemic: (pen: string) =>
+    `About ${pen} mL of the upper cervical cord (the anterior spinal artery's territory) is ischaemic: the motor and pain–temperature pathways of both sides stop working at once, and nothing has died yet.`,
+  nowCordDying: (a: { core: string; pen: string }) => `In the upper cervical cord about ${a.core} mL has died and about ${a.pen} mL is still ischaemic.`,
+  nowCordDead: (core: string) => `About ${core} mL of the upper cervical cord has died (a spinal cord infarct).`,
+  cordInVolumes: (a: { core: string; pen: string }) => `Of these, the upper cervical cord: ${a.core} mL core, ${a.pen} mL penumbra.`,
   edemaNow: {
     none: '',
     cytotoxic: 'Cytotoxic oedema is forming: starved cells take up water and swell — visible on DWI — while overall brain volume barely changes.',
@@ -564,6 +578,7 @@ const en: Strings = {
   finalInfarct: 'Final infarct (est.)',
   saved: 'Saved by treatment',
   neuronsLost: 'Neurons lost (est.)',
+  neuronsLostBrain: 'Brain neurons lost (est.)',
   cbf: 'Total CBF',
   nihss: 'NIHSS estimate',
   midlineShift: 'Midline shift',

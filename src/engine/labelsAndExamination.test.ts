@@ -324,3 +324,48 @@ describe('Y2-18: the cortical-blindness label follows the blindness', () => {
     }
   });
 });
+
+describe('W3-9: the MCA territory labels agree with the signs listed beside them', () => {
+  // a superior-division infarct with good collaterals keeps its Broca aphasia and its face and arm
+  // weakness (from Broca's area and the prefrontal cortex about 28 % infarcted, the motor strip 37 %):
+  // its label stays as long as they do, as the symptoms' own threshold (25 %) has them
+  it.each([
+    ['l', 'aphasia_broca'],
+    ['r', 'arm_weak'],
+  ] as const)('the %s superior division with good collaterals keeps its label while its deficits last', (side, sign) => {
+    const body = side === 'l' ? 'r' : 'l';
+    for (const tH of STOPS.filter((h) => h >= 72)) {
+      const r = run(occl(`mca_m2_sup_${side}`), tH);
+      if (sev(r, 'arm_weak', body) === 0 || (sign === 'aphasia_broca' && sev(r, sign) === 0)) continue;
+      expect(labels(r), `${tH} h`).toContain(`mca_superior_${side}`);
+    }
+    expect(labels(run(occl(`mca_m2_sup_${side}`), 2160))).toContain(`mca_superior_${side}`);
+  });
+
+  // 12 h after a thrombectomy of the left M1 the whole territory is still regaining its function: an
+  // expressive aphasia with face and arm weakness is not the receptive picture of the inferior division
+  it('the left M1 reopened by thrombectomy is not named an inferior-division infarct beside a Broca aphasia', () => {
+    for (const tH of STOPS) {
+      const r = scenario('l_m1_thrombectomy', tH);
+      if (r.symptoms.some((s) => s.id === 'aphasia_broca')) expect(labels(r), `${tH} h`).not.toContain('mca_inferior_l');
+    }
+  });
+
+  // the complete-MCA label names the picture, not a segment, and a tight carotid stenosis at a low
+  // blood pressure that leaves border-zone infarcts is named by the watershed label from day 5, not
+  // by the territory's
+  it('names no M1 segment, and gives way to the watershed label in a haemodynamic border-zone picture', () => {
+    const def = SYNDROMES.find((d) => d.id === 'mca_complete')!;
+    expect(def.name.en).not.toMatch(/M1/);
+    expect(def.name.zh).not.toMatch(/M1/);
+    expect(def.desc.en).toMatch(/M1/);
+    expect(def.desc.zh).toMatch(/M1/);
+    for (const tH of STOPS.filter((h) => h >= 120)) {
+      const r = run([{ vessel: 'ica_cervical_l', severity: 0.9 }], tH, 'good', { map: 60 });
+      expect(labels(r), `${tH} h`).toContain('watershed_l');
+      expect(labels(r), `${tH} h`).not.toContain('mca_complete_l');
+    }
+    // an M1 occlusion keeps its territory's label
+    expect(labels(run(occl('mca_m1_l'), 2160))).toContain('mca_complete_l');
+  });
+});

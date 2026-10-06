@@ -171,7 +171,18 @@ export interface BedTimeState {
 
 export interface RegionTimeState {
   rel: number;
+  /**
+   * the infarcted share of the region's volume (with its volume, the mL it adds to the infarct): a
+   * lacune counts at its own volume, about 0.8 mL, however much of the structure's function it
+   * costs (W3-5)
+   */
   infarct: number;
+  /**
+   * the share of the region's function lost to dead tissue, as the symptoms and their recovery count
+   * it: its infarct, or for a lacune (a small infarct in a compact fibre tract) most of the function
+   * of the structure it lies in (LACUNE_DYSFUNCTION of the share of the lacune that has died)
+   */
+  lost: number;
   dys: number;
   dominant: TissueState | BedEffectKind;
   effect: BedEffectKind | null;
@@ -199,7 +210,13 @@ export interface SimResult {
   nihss: NihssResult;
   syndromes: SyndromeMatch[];
   cascade: CascadeOutput;
-  volumes: { core: number; penumbra: number; finalInfarct: number; saved: number };
+  /**
+   * infarct core, penumbra and final infarct (mL) of the brain and the spinal cord; `cord` is the
+   * spinal cord's part of each (W3-8: an anterior spinal artery infarct was left out of all three
+   * beside a cord infarct listed at 2 mL). `saved` is the brain tissue a reopening spares.
+   */
+  volumes: { core: number; penumbra: number; finalInfarct: number; saved: number; cord: { core: number; penumbra: number; final: number } };
+  /** neurons lost in the dead brain tissue (the estimate per mL is the brain's: Saver 2006; the spinal cord is not counted) */
   neuronsLost: number;
   hydrocephalus: boolean;
   /** swelling / oedema at the displayed time (see engine/edemaTypes.ts) */
@@ -251,6 +268,8 @@ export interface ScheduleInfo {
 }
 
 const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
+/** the spinal cord (the upper cervical cord of the anterior spinal artery): counted in the infarct volumes with the brain, and named apart (W3-8) */
+const SPINAL = 'spinal';
 /** the final infarct is the course's end point: slow penumbra (flow just under the threshold,
  * brainstem with collaterals) is still being lost days after the event, so a 96 h horizon let
  * the displayed core overtake the "final" volume */
@@ -527,8 +546,6 @@ function lacuneDeficitsOf(course: Course): Record<string, DeficitRef[]> {
 const lacuneFractionOf = (vessel: string, rid: string) => Math.min(LACUNE_ML / Math.max(REGION_BY_ID[rid].volume, LACUNE_ML), bundleIn(vessel, rid).share);
 /** … of the lacunes the course has in region `rid` (one lacune, of the largest bundle among them) */
 const lacuneFraction = (course: Course, rid: string) => Math.max(0, ...(course.lacunes.get(rid) ?? []).map((o) => lacuneFractionOf(o.vessel, rid)));
-/** the share of region `rid` a lacune's lost function counts as infarct in the region's own state: no more than its bundle feeds (W2-2) */
-const lacuneInfarctShare = (course: Course, rid: string) => Math.min(LACUNE_DYSFUNCTION, Math.max(0, ...(course.lacunes.get(rid) ?? []).map((o) => bundleIn(o.vessel, rid).share)));
 
 /** dead tissue (mL) below which an attack left no infarct (as the cascade's "ischaemia without infarct") */
 const NO_INFARCT_ML = 0.05;
@@ -843,6 +860,8 @@ interface Model {
    * becomes ischaemic: the NIHSS caveat for posterior strokes applies from the first (Y3-6)
    */
   posteriorStarts: number[];
+  /** the spinal cord's final infarct (mL), counted with the brain's (W3-8) */
+  cordFinal: number;
 }
 
 const modelCache = new Map<string, Model>();
@@ -1021,6 +1040,7 @@ function modelFor(input: SimInput): Model {
     ischaemiaStarts,
     lesionStarts: lesionStartsOf(input, course, finalH, untreated, x, onsetH),
     posteriorStarts: allStarts.filter((h) => posteriorIschaemiaAt(input, course, hemoAtT, h)),
+    cordFinal: BEDS.reduce((a, b) => a + (REGION_BY_ID[b.region].category === SPINAL ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0),
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -1745,8 +1765,8 @@ interface Levels {
   rPrim: Record<string, number>;
   rInf: Record<string, number>;
   /**
-   * the infarcted share each region shows (RegionTimeState.infarct): rInf, but a lacune's lost
-   * function counts no more than its bundle feeds of the region (W2-2)
+   * the infarcted share of each region's volume (RegionTimeState.infarct): the dead tissue of its
+   * beds, a lacune at its own volume (W3-5); `rInf` is what that costs of the region's function
    */
   rInfShown: Record<string, number>;
   rRel: Record<string, number>;
@@ -1823,10 +1843,10 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
   // a lacune is small but sits in a compact fibre tract: it knocks out most of its function, from
   // the moment its branch closes (ischaemic tissue is silent too) — so a branch that reopens
   // within minutes gives a fully reversible deficit, a capsular TIA (C6-F2). The region shows as
-  // infarcted no more of itself than the lacune's bundle feeds (W2-2): a single branch never shows
-  // more infarct than its whole bundle closed for as long
+  // infarcted the lacune's own share of its volume, already in its beds (tissueAt: its typical
+  // volume, no more than its bundle feeds there, W2-2), so the region list and the final infarct
+  // agree; the function it costs is `rInf` (W3-5)
   const rInfShown = { ...rInf };
-  for (const rid of lacunes) rInfShown[rid] = Math.max(rInfShown[rid] ?? 0, lacuneInfarctShare(model.course, rid) * lacuneLoss[rid]);
   for (const rid of lacunes) {
     const dead = LACUNE_DYSFUNCTION * lacuneLoss[rid];
     // (after its branch reopens, what survived regains its function over hours, as tissue rescued
@@ -2075,7 +2095,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   // ── per-bed and per-region state at time t, and the lesion's symptom list ──
   // (after a reopening, the swelling does not bring back a deficit that had cleared: X2-9)
   const { lv, all } = lesionListAt(model, input, tAbs, hemo, heldReference(model, input, tAbs));
-  const { beds, rDys, rPrim, rInfShown, rRel, lacuneLoss, lacuneIsch, lacuneOnly, borderBySide } = lv;
+  const { beds, rDys, rPrim, rInf, rInfShown, rRel, lacuneLoss, lacuneIsch, lacuneOnly, borderBySide } = lv;
   const edema = lv.edema;
   const recovery = lv.recovery;
   const regions: Record<string, RegionTimeState> = {};
@@ -2098,7 +2118,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       }
     }
     if (effect && (effect === 'secondary' || effect === 'compressed' || dominant === 'normal' || dominant === 'oligemia')) dominant = effect;
-    regions[r.id] = { rel: rRel[r.id], infarct: rInfShown[r.id], dys: rDys[r.id], dominant, effect };
+    regions[r.id] = { rel: rRel[r.id], infarct: rInfShown[r.id], lost: rInf[r.id], dys: rDys[r.id], dominant, effect };
   }
 
   for (const rid of lacunes) {
@@ -2122,12 +2142,14 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   const idOf = (base: string, side?: Side | 'm') => (side && side !== 'm' ? `${base}_${side}` : base);
   // the region rules read the primary vascular pattern; a label named for its signs also needs
   // them in the symptom list just computed
+  // (a midline region, the upper cervical cord, is read from either side: W3-8)
+  const prim = (base: string, side: Side) => rPrim[`${base}_${side}`] ?? rPrim[base] ?? 0;
   const syndromes = detectSyndromes({
-    f: (base, side) => rPrim[`${base}_${side}`] ?? 0,
-    acute: (base, side) => (tAbs >= model.onsetH ? model.regionAcute[`${base}_${side}`] ?? 0 : 0),
-    has: (base, side, thr = 0.25) => (rPrim[`${base}_${side}`] ?? 0) >= thr,
-    hasAny: (bases, side, thr = 0.25) => bases.some((b) => (rPrim[`${b}_${side}`] ?? 0) >= thr),
-    both: (base, thr = 0.25) => (rPrim[`${base}_r`] ?? 0) >= thr && (rPrim[`${base}_l`] ?? 0) >= thr,
+    f: prim,
+    acute: (base, side) => (tAbs >= model.onsetH ? model.regionAcute[`${base}_${side}`] ?? model.regionAcute[base] ?? 0 : 0),
+    has: (base, side, thr = 0.25) => prim(base, side) >= thr,
+    hasAny: (bases, side, thr = 0.25) => bases.some((b) => prim(b, side) >= thr),
+    both: (base, thr = 0.25) => prim(base, 'r') >= thr && prim(base, 'l') >= thr,
     occluded: (base, side) => occl.has(idOf(base, side)) || (!side && (occl.has(`${base}_r`) || occl.has(`${base}_l`))),
     reversed: (base, side) => rev.has(idOf(base, side)),
     border: (side) => borderBySide[side],
@@ -2151,13 +2173,23 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   // ── volumes ──
   let core = 0;
   let pen = 0;
+  const cord = { core: 0, penumbra: 0, final: model.cordFinal };
   for (const b of BEDS) {
-    if (!BRAIN.has(REGION_BY_ID[b.region].category)) continue;
+    const cat = REGION_BY_ID[b.region].category;
+    if (cat === SPINAL) {
+      cord.core += beds[b.id].infarct * b.volume;
+      cord.penumbra += beds[b.id].frac.penumbra * b.volume;
+    }
+    if (!BRAIN.has(cat)) continue;
     core += beds[b.id].infarct * b.volume;
     pen += beds[b.id].frac.penumbra * b.volume;
   }
+  const brainCore = core;
+  // the spinal cord's part is counted with the brain's and named apart (W3-8)
+  core += cord.core;
+  pen += cord.penumbra;
   // everything that will eventually be dead, including secondary (herniation) infarcts
-  const finalInfarct = cascade.volumes.withSecondary;
+  const finalInfarct = cascade.volumes.withSecondary + cord.final;
   return {
     input,
     hemo,
@@ -2174,8 +2206,8 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       model.finish();
       return model.shownCascade;
     },
-    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume },
-    neuronsLost: core * NEURONS_PER_ML,
+    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, cord },
+    neuronsLost: brainCore * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH && (cascade.hydrocephalusEndH === null || t < cascade.hydrocephalusEndH),
     edema,
     recovery,

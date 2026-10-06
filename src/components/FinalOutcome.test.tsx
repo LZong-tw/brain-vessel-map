@@ -591,3 +591,21 @@ describe('最終 tab: problems after stroke (population figures)', () => {
     for (const n of riskNames) expect(listed).not.toContain(n);
   });
 });
+
+// W3-8: an anterior spinal artery occlusion leaves a 2 mL infarct of the upper cervical cord: the
+// final infarct counts it and says which part it is, the region list agrees, the neuron estimate
+// says it is the brain's, and the late course has the cord's own event
+describe('W3-8: the Outcome of a spinal cord infarct', () => {
+  it.each(['zh-TW', 'en'] as const)('%s: the final infarct counts the cord and names it, beside the cord in the region list', (lang) => {
+    useApp.setState({ occlusions: [{ vessel: 'asa', severity: 1 }], rightTab: 'final', lang });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const o = OUTCOME_UI[lang];
+    const stats = container.querySelector('.stat-row')!.textContent ?? '';
+    expect(stats).toContain(`${fmtMl(2)}`);
+    expect(stats).toContain(o.finalCordNote(fmtMl(2)));
+    expect(stats).toContain(o.neuronsLostBrain);
+    const list = container.querySelector('.region-list')!.textContent ?? '';
+    expect(list).toContain(regionName(REGION_BY_ID.cervical_cord, lang));
+    expect(container.textContent).not.toContain(o.lateNone);
+  });
+});

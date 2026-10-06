@@ -22,6 +22,11 @@ const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
 export interface RegionRecovery {
   /** infarcted fraction */
   dead: number;
+  /**
+   * share of the region's function lost to dead tissue: `dead`, or more for a lacune, which costs
+   * most of the function of the compact tract it lies in (W3-5)
+   */
+  lost: number;
   /** alive but temporarily silenced (oedema + remote depression) */
   silenced: number;
   /** … of which remote depression (diaschisis) */
@@ -39,7 +44,7 @@ export interface RegionRecovery {
 /** Volume-weighted recovery status of a region at the simulated time. */
 export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery {
   const r = REGION_BY_ID[regionId];
-  const out: RegionRecovery = { dead: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0, regaining: 0 };
+  const out: RegionRecovery = { dead: 0, lost: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0, regaining: 0 };
   if (!r) return out;
   let tot = 0;
   for (const bid of r.beds) {
@@ -52,6 +57,7 @@ export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery
   }
   if (tot > 0) {
     out.dead = Math.max(out.dead / tot, sim.regions[regionId]?.infarct ?? 0);
+    out.lost = Math.max(out.dead, sim.regions[regionId]?.lost ?? 0);
     out.silenced /= tot;
     out.remote /= tot;
     out.regaining /= tot;

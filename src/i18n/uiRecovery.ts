@@ -12,6 +12,8 @@ export interface RecoveryStrings {
   statusTitle: string;
   dead: string;
   deadNote: string;
+  /** a lacune: a small dead share that costs most of the structure's function (W3-5) */
+  deadLacuneNote: (lost: string) => string;
   silenced: string;
   silencedNote: (edema: boolean, remote: boolean) => string;
   /** alive, still regaining its function: after a reopening, or penumbra that survives (Y1-12, W2-10) */
@@ -90,6 +92,7 @@ const zh: RecoveryStrings = {
   statusTitle: '功能狀態',
   dead: '壞死',
   deadNote: '這部分組織已經死亡，不會再長回來。',
+  deadLacuneNote: (lost) => `這部分組織已經死亡，不會再長回來；它雖小（腔隙），卻落在神經纖維密集的地方，讓這個構造失去約 ${lost} 的功能。`,
   silenced: '暫時受抑制（水腫／遠端抑制）',
   silencedNote: (edema, remote) =>
     `組織還活著，只是被${edema && remote ? '周圍水腫與遠端抑制' : edema ? '周圍水腫' : '遠端抑制（相連腦區受損後的功能下降）'}暫時關掉；${
@@ -191,6 +194,7 @@ const en: RecoveryStrings = {
   statusTitle: 'Function status',
   dead: 'Dead',
   deadNote: 'This tissue has died and will not grow back.',
+  deadLacuneNote: (lost) => `This tissue has died and will not grow back; small as it is (a lacune), it lies among tightly packed fibres and costs the structure about ${lost} of its function.`,
   silenced: 'Temporarily silenced (oedema / remote depression)',
   silencedNote: (edema, remote) =>
     `The tissue is alive but switched off by ${

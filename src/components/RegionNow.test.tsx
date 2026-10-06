@@ -82,3 +82,20 @@ describe('region details: tissue that survived and is still regaining its functi
     },
   );
 });
+
+// W3-5: a lacune is shown at its own share of the structure (the corona radiata lacune is about
+// 0.8 of its 12.4 mL), and the details say why so small a share costs most of the function
+describe('region details of a lacune (W3-5)', () => {
+  it.each(['zh-TW', 'en'] as Lang[])('%s: the dead share is the lacune’s own, and the note says what it costs', (lang) => {
+    const { occlusions } = SCENARIO_BY_ID.l_cr_lacune;
+    const i = TIME_STOPS.findIndex((s) => s.h === 2160);
+    const input = { occlusions, variants: [], map: 93, collateral: 'good' as const, reperfusionH: null, decompression: false };
+    const sim = simulate({ ...input, tH: 2160 });
+    useApp.setState({ ...input, selected: { kind: 'region', id: 'corona_radiata_l' }, rightTab: 'details', tIndex: i, lang });
+    const { container } = render(<RightPanel sim={sim} />);
+    const dead = container.querySelector('.rec-status li.dead')?.textContent ?? '';
+    expect(dead).toMatch(/\b6%/);
+    expect(dead).toContain(lang === 'en' ? 'a lacune' : '腔隙');
+    expect(dead).toMatch(/80%/);
+  });
+});

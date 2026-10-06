@@ -46,18 +46,25 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   const prev = tIndex > 0 ? series[tIndex - 1] : null;
   const next = tIndex < series.length - 1 ? series[tIndex + 1] : null;
   const prevH = tIndex > 0 ? TIME_STOPS[tIndex - 1].h : -Infinity;
-  const { core, penumbra: pen, saved } = sim.volumes;
+  // the brain's volumes: the upper cervical cord, counted in the infarct volumes, has its own
+  // sentence (W3-8)
+  const cord = sim.volumes.cord;
+  const core = sim.volumes.core - cord.core;
+  const pen = sim.volumes.penumbra - cord.penumbra;
+  const saved = sim.volumes.saved;
   const reperf = sim.input.reperfusionH;
+  const cordShown = cord.core + cord.penumbra >= SHOWN_ML;
 
   // ── what the tissue is doing ──
   const sentences: string[] = [];
-  const grew = prev ? core - prev.volumes.core : 0;
+  const grew = prev ? core - (prev.volumes.core - prev.volumes.cord.core) : 0;
   // the penumbra "can still be saved" while a reopening is still offered: within a day of the
   // start of an occlusion still in effect, before any reopening (Z4-13); after it, it may still be lost
   const lastStart = Math.max(-Infinity, ...sim.activeOcclusions.map(startOf));
   const penNote = sim.recanalized ? 'atRisk' : tH - lastStart <= REOPENING_OFFERED_H + 1e-9 ? 'saved' : 'late';
   if (core < SHOWN_ML && !notable(pen, core)) {
-    sentences.push(Object.values(sim.regions).some((r) => r.dominant === 'oligemia') ? t.nowOligemia : t.nowNothing);
+    const oligemia = Object.values(sim.regions).some((r) => r.dominant === 'oligemia');
+    sentences.push(oligemia ? t.nowOligemia : cordShown ? t.nowCordOnly : t.nowNothing);
   } else if (tH === 0) {
     sentences.push(t.nowOnset(fmtMl(core + pen)));
   } else if (tH >= 720) {
@@ -72,6 +79,14 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   } else {
     sentences.push(t.nowSettled(fmtMl(core)));
   }
+  if (cordShown)
+    sentences.push(
+      cord.core < SHOWN_ML
+        ? t.nowCordIschaemic(fmtMl(cord.penumbra))
+        : cord.penumbra >= SHOWN_ML
+          ? t.nowCordDying({ core: fmtMl(cord.core), pen: fmtMl(cord.penumbra) })
+          : t.nowCordDead(fmtMl(cord.core)),
+    );
 
   // ── swelling ──
   const edemaText = t.edemaNow[sim.edema.phase];

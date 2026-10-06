@@ -323,8 +323,11 @@ describe('R2-6: the Wallenberg texts include the bilateral trigeminal pattern th
 });
 
 describe('R2-7: both vertebral arteries blocked: one bilateral medullary label', () => {
+  // (W3-8: with the upper cervical cord the anterior spinal artery fed from both vertebral arteries,
+  // named by its own label beside the medulla's)
   it('no one-sided hemimedullary or Wallenberg syndrome next to the bilateral label', () => {
-    for (const tH of [0.1, 24, 4320]) expect(labels(sim(occl('va_v4_dist_r', 'va_v4_dist_l'), tH)), `${tH} h`).toEqual(['bilateral_medial_medullary']);
+    for (const tH of [0.1, 24, 4320])
+      expect(labels(sim(occl('va_v4_dist_r', 'va_v4_dist_l'), tH)), `${tH} h`).toEqual(['bilateral_medial_medullary', 'anterior_spinal']);
     const d = desc('bilateral_medial_medullary');
     expect(d.en).toMatch(/lateral medulla/);
     expect(d.zh).toMatch(/延髓外側/);
@@ -334,7 +337,7 @@ describe('R2-7: both vertebral arteries blocked: one bilateral medullary label',
 
   it('a vertebral occlusion with a unilateral ASA: both medial medullae, one bilateral label, as the variant text says', () => {
     const r = sim(occl('va_v4_dist_r'), 24, { variants: ['asa_unilateral_r'] });
-    expect(labels(r)).toEqual(['bilateral_medial_medullary']);
+    expect(labels(r)).toEqual(['bilateral_medial_medullary', 'anterior_spinal']);
     for (const fs of ['r', 'l'] as const) expect(get(r, 'arm_weak', fs)?.sev, fs).toBe(3);
     const v = VARIANTS.find((x) => x.id === 'asa_unilateral_r')!.desc;
     expect(v.en).toMatch(/medial medulla on both sides/);

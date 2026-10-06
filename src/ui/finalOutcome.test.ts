@@ -4,14 +4,18 @@
  * flag for a late event.
  */
 import { describe, expect, it } from 'vitest';
+import { REGION_BY_ID } from '../anatomy';
+import { LACUNE_ML } from '../anatomy/lacunes';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { SymptomItem } from '../engine/clinical';
 import type { Occlusion } from '../engine/hemodynamics';
 import { simulate } from '../engine/simulate';
+import { pctShare } from './format';
 import {
   FINAL_REGION_MIN,
+  FINAL_REGION_SHARE_OF_INFARCT,
   H_3M,
   H_6M,
   I_3M,
@@ -254,12 +258,63 @@ describe('final regions', () => {
     const out = finalOutcome(scenarioInput('l_m1'));
     expect(out.regions.length).toBeGreaterThan(3);
     for (const r of out.regions) {
-      expect(r.infarct).toBeGreaterThanOrEqual(FINAL_REGION_MIN);
+      expect(r.infarct >= FINAL_REGION_MIN || r.ml >= FINAL_REGION_SHARE_OF_INFARCT * out.course.finalInfarct).toBe(true);
       expect(r.infarct).toBeCloseTo(out.course.m6.regions[r.id].infarct, 9);
     }
     const shares = out.regions.map((r) => r.infarct);
     expect(shares).toEqual([...shares].sort((a, b) => b - a));
     expect(out.regions.map((r) => r.id)).toContain('insula_l');
+  });
+
+  // W3-5: a lacune is listed at its own volume and share of its structure, not at the share of the
+  // structure's function it costs (80 %), so the list agrees with the final infarct above it
+  const LACUNES: [string, OutcomeInput][] = [
+    ['l_lacune', scenarioInput('l_lacune')],
+    ['l_cr_lacune', scenarioInput('l_cr_lacune')],
+    ['r_pontine_lacune', scenarioInput('r_pontine_lacune')],
+    ['acha_l ataxic', plain([{ vessel: 'acha_l', severity: 1, branch: true, lacuneSite: 'ataxic' }])],
+    ['heubner_l caudate', plain([{ vessel: 'heubner_l', severity: 1, branch: true }])],
+    ['thalamogeniculate_l', plain([{ vessel: 'thalamogeniculate_l', severity: 1, branch: true }])],
+  ];
+  it.each(LACUNES)('%s: the lacune is listed at its own volume and share, which add up to the final infarct (W3-5)', (_, input) => {
+    const out = finalOutcome(input);
+    expect(out.regions.length).toBe(1);
+    const [r] = out.regions;
+    expect(r.ml).toBeLessThanOrEqual(LACUNE_ML + 1e-9);
+    expect(r.ml).toBeCloseTo(out.course.finalInfarct, 2);
+    expect(r.infarct).toBeCloseTo(r.ml / REGION_BY_ID[r.id].volume, 9);
+    // a lacune never takes most of these structures (the corona radiata, the caudate head, the thalamus)
+    expect(r.infarct).toBeLessThan(0.5);
+  });
+
+  it('lists the small pontine infarct of a basilar occlusion reopened at 1 h, and nothing when it leaves none (W3-5)', () => {
+    const at1h = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }], 1));
+    expect(at1h.course.finalInfarct).toBeGreaterThanOrEqual(0.05);
+    expect(at1h.regions.map((r) => r.id)).toEqual(expect.arrayContaining(['pons_caudal_basis_r', 'pons_caudal_basis_l']));
+    // reopened at 30 min: less than 0.05 mL, no infarct (a TIA), so no region is listed
+    const at30 = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }], 0.5));
+    expect(at30.course.finalInfarct).toBeLessThan(0.05);
+    expect(at30.regions).toEqual([]);
+  });
+
+  it('shows a share that rounds to 0 % as under 1 % (W3-5)', () => {
+    expect(pctShare(0.003)).toBe('<1%');
+    expect(pctShare(0)).toBe('0%');
+    expect(pctShare(0.064)).toBe('6%');
+  });
+
+  it('lists the region that holds a small final infarct below 5 % of its volume (W3-5)', () => {
+    // a capsular branch closed for 3 h (part of its lacune dies) and the precentral branch with good
+    // collaterals: a final infarct of about 0.1 and 0.5 mL, and a region list that shows where it is
+    for (const [input, id] of [
+      [plain([{ vessel: 'lenticulostriate_l', severity: 1, branch: true, toH: 3 }]), 'ic_posterior_limb_l'],
+      [plain([{ vessel: 'mca_precentral_r', severity: 1 }]), 'precentral_face_arm_r'],
+    ] as const) {
+      const out = finalOutcome(input);
+      expect(out.course.finalInfarct).toBeGreaterThanOrEqual(0.05);
+      expect(out.regions.map((r) => r.id)).toContain(id);
+      expect(out.regions.reduce((a, r) => a + r.ml, 0)).toBeLessThanOrEqual(out.course.finalInfarct + 0.01);
+    }
   });
 });
 

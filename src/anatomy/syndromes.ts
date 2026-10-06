@@ -126,6 +126,19 @@ export const MCA_CORTEX = [
 
 const mcaCount = (c: SyndromeCtx, s: Side) => MCA_CORTEX.filter((b) => c.has(b, s, 0.3)).length;
 
+/**
+ * The aphasia of each MCA division (W3-9): the superior division (Broca's area and the frontal
+ * operculum) gives a non-fluent, expressive aphasia, the inferior division (the posterior temporal
+ * and inferior parietal cortex) a fluent one with poor comprehension or repetition; a global or
+ * mixed transcortical aphasia is the picture of neither. A division label is not shown beside an
+ * aphasia that belongs to the other division (or to neither): its text names the aphasia it gives.
+ */
+const DIVISION_APHASIA = {
+  superior: ['aphasia_broca', 'aphasia_tc_motor'],
+  inferior: ['aphasia_wernicke', 'aphasia_conduction', 'aphasia_tc_sensory'],
+  neither: ['aphasia_global', 'aphasia_mixed_tc'],
+};
+
 /** perforator bundles whose single-branch attacks make up a capsular or pontine warning syndrome */
 const WARNING_BUNDLES = ['lenticulostriate', 'acha', 'pontine_paramedian_rostral', 'pontine_paramedian_caudal', 'pontine_paramedian_inferior'];
 /** a second attack within this many hours of one that cleared (Paul 2012: all within 24 h) */
@@ -246,10 +259,13 @@ export const SYNDROMES: SyndromeDef[] = [
     pattern: true,
     group: 'anterior',
     lateral: true,
-    name: { zh: '完全性中大腦動脈症候群（M1）', en: 'Complete MCA syndrome (M1)' },
+    // W3-9: named for the picture of the whole territory, not for the M1 segment: the carotid T, a
+    // carotid occlusion whose collaterals fail, or the whole hemisphere underperfused at first give it
+    // too (a border-zone picture is named by the watershed label, which supersedes this one)
+    name: { zh: '完全性中大腦動脈症候群', en: 'Complete MCA syndrome' },
     desc: {
-      zh: '對側臉與手臂重於腿的偏癱與感覺喪失、對側同側偏盲、雙眼偏向病灶側。左側（優勢半球）：全面性失語；右側：左側忽略、病覺缺失。豆紋動脈區（基底核、內囊）因沒有側枝，常最先壞死。',
-      en: 'Contralateral face/arm > leg weakness and sensory loss, homonymous hemianopia, gaze deviation towards the lesion. Left (dominant): global aphasia; right: left neglect and anosognosia. The lenticulostriate territory (basal ganglia, capsule) has no collaterals and usually dies first.',
+      zh: '整個中大腦動脈區受損，通常是中大腦動脈主幹（M1）阻塞，或內頸動脈阻塞而側枝補不上：對側臉與手臂重於腿的偏癱與感覺喪失、對側同側偏盲、雙眼偏向病灶側。左側（優勢半球）：全面性失語；右側：左側忽略、病覺缺失。豆紋動脈區（基底核、內囊）因沒有側枝，常最先壞死。',
+      en: 'The whole MCA territory, usually from an occlusion of the MCA trunk (M1), or of the internal carotid when collaterals cannot make up for it: contralateral face/arm > leg weakness and sensory loss, homonymous hemianopia, gaze deviation towards the lesion. Left (dominant): global aphasia; right: left neglect and anosognosia. The lenticulostriate territory (basal ganglia, capsule) has no collaterals and usually dies first.',
     },
     test: (c, s) => mcaCount(c, s) >= 4 && c.hasAny(['putamen', 'ic_posterior_limb', 'ic_genu'], s, 0.3),
     supersedes: ['mca_superior', 'mca_inferior'],
@@ -264,10 +280,15 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '對側臉與手臂無力及感覺喪失（腿較輕），雙眼偏向病灶側；左側受損時為表達性（布洛卡）失語——聽得懂但說不出來。',
       en: "Contralateral face and arm weakness and sensory loss (leg spared), gaze deviation; on the left, expressive (Broca's) aphasia — understands but cannot speak fluently.",
     },
+    // W3-9: at the symptoms' own threshold (0.25), so the label lasts as long as the deficits it names
+    // (a superior-division infarct with good collaterals, Broca's area and the prefrontal cortex 28 %
+    // infarcted, kept its Broca aphasia and lost the label); on the left, not beside an aphasia of
+    // the posterior kind (DIVISION_APHASIA)
     test: (c, s) =>
-      c.has('precentral_face_arm', s, 0.3) &&
-      c.hasAny(['broca', 'prefrontal_dorsolateral'], s, 0.3) &&
-      !c.has('superior_temporal_posterior', s, 0.3),
+      c.has('precentral_face_arm', s) &&
+      c.hasAny(['broca', 'prefrontal_dorsolateral'], s) &&
+      !c.has('superior_temporal_posterior', s) &&
+      !(s === 'l' && DIVISION_APHASIA.inferior.concat(DIVISION_APHASIA.neither).some((id) => c.sym(id) > 0)),
   },
   {
     id: 'mca_inferior',
@@ -279,8 +300,13 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '通常沒有明顯無力；若有偏癱，表示深部的豆紋動脈區（殼核、內囊）也梗塞了，例如 M1 阻塞過了兩、三個小時才打通之後（見「紋狀體內囊梗塞」）。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
       en: "Usually little weakness; a hemiparesis means the deep (lenticulostriate) territory — putamen, internal capsule — is infarcted too, as after an M1 occlusion reopened only after the first two or three hours (see the striatocapsular label). Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
     },
+    // W3-9: at the symptoms' own threshold, as the superior division; on the left, not beside an
+    // aphasia of the anterior kind (12 h after an M1 thrombectomy the whole territory regaining its
+    // function, with an expressive aphasia, was named for the receptive one)
     test: (c, s) =>
-      c.hasAny(['superior_temporal_posterior', 'angular'], s, 0.3) && !c.has('precentral_face_arm', s, 0.3),
+      c.hasAny(['superior_temporal_posterior', 'angular'], s) &&
+      !c.has('precentral_face_arm', s) &&
+      !(s === 'l' && DIVISION_APHASIA.superior.concat(DIVISION_APHASIA.neither).some((id) => c.sym(id) > 0)),
   },
   {
     id: 'aca',
@@ -851,6 +877,22 @@ export const SYNDROMES: SyndromeDef[] = [
     supersedes: ['dejerine', 'hemimedullary', 'wallenberg'],
   },
   {
+    // W3-8: the anterior spinal artery's territory of the upper cervical cord (regions.ts
+    // cervical_cord), named for that vascular pattern beside any medullary label; features and
+    // course: Robertson CE et al. Neurology 2012;78:114–121 (PMID 22205760); Zalewski NL et al. JAMA
+    // Neurol 2019;76:56–63 (PMID 30264146)
+    id: 'anterior_spinal',
+    pattern: true,
+    group: 'posterior',
+    lateral: false,
+    name: { zh: '前脊髓動脈症候群（上段頸髓）', en: 'Anterior spinal artery syndrome (upper cervical cord)' },
+    desc: {
+      zh: '突然四肢無力（一開始軟癱，之後變成痙攣），病灶以下痛覺與溫度覺喪失，而位置覺與振動覺保留（脊髓後方有自己的後脊髓動脈供應）；膀胱功能也常受影響。多數人在數小時內就到最嚴重。原因是前脊髓動脈本身，或它起始處的兩側椎動脈阻塞（例如椎動脈剝離）。模型裡是上段頸髓（C1–C3）；腦部影像看不到，需要脊椎 MRI。',
+      en: 'Sudden weakness of all four limbs (flaccid at first, spastic later) and loss of pain and temperature sense below the lesion, while position and vibration sense are spared (the back of the cord has its own posterior spinal arteries); the bladder is often affected too. Most patients are at their worst within hours. The cause is an occlusion of the anterior spinal artery itself or of both vertebral arteries at its origin (a vertebral dissection, for example). In the model the upper cervical cord (C1–C3); brain imaging does not show it, MRI of the spine does.',
+    },
+    test: (c) => c.has('cervical_cord', 'r'),
+  },
+  {
     id: 'hemimedullary',
     group: 'brainstem',
     lateral: true,
@@ -1074,6 +1116,10 @@ export const SYNDROMES: SyndromeDef[] = [
     // Z4-14: only in a haemodynamic setting (haemodynamicSetting): a distal branch occluded by an
     // embolus is a branch-territory infarct, also where it lies in border-zone beds
     test: (c, s) => isWatershedPicture(c.border(s)) && c.haemodynamic(s),
+    // a border-zone picture is not the whole territory's (W3-9: a tight carotid stenosis at a low
+    // blood pressure, whose infarcts lie in the border zones from day 5, was named a complete MCA
+    // syndrome beside it)
+    supersedes: ['mca_complete'],
   },
   {
     // bilateral anterior border-zone infarcts: bilateral brachial paralysis, worst proximally

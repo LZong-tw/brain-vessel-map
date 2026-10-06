@@ -97,20 +97,34 @@ export function lateEvents(sim: SimResult): CascadeEvent[] {
 
 /** a region counts as infarcted at the end from this fraction */
 export const FINAL_REGION_MIN = 0.05;
+/**
+ * … or when it holds at least this share of the final infarct, however small a share of its own
+ * volume that is: a lacune that died only in part, a small branch infarct of a large region, the
+ * small pontine infarct a basilar occlusion reopened at 1 h leaves. So a final infarct is not shown
+ * beside an empty region list (W3-5).
+ */
+export const FINAL_REGION_SHARE_OF_INFARCT = 0.1;
+/** … of a final infarct that shows as one (0.05 mL, shown as more than 0; less is no infarct, as in the cascade) */
+const FINAL_INFARCT_SHOWN = 0.05;
 
 export interface FinalRegion {
   id: string;
-  /** infarcted fraction of the region */
+  /** infarcted fraction of the region's volume (a lacune at its own volume: W3-5) */
   infarct: number;
   /** infarcted volume (mL) */
   ml: number;
 }
 
-/** Regions infarcted at the 6-month stop, largest fraction first. */
+/**
+ * Regions infarcted at the 6-month stop, largest fraction first: from FINAL_REGION_MIN of their
+ * volume, or holding FINAL_REGION_SHARE_OF_INFARCT of the final infarct. Their volumes are part of
+ * the final infarct (the spinal cord's included: W3-8).
+ */
 export function finalRegions(sim: SimResult): FinalRegion[] {
+  const fin = sim.volumes.finalInfarct;
   return Object.entries(sim.regions)
-    .filter(([, r]) => r.infarct >= FINAL_REGION_MIN)
     .map(([id, r]) => ({ id, infarct: r.infarct, ml: r.infarct * (REGION_BY_ID[id]?.volume ?? 0) }))
+    .filter((r) => r.infarct >= FINAL_REGION_MIN || (fin >= FINAL_INFARCT_SHOWN && r.ml > 0 && r.ml >= FINAL_REGION_SHARE_OF_INFARCT * fin))
     .sort((a, b) => b.infarct - a.infarct || b.ml - a.ml);
 }
 

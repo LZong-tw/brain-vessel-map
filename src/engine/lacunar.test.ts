@@ -7,6 +7,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { POST_STROKE_RISKS } from '../anatomy/postStrokeRisks';
+import { REGION_BY_ID } from '../anatomy';
+import { LACUNE_DYSFUNCTION } from '../anatomy/lacunes';
 import { REGION_DEFS } from '../anatomy/regions';
 import { SCENARIOS, SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
@@ -48,6 +50,7 @@ const get = (r: SimResult, id: string, side?: SymptomItem['side']) =>
   r.symptoms.find((s) => s.id === id && (side === undefined || s.side === side));
 const labels = (r: SimResult) => r.syndromes.map((m) => m.def.id + (m.side ? `_${m.side}` : ''));
 const item = (r: SimResult, k: string) => r.nihss.items[k] ?? 0;
+const volumeOf = (rid: string) => REGION_BY_ID[rid].volume;
 
 describe('C6-F1: a single lacune is mild to moderate, not a complete hemiplegia', () => {
   it('capsular pure motor lacune: NIHSS 3–6, face, arm and leg weak to a similar degree, no sensory loss', () => {
@@ -248,6 +251,26 @@ describe('C6-F4: the anterior choroidal artery syndrome as it usually presents',
     const sc = SCENARIO_BY_ID.l_acha;
     expect(sc.summary.en).toMatch(/lacunar/);
     expect(sc.summary.zh).toMatch(/腔隙/);
+  });
+});
+
+describe('W3-5: a lacune shows its own share of the structure as infarcted, and the function it costs apart', () => {
+  // the infarcted share of a structure is the lacune's volume over the structure's (corona radiata
+  // 12.4 mL, posterior limb 2.1 mL), what it costs of the structure's function (most of it: a
+  // compact tract) is `lost` and `dys`; the final infarct is the lacune's own volume
+  it.each([
+    ['l_cr_lacune', 'corona_radiata_l'],
+    ['l_lacune', 'ic_posterior_limb_l'],
+    ['r_pontine_lacune', 'pons_rostral_basis_r'],
+  ])('%s', (id, rid) => {
+    for (const tH of [24, 2160]) {
+      const r = scenario(id, tH);
+      const reg = r.regions[rid];
+      expect(reg.infarct * volumeOf(rid), `${tH} h`).toBeCloseTo(r.volumes.finalInfarct, 2);
+      expect(reg.infarct, `${tH} h`).toBeLessThan(0.5);
+      expect(reg.lost, `${tH} h`).toBeCloseTo(LACUNE_DYSFUNCTION, 3);
+      expect(reg.lost, `${tH} h`).toBeGreaterThan(reg.infarct);
+    }
   });
 });
 

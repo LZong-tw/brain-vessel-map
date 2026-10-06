@@ -214,3 +214,28 @@ describe('W2-10: from day 2, the penumbra the summary names is what the course m
     expect(text).toContain(lang === 'en' ? 'of tissue that survived is still regaining its function' : '存活下來的組織仍在恢復功能');
   });
 });
+
+describe('W3-8: an infarct of the upper cervical cord is told on Now', () => {
+  // the anterior spinal artery alone: no brain tissue is ischaemic, but the cord is, then has died
+  const series = TIME_STOPS.map((st) =>
+    simulate({ occlusions: [{ vessel: 'asa', severity: 1 }], variants: [], collateral: 'good', map: 93, tH: st.h, reperfusionH: null, decompression: false }),
+  );
+  const textAt = (h: number, lang: Lang) => {
+    const i = at(h);
+    useApp.setState({ lang, tIndex: i });
+    const { container } = render(<NowSummary sim={series[i]} series={series} />);
+    const text = container.querySelector('.now-summary p')?.textContent ?? '';
+    cleanup();
+    return text;
+  };
+  it.each(['zh-TW', 'en'] as Lang[])('%s: the cord is named, at onset and once it has died', (lang) => {
+    const cord = lang === 'en' ? 'upper cervical cord' : '上段頸髓';
+    for (const h of [0, 24, 2160]) {
+      const text = textAt(h, lang);
+      expect(text, `${h} h`).toContain(cord);
+      // never "nothing is ischaemic" without the cord beside it
+      expect(text, `${h} h`).not.toMatch(lang === 'en' ? /^No brain tissue is ischaemic right now\.$/ : /^此刻沒有腦組織缺血。$/);
+    }
+    expect(textAt(0, lang)).toMatch(lang === 'en' ? /about 2(\.0)? mL/i : /約 2(\.0)? mL/);
+  });
+});

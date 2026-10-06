@@ -13,7 +13,7 @@ import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
 import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutcome';
-import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
+import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, pctShare, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
 import { COMPENSATION_SHOWN, bottleneckSites, compensatedShare, hasNoBackup, symptomBackup, unexaminableHeading } from '../ui/recoveryFormat';
 import { formatPrevalence, postStrokeRisksFor } from '../ui/postStrokeRisks';
 import { formatClock } from '../ui/scheduleFormat';
@@ -93,9 +93,11 @@ export function FinalOutcome() {
           <div className="stat-value" style={{ color: STATE_COLORS.core }}>
             {fmtMl(course.finalInfarct)} <small>{t.ml}</small>
           </div>
+          {/* the upper cervical cord's part, named apart (W3-8) */}
+          {m6.volumes.cord.final >= 0.05 && <div className="muted small">{o.finalCordNote(fmtMl(m6.volumes.cord.final))}</div>}
         </div>
         <div className="stat">
-          <div className="stat-label">{o.neuronsLost}</div>
+          <div className="stat-label">{m6.volumes.cord.core >= 0.05 ? o.neuronsLostBrain : o.neuronsLost}</div>
           <div className="stat-value small">{fmtNeurons(m6.neuronsLost, lang)}</div>
         </div>
         {st.reperfusionH !== null && (
@@ -295,7 +297,7 @@ export function FinalOutcome() {
                       {fmtMl(r.ml)} {t.ml}
                     </span>
                   )}
-                  <span className="num">{pct(r.infarct)}</span>
+                  <span className="num">{pctShare(r.infarct)}</span>
                 </button>
               </li>
             ))}

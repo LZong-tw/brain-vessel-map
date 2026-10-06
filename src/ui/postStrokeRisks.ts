@@ -144,7 +144,8 @@ export function caseNotes(risk: PostStrokeRisk, m6: SimResult): L[] {
   }
   // the lesion sites the movement-disorder sources describe (basal ganglia and adjacent white
   // matter: Ghika-Schmid 1997; the lateral thalamus: Kim 2001)
-  if (risk.id === 'movement_disorders' && MOVEMENT_SITES.some((b) => (['r', 'l'] as const).some((s) => (m6.regions[`${b}_${s}`]?.infarct ?? 0) >= DEAD)))
+  // (a lacune there counts: small as it is, it costs most of the structure's function, W3-5)
+  if (risk.id === 'movement_disorders' && MOVEMENT_SITES.some((b) => (['r', 'l'] as const).some((s) => (m6.regions[`${b}_${s}`]?.lost ?? 0) >= DEAD)))
     out.push({
       zh: '此病例的梗塞涉及基底核或外側視丘；這些部位的梗塞與較高的中風後不自主運動風險相關，但它仍不常見，多半會消退。',
       en: 'This case’s infarct involves the basal ganglia or the lateral thalamus; infarcts there are associated with a higher risk of post-stroke movement disorders, which still remain uncommon and mostly regress.',

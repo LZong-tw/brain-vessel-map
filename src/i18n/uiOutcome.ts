@@ -23,7 +23,11 @@ export interface OutcomeStrings {
   jump6m: string;
   // ── numbers ──
   finalInfarct: string;
+  /** the spinal cord's part of the final infarct (W3-8) */
+  finalCordNote: (ml: string) => string;
   neuronsLost: string;
+  /** when the spinal cord is part of the infarct: the estimate is the brain's (W3-8) */
+  neuronsLostBrain: string;
   saved: string;
   savedNote: string;
   // ── treated vs untreated ──
@@ -99,7 +103,9 @@ const zh: OutcomeStrings = {
     `最後一次血管變化在 ${lastChange}，最終梗塞要到 ${finalAt} 才評估：到時間軸上的 6 個月時，病程還沒有完全穩定，組織與代償都可能繼續變化。`,
   jump6m: '跳到 6 個月',
   finalInfarct: '最終梗塞',
+  finalCordNote: (ml) => `其中上段頸髓約 ${ml} mL`,
   neuronsLost: '損失神經元（6 個月）',
+  neuronsLostBrain: '損失的腦神經元（6 個月）',
   saved: '治療救回',
   savedNote: '「治療救回」只計算不治療就會壞死、因治療而活下來的組織。',
   compareTitle: '治療與未治療比較',
@@ -176,7 +182,9 @@ const en: OutcomeStrings = {
     `The last change of the vessels is at ${lastChange} and the final infarct is evaluated at ${finalAt}: at 6 months on the timeline the course has not fully settled — tissue and compensation may still change.`,
   jump6m: 'Jump to 6 months',
   finalInfarct: 'Final infarct',
+  finalCordNote: (ml) => `of which ${ml} mL in the upper cervical cord`,
   neuronsLost: 'Neurons lost (6 months)',
+  neuronsLostBrain: 'Brain neurons lost (6 months)',
   saved: 'Saved by treatment',
   savedNote: '"Saved by treatment" counts only tissue that would have died without treatment and survived because of it.',
   compareTitle: 'Treated vs untreated',
