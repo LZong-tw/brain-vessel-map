@@ -9,9 +9,9 @@
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS, SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
-import { SYNDROMES } from '../anatomy/syndromes';
+import { MCA_CORTEX, SYNDROMES } from '../anatomy/syndromes';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { VESSEL_BY_ID } from '../anatomy';
+import { REGION_BY_ID, VESSEL_BY_ID } from '../anatomy';
 import { aggregateSymptoms, estimateNihss, symptomQuery, type SymptomItem } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
@@ -82,8 +82,13 @@ describe('R1-2: a global aphasia that has become mild changes type', () => {
       for (const c of GRADES)
         for (const tH of [2160, 4320]) {
           const r = sim(occl(v), tH, { collateral: c });
-          expect(get(r, 'aphasia_global'), `${v} ${c} ${tH} h`).toEqual([]);
-          // still one (milder) aphasia type, not none
+          // a global aphasia stays only once the MCA language cortex is nearly all infarcted (Z2-6),
+          // and then it is a severe one; otherwise it has become a milder type
+          const v0 = MCA_CORTEX.reduce((a, b) => a + REGION_BY_ID[`${b}_l`].volume, 0);
+          const lost = MCA_CORTEX.reduce((a, b) => a + r.regions[`${b}_l`].infarct * REGION_BY_ID[`${b}_l`].volume, 0) / v0;
+          if (lost < 0.8) expect(get(r, 'aphasia_global'), `${v} ${c} ${tH} h`).toEqual([]);
+          for (const g of get(r, 'aphasia_global')) expect(g.sev, `${v} ${c} ${tH} h`).toBe(2);
+          // still one aphasia type, not none
           expect(aphasias(r), `${v} ${c} ${tH} h`).toHaveLength(1);
         }
   });

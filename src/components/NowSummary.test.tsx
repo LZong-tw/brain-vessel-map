@@ -89,3 +89,33 @@ describe('"what is happening now" after a reopening: the rescued tissue regains 
     expect(container.textContent).not.toMatch(/still regaining its function/);
   });
 });
+
+/**
+ * Z2-10: the bottleneck sentence names where both sides' main motor pathways and their backups were
+ * cut together: the cerebral peduncles of the midbrain (top of the basilar, or a herniation) or the
+ * ventral pons (a locked-in syndrome), from the regions that make the deficit.
+ */
+describe('"what is happening now" names the bottleneck where it is (Z2-10)', () => {
+  const sentence = (id: string, h: number, lang: Lang) => {
+    const series = seriesOf(id, SCENARIO_BY_ID[id].collateral ?? 'good');
+    useApp.setState({ lang, tIndex: at(h) });
+    const { container } = render(<NowSummary sim={series[at(h)]} series={series} />);
+    const text = container.querySelector('p')?.textContent ?? '';
+    cleanup();
+    return text;
+  };
+
+  it.each([168, 720, 2160])('top of the basilar at %s h: the cerebral peduncles of the midbrain, not the ventral pons', (h) => {
+    const en = sentence('basilar_tip', h, 'en');
+    expect(en).toMatch(/cut together in the cerebral peduncles of the midbrain/);
+    expect(en).not.toMatch(/ventral pons/);
+    const zh = sentence('basilar_tip', h, 'zh-TW');
+    expect(zh).toMatch(/在中腦的大腦腳一起被截斷/);
+    expect(zh).not.toMatch(/腹側橋腦/);
+  });
+
+  it('a locked-in syndrome: the ventral pons', () => {
+    expect(sentence('basilar_mid', 720, 'en')).toMatch(/cut together in the ventral pons/);
+    expect(sentence('basilar_mid', 720, 'zh-TW')).toMatch(/在腹側橋腦一起被截斷/);
+  });
+});

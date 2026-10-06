@@ -4,6 +4,7 @@
  * English second.
  */
 
+import type { BottleneckSite } from '../anatomy/redundancy';
 import type { Lang } from '../anatomy/types';
 import type { FatalRisk, SurvivalCaveat } from '../engine/cascade';
 import type { DeficitGroup } from '../ui/finalOutcome';
@@ -32,6 +33,8 @@ export interface OutcomeStrings {
   rowFinal: string;
   rowNihss3: string;
   rowNihss6: string;
+  /** after the NIHSS of a column whose course usually or often ends in death: a survivor's score (Z2-3) */
+  ifSurvivesCell: string;
   rowLasting: string;
   /** what the deficit count includes (X1-2) */
   rowLastingNote: string;
@@ -66,7 +69,8 @@ export interface OutcomeStrings {
   groupNotes: Record<DeficitGroup, string>;
   noDeficits: string;
   tagBilateral: string;
-  tagBottleneck: string;
+  /** where both sides were cut together (Z2-10) */
+  tagBottleneck: (sites: BottleneckSite[]) => string;
   // ── late course ──
   lateTitle: string;
   lateNote: string;
@@ -99,6 +103,7 @@ const zh: OutcomeStrings = {
   rowFinal: '最終梗塞',
   rowNihss3: 'NIHSS（3 個月）',
   rowNihss6: 'NIHSS（6 個月）',
+  ifSurvivesCell: '（假如存活）',
   rowLasting: '6 個月時的缺損',
   rowLastingNote: '列出的缺損，加上意識下降、目前無法檢查但仍存在的缺損；標示「可能出現」的晚期表現不算在內',
   rowFatal: { herniation: '很可能死亡（疝脫）', posterior_fossa: '危及生命（腦幹受壓、未手術）', basilar: '常會死亡（基底動脈未打通、昏迷）' },
@@ -138,7 +143,8 @@ const zh: OutcomeStrings = {
   },
   noDeficits: '沒有留下症狀。',
   tagBilateral: '兩側受損',
-  tagBottleneck: '腹側橋腦瓶頸',
+  tagBottleneck: (sites) =>
+    sites.includes('midbrain') && sites.includes('pons') ? '大腦腳與腹側橋腦瓶頸' : sites.includes('midbrain') ? '大腦腳瓶頸' : '腹側橋腦瓶頸',
   lateTitle: '長期併發症與後期病程',
   lateNote: '發作一週後才開始，或到 6 個月仍持續的變化。',
   lateNone: '沒有一週後的後續變化。',
@@ -170,6 +176,7 @@ const en: OutcomeStrings = {
   rowFinal: 'Final infarct',
   rowNihss3: 'NIHSS (3 months)',
   rowNihss6: 'NIHSS (6 months)',
+  ifSurvivesCell: ' (if the patient survives)',
   rowLasting: 'Deficits at 6 months',
   rowLastingNote: 'The deficits listed, plus those still there that cannot be examined at the patient’s level of consciousness; late signs listed as “Possible” are not counted',
   rowFatal: {
@@ -213,7 +220,12 @@ const en: OutcomeStrings = {
   },
   noDeficits: 'No lasting symptoms.',
   tagBilateral: 'both sides',
-  tagBottleneck: 'ventral-pons bottleneck',
+  tagBottleneck: (sites) =>
+    sites.includes('midbrain') && sites.includes('pons')
+      ? 'peduncle and ventral-pons bottleneck'
+      : sites.includes('midbrain')
+        ? 'midbrain-peduncle bottleneck'
+        : 'ventral-pons bottleneck',
   lateTitle: 'Long-term complications and late course',
   lateNote: 'Changes that start a week or more after onset, or are still present at 6 months.',
   lateNone: 'Nothing further happens after the first week.',

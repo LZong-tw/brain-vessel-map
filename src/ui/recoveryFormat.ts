@@ -4,7 +4,7 @@
  */
 
 import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
-import { NO_BACKUP_KINDS, redundancyFor, type RedundancyKind } from '../anatomy/redundancy';
+import { NO_BACKUP_KINDS, redundancyFor, type BottleneckSite, type RedundancyKind } from '../anatomy/redundancy';
 import type { NihssResult, SymptomItem, UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
 import type { Lang } from '../anatomy/types';
@@ -54,6 +54,11 @@ export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery
 export const symptomBackup = (s: SymptomItem): RedundancyKind => s.recovery?.kind ?? redundancyFor(s.id).kind;
 export const hasNoBackup = (s: SymptomItem) => NO_BACKUP_KINDS.has(symptomBackup(s));
 export const compensatedShare = (s: SymptomItem) => s.recovery?.compensated ?? 0;
+/** where the bottleneck deficits among `symptoms` were cut on both sides: the cerebral peduncles, the ventral pons, or both (Z2-10) */
+export function bottleneckSites(symptoms: SymptomItem[]): BottleneckSite[] {
+  const found = new Set(symptoms.flatMap((s) => (s.recovery?.bottleneck ? s.recovery.bottleneckSites ?? [] : [])));
+  return (['midbrain', 'pons'] as BottleneckSite[]).filter((x) => found.has(x));
+}
 
 /** Living brain tissue (mL) silenced by oedema and by remote depression at the simulated time. */
 export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: number } {

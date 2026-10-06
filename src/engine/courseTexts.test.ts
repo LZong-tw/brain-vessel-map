@@ -171,7 +171,8 @@ describe('Y3-5: the cardiac warning calls a stroke severe by its clinical severi
     for (const [name, input, opened] of [['c07', C07, 2]] as [string, SimInput, number][]) {
       expect(at(input, 0).nihss.total, name).toBeGreaterThanOrEqual(16);
       expect(cardiacAt(at(input, 0), 0)!.desc.en, name).toContain(SEVERE_NOW);
-      for (const h of STOPS.filter((x) => x >= opened + 22 && x < 336)) {
+      // (Z2-8: the gaze palsy of the caudal tegmentum still tapers off at 24 h)
+      for (const h of STOPS.filter((x) => x >= opened + 46 && x < 336)) {
         const r = at(input, h);
         expect(r.nihss.total, `${name} ${h} h`).toBe(0);
         const c = cardiacAt(r, h)!;
@@ -225,14 +226,18 @@ describe('Y3-6: the posterior-circulation caveat follows the circulation and nee
       for (const h of STOPS) expect(at(input, h).nihss.posteriorCaveat, `${name} ${h} h`).toBe(false);
   });
 
-  it('not without a symptom (mid-basilar reopened at 12 h, NIHSS 0 later)', () => {
-    for (const h of STOPS) {
-      const r = at(C33, h);
-      if (r.symptoms.length + r.unexaminable.length === 0) expect(r.nihss.posteriorCaveat, `${h} h`).toBe(false);
-    }
-    // (Y1-12: the rescued pons regains its function over weeks; was: symptom-free from 12 h)
-    expect(at(C33, 2160).symptoms).toEqual([]);
-    expect(at(C33, 2160).nihss.posteriorCaveat).toBe(false);
+  it('not without a symptom (mid-basilar reopened at 2 h, NIHSS 0 later)', () => {
+    for (const input of [C07, C33])
+      for (const h of STOPS) {
+        const r = at(input, h);
+        if (r.symptoms.length + r.unexaminable.length === 0) expect(r.nihss.posteriorCaveat, `${h} h`).toBe(false);
+      }
+    expect(at(C07, 2160).symptoms).toEqual([]);
+    expect(at(C07, 2160).nihss.posteriorCaveat).toBe(false);
+    // (Z2-0, Z2-8: reopened at 12 h, both caudal tegmenta are about a quarter infarcted and leave a
+    // lasting gaze palsy, which the scale underrates; was: symptom-free from 3 months)
+    expect(at(C33, 2160).symptoms.length).toBeGreaterThan(0);
+    expect(at(C33, 2160).nihss.posteriorCaveat).toBe(true);
   });
 
   it('a thalamic (Percheron, thalamogeniculate) stroke with a low NIHSS gets it from onset', () => {

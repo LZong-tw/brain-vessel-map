@@ -7,7 +7,7 @@ import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { fmtMl, midlineShiftOf, pct, shortTitle, stopIndexAtOrAfter, stopTime, symptomLabel } from '../ui/format';
-import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, improvedSince, regainingVolume, silencedVolume, unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, bottleneckSites, compensatedShare, hasNoBackup, improvedSince, regainingVolume, silencedVolume, unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
 
 const SEV_RANK: Record<EventSeverity, number> = { danger: 0, warn: 1, good: 2, info: 3 };
 const bySeverity = (a: CascadeEvent, b: CascadeEvent) => SEV_RANK[a.severity] - SEV_RANK[b.severity] || a.onsetH - b.onsetH;
@@ -87,8 +87,10 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   }
   if (sim.recovery.progress >= COMPENSATING_FROM) {
     // both sides cut where the main pathways and their backups run together (locked-in)
-    if (sim.symptoms.some((s) => s.recovery?.bottleneck && s.sev >= 2 && !hasNoBackup(s))) {
-      sentences.push(rt.nowCompensatingLittle(pct(sim.recovery.progress)));
+    const cut = sim.symptoms.filter((s) => s.recovery?.bottleneck && s.sev >= 2 && !hasNoBackup(s));
+    if (cut.length) {
+      // named where it is: the cerebral peduncles or the ventral pons (Z2-10)
+      sentences.push(rt.nowCompensatingLittle(pct(sim.recovery.progress), bottleneckSites(cut)));
       recoveryShown = true;
     } else if (sim.symptoms.some((s) => compensatedShare(s) >= COMPENSATION_SHOWN)) {
       sentences.push(rt.nowCompensating(pct(sim.recovery.progress)));

@@ -38,6 +38,7 @@ import { resolveCurve, vasoRise } from './edema';
 import type { HemoResult, Occlusion } from './hemodynamics';
 import type { ReperfusionGrade, TreatmentMethod } from './treatment';
 import { isTreatable, reopenedByTreatment, startOf } from './schedule';
+import { NOTICEABLE, gradeFactor, tapers } from './recovery';
 import { regainedAfterH } from './tissue';
 import { PERFORATOR_TISSUE } from './tissueParams';
 
@@ -179,9 +180,10 @@ export interface CascadeInput {
    */
   basilarNotReopened?: boolean;
   /**
-   * the NIHSS 3 months after the onset with the treatment given and without it, worked out by
-   * simulate() in the second pass: the recanalisation event is graded by the deficit it avoids
-   * (Y1-12). Left out (the first pass, or no treatment), it is graded by the volume saved.
+   * the NIHSS 3 months after the onset with the treatment given and without it, and the fatal
+   * risks of the untreated course, worked out by simulate() in the second pass: the recanalisation
+   * event is graded by the deficit, the fatal course and the volume it avoids (Y1-12, Z2-3). Left
+   * out (the first pass, or no treatment), it is graded by the volume saved.
    */
   reperfusionOutcome?: ReperfusionOutcome;
   /**
@@ -486,36 +488,109 @@ const REGAIN_NOTE: L = {
   en: ' The rescued tissue does not work again the moment blood returns: only about 1 in 4 patients has an NIHSS below 6 within 30 min of thrombectomy; about half of the benefit shows in the NIHSS at 24 h and three quarters at discharge, more slowly after longer or deeper ischaemia.',
 };
 
-/** the NIHSS 3 months after onset with and without the treatment (CascadeInput.reperfusionOutcome) */
+/** the outcome 3 months after onset with and without the treatment (CascadeInput.reperfusionOutcome) */
 export interface ReperfusionOutcome {
   treatedNihss: number;
   untreatedNihss: number;
+  /** what usually or often ends the course in death without the treatment (its fatalRisk, Z2-3) */
+  untreatedFatal: FatalRisk[];
 }
 
 /**
- * a recanalisation is shown as a benefit when it avoids a deficit: an NIHSS at 3 months at least
- * this much lower than without treatment (Y1-12). Rescuing tissue whose loss changes no deficit
- * the scale sees is told, but not as a benefit. Without the outcome (the first pass), more than
- * 5 mL saved.
+ * A recanalisation is shown as a benefit when it avoids a deficit, a fatal course or a large
+ * infarct (Y1-12, Z2-3): an NIHSS at 3 months at least AVOIDED_NIHSS lower than without
+ * treatment; a herniation, a brainstem compression or an unreopened basilar occlusion with coma
+ * that the untreated course would bring and the treated one does not; or at least SAVED_ML of brain
+ * spared. The NIHSS alone misses the last two: the model's 3-month NIHSS of an untreated fatal course
+ * is that of a survivor, and the scale rates a right-hemisphere infarct lower than a left one of the
+ * same size (for an NIHSS of 16–20 at 24 h the median infarct was 133 mL on the right against 48 mL
+ * on the left: Woo D et al. Stroke 1999;30:2355–2359), while the final infarct volume predicts the
+ * functional outcome on its own (odds of a better modified Rankin score 0.88 per 10 mL in 1665
+ * patients of seven thrombectomy trials: Boers AMM et al. J Neurointerv Surg 2018;10:1137–1142).
+ * Rescuing tissue whose loss changes no deficit, course or much volume is told, but not as a
+ * benefit. Without the outcome (the first pass), more than 5 mL saved.
  */
 const AVOIDED_NIHSS = 2;
-const reperfusionSeverity = (outcome: ReperfusionOutcome | undefined, savedVolume: number): CascadeEvent['severity'] =>
-  (outcome ? outcome.untreatedNihss - outcome.treatedNihss >= AVOIDED_NIHSS : savedVolume > 5) ? 'good' : 'info';
-/** the sentence that gives the NIHSS at 3 months with and without the treatment */
-const outcomeSentence = (outcome: ReperfusionOutcome | undefined): L =>
-  outcome
-    ? {
-        zh: `模型估計 3 個月時 NIHSS 約 ${outcome.treatedNihss} 分（不治療約 ${outcome.untreatedNihss} 分）。`,
-        en: ` Model estimate: NIHSS at 3 months about ${outcome.treatedNihss} instead of ${outcome.untreatedNihss} without treatment.`,
-      }
-    : { zh: '', en: '' };
+/** TODO(medical-review): a round figure, about a third of a large territorial infarct; 50 mL ≈ odds 0.53 by Boers 2018 */
+const SAVED_ML = 50;
+const reperfusionSeverity = (outcome: ReperfusionOutcome | undefined, savedVolume: number, avoided: FatalRisk[] = []): CascadeEvent['severity'] =>
+  (outcome ? outcome.untreatedNihss - outcome.treatedNihss >= AVOIDED_NIHSS || avoided.length > 0 || savedVolume >= SAVED_ML : savedVolume > 5)
+    ? 'good'
+    : 'info';
+/** what the untreated course would have brought that the treated one does not (Z2-3) */
+const FATAL_AVOIDED: Record<FatalRisk, L> = {
+  herniation: {
+    zh: '不治療時，梗塞的水腫很可能造成疝脫，常會致命；治療後模型預期不會發生。',
+    en: ' Without treatment the swelling of the infarct would probably cause a herniation, which is often fatal; with it the model does not expect one.',
+  },
+  posterior_fossa: {
+    zh: '不治療時，腫脹的小腦很可能壓迫腦幹，會危及生命；治療後模型預期不會發生。',
+    en: ' Without treatment the swollen cerebellum would probably compress the brainstem, which is life-threatening; with it the model does not expect this.',
+  },
+  basilar: {
+    zh: '不治療時，基底動脈沒有打通又昏迷，常會致命；治療後不再是這種情況。',
+    en: ' Without treatment the basilar occlusion, not reopened, with coma, would often be fatal; with it this is no longer the case.',
+  },
+};
+/**
+ * The sentences that give the NIHSS at 3 months with and without the treatment, what the treatment
+ * avoided, and why the scale can show little of it (Z2-3): the same NIHSS is never written as a
+ * difference ("about 13 instead of 13"), and an untreated course that is usually fatal is a
+ * survivor's score.
+ */
+function outcomeSentence(outcome: ReperfusionOutcome | undefined, savedVolume = 0, avoided: FatalRisk[] = [], treatedFatal = false, rightSided = false): L {
+  if (!outcome) return { zh: '', en: '' };
+  const { treatedNihss: t, untreatedNihss: u } = outcome;
+  // whose score is a survivor's: the model does not represent death (C4-F1, Y3-11)
+  const uf = outcome.untreatedFatal.length > 0;
+  const tf = treatedFatal;
+  let nihss: L;
+  if (uf && tf)
+    nihss =
+      t === u
+        ? { zh: `模型估計 3 個月時，假如病人存活，不論治療與否 NIHSS 都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment, if the patient survives.` }
+        : { zh: `模型估計 3 個月時，假如病人存活，NIHSS 治療後約 ${t} 分、不治療約 ${u} 分。`, en: ` Model estimate: if the patient survives, NIHSS at 3 months about ${t} with treatment and ${u} without.` };
+  else if (uf)
+    nihss =
+      t === u
+        ? { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分；不治療時假如病人存活，也約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}; without treatment the same, if the patient survives.` }
+        : { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分；不治療時假如病人存活，約 ${u} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}; without treatment about ${u}, if the patient survives.` };
+  else if (tf)
+    nihss = { zh: `模型估計 3 個月時 NIHSS 假如病人存活約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} if the patient survives, and about ${u} without treatment.` };
+  else
+    nihss =
+      t < u
+        ? { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} instead of ${u} without treatment.` }
+        : t === u
+          ? { zh: `模型估計 3 個月時 NIHSS 不論治療與否都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment.` }
+          : { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分，不治療約 ${u} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}, and about ${u} without treatment.` };
+  const fatal = avoided.map((k) => FATAL_AVOIDED[k]);
+  // the scale shows little of a large saving (Boers 2018), and less still on the right (Woo 1999)
+  const scale: L =
+    u - t < AVOIDED_NIHSS && savedVolume >= SAVED_ML
+      ? {
+          zh: `NIHSS 看不太出差別，但治療保住了約 ${savedVolume.toFixed(0)} mL 的腦組織，而最終梗塞體積本身就預測日後的功能${rightSided ? '；NIHSS 對右半球梗塞的計分也比同樣大小的左半球梗塞低' : ''}。`,
+          en: ` The scale shows little of the difference, but the treatment spared about ${savedVolume.toFixed(0)} mL of brain, and the final infarct volume predicts the functional outcome on its own${rightSided ? '; the NIHSS also scores a right-hemisphere infarct lower than a left one of the same size' : ''}.`,
+        }
+      : { zh: '', en: '' };
+  return { zh: nihss.zh + fatal.map((x) => x.zh).join('') + scale.zh, en: nihss.en + fatal.map((x) => x.en).join('') + scale.en };
+}
 
 /**
  * The recanalisation event when the treatment details differ from the default: it names the
  * method and the eTICI grade, says how much of the territory got its flow back, and says so when
  * the attempt failed.
  */
-function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume: number, delayH: number, outcome?: ReperfusionOutcome): CascadeEvent {
+function reperfusionEvent(
+  t: CascadeTreatment,
+  reperfusionH: number,
+  savedVolume: number,
+  delayH: number,
+  outcome?: ReperfusionOutcome,
+  avoided: FatalRisk[] = [],
+  treatedFatal = false,
+  rightSided = false,
+): CascadeEvent {
   const m = METHOD_NAME[t.method];
   const g = GRADE_MEANING[t.grade];
   // eTICI is read on an angiogram; after IV thrombolysis alone it stands for the reperfused share
@@ -542,11 +617,11 @@ function reperfusionEvent(t: CascadeTreatment, reperfusionH: number, savedVolume
   const shareEn = partial ? ` The model gives about ${pct(t.reperfusedFraction)} of the downstream territory its flow back; the rest follows the untreated course.` : '';
   const reclosesZh = t.reocclusionH !== null ? '（血管之後又再阻塞，見「再阻塞」）' : '';
   const reclosesEn = t.reocclusionH !== null ? ' in the end (the artery later closes again: see "Reocclusion")' : '';
-  const o = outcomeSentence(outcome);
+  const o = outcomeSentence(outcome, savedVolume, avoided, treatedFatal, rightSided);
   return {
     id: 'reperfusion',
     kind: 'treatment',
-    severity: reperfusionSeverity(outcome, savedVolume),
+    severity: reperfusionSeverity(outcome, savedVolume, avoided),
     onsetH: reperfusionH,
     title: { zh: `血管再通：${m.zh}，eTICI ${t.grade}`, en: `Recanalisation: ${m.en}, eTICI ${t.grade}` },
     desc: {
@@ -1144,22 +1219,30 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           (!d.only || r.side === d.only) &&
           !(lac && d.spareInLacune) &&
           !d.bilateralOnly &&
-          finalLevel(r.id) >= Math.max(0.25, d.minLevel ?? 0) - 1e-6,
+          (finalLevel(r.id) >= Math.max(0.25, d.minLevel ?? 0) - 1e-6 ||
+            // graded below the threshold in a compact region, while still noticeable (Z2-8)
+            (!lac && tapers(r, d) && (d.sev ?? 2) * gradeFactor(finalLevel(r.id), true) >= NOTICEABLE)),
       );
     });
 
   const vol = { supra: { r: 0, l: 0 } as Record<Side, number>, cerebellum: { r: 0, l: 0 } as Record<Side, number>, brainstem: 0, total: 0 };
   let untreatedTotal = 0;
+  /** supratentorial infarct per side that only the untreated course has (what treatment spares) */
+  const untreatedSupra: Record<Side, number> = { r: 0, l: 0 };
   for (const b of BEDS) {
     const reg = REGION_BY_ID[b.region];
     // the compartment decides where swelling goes: above the tentorium (hemispheric mass
     // effect, herniation) or in the tight posterior fossa (brainstem compression, hydrocephalus)
     if (reg.compartment === 'none') continue;
     const v = (bedFinal[b.id] ?? 0) * b.volume;
-    untreatedTotal += (bedFinalUntreated[b.id] ?? 0) * b.volume;
+    const vu = (bedFinalUntreated[b.id] ?? 0) * b.volume;
+    untreatedTotal += vu;
     vol.total += v;
     const s = reg.side === 'm' ? 'r' : reg.side;
-    if (reg.compartment === 'supra') vol.supra[s] += v;
+    if (reg.compartment === 'supra') {
+      vol.supra[s] += v;
+      untreatedSupra[s] += vu - v;
+    }
     else if (reg.category === 'brainstem') vol.brainstem += v;
     else vol.cerebellum[s] += v;
   }
@@ -1261,27 +1344,43 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const reopenable = input.occlusions.some(isTreatable);
   // the brain-tissue reperfusion story (penumbra saved, in mL) does not fit an eye or inner-ear
   // infarct, whose end organ the brain volumes do not count
+  /**
+   * the recanalisation event, made again once the course's own fatal risks are known (below): it
+   * is graded and worded by what the untreated course would have brought and this one does not
+   * (Z2-3)
+   */
+  let reperfusion: { at: number; make: (avoided: FatalRisk[], treatedFatal: boolean) => CascadeEvent } | null = null;
+  // the infarct the treatment spares lies mostly in the right hemisphere (Woo 1999)
+  const rightSided = untreatedSupra.r > untreatedSupra.l;
   if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable && treatment) {
     // hours from the onset of the (most recent) reopened occlusion, as in the settings panel
     const starts = input.occlusions.filter((o) => reopenedByTreatment(o, reperfusionH)).map(startOf);
     const delayH = starts.length ? reperfusionH - Math.max(...starts) : reperfusionH;
-    events.push(reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome));
+    reperfusion = {
+      at: events.length,
+      make: (avoided, treatedFatal) => reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome, avoided, treatedFatal, rightSided),
+    };
+    events.push(reperfusion.make([], false));
     pushTreatmentComplications(events, treatment, reperfusionH);
   } else if (reperfusionH !== null && anyIschemia && !eyeOnly && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
-    const o = outcomeSentence(input.reperfusionOutcome);
-    events.push({
-      id: 'reperfusion',
-      kind: 'treatment',
-      severity: reperfusionSeverity(input.reperfusionOutcome, savedVolume),
-      onsetH: reperfusionH,
-      title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
-      desc: {
-        zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-        en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
-      },
-      regions: [],
-    });
+    const make = (avoided: FatalRisk[], treatedFatal: boolean): CascadeEvent => {
+      const o = outcomeSentence(input.reperfusionOutcome, savedVolume, avoided, treatedFatal, rightSided);
+      return {
+        id: 'reperfusion',
+        kind: 'treatment',
+        severity: reperfusionSeverity(input.reperfusionOutcome, savedVolume, avoided),
+        onsetH: reperfusionH,
+        title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
+        desc: {
+          zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+          en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+        },
+        regions: [],
+      };
+    };
+    reperfusion = { at: events.length, make };
+    events.push(make([], false));
   }
 
   // ── 3. oedema & mass effect ────────────────────────────────────
@@ -2551,6 +2650,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
   }
 
+  // what the treatment avoided, now that this course's own fatal risks are known (Z2-3)
+  if (reperfusion && input.reperfusionOutcome)
+    events[reperfusion.at] = reperfusion.make(
+      input.reperfusionOutcome.untreatedFatal.filter((k) => !fatalRisk.has(k)),
+      fatalRisk.size > 0,
+    );
   events.sort((a, b) => a.onsetH - b.onsetH);
   // tissue that dies later from herniation / compression of other arteries (permanent effects)
   let secondaryLoss = 0;

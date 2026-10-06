@@ -18,20 +18,41 @@
  *     this is added before 6 h.
  *   • Compensation — spared pathways taking over functions lost to dead tissue, by the redundancy
  *     of each function (anatomy/redundancy.ts) and by whether the lesion is one- or two-sided.
- *     Applied per symptom in clinical.aggregateSymptoms; summarised per region here. Time course:
+ *     Applied per symptom in clinical.aggregateSymptoms; summarised per region here. A limb
+ *     weakness from where the corticospinal tract converges is taken over less once that tract is
+ *     lost (Y1-1), an aphasia or a neglect less the less of the hemisphere's MCA cortex is left
+ *     (redundancy.NETWORK_LOSS, Z2-6), and a deficit of both sides at the ventral pons or the
+ *     cerebral peduncles hardly at all (the bottleneck, whose site is named: Z2-10). Time course:
  *     starts after the first day, fastest over the first weeks, mostly done by ~3 months, then
  *     slower to ~6 months with some later gains (time explains much of the improvement in the first
  *     ~10 weeks: Kwakkel et al., Stroke 2006; 37:2348–53; review: Langhorne et al., Lancet 2011;
  *     377:1693–702).
  *
+ *   • Grading below the threshold: the brainstem's compact tracts and nuclei give their deficits
+ *     in proportion to the share lost down to COMPACT_FROM, so they taper rather than switch
+ *     (gradeFactor, Z2-8).
+ *
  * Illustrative group-level behaviour, not a prognosis.
  * TODO(medical-review): every magnitude and time constant in this file.
  */
 
-import { BED_BY_ID, REGIONS } from '../anatomy';
-import type { Region, Side } from '../anatomy';
+import { BED_BY_ID, REGIONS, REGION_BY_ID } from '../anatomy';
+import type { DeficitRef, Region, Side } from '../anatomy';
 import { LACUNE_DYSFUNCTION } from '../anatomy/lacunes';
-import { BOTTLENECK_FACTOR, BOTTLENECK_REGIONS, CST_CONVERGENCE, CST_LOST_SHARE, NO_BACKUP_KINDS, redundancyFor, type Redundancy } from '../anatomy/redundancy';
+import {
+  BOTTLENECK_FACTOR,
+  BOTTLENECK_REGIONS,
+  BOTTLENECK_SITE,
+  CST_CONVERGENCE,
+  CST_LOST_SHARE,
+  NETWORK_CORTEX,
+  NETWORK_LOSS,
+  NO_BACKUP_KINDS,
+  networkLossOf,
+  redundancyFor,
+  type BottleneckSite,
+  type Redundancy,
+} from '../anatomy/redundancy';
 import type { CascadeOutput } from './cascade';
 import type { EdemaState } from './edemaTypes';
 import { NO_RECOVERY, type RecoveryState, type SymptomRecovery } from './recoveryTypes';
@@ -89,6 +110,57 @@ const COMP_SLOW_SHARE = 0.15;
 const COMP_FAST_TAU_H = 168;
 /** a region counts as a dead source of its functions from this infarcted fraction (= symptom threshold) */
 export const DEAD_THR = 0.25;
+/**
+ * The brainstem is made of compact tracts and nuclei: the corticospinal and corticobulbar fibres of
+ * one side fill the basis pontis and the middle of the cerebral peduncle, and a cranial-nerve
+ * nucleus is a few millimetres across, so an infarct there cuts a share of the fibres in proportion
+ * to its size instead of sparing a region that still works around it (Z2-8). Its deficits are
+ * graded continuously below the symptom threshold, down to this infarcted (or, while it regains its
+ * function after a reopening, dysfunctional) share, rather than all switching on and off together
+ * at the threshold (clinical.lesionSymptoms). Bilateral pontine infarcts leave severe deficits more
+ * often than any other pontine pattern (150 patients: Kumral E et al. J Neurol 2002;249:1659–1670),
+ * and a PCA occlusion beyond the posterior communicating artery can infarct the lateral midbrain
+ * and cause a hemiparesis (Hommel M et al. Neurology 1990;40:1496–1499). The floor is the largest
+ * share of a brainstem region that a neighbouring artery supplies in the model and that is meant to
+ * stay silent, the edge of the region rather than its tract: the vertebral artery's 15 % of the
+ * medial medulla (no hemiparesis with a Wallenberg syndrome, C7-F3) and the paramedian thalamic
+ * artery's 15 % of the paramedian midbrain (no oculomotor palsy with a Percheron infarct, C9-F1).
+ * TODO(medical-review): 0.15
+ */
+export const COMPACT_FROM = 0.15;
+/** a region of compact tracts and nuclei (COMPACT_FROM) */
+export const isCompact = (r: Region) => r.category === 'brainstem';
+/** the infarcted share from which a region counts as a dead source of its functions */
+export const deadThresholdOf = (r: Region) => (isCompact(r) ? COMPACT_FROM : DEAD_THR);
+/**
+ * the level of consciousness is not a tract that a small infarct cuts in proportion: coma and
+ * drowsiness keep their threshold (they follow the arousal network of both sides, C3-F2)
+ */
+const NO_TAPER = ['coma', 'somnolence'];
+/**
+ * A deficit of a compact region is graded below the symptom threshold (Z2-8): a one-sided one
+ * without a higher threshold of its own (minLevel) or of a part of the region alone (wholeRegion),
+ * but not the level of consciousness. The signs
+ * of both sides together (bilateralOnly: anarthria, the bilateral dysphagia, the failure of
+ * automatic breathing) keep the threshold on both sides: below it what is left of a small infarct
+ * on each side is the one-sided picture (a dysarthria, a weakness of each side).
+ */
+export const tapers = (r: Region, d: DeficitRef) => isCompact(r) && !d.minLevel && !d.bilateralOnly && !d.wholeRegion && !NO_TAPER.includes(d.s);
+/** a deficit below this continuous severity (1–3 scale, after compensation) is no longer noticeable */
+export const NOTICEABLE = 0.35;
+/** the severity factor a deficit has at the symptom threshold (see `gradeFactor`) */
+const AT_THRESHOLD = 0.35 + (0.65 * DEAD_THR) / 0.8;
+/**
+ * How severe a deficit is, relative to its nominal severity, from a region affected to `level`:
+ * about 0.55 at the symptom threshold, rising to 1 at 80 %. Graded below the threshold
+ * (`tapered`, see `tapers`), it falls on linearly to 0 at COMPACT_FROM, so the deficits of a compact
+ * region taper as it regains its function and a small infarct there leaves a deficit in proportion
+ * to its size (Z2-8).
+ */
+export function gradeFactor(level: number, tapered = false): number {
+  if (level >= DEAD_THR - 1e-6 || !tapered) return 0.35 + 0.65 * Math.min(1, level / 0.8);
+  return AT_THRESHOLD * clamp01((level - COMPACT_FROM) / (DEAD_THR - COMPACT_FROM));
+}
 /** regions with less dead tissue than this get no compensation summary */
 const SUMMARY_THR = 0.05;
 
@@ -126,11 +198,21 @@ export interface LesionSides {
   bySymptom: Map<string, Set<Side>>;
   /** … counting only bottleneck regions (ventral pons, cerebral peduncles) */
   bottleneckBySymptom: Map<string, Set<Side>>;
+  /** … and where those bottleneck regions lie (Z2-10) */
+  bottleneckSites: Map<string, Set<BottleneckSite>>;
+  /** infarcted share of each hemisphere's MCA cortex, by volume (NETWORK_CORTEX, Z2-6) */
+  cortexInfarct: Record<Side, number>;
 }
 
+/**
+ * The dead sources of each symptom: regions infarcted from the symptom threshold (`thr`), regions
+ * of compact tracts and nuclei from COMPACT_FROM (Z2-8), and the infarcted share of each
+ * hemisphere's MCA cortex.
+ */
 export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): LesionSides {
   const bySymptom = new Map<string, Set<Side>>();
   const bottleneckBySymptom = new Map<string, Set<Side>>();
+  const bottleneckSites = new Map<string, Set<BottleneckSite>>();
   const put = (m: Map<string, Set<Side>>, id: string, r: Region) => {
     let set = m.get(id);
     if (!set) m.set(id, (set = new Set()));
@@ -140,16 +222,33 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
     } else set.add(r.side);
   };
   for (const r of REGIONS) {
-    if ((regionInf[r.id] ?? 0) < thr) continue;
-    const bottleneck = BOTTLENECK_REGIONS.includes(r.baseId);
+    if ((regionInf[r.id] ?? 0) < Math.min(thr, deadThresholdOf(r))) continue;
+    const site = BOTTLENECK_REGIONS.includes(r.baseId) ? BOTTLENECK_SITE[r.baseId] : undefined;
     for (const d of r.deficits) {
       if (d.only && r.side !== d.only) continue;
       if (d.minLevel && (regionInf[r.id] ?? 0) < d.minLevel) continue;
       put(bySymptom, d.s, r);
-      if (bottleneck) put(bottleneckBySymptom, d.s, r);
+      if (site) {
+        put(bottleneckBySymptom, d.s, r);
+        let sites = bottleneckSites.get(d.s);
+        if (!sites) bottleneckSites.set(d.s, (sites = new Set()));
+        sites.add(site);
+      }
     }
   }
-  return { bySymptom, bottleneckBySymptom };
+  const cortexInfarct = { r: 0, l: 0 };
+  for (const side of ['r', 'l'] as Side[]) {
+    let v = 0;
+    let w = 0;
+    for (const b of NETWORK_CORTEX) {
+      const reg = REGION_BY_ID[`${b}_${side}`];
+      if (!reg) continue;
+      v += (regionInf[reg.id] ?? 0) * reg.volume;
+      w += reg.volume;
+    }
+    cortexInfarct[side] = w > 0 ? v / w : 0;
+  }
+  return { bySymptom, bottleneckBySymptom, bottleneckSites, cortexInfarct };
 }
 
 /**
@@ -192,7 +291,15 @@ export function symptomCompensation(
   const red = own ?? redundancyFor(symptomId, region.baseId, region.side);
   const base = profound && red.profound ? red.profound : red;
   const lost = CST_LOST_SHARE[symptomId];
-  const share = tractLoss > 0 && lost !== undefined && lost < base.uni ? { ...base, uni: base.uni - (base.uni - lost) * clamp01(tractLoss) } : base;
+  let share = tractLoss > 0 && lost !== undefined && lost < base.uni ? { ...base, uni: base.uni - (base.uni - lost) * clamp01(tractLoss) } : base;
+  // an aphasia or a neglect from the network's own cortex is taken over less the less of that
+  // cortex is left (Z2-6)
+  const net = NETWORK_LOSS[symptomId];
+  const netLoss = net && NETWORK_CORTEX.includes(region.baseId) ? networkLossOf(symptomId, region.side, lesions.cortexInfarct[net.side]) : 0;
+  if (netLoss > 0) {
+    const fall = (x: number) => (x > net.lost ? x - (x - net.lost) * netLoss : x);
+    share = { ...share, uni: fall(share.uni), bi: fall(share.bi) };
+  }
   const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
   const bottleneck = bilateral && (lesions.bottleneckBySymptom.get(symptomId)?.size ?? 0) >= 2;
   let compensated = 0;
@@ -200,7 +307,9 @@ export function symptomCompensation(
     const gain = bilateral ? share.bi * (bottleneck ? BOTTLENECK_FACTOR : 1) : share.uni;
     compensated = gain * compensationProgress(tH, red.fast || fast) * clamp01(inf / level);
   }
-  return { kind: red.kind, compensated, bilateral, bottleneck };
+  if (!bottleneck) return { kind: red.kind, compensated, bilateral, bottleneck };
+  const sites = lesions.bottleneckSites.get(symptomId);
+  return { kind: red.kind, compensated, bilateral, bottleneck, bottleneckSites: (['pons', 'midbrain'] as BottleneckSite[]).filter((x) => sites?.has(x)) };
 }
 
 /**

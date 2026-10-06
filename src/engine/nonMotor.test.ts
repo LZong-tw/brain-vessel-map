@@ -255,9 +255,11 @@ describe('every new symptom can occur', () => {
  * neglect clears), and the fresh-eyes review, Y2 (2: the deep infarct of an early M1 reopening is
  * named a striatocapsular infarct; 8: item 7 counts ataxic limbs, a moderate hemiataxia two), Y1
  * (0: the infarct grows over hours; 1: a plegic arm from where the corticospinal tract converges
- * stays moderately weak; 12: rescued tissue regains its function over hours to days) and Z1 (7: the
+ * stays moderately weak; 12: rescued tissue regains its function over hours to days), Z1 (7: the
  * internal capsule is lost hours after the striatum; 15: the motor strip gets the collateral blood
- * of its neighbours).
+ * of its neighbours) and Z2 (6: a neglect is taken over less the less of the right MCA cortex is
+ * left; 8, 9: the brainstem is graded below the symptom threshold, and the passing perilesional
+ * depression does not push it over).
  */
 const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F2: Meyer loop + parietal optic radiation make a hemianopia (3: 1 → 2); C1-F5: a milder
@@ -300,16 +302,19 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'r_m1_malignant@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 11 (6l 2); Y1-1: the cerebral peduncle, infarcted by the herniation, has lost
   // its whole corticospinal tract: the arm stays plegic and the leg barely moves (5l: 3 → 4, 6l: 1
-  // → 3; was 10)
-  'r_m1_malignant@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
+  // → 3; was 10). Z2-6: the right MCA cortex is nearly all infarcted, so little of the neglect is
+  // taken over: profound at 3 months (11: 1 → 2; was 13)
+  'r_m1_malignant@2160': [14, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C1-F2: hemianopia (3: 1 → 2); C4-F2: as r_m1_malignant@24 (1a: 1 → 0); was 17
   'r_m1_decompression@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9)
-  'r_m1_decompression@2160': [10, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
+  // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9); Z2-6: as r_m1_malignant (11:
+  // 1 → 2; was 10)
+  'r_m1_decompression@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C4-F2: 3.5 mm of midline shift at 24 h, alert (1a: 1 → 0; was 19)
   'r_ica_t@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
-  // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10)
-  'r_ica_t@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['mca_complete_r', 'neglect_r']],
+  // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10); Z2-6: as
+  // r_m1_malignant (11: 1 → 2; was 13)
+  'r_ica_t@2160': [14, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C1-F5: right neglect from the left supramarginal gyrus (11: 0 → 1; was 13)
   'l_m2_sup@24': [14, { '1b': 1, 2: 1, 4: 2, '5r': 4, 8: 2, 9: 2, 10: 1, 11: 1 }, ['mca_superior_l']],
   // C5-F1 drift: was 6 (5r 2); C1-F5: the right neglect of a large supramarginal infarct is still
@@ -372,9 +377,13 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'percheron_midbrain@2160': [4, { 2: 1, 7: 2, 9: 1 }, ['thalamomesencephalic_bilateral']],
   // C1-F3: the untreated P2 occlusion infarcts the calcarine cortex: a hemianopia (3: 1 → 2; was 4),
   // still there at 3 months with its PCA label (was 3, no field defect, ['thalamic_sensory_l']);
-  // C9-F2: a mild, passing weakness from the inferolateral thalamus (4: 1, 5r: 1, drift)
-  'l_pca@24': [7, { 3: 2, 4: 1, '5r': 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
-  'l_pca@2160': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
+  // C9-F2: a mild, passing weakness from the inferolateral thalamus (4: 1, 5r: 1, drift). Z2-8, Z2-9:
+  // the P2 also infarcts a fifth of the cerebral peduncle, which is graded below the symptom
+  // threshold: a mild weakness of the leg too from the first hours (6r: 0 → 1; was 7), no longer a
+  // dense hemiparesis on day 2 from the perilesional depression alone, and a lasting mild weakness
+  // (5r: 0 → 1, 6r: 0 → 1 at 3 months; was 5)
+  'l_pca@24': [8, { 3: 2, 4: 1, '5r': 1, '6r': 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
+  'l_pca@2160': [7, { 3: 2, '5r': 1, '6r': 1, 7: 1, 8: 2 }, ['pca_l', 'thalamic_sensory_l']],
   // C1-F3: the calcarine artery also feeds the cuneus, so the left PCA's both banks fail: a
   // hemianopia (3: 1 → 2; was 36)
   'basilar_tip@24': [37, { '1a': 3, '1b': 2, '1c': 2, 2: 1, 3: 2, 4: 2, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 8: 2, 9: 3, 10: 2, 11: 2 }, ['pca_l', 'top_of_basilar']],
@@ -436,8 +445,9 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'ica_isolated@2160': [13, { 3: 2, 4: 1, '5l': 4, '6l': 3, 8: 1, 10: 1, 11: 1 }, ['ica_territory_r', 'neglect_r']],
   // C9-F2: the PComm feeds the tuberothalamic artery, so the anterior thalamus is infarcted too and
   // has its own label; C9-F4: its dysarthria (10); C9-F2: mild, passing weakness from the
-  // inferolateral thalamus (4, 5l: drift, C5-F1); was 6
-  'fetal_pca@24': [9, { 3: 2, 4: 1, '5l': 1, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
+  // inferolateral thalamus (4, 5l: drift, C5-F1); was 6. Z2-8: the leg too, from the part of the
+  // cerebral peduncle the P2 feeds (6l: 0 → 1; was 9); it passes within a month (fetal_pca@2160)
+  'fetal_pca@24': [10, { 3: 2, 4: 1, '5l': 1, '6l': 1, 7: 1, 8: 2, 10: 1, 11: 1 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
   // R5-9: the dysarthria and neglect of the anterior thalamic infarct have improved by 3 months
   // with its other deficits (10: 1 → 0, 11: 1 → 0; was 7)
   'fetal_pca@2160': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],

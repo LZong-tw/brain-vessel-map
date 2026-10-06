@@ -224,8 +224,11 @@ describe('colour, reading and writing need an awake patient (R1-5, R1-9 with R5-
       for (const id of GERSTMANN) expect(ids(r), `${tH} h`).not.toContain(id);
     }
     for (const tH of [24, 336, 2160]) for (const id of GERSTMANN) expect(ids(at(tH)), `${tH} h`).toContain(id);
-    // awake at 3 months with a mild Broca aphasia: the Gerstmann label (R1-2)
-    expect(labels(at(2160))).toContain('gerstmann');
+    // awake at 3 months, but the language cortex is nearly all infarcted and the global aphasia
+    // stays (Z2-6): the tetrad cannot be tested, so no Gerstmann label (C1-F1); was: a mild Broca
+    // aphasia and the label (R1-2)
+    expect(ids(at(2160))).toContain('aphasia_global');
+    expect(labels(at(2160))).not.toContain('gerstmann');
   });
 });
 

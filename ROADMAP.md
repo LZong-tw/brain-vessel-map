@@ -18,8 +18,10 @@
   · Oedema and swelling (cytotoxic → ionic → vasogenic → resolution → atrophy), 3D deformation, midline shift
 - 連鎖反應：腦疝脫、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症
   · Cascade: herniation, hydrocephalus, haemorrhagic transformation, CCD, Wallerian and olivary degeneration, systemic complications
-- 症狀、54 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意；皮質脊髓徑匯集處被切斷的肢體恢復較少）
-  · Symptoms, 54 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative; a limb whose corticospinal tract is cut where it converges recovers less)
+- 症狀、54 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意；皮質脊髓徑匯集處被切斷的肢體恢復較少；失語與忽略的代償隨同一半球的中大腦動脈皮質剩下多少而定；腦幹缺損依受損比例分級，不在門檻上一起出現或消失）
+  · Symptoms, 54 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative; a limb whose corticospinal tract is cut where it converges recovers less; an aphasia or a neglect is taken over by what is left of that hemisphere's MCA cortex; brainstem deficits are graded by the share lost rather than all switching at a threshold)
+- 「血管再通」事件依避免的缺損、避免的致命病程或保住的組織量評等，NIHSS 一樣時不寫成差異；不治療時致命的那一欄註明「假如存活」
+  · The recanalisation event graded by the deficit, the fatal course or the volume it avoids, never writing the same NIHSS as a difference; the column of a course that is usually fatal marked "if the patient survives"
 - 病例介面：發病前條件／阻塞事件／治療三張卡片，範本可載入或疊加多條血管；右側「此刻／最終／詳細」，最終頁有治療與未治療對照
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
 - 35 個教學範本、單一穿通支阻塞（腔隙性中風，可選落點；內囊警訊症候群）、栓子漂流模擬
@@ -49,6 +51,8 @@
   · **Clinical review** of the region–symptom mapping, syndrome rules and time courses by a neurologist / neuroradiologist (most important)
 - [ ] 以公開資料（例如取栓試驗的最終梗塞體積分佈）做更系統的參數校正，並把校正結果寫進測試；包括跨越兩段的基底動脈阻塞（目前側枝中等或差時再通幾乎救不回橋腦）、側枝中等與差時的血流（讓早期梗塞擴大速度不必靠時間常數來符合實測），以及讓 Willis 環與後顱窩的動脈也左右對稱（目前只有大腦半球表面的動脈對稱，後循環的校正要跟著重做）；還有小腦與延髓的壞死時程（目前沿用側枝供應組織的一般時程）、腔隙自己的時程，以及頂後、顳枕、顳前與顳後動脈的軟腦膜側枝
   · Systematic calibration against public data (e.g. final infarct volumes in thrombectomy trials), encoded as tests, including basilar occlusions over two segments (with moderate or poor collaterals reopening them saves hardly any of the pons in the model now), the flow of moderate and poor collaterals (so that the early growth of the infarct matches the measured rates without the time constants carrying it), and making the circle of Willis and the posterior-fossa arteries mirror images too (only the arteries over the hemispheres are now; the posterior calibration would have to be redone with them); also the time course of the cerebellum and the medulla (now the general course of tissue that collaterals reach) and of lacunes, and the leptomeningeal anastomoses of the posterior parietal, temporo-occipital and temporal arteries
+- [ ] 失語與忽略的代償隨病灶範圍下降的比例、腦幹分級的下限（15%）與「保住 50 mL 算有益」的門檻，以病灶負荷研究（例如 PLORAS、Wilson 2023 的分組資料）校正
+  · Calibrate the fall of aphasia and neglect recovery with lesion extent, the brainstem's lower grading limit (15 %) and the 50 mL benefit threshold against lesion-load data (e.g. PLORAS, the groups of Wilson 2023)
 - [ ] 兩側半球都腫脹時的中央型（經天幕）疝脫：目前把兩側合計的腫脹當成單側的中線偏移，並以兩側各自的鉤迴疝脫呈現
   · A central (transtentorial) herniation of its own when both hemispheres swell: their swelling is now counted together as one side's midline shift and told as an uncal herniation on each side
 - [ ] 病例卡片可直接改單一階段血管的阻塞程度（目前要到血管詳細資料改）

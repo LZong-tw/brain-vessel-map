@@ -77,6 +77,7 @@ import {
   type HerniationShift,
   type ListedCourse,
   type ListedWindow,
+  type ReperfusionOutcome,
   type SwallowStretch,
 } from './cascade';
 import {
@@ -370,9 +371,12 @@ const smoothstep = (e0: number, e1: number, x: number) => {
  * again at once, as the model had it before (what simulate.heldReference compares with).
  */
 function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], saved: number, tH: number, p: TissueParams, settled = false): void {
-  const { f, rest, stabilisedH, reflowH, ischaemicH } = tissueCourse(history, tH, p);
+  const { f, rest, stabilisedH, reflowH, ischaemicH, dying } = tissueCourse(history, tH, p);
   bs.frac.core += f * frac;
-  if (stabilisedH !== undefined) bs.regaining += (1 - f) * frac * (1 - smoothstep(0, REGAIN_H, stabilisedH));
+  // the part of stabilised penumbra that is still dying is penumbra, not working tissue (Z2-8)
+  const still = Math.min(1 - f, dying ?? 0);
+  bs.frac.penumbra += still * frac;
+  if (stabilisedH !== undefined) bs.regaining += (1 - f - still) * frac * (1 - smoothstep(0, REGAIN_H, stabilisedH));
   if (rest === 'salvaged') {
     // "salvaged" is only what treatment saved (would have died untreated); the rest of the
     // reperfused tissue would have survived on its collaterals anyway and is simply perfused
@@ -382,7 +386,7 @@ function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], save
     bs.frac[currentRel(history, tH) < p.oligemiaRel ? 'oligemia' : 'normal'] += (1 - f - s) * frac;
     // all of it was ischaemic, and silent; it works again gradually
     if (!settled && reflowH !== undefined && ischaemicH !== undefined) bs.regaining += (1 - f) * frac * silentAfterReflow(reflowH, ischaemicH);
-  } else bs.frac[rest] += (1 - f) * frac;
+  } else bs.frac[rest] += (1 - f - still) * frac;
   bs.infarct += f * frac;
 }
 
@@ -912,14 +916,18 @@ const OUTCOME_H = 2160;
 
 /**
  * The NIHSS 3 months after the index onset with the treatment and without it (the same schedule,
- * nothing reopened by treatment): the recanalisation event is graded by the deficit it avoids
- * (Y1-12). Runs on cached models; the untreated one is the comparison the Outcome tab shows too.
+ * nothing reopened by treatment), and the fatal risks of the untreated course: the recanalisation
+ * event is graded by the deficit it avoids (Y1-12) and by the fatal course it avoids (Z2-3). Runs
+ * on cached models; the untreated one is the comparison the Outcome tab shows too.
  */
-function reperfusionOutcomeOf(input: SimInput, model: Model) {
+function reperfusionOutcomeOf(input: SimInput, model: Model): ReperfusionOutcome {
   const tH = model.onsetH + OUTCOME_H;
+  const untreated = run({ ...input, reperfusionH: null, treatment: undefined, tH }, false);
   return {
     treatedNihss: run({ ...input, tH }, false).nihss.total,
-    untreatedNihss: run({ ...input, reperfusionH: null, treatment: undefined, tH }, false).nihss.total,
+    untreatedNihss: untreated.nihss.total,
+    // (the untreated course reopens nothing, so reading its cascade does not come back here)
+    untreatedFatal: untreated.cascade.fatalRisk,
   };
 }
 

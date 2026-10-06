@@ -27,6 +27,7 @@ import {
   SILENCED_FILL,
   SILENCED_SHOWN,
   UNEXAMINABLE_FILL,
+  bottleneckSites,
   compensatedShare,
   hasNoBackup,
   peakSeverity,
@@ -37,6 +38,7 @@ import {
   withHatch,
   type RegionRecovery,
 } from '../ui/recoveryFormat';
+import type { BottleneckSite } from '../anatomy/redundancy';
 import { StopGrid, type StopRow } from './StopGrid';
 import { useSimSeries } from './useSimSeries';
 
@@ -212,6 +214,8 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
   const noBackupNow = funcs.now.filter(hasNoBackup);
   const bilateral = funcs.now.some((s) => s.recovery?.bilateral && symptomBackup(s) !== 'exempt' && !hasNoBackup(s));
   const bottleneck = funcs.now.some((s) => s.recovery?.bottleneck && !hasNoBackup(s));
+  // where both sides were cut together (Z2-10)
+  const sites = bottleneckSites(funcs.now.filter((s) => !hasNoBackup(s)));
   // compensation line: how much has been taken over, or — when both sides are cut at the ventral
   // pons — that little will be
   const compLine: 'comp' | 'little' | null =
@@ -230,7 +234,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
     if (hasNoBackup(s) && rr.dead >= 0.1)
       return { cls: 'nobackup', text: rt.tagNoBackup, title: rt.kindExplain[kind], note: eased && rt.tagEasedNoBackup(peak, s.sev) };
     if (compensatedShare(s) >= COMPENSATION_SHOWN) {
-      const why = s.recovery?.bottleneck ? sep + rt.bottleneckNote : s.recovery?.bilateral ? sep + rt.bilateralNote : '';
+      const why = s.recovery?.bottleneck ? sep + rt.bottleneckNote(bottleneckSites([s])) : s.recovery?.bilateral ? sep + rt.bilateralNote : '';
       return { cls: 'comp', text: rt.tagCompensated(pct(compensatedShare(s))), title: `${rt.kindExplain[kind]}${why}`, note: eased };
     }
     return eased ? { cls: '', text: '', title: '', note: eased } : null;
@@ -283,6 +287,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
             compLine={compLine}
             bilateral={bilateral}
             bottleneck={bottleneck}
+            sites={sites}
           />
         )}
 
@@ -396,6 +401,7 @@ function RecoveryStatus({
   compLine,
   bilateral,
   bottleneck,
+  sites,
 }: {
   rr: RegionRecovery;
   rt: RecoveryStrings;
@@ -403,6 +409,8 @@ function RecoveryStatus({
   compLine: 'comp' | 'little' | null;
   bilateral: boolean;
   bottleneck: boolean;
+  /** where both sides were cut together (Z2-10) */
+  sites: BottleneckSite[];
 }) {
   const lang = useApp((s) => s.lang);
   const edema = rr.silenced - rr.remote >= 0.005;
@@ -444,7 +452,7 @@ function RecoveryStatus({
               <span className="muted small">
                 {' — '}
                 {rt.compensatedNote(pct(rr.compensated))}
-                {bottleneck ? sep + rt.bottleneckNote : bilateral ? sep + rt.bilateralNote : ''}
+                {bottleneck ? sep + rt.bottleneckNote(sites) : bilateral ? sep + rt.bilateralNote : ''}
               </span>
             </div>
           </li>
@@ -456,7 +464,7 @@ function RecoveryStatus({
               <span className="rec-head">{rt.compensatedLittle}</span>
               <span className="muted small">
                 {' — '}
-                {[rt.compensatedLittleNote(rr.compensated >= 0.005 ? pct(rr.compensated) : null), rt.bottleneckNote].filter(Boolean).join(sep)}
+                {[rt.compensatedLittleNote(rr.compensated >= 0.005 ? pct(rr.compensated) : null), rt.bottleneckNote(sites)].filter(Boolean).join(sep)}
               </span>
             </div>
           </li>

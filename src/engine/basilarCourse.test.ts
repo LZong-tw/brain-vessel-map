@@ -41,20 +41,32 @@ describe('X2-9: the swelling of the first days does not bring back a deficit tha
 
   // Y1-12: the rescued tissue regains its function over hours to days after the reopening, not at
   // the instant blood returns; once a deficit has cleared, the swelling does not bring it back
-  it('a rescued upper basilar occlusion (poor collaterals, 1 h) recovers within a day and then stays free of deficits and of a locked-in label', () => {
+  // Z2-8: a fifth of both rostral pontine bases infarcted is a small bilateral pontine infarct, and
+  // it leaves what such an infarct gives (a mild weakness of both sides, a dysarthria: Kumral 2002),
+  // graded by its size; was: free of deficits once the region fell below the symptom threshold
+  it('a rescued upper basilar occlusion (poor collaterals, 1 h) recovers within a day to the mild deficit of its small infarcts, without a locked-in label, and is not worse again', () => {
     expect(one('basilar_upper', 12, { collateral: 'poor', reperfusionH: 1 }).nihss.total).toBeLessThan(one('basilar_upper', 1, { collateral: 'poor', reperfusionH: 1 }).nihss.total);
+    let prev = Infinity;
     for (const tH of STOPS.filter((h) => h >= 24)) {
       const r = one('basilar_upper', tH, { collateral: 'poor', reperfusionH: 1 });
-      expect(r.nihss.total, `${tH} h`).toBe(0);
+      expect(r.nihss.total, `${tH} h`).toBeLessThanOrEqual(Math.min(prev, 10));
+      prev = r.nihss.total;
       expect(labels(r).filter((id) => id.startsWith('locked_in')), `${tH} h`).toEqual([]);
     }
+    const end = one('basilar_upper', 2160, { collateral: 'poor', reperfusionH: 1 });
+    expect(end.regions.pons_rostral_basis_r.infarct).toBeLessThan(0.25);
+    expect(end.nihss.total).toBeGreaterThan(0);
+    expect(end.nihss.total).toBeLessThanOrEqual(4);
   });
 
   it('with moderate collaterals reopened at 1.5 h the same within about 3 days: no incomplete locked-in syndrome on days 3–14', () => {
+    let prev = Infinity;
     for (const tH of [72, 120, 168, 240, 336]) {
       const r = one('basilar_upper', tH, { collateral: 'moderate', reperfusionH: 1.5 });
-      expect(r.nihss.total, `${tH} h`).toBe(0);
+      expect(r.nihss.total, `${tH} h`).toBeLessThanOrEqual(Math.min(prev, 8));
+      prev = r.nihss.total;
       expect(labels(r), `${tH} h`).not.toContain('locked_in_incomplete');
+      expect(keys(r), `${tH} h`).not.toContain('anarthria|null');
     }
   });
 

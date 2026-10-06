@@ -87,11 +87,16 @@ describe('default treatment = the model before treatment details', () => {
   // more collateral blood per mL/min than its neighbours, so a little more motor strip is lost
   // (left M1 29.52 mL, right M1 145.12 mL; 'saved' grows with the untreated volume) and the network
   // pressures shift slightly everywhere, the basilar volumes by less than 0.0001 mL.
+  // Z2: re-pinned deliberately. Z2-8: the brainstem is graded below the symptom threshold as it
+  // regains its function, so the reopened mid-basilar occlusion still has a mild weakness of all
+  // four limbs and its gaze palsies at 72 h (NIHSS 8, was 4), and the progressive basilar
+  // thrombosis reopened 6 h after it closed still a mild gaze palsy at 168 h (3, was 0). Their
+  // volumes and the grading of the event did not change.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
     ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 29.51682781073422, finalInfarct: 29.51682781073422, saved: 136.00165047043836, nihss: 3, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5482283448164386, finalInfarct: 0.5482283448164386, saved: 2.289181788259874, nihss: 4, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5482283448164386, finalInfarct: 0.5482283448164386, saved: 2.289181788259874, nihss: 8, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
     ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 145.11593871100814, finalInfarct: 145.11593871100814, saved: 151.6100745947155, nihss: 14, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5551361205040257, finalInfarct: 0.5551361205040257, saved: 2.2822740125722865, nihss: 0, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5551361205040257, finalInfarct: 0.5551361205040257, saved: 2.2822740125722865, nihss: 3, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {
     const id = label.split(' ')[0];

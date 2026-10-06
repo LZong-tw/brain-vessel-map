@@ -1048,7 +1048,11 @@ export const REGION_DEFS: RegionDef[] = [
       { name: { zh: '頂蓋前區', en: 'Pretectal area' }, role: { zh: '瞳孔對光反射、向上凝視', en: 'Pupillary light reflex, upgaze' } },
     ],
     deficits: [
-      { s: 'upgaze_palsy', lat: 'none', sev: 2 },
+      // upgaze comes from the pretectum and the posterior commissure at the rostral end of the
+      // tectum; the superior cerebellar artery's share of the region is the inferior colliculus at
+      // its caudal end, and an upgaze palsy is not part of the SCA syndrome: below the threshold
+      // the region's share does not stand for the pretectum (Z2-8)
+      { s: 'upgaze_palsy', lat: 'none', sev: 2, wholeRegion: true },
       { s: 'nystagmus', lat: 'none', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 1 },
     ],

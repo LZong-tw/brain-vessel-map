@@ -8,7 +8,7 @@ import { REGION_DEFS } from '../anatomy/regions';
 import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { MCA_CORTEX, SYNDROMES, type SymptomQuery, type SyndromeCtx, type SyndromeDef } from '../anatomy/syndromes';
 import { indexById } from '../anatomy/indexById';
-import { corticospinalLoss, initialSeverity, lesionSides, symptomCompensation } from './recovery';
+import { COMPACT_FROM, NOTICEABLE, corticospinalLoss, gradeFactor, initialSeverity, isCompact, lesionSides, symptomCompensation, tapers as tapersBelow } from './recovery';
 import type { SymptomRecovery } from './recoveryTypes';
 
 export interface SymptomItem {
@@ -63,7 +63,7 @@ export const DYS_THR = 0.25;
  * with floating-point rounding */
 const reaches = (x: number | undefined, thr = DYS_THR) => (x ?? 0) >= thr - 1e-6;
 /** a deficit compensated below this (continuous) severity is no longer noticeable */
-const COMPENSATED_OUT = 0.35;
+const COMPENSATED_OUT = NOTICEABLE;
 /** from two weeks on a region's coma and drowsiness are listed as what follows them (C3-F2) */
 const COMA_RELABEL_H = DELAYED_ONSET_H;
 /** infarcted share of both sides from which tegmental damage counts as extensive (C3-F2) */
@@ -485,9 +485,23 @@ export function lesionSymptoms(
     // strip does (C1-F6), at the level of those beds
     const b = def.borderDeficits ? border[r.id] : undefined;
     const inBorder = !!b && b.share >= BORDER_MAIN && (reaches(b.dys) || reaches(b.inf));
-    const dys = inBorder ? b!.dys : regionDys[r.id] ?? 0;
+    // a region of compact tracts and nuclei (the brainstem) whose own tissue (dead, still
+    // ischaemic, still regaining its function) is below the symptom threshold is graded by that
+    // tissue (Z2-8), not pushed over the threshold by the passing perilesional depression of the
+    // first days: a small infarct of the cerebral peduncle gave a new dense hemiparesis on day 2
+    // with no mass effect, which then went again (Z2-9). From the threshold the depression deepens
+    // its deficits as elsewhere.
+    const compact = isCompact(r);
+    const own = (x: string) => {
+      const all = regionDys[x] ?? 0;
+      const tissue = levels?.base[x] ?? all;
+      return compact && !reaches(tissue) ? Math.min(all, tissue) : all;
+    };
     const inf = inBorder ? b!.inf : regionInf[r.id] ?? 0;
-    if (!reaches(dys) && !reaches(inf)) continue;
+    const dys = inBorder ? b!.dys : own(r.id);
+    /** this region's level gives a deficit: from the threshold, or graded below it (compact) */
+    const gives = (x: number, thr = DYS_THR, taper = compact) => reaches(x, thr) || (taper && x > COMPACT_FROM);
+    if (!gives(dys) && !gives(inf)) continue;
     const lacune = lacuneOnly.includes(r.id);
     const list = inBorder ? def.borderDeficits! : (lacune && lacuneDeficits[r.id]) || def.deficits;
     for (const d of list) {
@@ -508,13 +522,15 @@ export function lesionSymptoms(
       const byInfarct = delayed || !!sym.fromInfarct;
       const level = byInfarct ? inf : dys;
       const thr = Math.max(DYS_THR, d.minLevel ?? 0);
+      // graded below the threshold (recovery.tapers, Z2-8)
+      const tapers = tapersBelow(r, d);
       // a deep tract that a large lesion reached at onset stays cut where that lesion left an
       // infarct, whether or not the cortex above it has recovered (R1-6)
       const tractCut = () => {
         const onset = acuteDys ? Math.max(acuteDys[r.id] ?? 0, inf) : Math.max(dys, inf);
         return reaches(onset, thr) && reaches(inf);
       };
-      if (!reaches(level, thr) && !(d.deepTract && tractCut())) continue;
+      if (!gives(level, thr, tapers) && !(d.deepTract && tractCut())) continue;
       // each late symptom from its own onset (C10-F2), counted from the region's own lesion (R6-6)
       if (age < symptomOnsetH(sym)) continue;
       // drowsiness is the acute picture: a raised need for sleep that lasts beyond two weeks is
@@ -523,7 +539,7 @@ export function lesionSymptoms(
       if (d.bilateralOnly) {
         if (r.side === 'm') continue;
         const other = `${r.baseId}_${opp(r.side)}`;
-        const lvl2 = byInfarct ? regionInf[other] ?? 0 : regionDys[other] ?? 0;
+        const lvl2 = byInfarct ? regionInf[other] ?? 0 : own(other);
         if (!reaches(lvl2, thr)) continue;
       }
       let side: SymptomItem['side'] = null;
@@ -535,9 +551,9 @@ export function lesionSymptoms(
       // through the perilesional depression of the following days (X2-9)
       const key = `${d.s}|${side ?? ''}`;
       if (!byInfarct && hold?.keys?.has(key) && !hold.fresh?.has(r.id)) {
-        const own = (inBorder ? hold.borderBase?.[r.id] : hold.base?.[r.id]) ?? 0;
+        const self = (inBorder ? hold.borderBase?.[r.id] : hold.base?.[r.id]) ?? 0;
         const other = d.bilateralOnly && r.side !== 'm' ? hold.base?.[`${r.baseId}_${opp(r.side)}`] ?? 0 : thr;
-        if (!(reaches(own, thr) && reaches(other, thr)) && !(d.deepTract && tractCut())) continue;
+        if (!(gives(self, thr, tapers) && reaches(other, thr)) && !(d.deepTract && tractCut())) continue;
       }
       // from two weeks on a region's coma is listed as what follows it (C3-F2)
       let id = d.s;
@@ -549,8 +565,10 @@ export function lesionSymptoms(
         shownDelayed = !!SYMPTOM_BY_ID[next]?.delayed;
       }
       const peak = sym.peakH && age >= sym.peakH[0] && age < sym.peakH[1] ? 1 : 0;
-      const raw = ((d.sev ?? 2) + peak) * (0.35 + 0.65 * Math.min(1, level / 0.8));
+      const raw = ((d.sev ?? 2) + peak) * gradeFactor(level, tapers);
       let sevEff = raw;
+      // graded below the threshold, a deficit too slight to notice is not listed
+      if (tapers && !reaches(level, thr) && raw < COMPENSATED_OUT) continue;
       // the hypersomnia that follows coma is a sleep disorder, never worse than moderate
       if (id === 'hypersomnia' && d.s === 'coma') sevEff = Math.min(sevEff, 2);
       // weeks–months later, spared pathways take over part of what the dead tissue did; a coma

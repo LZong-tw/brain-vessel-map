@@ -140,7 +140,7 @@ export function tissueCourse(
   history: readonly FlowPhase[],
   tH: number,
   p: TissueParams = DEFAULT_TISSUE,
-): { f: number; rest: TissueState; stabilisedH?: number; reflowH?: number; ischaemicH?: number } {
+): { f: number; rest: TissueState; stabilisedH?: number; reflowH?: number; ischaemicH?: number; dying?: number } {
   const f = infarctFractionOf(history, tH, p);
   let c = -1;
   while (c + 1 < history.length && history[c + 1].fromH <= tH) c++;
@@ -155,10 +155,13 @@ export function tissueCourse(
   } else if (cur < p.penumbraRel) {
     // penumbra that outlived its time window has stabilised (collaterals held or the vessel
     // partly reopened): hypoperfused but functioning — regaining function from then on, which
-    // `stabilisedH` (the hours since) lets the caller spread out (R6-11)
+    // `stabilisedH` (the hours since) lets the caller spread out (R6-11). The last few per cent
+    // of what this flow will kill (`dying`: the loss curve is at about 95 % of its end after the
+    // window) is still dying, not functioning: counting it as working let a region's level dip
+    // and then creep up again as that part died over the following days (Z2-8)
     const resolveH = penumbraResolveH(cur, p);
     if (since < resolveH) rest = 'penumbra';
-    else return { f, rest: 'oligemia', stabilisedH: since - resolveH };
+    else return { f, rest: 'oligemia', stabilisedH: since - resolveH, dying: Math.max(0, finalInfarctProb(cur, p) - f) };
   } else if (wasIschaemic(history, c, p)) {
     // blood has returned since the last ischaemic phase (Y1-12)
     let j = c;

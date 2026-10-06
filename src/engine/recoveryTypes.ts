@@ -6,7 +6,7 @@
  * spared pathways partly take over lost functions. This state describes both at the displayed
  * time. It is illustrative, not a prognosis.
  */
-import type { RedundancyKind } from '../anatomy/redundancy';
+import type { BottleneckSite, RedundancyKind } from '../anatomy/redundancy';
 
 export interface RecoveryState {
   /** temporary dysfunction per bed on top of core + penumbra, as a fraction of the bed (0–1) */
@@ -29,6 +29,8 @@ export interface SymptomRecovery {
   compensated: number;
   /** the same pathway is damaged on both sides, so its backup is (partly) gone too */
   bilateral: boolean;
-  /** … and both sides are cut where the main pathways and their backups run together (ventral pons) */
+  /** … and both sides are cut where the main pathways and their backups run together (ventral pons, cerebral peduncles) */
   bottleneck: boolean;
+  /** where that is: the ventral pons, the cerebral peduncles of the midbrain, or both (set with `bottleneck`, Z2-10) */
+  bottleneckSites?: BottleneckSite[];
 }

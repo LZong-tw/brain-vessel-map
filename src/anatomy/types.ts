@@ -187,6 +187,12 @@ export interface DeficitRef {
    * the tract stays cut, even when the surviving cortex above it has got its function back
    */
   deepTract?: boolean;
+  /**
+   * in a region of compact tracts and nuclei (the brainstem), this deficit keeps the symptom
+   * threshold instead of being graded below it (Z2-8): it comes from one part of the region that a
+   * share of the region does not stand for (the pretectum of the tectum, for an upgaze palsy)
+   */
+  wholeRegion?: boolean;
   /** the compensation of this source settles within ~1–2 weeks (overrides the symptom's own pace) */
   fast?: boolean;
   /**

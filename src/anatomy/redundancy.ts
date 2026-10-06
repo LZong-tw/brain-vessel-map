@@ -45,6 +45,8 @@
  * TODO(medical-review): every magnitude in this file is an illustrative estimate.
  */
 
+import { MCA_CORTEX } from './syndromes';
+
 export type RedundancyKind = 'bilateral' | 'parallel' | 'fine' | 'partial' | 'fcp' | 'none' | 'exempt';
 
 export interface Redundancy {
@@ -78,6 +80,13 @@ export const NO_BACKUP_KINDS: ReadonlySet<RedundancyKind> = new Set(['fcp', 'non
 
 /** regions where the main descending pathways of both sides and their backups run together */
 export const BOTTLENECK_REGIONS: readonly string[] = ['midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis'];
+/** where each bottleneck region lies: the cerebral peduncles of the midbrain, or the ventral pons (Z2-10) */
+export type BottleneckSite = 'midbrain' | 'pons';
+export const BOTTLENECK_SITE: Readonly<Record<string, BottleneckSite>> = {
+  midbrain_peduncle: 'midbrain',
+  pons_rostral_basis: 'pons',
+  pons_caudal_basis: 'pons',
+};
 /** compensation left after a two-sided lesion at a bottleneck, relative to `bi` */
 export const BOTTLENECK_FACTOR = 0.25;
 
@@ -104,6 +113,73 @@ export const CST_CONVERGENCE: readonly string[] = ['ic_posterior_limb', 'midbrai
  * (Shelton & Reding 2001), so it keeps the usual share. TODO(medical-review): both values
  */
 export const CST_LOST_SHARE: Readonly<Record<string, number>> = { arm_weak: 0.15, leg_weak: 0.45 };
+
+/**
+ * Language and spatial attention recover through the spared cortex of the same network, more
+ * through the undamaged areas of the same hemisphere than through the homologues of the other
+ * (Heiss WD, Thiel A. Brain Lang 2006;98:118–123, PMID 16564566), so how much of an aphasia or a
+ * neglect is taken over depends on how much of that cortex is left (Z2-6), as the arm's recovery
+ * depends on how much of the corticospinal tract is lost (CST_LOST_SHARE, Y1-1).
+ *
+ *   • Aphasia improved by about 70 % of the possible amount by 90 days in 21 patients, in
+ *     proportion to the initial deficit (Lazar RM et al. Stroke 2010;41:1485–1488, PMID 20538700);
+ *     the outcome depended on the initial severity of the aphasia and of the stroke, and global
+ *     aphasia fell from 32 % acutely to 7 % at one year (Pedersen PM et al. Cerebrovasc Dis
+ *     2004;17:35–43, PMID 14530636). In 218 patients followed for a year, most recovered well,
+ *     large frontal lesions reaching the parietal or temporal lobe included; persistent moderate
+ *     or severe deficits were common only with extensive damage throughout the MCA distribution or
+ *     extensive temporoparietal damage (Wilson SM et al. Brain 2023;146:1021–1039, PMID 35388420).
+ *   • Neglect recovered in proportion in 80 of 90 patients; the 10 who did not had the most severe
+ *     neglect at onset, and their arm did not recover in proportion either (Winters C et al.
+ *     Neurorehabil Neural Repair 2017;31:334–342, PMID 27913798). Chronic neglect, in about a third
+ *     of those with acute neglect, was predicted by damage to the superior and middle temporal
+ *     gyri, the basal ganglia and the fibre tracts beneath them (Karnath HO et al. Brain
+ *     2011;134:903–912, PMID 21156661).
+ *
+ * The measure is the infarcted share of the hemisphere's MCA cortex (MCA_CORTEX, by volume): a
+ * division (M2) infarct leaves at most about half of it, a whole-territory infarct almost none.
+ * From `from` to `to` the one-sided share taken over falls linearly from the deficit's own (`uni`)
+ * to `lost`. A global aphasia already has the poorest outlook of the types, which reflects the
+ * large lesions that cause it (Kertesz A, McCabe P. Brain 1977;100:1–18), so its own share falls
+ * only once the destruction is near total: with the cortex mostly gone it stays global (item 9 =
+ * 3), with somewhat more left it becomes a severe Broca or Wernicke type (9 = 2), and with half or
+ * more left the recovery is as before. Gaze deviation is not listed: it passes within days after a
+ * one-sided lesion of any size, through the other hemisphere's frontal eye field (Steiner I,
+ * Melamed E. Ann Neurol 1984;16:509–511, PMID 6497357). Neglect after a left-sided lesion is not
+ * listed either: the right hemisphere attends to both sides, and it mostly clears (LEFT_NEGLECT).
+ * TODO(medical-review): `lost`, `from` and `to`.
+ */
+export interface NetworkLoss {
+  /** the hemisphere of the network (language: left; spatial attention: right) */
+  side: 'r' | 'l';
+  /** the share taken over once the network's cortex is (nearly) all infarcted */
+  lost: number;
+  /** infarcted share of the hemisphere's MCA cortex from which the share starts to fall … */
+  from: number;
+  /** … and at which it has reached `lost` */
+  to: number;
+}
+const LANGUAGE_NETWORK: NetworkLoss = { side: 'l', lost: 0.1, from: 0.6, to: 0.9 };
+export const NETWORK_LOSS: Readonly<Record<string, NetworkLoss>> = {
+  aphasia_broca: LANGUAGE_NETWORK,
+  aphasia_wernicke: LANGUAGE_NETWORK,
+  aphasia_conduction: LANGUAGE_NETWORK,
+  aphasia_tc_motor: LANGUAGE_NETWORK,
+  aphasia_tc_sensory: LANGUAGE_NETWORK,
+  aphasia_mixed_tc: LANGUAGE_NETWORK,
+  apraxia_of_speech: LANGUAGE_NETWORK,
+  aphasia_global: { side: 'l', lost: 0.1, from: 0.8, to: 0.95 },
+  neglect: { side: 'r', lost: 0.15, from: 0.6, to: 0.9 },
+};
+/** the cortex whose infarcted share NETWORK_LOSS reads (per hemisphere) */
+export const NETWORK_CORTEX: readonly string[] = MCA_CORTEX;
+
+/** How far the share of `symptomId` taken over has fallen towards its `lost` value (0–1), for a source on `side` with this infarcted share of its hemisphere's MCA cortex. */
+export function networkLossOf(symptomId: string, side: 'r' | 'l' | 'm', cortexInfarct: number): number {
+  const net = NETWORK_LOSS[symptomId];
+  if (!net || side !== net.side) return 0;
+  return Math.min(1, Math.max(0, (cortexInfarct - net.from) / (net.to - net.from)));
+}
 
 /** unknown / unlisted symptoms: partial compensation, unilateral only */
 export const DEFAULT_REDUNDANCY: Redundancy = { kind: 'partial', uni: 0.4, bi: 0 };

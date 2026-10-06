@@ -348,6 +348,25 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     expect(screen.getByRole('table').textContent).not.toMatch(/herniation|likely/i);
   });
 
+  // Z2-3, Z2-6: the untreated column's NIHSS is that of a survivor of a course that is usually fatal
+  it('marks the NIHSS of a column whose course is usually fatal as a survivor\'s', () => {
+    useApp.getState().loadScenario('l_m1');
+    useApp.setState({ rightTab: 'final', collateral: 'moderate', reperfusionH: 1 });
+    render(<RightPanel sim={simOf()} />);
+    const row = (name: RegExp) => within(within(screen.getByRole('table')).getByRole('rowheader', { name }).closest('tr')!).getAllByRole('cell').map((c) => c.textContent ?? '');
+    for (const name of [/NIHSS（3 個月）/, /NIHSS（6 個月）/]) {
+      const [treated, untreated] = row(name);
+      expect(treated).not.toContain('假如存活');
+      expect(untreated).toMatch(/^\d+（假如存活）$/);
+    }
+    cleanup();
+    useApp.setState({ lang: 'en' });
+    render(<RightPanel sim={simOf()} />);
+    const [treated, untreated] = row(/NIHSS \(3 months\)/);
+    expect(treated).toMatch(/^\d+$/);
+    expect(untreated).toMatch(/^\d+ \(if the patient survives\)$/);
+  });
+
   it('keeps the herniation label in English', () => {
     useApp.getState().loadScenario('l_m1');
     useApp.setState({ rightTab: 'final', collateral: 'moderate', reperfusionH: 1, lang: 'en' });
@@ -385,6 +404,28 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     expect(callout.textContent).toContain('60%');
     expect(nihss.querySelector('.callout.danger')).toBeNull();
     within(nihss).getByText('6 個月（假如存活）');
+  });
+});
+
+// Z2-10: the bottleneck tag names where both sides were cut together
+describe('最終 tab: the bottleneck tag names the site', () => {
+  const tags = (id: string, lang: 'zh-TW' | 'en') => {
+    useApp.getState().loadScenario(id);
+    useApp.setState({ rightTab: 'final', lang });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const out = [...container.querySelectorAll('.outcome-deficits .rec-tag')].map((t) => t.textContent ?? '');
+    cleanup();
+    return out;
+  };
+  it('top of the basilar: the cerebral peduncles, not the ventral pons', () => {
+    expect(tags('basilar_tip', 'en')).toContain('midbrain-peduncle bottleneck');
+    expect(tags('basilar_tip', 'en').join(' ')).not.toMatch(/ventral-pons/);
+    expect(tags('basilar_tip', 'zh-TW')).toContain('大腦腳瓶頸');
+    expect(tags('basilar_tip', 'zh-TW').join(' ')).not.toMatch(/腹側橋腦/);
+  });
+  it('locked-in: the ventral pons', () => {
+    expect(tags('basilar_mid', 'en')).toContain('ventral-pons bottleneck');
+    expect(tags('basilar_mid', 'zh-TW')).toContain('腹側橋腦瓶頸');
   });
 });
 

@@ -56,9 +56,10 @@ describe('output invariants', () => {
     ...withComplete.map((s) => [s.id, s.occlusions] as [string, Occlusion[]]),
     ...['mca_m1_l', 'ica_terminal_r', 'lenticulostriate_l', 'acha_r', 'mca_m2_sup_r', 'mca_precentral_l'].map((v) => [v, [{ vessel: v, severity: 1 }]] as [string, Occlusion[]]),
   ];
-  it.each(LATER.map(([name, occ]) => [name, occ] as const))('%s: a later reopening never leaves less infarct in any region, nor a stronger arm or leg', (name, occlusions) => {
+  // (Z2-6: nor a milder aphasia or neglect: what spared cortex takes over shrinks as more of it is lost)
+  it.each(LATER.map(([name, occ]) => [name, occ] as const))('%s: a later reopening never leaves less infarct in any region, nor a stronger arm or leg, nor better language or attention', (name, occlusions) => {
     const sc = SCENARIOS.find((s) => s.id === name);
-    const limbs = (r: SimResult) => ['5r', '5l', '6r', '6l'].map((k) => r.nihss.items[k] ?? 0);
+    const limbs = (r: SimResult) => ['5r', '5l', '6r', '6l', '9', '11'].map((k) => r.nihss.items[k] ?? 0);
     for (const collateral of ['good', 'moderate', 'poor'] as const) {
       let prev: SimResult[] | null = null;
       let prevH: number | null = null;
@@ -133,10 +134,17 @@ describe('output invariants', () => {
   });
 
   it('a region exactly at the symptom threshold counts, whatever the rounding', () => {
-    const at = (x: number) => aggregateSymptoms({ pons_caudal_lateral_r: x }, { pons_caudal_lateral_r: 0 }, 1).map((s) => s.id);
-    expect(at(0.25)).toContain('hearing_loss');
-    expect(at(0.25 - 1e-12)).toContain('hearing_loss');
-    expect(at(0.2)).not.toContain('hearing_loss');
+    const at = (x: number) => aggregateSymptoms({ postcentral_face_arm_r: x }, { postcentral_face_arm_r: 0 }, 1).map((s) => s.id);
+    expect(at(0.25)).toContain('sens_face_arm');
+    expect(at(0.25 - 1e-12)).toContain('sens_face_arm');
+    expect(at(0.2)).not.toContain('sens_face_arm');
+    // a region of compact tracts and nuclei is graded on below the threshold, down to 15 % of it
+    // (Z2-8): the same rounding holds at the threshold, and the deficit is milder below it
+    const pons = (x: number) => aggregateSymptoms({ pons_caudal_lateral_r: x }, { pons_caudal_lateral_r: 0 }, 1).find((s) => s.id === 'hearing_loss');
+    expect(pons(0.25)?.sev).toBe(1);
+    expect(pons(0.25 - 1e-12)?.sev).toBe(1);
+    expect(pons(0.2)?.sev).toBe(1);
+    expect(pons(0.15)).toBeUndefined();
   });
 });
 
@@ -334,6 +342,10 @@ describe('syndromes and events agree with the symptoms', () => {
     // Z1-15, Z1-1: the precentral branch with moderate collaterals; the superior division with good ones
     ['mca_precentral_r moderate', [{ vessel: 'mca_precentral_r', severity: 1 }], 'moderate'],
     ['mca_m2_sup_l good', [{ vessel: 'mca_m2_sup_l', severity: 1 }], 'good'],
+    // Z2-8, Z2-0: a mid-basilar occlusion reopened while most of the pons is still alive, and after
+    // 12 h, when both caudal tegmenta are about a quarter infarcted
+    ['basilar_mid good reopened 4.5 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 4.5],
+    ['basilar_mid good reopened 12 h', [{ vessel: 'basilar_mid', severity: 1 }], 'good', 12],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -585,6 +597,32 @@ describe('syndromes and events agree with the symptoms', () => {
   // the posterior-stroke caveat only with a symptom and a low NIHSS
   it.each(CASES)('%s: the aspiration, cardiac and venous-thrombosis warnings and the posterior caveat follow the list (Y3)', (name) => {
     series(name).forEach((r, i) => warningsFollowList(`${name} ${STOPS[i]} h`, r, STOPS[i]));
+  });
+
+  // Z2-8, Z2-9: the brainstem is graded by how much of it is lost, so its signs do not all switch
+  // off together in one step, and the passing perilesional depression of the first days does not by
+  // itself give a new limb weakness from it. A step with an occlusion starting or ending, or a
+  // reopening, in between has a reason of its own.
+  const fromBrainstem = (s: SimResult['symptoms'][number]) => s.sources.length > 0 && s.sources.every((src) => REGION_BY_ID[src]?.category === 'brainstem');
+  const changedBetween = (r: SimResult, a: number, b: number) => r.schedule.events.some((e) => e.h > a - 1e-9 && e.h <= b + 1e-9);
+  it.each(CASES)('%s: a locked-in picture does not give way to no brainstem sign at all in one step (Z2-8)', (name) => {
+    const runs = series(name);
+    for (let i = 1; i < runs.length; i++) {
+      if (STOPS[i - 1] < 24 || changedBetween(runs[i], STOPS[i - 1], STOPS[i])) continue;
+      if (!runs[i - 1].syndromes.some((m) => m.def.id.startsWith('locked_in'))) continue;
+      const left = [...runs[i].symptoms, ...runs[i].unexaminable].filter((s) => s.sources.some((src) => REGION_BY_ID[src]?.category === 'brainstem'));
+      expect(left.length, `${name}: ${STOPS[i - 1]} → ${STOPS[i]} h`).toBeGreaterThan(0);
+    }
+  });
+  it.each(CASES)('%s: after the first day, no limb weakness from the brainstem alone rises by more than one grade without a new occlusion (Z2-9)', (name) => {
+    const runs = series(name);
+    for (let i = 1; i < runs.length; i++) {
+      if (STOPS[i - 1] < 24 || changedBetween(runs[i], STOPS[i - 1], STOPS[i])) continue;
+      for (const s of runs[i].symptoms.filter((x) => ['arm_weak', 'leg_weak', 'face_weak'].includes(x.id) && fromBrainstem(x))) {
+        const before = runs[i - 1].symptoms.find((x) => x.id === s.id && x.side === s.side)?.sev ?? 0;
+        expect(s.sev - before, `${name} ${s.id} ${s.side}: ${STOPS[i - 1]} → ${STOPS[i]} h`).toBeLessThanOrEqual(1);
+      }
+    }
   });
 
   it.each(CASES)('%s: every active cascade event that adds a symptom has it in the symptom list', (name) => {

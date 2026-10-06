@@ -14,7 +14,7 @@ import { useApp } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
 import { DEFICIT_GROUPS, H_6M, I_3M, I_6M, finalOutcome } from '../ui/finalOutcome';
 import { SYSTEM_LABEL, SYSTEM_ORDER, fmtMl, fmtNeurons, pct, stopIndexAtOrAfter, symptomLabel, systemOf } from '../ui/format';
-import { COMPENSATION_SHOWN, compensatedShare, hasNoBackup, symptomBackup, unexaminableHeading } from '../ui/recoveryFormat';
+import { COMPENSATION_SHOWN, bottleneckSites, compensatedShare, hasNoBackup, symptomBackup, unexaminableHeading } from '../ui/recoveryFormat';
 import { formatPrevalence, postStrokeRisksFor } from '../ui/postStrokeRisks';
 import { formatClock } from '../ui/scheduleFormat';
 import { treatmentLine } from '../ui/caseSummary';
@@ -128,15 +128,28 @@ export function FinalOutcome() {
                   {fmtMl(untreated.finalInfarct)} {t.ml}
                 </td>
               </tr>
+              {/* a course that usually or often ends in death: its NIHSS is a survivor's (Z2-3) */}
               <tr>
                 <th scope="row">{o.rowNihss3}</th>
-                <td>{course.m3.nihss.total}</td>
-                <td>{untreated.m3.nihss.total}</td>
+                <td>
+                  {course.m3.nihss.total}
+                  {course.fatal.length > 0 && o.ifSurvivesCell}
+                </td>
+                <td>
+                  {untreated.m3.nihss.total}
+                  {untreated.fatal.length > 0 && o.ifSurvivesCell}
+                </td>
               </tr>
               <tr>
                 <th scope="row">{o.rowNihss6}</th>
-                <td>{m6.nihss.total}</td>
-                <td>{untreated.m6.nihss.total}</td>
+                <td>
+                  {m6.nihss.total}
+                  {course.fatal.length > 0 && o.ifSurvivesCell}
+                </td>
+                <td>
+                  {untreated.m6.nihss.total}
+                  {untreated.fatal.length > 0 && o.ifSurvivesCell}
+                </td>
               </tr>
               <tr>
                 <th scope="row" title={o.rowLastingNote}>
@@ -371,7 +384,7 @@ function DeficitItem({ s }: { s: SymptomItem }) {
   const rt = RECOVERY_UI[lang];
   const sys = SYSTEM_LABEL[systemOf(s.id)];
   const kind = symptomBackup(s);
-  const note = s.recovery?.bottleneck ? rt.bottleneckNote : s.recovery?.bilateral ? rt.bilateralNote : '';
+  const note = s.recovery?.bottleneck ? rt.bottleneckNote(bottleneckSites([s])) : s.recovery?.bilateral ? rt.bilateralNote : '';
   return (
     <li title={[tr(SYMPTOM_BY_ID[s.id]?.desc ?? { zh: '', en: '' }, lang), rt.kindExplain[kind], note].filter(Boolean).join('\n')}>
       <span className={`sev sev${s.sev}`} aria-hidden="true" />
@@ -384,7 +397,7 @@ function DeficitItem({ s }: { s: SymptomItem }) {
         compensatedShare(s) >= COMPENSATION_SHOWN && <span className="rec-tag comp">{rt.tagCompensated(pct(compensatedShare(s)))}</span>
       )}
       {s.recovery?.bottleneck ? (
-        <span className="rec-tag">{o.tagBottleneck}</span>
+        <span className="rec-tag">{o.tagBottleneck(bottleneckSites([s]))}</span>
       ) : (
         s.recovery?.bilateral && kind !== 'exempt' && <span className="rec-tag">{o.tagBilateral}</span>
       )}

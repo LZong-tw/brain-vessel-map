@@ -4,7 +4,7 @@
  */
 
 import type { Lang } from '../anatomy/types';
-import type { RedundancyKind } from '../anatomy/redundancy';
+import type { BottleneckSite, RedundancyKind } from '../anatomy/redundancy';
 import type { UnexaminableWhy } from '../engine/clinical';
 
 export interface RecoveryStrings {
@@ -21,7 +21,8 @@ export interface RecoveryStrings {
   noBackup: string;
   noBackupNote: string;
   bilateralNote: string;
-  bottleneckNote: string;
+  /** why little is taken over, by where both sides were cut (the sites of SymptomRecovery.bottleneckSites, Z2-10) */
+  bottleneckNote: (sites: BottleneckSite[]) => string;
   /** shown wherever recovery is displayed */
   caveat: string;
   // ── per-symptom tags ──
@@ -53,7 +54,7 @@ export interface RecoveryStrings {
   nowRegaining: (ml: string) => string;
   nowRemote: string;
   nowCompensating: (pct: string) => string;
-  nowCompensatingLittle: (pct: string) => string;
+  nowCompensatingLittle: (pct: string, sites: BottleneckSite[]) => string;
   nowNihssTrend: (peak: number, at: string, now: number) => string;
   improvedLabel: (since: string) => string;
   noBackupLabel: string;
@@ -69,6 +70,16 @@ export interface RecoveryStrings {
   /** the heading when signs cannot be examined for more than one reason */
   unexaminableMixedLabel: string;
 }
+
+/** where both sides' main motor pathways and their backups were cut together (Z2-10) */
+const zhSite = (sites: BottleneckSite[]) =>
+  sites.includes('midbrain') && sites.includes('pons') ? '中腦的大腦腳與腹側橋腦' : sites.includes('midbrain') ? '中腦的大腦腳' : '腹側橋腦';
+const enSite = (sites: BottleneckSite[]) =>
+  sites.includes('midbrain') && sites.includes('pons')
+    ? 'the cerebral peduncles of the midbrain and the ventral pons'
+    : sites.includes('midbrain')
+      ? 'the cerebral peduncles of the midbrain'
+      : 'the ventral pons';
 
 const zh: RecoveryStrings = {
   statusTitle: '功能狀態',
@@ -86,8 +97,15 @@ const zh: RecoveryStrings = {
   noBackup: '此功能沒有備援',
   noBackupNote: '這些功能只有一條路（例如腦神經核、視覺皮質）；組織壞死後，其他路徑無法接手，只能靠策略（例如轉頭）彌補。',
   bilateralNote: '同一條路徑兩側都受損：原本可以接手的另一側也壞了，代償有限。',
-  bottleneckNote:
-    '腹側橋腦是瓶頸：兩側的皮質脊髓徑、皮質延髓徑與許多皮質網狀纖維都擠在這裡，主要路徑和備援一起被截斷——所以閉鎖症候群的恢復遠比症狀相近的半球中風差。',
+  bottleneckNote: (sites) =>
+    [
+      sites.includes('midbrain')
+        ? '中腦的大腦腳是瓶頸：每一側的皮質脊髓徑與皮質延髓徑都擠在同側大腦腳裡，兩側一起受損時，主要路徑和備援一起被截斷——所以恢復遠比症狀相近的半球中風差。'
+        : '',
+      sites.includes('pons') || sites.length === 0
+        ? '腹側橋腦是瓶頸：兩側的皮質脊髓徑、皮質延髓徑與許多皮質網狀纖維都擠在這裡，主要路徑和備援一起被截斷——所以閉鎖症候群的恢復遠比症狀相近的半球中風差。'
+        : '',
+    ].join(''),
   caveat: '恢復曲線只是示意的群體平均，不是預後；真實的恢復因人而異，差異很大。',
   tagNoBackup: '沒有備援',
   tagCompensated: (pct) => `已代償 ${pct}`,
@@ -122,8 +140,8 @@ const zh: RecoveryStrings = {
     `約 ${ml} mL 存活下來的組織仍在恢復功能：血流恢復（或側枝撐住半影區）之後，組織要幾小時到幾天才重新運作，不是立刻恢復；缺血越久，恢復越慢。`,
   nowRemote: '與受損區相連的遠處腦區（例如對側小腦）功能也暫時下降（遠端抑制），通常沒有明顯症狀，會在數週內淡去。',
   nowCompensating: (pct) => `其他神經路徑正逐漸接手部分失去的功能（典型的代償進程已走了約 ${pct}）；大部分發生在前 3 個月，之後變慢。`,
-  nowCompensatingLittle: (pct) =>
-    `典型的代償進程已走了約 ${pct}，但這裡兩側的主要運動路徑和它們的備援在腹側橋腦一起被截斷，能被接手的很少：四肢與說話的功能多半只有很有限的恢復。`,
+  nowCompensatingLittle: (pct, sites) =>
+    `典型的代償進程已走了約 ${pct}，但這裡兩側的主要運動路徑和它們的備援在${zhSite(sites)}一起被截斷，能被接手的很少：四肢與說話的功能多半只有很有限的恢復。`,
   nowNihssTrend: (peak, at, now) => `NIHSS 估計從最高的 ${peak}（${at}）降到 ${now}。`,
   improvedLabel: (since) => `比 ${since} 改善`,
   noBackupLabel: '沒有備援、不會再改善',
@@ -172,8 +190,17 @@ const en: RecoveryStrings = {
   noBackupNote:
     'These functions have a single route (e.g. a cranial-nerve nucleus, the visual cortex); once that tissue is dead no other pathway can take over — only strategies such as turning the head help.',
   bilateralNote: 'The same pathway is damaged on both sides, so the side that could take over is damaged too: compensation is limited.',
-  bottleneckNote:
-    'The ventral pons is a bottleneck: both corticospinal tracts, both corticobulbar tracts and many cortico-reticular fibres run through it together, so the main pathway and its backup are cut at once — why locked-in syndrome recovers far less than a hemispheric stroke with a similar deficit.',
+  bottleneckNote: (sites) =>
+    [
+      sites.includes('midbrain')
+        ? 'The cerebral peduncles of the midbrain are a bottleneck: the corticospinal and corticobulbar tracts of each side run together through its peduncle, so when both are damaged the main pathway and its backup are cut at once — why recovery is far poorer than after a hemispheric stroke with a similar deficit.'
+        : '',
+      sites.includes('pons') || sites.length === 0
+        ? 'The ventral pons is a bottleneck: both corticospinal tracts, both corticobulbar tracts and many cortico-reticular fibres run through it together, so the main pathway and its backup are cut at once — why locked-in syndrome recovers far less than a hemispheric stroke with a similar deficit.'
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
   caveat: 'Recovery is shown as an illustrative average pattern, not a prognosis; real recovery varies widely between people.',
   tagNoBackup: 'no backup',
   tagCompensated: (pct) => `compensated ${pct}`,
@@ -210,8 +237,8 @@ const en: RecoveryStrings = {
     `About ${ml} mL of tissue that survived is still regaining its function: once blood returns (or collaterals hold the penumbra), it works again over hours to days rather than at once, more slowly the longer the ischaemia lasted.`,
   nowRemote:
     'Connected regions further away (e.g. the opposite cerebellum) are temporarily depressed too (diaschisis); this is usually silent and fades over weeks.',
-  nowCompensatingLittle: (pct) =>
-    `The typical course of compensation is about ${pct} complete, but here the main motor pathways of both sides and their backups were cut together in the ventral pons, so little can be taken over: limb movement and speech usually recover only to a limited extent.`,
+  nowCompensatingLittle: (pct, sites) =>
+    `The typical course of compensation is about ${pct} complete, but here the main motor pathways of both sides and their backups were cut together in ${enSite(sites)}, so little can be taken over: limb movement and speech usually recover only to a limited extent.`,
   nowCompensating: (pct) =>
     `Other pathways are gradually taking over part of the lost functions (the typical course of compensation is about ${pct} complete); most of it happens in the first 3 months, then more slowly.`,
   nowNihssTrend: (peak, at, now) => `The NIHSS estimate has fallen from its highest, ${peak} (${at}), to ${now}.`,
