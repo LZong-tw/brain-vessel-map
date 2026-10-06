@@ -69,6 +69,8 @@ export interface OutcomeStrings {
    * one hemisphere do not apply, and a survivor stays in a disorder of consciousness
    */
   fatalBilateral: string;
+  /** both hemispheres swelling alike herniate downward (central herniation, V1-4): not one hemisphere's figures */
+  fatalCentral: string;
   /** shown next to the NIHSS: a state with a substantial mortality of its own, the figures a survivor's (Y3-11) */
   survival: Record<SurvivalCaveat, string>;
   // ── deficits ──
@@ -107,7 +109,7 @@ const zh: OutcomeStrings = {
   neuronsLost: '損失神經元（6 個月）',
   neuronsLostBrain: '損失的腦神經元（6 個月）',
   saved: '治療救回',
-  savedNote: '「治療救回」只計算不治療就會壞死、因治療而活下來的組織。',
+  savedNote: '「治療救回」只計算不治療就會壞死、因治療而活下來的組織，包括不治療時腫脹造成疝脫、壓迫而梗塞的區域。',
   compareTitle: '治療與未治療比較',
   colTreated: '治療後',
   colUntreated: '未治療',
@@ -140,6 +142,8 @@ const zh: OutcomeStrings = {
   },
   fatalBilateral:
     '兩側大腦半球幾乎整個梗塞，又有未減壓的天幕切跡疝脫：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字（55 位病人中 78% 死亡：Hacke 1996；未手術的一年存活率 29%：Vahedi 2007）講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在植物人狀態，最好也只是最小意識狀態（Adams 2000；Multi-Society Task Force 1994）。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是這樣一位存活者的結果。',
+  fatalCentral:
+    '兩側大腦半球一起腫脹、把腦往下擠的中央型天幕切跡疝脫，未減壓時通常致命。常引用的數字（完整中大腦動脈區梗塞的 55 位病人中 78% 因疝脫與腦死而死亡：Hacke 1996；未手術的一年存活率 29%：Vahedi 2007）講的是一側，不是兩側；兩側同時大範圍梗塞通常後果嚴重。模型不模擬死亡：下面 3 個月與 6 個月的 NIHSS 是假如病人存活的結果。',
   survival: {
     bilateral_hemispheres:
       '兩側大腦半球幾乎整個梗塞。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在意識障礙：植物人狀態，最好也只是最小意識狀態（Adams 2000）；非外傷造成的植物人狀態超過 3 個月後恢復極為罕見，多數病人的餘命約 2–5 年（Multi-Society Task Force 1994）。下面 3 個月與 6 個月的 NIHSS 是這樣一位存活者的結果，不是確定的結局。',
@@ -186,7 +190,7 @@ const en: OutcomeStrings = {
   neuronsLost: 'Neurons lost (6 months)',
   neuronsLostBrain: 'Brain neurons lost (6 months)',
   saved: 'Saved by treatment',
-  savedNote: '"Saved by treatment" counts only tissue that would have died without treatment and survived because of it.',
+  savedNote: '"Saved by treatment" counts only tissue that would have died without treatment and survived because of it, including the territories that a herniation of the untreated swelling would have infarcted.',
   compareTitle: 'Treated vs untreated',
   colTreated: 'Treated',
   colUntreated: 'Untreated',
@@ -223,6 +227,8 @@ const en: OutcomeStrings = {
   },
   fatalBilateral:
     'Both hemispheres are infarcted almost entirely, with transtentorial herniation and no decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere (78% of 55 patients died: Hacke 1996; 1-year survival 29% without surgery: Vahedi 2007) describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating. A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a vegetative or at best a minimally conscious state (Adams 2000; Multi-Society Task Force 1994). The model does not represent death: the 3- and 6-month NIHSS below are those of such a survivor.',
+  fatalCentral:
+    'Central transtentorial herniation, both hemispheres swelling together and pushing the brain down, is usually fatal without decompression. The figures usually quoted (78% of 55 patients with complete MCA-territory infarction died of herniation and brain death: Hacke 1996; 1-year survival 29% without surgery: Vahedi 2007) describe one hemisphere, not both; extensive infarction of both hemispheres at once is usually devastating. The model does not represent death: the 3- and 6-month NIHSS below are those of a patient who survives.',
   survival: {
     bilateral_hemispheres:
       'Both hemispheres are infarcted almost entirely. A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a disorder of consciousness, a vegetative or at best a minimally conscious state (Adams 2000); recovery from a vegetative state of non-traumatic cause after 3 months is exceedingly rare, and life expectancy is mostly 2–5 years (Multi-Society Task Force 1994). The 3- and 6-month NIHSS below are those of such a survivor, not a certain outcome.',

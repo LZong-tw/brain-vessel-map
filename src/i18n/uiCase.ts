@@ -38,6 +38,8 @@ export interface CaseStrings {
   untreated: string;
   noReperfusion: string;
   reopenedAt: (at: string) => string;
+  /** an attempt that reopened nothing (eTICI 0) */
+  attemptedAt: (at: string) => string;
   /** reperfusion time with its details in brackets (summary line) */
   withDetails: (when: string, details: string) => string;
   decompressionShort: string;
@@ -80,6 +82,7 @@ const zh: CaseStrings = {
   untreated: '未治療',
   noReperfusion: '未再通',
   reopenedAt: (at) => `${at}再通`,
+  attemptedAt: (at) => `${at}嘗試、未再通`,
   withDetails: (when, details) => `${when}（${details}）`,
   decompressionShort: '必要時減壓手術',
   occludedLine: (events) => `${events} 阻塞`,
@@ -118,6 +121,7 @@ const en: CaseStrings = {
   untreated: 'untreated',
   noReperfusion: 'no recanalisation',
   reopenedAt: (at) => `reopened at ${at}`,
+  attemptedAt: (at) => `attempted at ${at}, not reopened`,
   withDetails: (when, details) => `${when} (${details})`,
   decompressionShort: 'decompression if needed',
   occludedLine: (events) => `Occluded: ${events}`,

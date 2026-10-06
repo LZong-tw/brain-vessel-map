@@ -10,14 +10,14 @@
   · Poiseuille flow network: circle-of-Willis compensation, steal, autoregulation, watershed, 21 anatomical variants, collateral grades, brainstem leptomeningeal collaterals
 - 組織命運隨時間演變（核心／半影區／低灌流），壞死速度依缺血深度與時間、依大血管阻塞實測的梗塞擴大速度校正；內囊與放射冠比旁邊的紋狀體晚幾小時才壞死（依取栓後內囊梗塞的影像研究校正）；再通救回的組織要幾小時到幾天才恢復功能；後循環時間窗依基底動脈取栓試驗校正
   · Tissue fate over time (core / penumbra / oligaemia), lost by how deep and how long the ischaemia is, calibrated to the measured growth of the core in large-vessel occlusion; the internal capsule and corona radiata lost hours after the striatum beside them (calibrated to imaging of the capsule after thrombectomy); rescued tissue regaining its function over hours to days; posterior-circulation time window calibrated to the basilar thrombectomy trials
-- 分段病程：TIA、狹窄後才完全阻塞、自行再通，可在任一時間點治療；每個時間點顯示的是當時的病情，之後才開始的阻塞在開始前什麼都不改變
-  · Staged course: TIAs, stenosis progressing to occlusion, spontaneous reopening, treatment at any point; each time shows the case as it stands then, and an occlusion that begins later changes nothing before it begins
-- 再通細節：治療方式、eTICI 再灌流程度、再阻塞、遠端栓塞、無再流，並附已發表數據
-  · Recanalisation details: method, eTICI grade, reocclusion, distal embolus, no-reflow, with published figures
+- 分段病程：TIA、狹窄後才完全阻塞、自行再通，可在任一時間點治療；每個時間點顯示的是當時的病情，之後才開始的阻塞在開始前什麼都不改變；每個病灶依自己的時鐘腫脹與疝脫，較大的阻塞開始時，較早的梗塞不會失去腫脹或疝脫梗塞
+  · Staged course: TIAs, stenosis progressing to occlusion, spontaneous reopening, treatment at any point; each time shows the case as it stands then, and an occlusion that begins later changes nothing before it begins; each lesion swells and herniates on its own clock, so an earlier infarct keeps its swelling and its herniation infarct when a larger occlusion begins
+- 再通細節：治療方式、eTICI 再灌流程度、再阻塞、遠端栓塞、無再流，並附已發表數據；「已救回」包括治療避免的疝脫梗塞，治療時間窗在血管打通時結束
+  · Recanalisation details: method, eTICI grade, reocclusion, distal embolus, no-reflow, with published figures; "saved" includes the herniation infarcts the treatment prevents, and the treatment windows end when the artery is reopened
 - 水腫與腫脹（細胞毒性 → 離子性 → 血管性 → 消退 → 萎縮）、3D 變形、中線偏移
   · Oedema and swelling (cytotoxic → ionic → vasogenic → resolution → atrophy), 3D deformation, midline shift
-- 連鎖反應：腦疝脫、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症
-  · Cascade: herniation, hydrocephalus, haemorrhagic transformation, CCD, Wallerian and olivary degeneration, systemic complications
+- 連鎖反應：腦疝脫（兩側腫得差不多時是向下的中央型疝脫）、水腦、出血轉化、CCD、Wallerian 與下橄欖核退化、全身併發症
+  · Cascade: herniation (central, downward, when both hemispheres swell alike), hydrocephalus, haemorrhagic transformation, CCD, Wallerian and olivary degeneration, systemic complications
 - 症狀、55 條具名症候群規則、NIHSS 估計、功能恢復與代償（示意；皮質脊髓徑匯集處被切斷的肢體恢復較少；失語與忽略的代償隨同一半球的中大腦動脈皮質剩下多少而定；腦幹缺損依受損比例分級，不在門檻上一起出現或消失）
   · Symptoms, 55 named-syndrome rules, NIHSS estimate, recovery and compensation (illustrative; a limb whose corticospinal tract is cut where it converges recovers less; an aphasia or a neglect is taken over by what is left of that hemisphere's MCA cortex; brainstem deficits are graded by the share lost rather than all switching at a threshold)
 - 「血管再通」事件依避免的缺損、避免的致命病程或保住的組織量評等，NIHSS 一樣時不寫成差異；不治療時致命的那一欄註明「假如存活」

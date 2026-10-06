@@ -58,9 +58,11 @@ describe('Z4-11: the TIA story begins once the deficit has cleared', () => {
       if (deficit(r)) {
         for (const id of TIA) expect(ids, `${name} @${t} h: ${id}`).not.toContain(id);
         // within a day of its start a deficit is an acute stroke, with its treatment windows (an
-        // attack of the inner ear alone: the inner-ear stroke emergency)
+        // attack of the inner ear alone: the inner-ear stroke emergency), until a treatment has
+        // reopened the artery (V1-11)
+        const treated = r.input.reperfusionH !== null && t >= r.input.reperfusionH && !!r.treatment && !r.treatment.failed && r.treatment.reopened.length > 0;
         if (t - Math.max(...r.input.occlusions.map(startOf).filter((h) => h <= t)) < 24)
-          expect(ids.filter((id) => id === 'treatment_window' || id === 'ear_stroke_workup'), `${name} @${t} h`).toHaveLength(1);
+          expect(ids.filter((id) => id === 'treatment_window' || id === 'ear_stroke_workup'), `${name} @${t} h`).toHaveLength(treated ? 0 : 1);
       } else if (ids.includes('tia_urgent')) cleared++;
     }
     // and the TIA story is told once it has cleared

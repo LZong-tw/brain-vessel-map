@@ -20,10 +20,13 @@
  * it begins — the index onset, the swelling, the events and the forecast of the course are those
  * of the occlusions that have begun; only the schedule's own events and statuses show the later
  * ones (pending). Approximations:
- *   • one index event: infarcts from other episodes add to the volumes and the oedema, but
- *     swell and evolve on the index clock (nothing before the index onset), except that a
- *     hemisphere whose own lesion begins after the index onset has its early (14 h) volume and its
- *     oedema events from that lesion's onset (Z3-4), and a basilar occlusion's fatal risk starts
+ *   • one index event: infarcts from other episodes add to the volumes and the oedema; each
+ *     lesion swells on its own clock (every bed from the occlusion start credited with most of its
+ *     loss: lesionOnsetsOf), and each hemisphere and the posterior fossa have their early (14 h)
+ *     volume and their oedema, herniation and diaschisis events from their own lesion's onset,
+ *     before the index onset too (Z3-4, V1-1: when a larger occlusion began a week after a
+ *     malignant infarct of the other hemisphere, the first infarct's swelling, its herniation
+ *     infarct and its events vanished for days), and a basilar occlusion's fatal risk starts
  *     with the coma it causes itself, never before it closes (Z3-2); only each region's
  *     late symptoms, compensation and coma relabelling count from when that region itself became
  *     ischaemic (R6-6), and the brainstem consciousness events follow the labels these give, so
@@ -213,9 +216,18 @@ export interface SimResult {
   /**
    * infarct core, penumbra and final infarct (mL) of the brain and the spinal cord; `cord` is the
    * spinal cord's part of each (W3-8: an anterior spinal artery infarct was left out of all three
-   * beside a cord infarct listed at 2 mL). `saved` is the brain tissue a reopening spares.
+   * beside a cord infarct listed at 2 mL). `saved` is the brain tissue a reopening spares: the
+   * untreated final infarct less this one, the infarcts of a herniation included (V1-6), of which
+   * `savedSecondary` is what that herniation would have infarcted.
    */
-  volumes: { core: number; penumbra: number; finalInfarct: number; saved: number; cord: { core: number; penumbra: number; final: number } };
+  volumes: {
+    core: number;
+    penumbra: number;
+    finalInfarct: number;
+    saved: number;
+    savedSecondary: number;
+    cord: { core: number; penumbra: number; final: number };
+  };
   /** neurons lost in the dead brain tissue (the estimate per mL is the brain's: Saver 2006; the spinal cord is not counted) */
   neuronsLost: number;
   hydrocephalus: boolean;
@@ -634,6 +646,87 @@ function startCredits(input: SimInput, course: Course, finalH: number, other: Co
   return credit;
 }
 
+/** when each lesion began, on the clinical clock (see lesionOnsetsOf) */
+interface LesionOnsets {
+  /** per bed: the start credited with most of its loss (beds that lose nothing are left out) */
+  bed: Record<string, number>;
+  /** per hemisphere (supratentorial beds) and for the posterior fossa: the start credited with most of its loss */
+  compartment: Partial<Record<Side | 'infra', number>>;
+}
+
+/**
+ * When each lesion began (V1-1), on the clinical clock (hours after the index onset; before it, a
+ * negative number): for each bed, the occlusion start credited with most of its loss, as
+ * startCredits credits it, and for each hemisphere and the posterior fossa the start credited with
+ * most of theirs. Each lesion swells, herniates and has its oedema events on its own clock: when a
+ * larger occlusion of the other hemisphere began a week after a malignant right M1 infarct and
+ * became the index event, the right hemisphere's swelling, its herniation infarct and its events
+ * vanished at that moment and came back days later. With one start, every lesion dates from the
+ * index onset (left empty).
+ */
+function lesionOnsetsOf(input: SimInput, course: Course, finalH: number, other: Course | null, x: number, onsetH: number): LesionOnsets {
+  const starts = [...new Set(input.occlusions.map(startOf))].sort((a, b) => a - b);
+  if (starts.length <= 1) return { bed: {}, compartment: {} };
+  const startAt = (h: number) => {
+    let s = starts[0];
+    for (const y of starts) if (y <= h) s = y;
+    return s;
+  };
+  const byBed = new Map<string, Map<number, number>>();
+  const add = (bedId: string, h: number, ml: number) => {
+    if (!(ml > 0)) return;
+    let m = byBed.get(bedId);
+    if (!m) byBed.set(bedId, (m = new Map()));
+    const s = startAt(h);
+    m.set(s, (m.get(s) ?? 0) + ml);
+  };
+  const shares: [Course, number][] = !other || x === 1 ? [[course, 1]] : x === 0 ? [[other, 1]] : [[course, x], [other, 1 - x]];
+  for (const [c, w] of shares)
+    c.units.forEach((u, i) => {
+      const bed = BED_BY_ID[u.bed];
+      if (REGION_BY_ID[bed.region].compartment === 'none') return;
+      const h = c.histories[i];
+      let prev = 0;
+      lossSteps(h, finalH, tissueParamsForUnit(u)).forEach((f, k) => {
+        if (f > prev) add(u.bed, h[k].fromH, (f - prev) * u.frac * bed.volume * w);
+        prev = f;
+      });
+    });
+  for (const [rid, list] of course.lacunes) {
+    const reg = REGION_BY_ID[rid];
+    if (reg.compartment === 'none') continue;
+    const vol = reg.beds.reduce((a, b) => a + BED_BY_ID[b].volume, 0) || 1;
+    for (const o of list) {
+      const ml = lacuneFractionOf(o.vessel, rid) * reg.volume * lacuneLossOf(o, rid, finalH);
+      for (const b of reg.beds) add(b, startOf(o), (ml * BED_BY_ID[b].volume) / vol);
+    }
+  }
+  // (the earlier start on a tie)
+  const top = (m: Map<number, number>) => {
+    let best: number | null = null;
+    for (const st of [...m.keys()].sort((a, b) => a - b)) if (best === null || m.get(st)! > m.get(best)! + 1e-9) best = st;
+    return best;
+  };
+  const bed: Record<string, number> = {};
+  const comp = new Map<Side | 'infra', Map<number, number>>();
+  for (const [bedId, m] of byBed) {
+    const b = top(m);
+    if (b !== null) bed[bedId] = b - onsetH;
+    const reg = REGION_BY_ID[BED_BY_ID[bedId].region];
+    const key: Side | 'infra' | null = reg.compartment === 'infra' ? 'infra' : reg.side === 'm' ? null : reg.side;
+    if (!key) continue;
+    let cm = comp.get(key);
+    if (!cm) comp.set(key, (cm = new Map()));
+    for (const [st, ml] of m) cm.set(st, (cm.get(st) ?? 0) + ml);
+  }
+  const compartment: Partial<Record<Side | 'infra', number>> = {};
+  for (const [key, m] of comp) {
+    const b = top(m);
+    if (b !== null) compartment[key] = b - onsetH;
+  }
+  return { bed, compartment };
+}
+
 /** an attack before the index onset that reopened by itself and left no infarct (simulation clock) */
 interface Prodrome {
   fromH: number;
@@ -838,8 +931,9 @@ interface Model {
   regionStarts: Record<string, number[]> | null;
   /**
    * when blood returns (simulation clock, sorted): the treatment reopening (when it reopens
-   * something), an occlusion (or a phase the treatment caused) that ends; after each, a deficit
-   * that cleared then is not brought back by the swelling (heldReference, X2-9)
+   * something), an occlusion (or a phase the treatment caused) that ends, unless it ends because
+   * the vessel closes further (V1-7); after each, a deficit that cleared then is not brought back
+   * by the swelling (heldReference, X2-9)
    */
   reopenings: number[];
   /** the deficits that cleared at each reopening, filled in when first needed (heldReference) */
@@ -862,6 +956,13 @@ interface Model {
   posteriorStarts: number[];
   /** the spinal cord's final infarct (mL), counted with the brain's (W3-8) */
   cordFinal: number;
+  /**
+   * when each bed's lesion began, on the clinical clock (lesionOnsetsOf; 0 when left out): its
+   * oedema runs on that clock (V1-1)
+   */
+  bedOnsetH: Record<string, number>;
+  /** when each hemisphere's and the posterior fossa's lesion began, on the clinical clock (V1-1) */
+  hemiOnsetH: Partial<Record<Side | 'infra', number>>;
 }
 
 const modelCache = new Map<string, Model>();
@@ -881,6 +982,9 @@ function modelFor(input: SimInput): Model {
   const plan = planTreatment(input);
   const occlusions = plan && plan.phases.length ? [...input.occlusions, ...plan.phases] : input.occlusions;
   const untreated = reperf !== null ? buildCourse(input, null) : null;
+  // the untreated course's final infarct with its own herniation infarcts: what the treatment saves
+  // is counted against it (V1-6)
+  const untreatedEnd = reperf !== null ? modelFor({ ...input, reperfusionH: null, treatment: undefined }).cascade.volumes.withSecondary : undefined;
   // a failed attempt changes nothing: the treated course is the untreated one
   const course = plan?.failed ? untreated! : buildCourse(input, reperf, occlusions);
   const x = plan ? plan.x : 1;
@@ -890,6 +994,8 @@ function modelFor(input: SimInput): Model {
   for (const o of input.occlusions) lastChange = Math.max(lastChange, startOf(o), endOf(o) ?? 0);
   const finalH = lastChange + FINAL_H;
   const onsetH = indexOnset(input, course, finalH, untreated, x);
+  // each lesion swells and herniates on its own clock (V1-1)
+  const lesions = lesionOnsetsOf(input, course, finalH, untreated, x, onsetH);
   const hemoCache = new Map<string, HemoResult>();
   const hemoAtT = (tH: number): HemoResult => {
     const i = pieceIndex(course.pieces, tH);
@@ -902,13 +1008,16 @@ function modelFor(input: SimInput): Model {
     return h;
   };
   const onsetPiece = course.pieces[pieceIndex(course.pieces, onsetH)];
-  // the index episode ends at treatment (unless it fails) or when one of its occlusions reopens by itself
+  // the index episode ends at treatment (unless it fails) or when one of its occlusions reopens by
+  // itself (not when it closes further: V1-7)
   const ends: number[] = [];
-  if (opensH !== null && opensH >= onsetH) ends.push(opensH);
   for (const o of onsetPiece.active) {
     const e = endOf(o);
-    if (e !== null && e > onsetH) ends.push(e);
+    if (e !== null && e > onsetH && !progressed(occlusions, o)) ends.push(e);
   }
+  // (when the index occlusion is first reopened: the treatment counts only when it reopens something)
+  const reopenedAtH = Math.min(opensH !== null && opensH >= onsetH && plan!.reopened.length ? opensH : Infinity, ...ends);
+  if (opensH !== null && opensH >= onsetH) ends.push(opensH);
   const episodeEndH = ends.length ? Math.min(...ends) : null;
   const hemoAcute = hemoAtT(onsetH);
   const hemoAfter = episodeEndH === null ? hemoAcute : hemoAtT(episodeEndH);
@@ -970,6 +1079,7 @@ function modelFor(input: SimInput): Model {
     hemo: hemoAcute,
     bedFinal,
     bedFinalUntreated,
+    ...(untreatedEnd !== undefined ? { untreatedWithSecondary: untreatedEnd } : {}),
     bedEarly: addLacunes(bedInfarctAt(course, onsetH + 14, untreated, x), course, onsetH + 14),
     regionAcute,
     lacuneFinal,
@@ -980,6 +1090,8 @@ function modelFor(input: SimInput): Model {
     ),
     // a reocclusion closes the artery again, so the flow does not stay back
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
+    // … but the artery was reopened then, which ends the treatment windows (V1-11)
+    reopensH: Number.isFinite(reopenedAtH) ? reopenedAtH - onsetH : null,
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
     bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
@@ -992,6 +1104,7 @@ function modelFor(input: SimInput): Model {
   const regionOnsetH: Record<string, number> = {};
   for (const [rid, list] of Object.entries(ischaemiaStarts)) regionOnsetH[rid] = list[0] - onsetH;
   cascadeInput.regionOnsetH = regionOnsetH;
+  cascadeInput.hemiOnsetH = lesions.compartment;
   // each region's early lesion is measured 14 h after its own onset (Z3-4): the other hemisphere
   // occluded two days after the index onset had "≈ 0 mL within 14 h" beside the malignant course
   // of its own final infarct
@@ -1002,7 +1115,12 @@ function modelFor(input: SimInput): Model {
     return m;
   };
   const bedEarly: Record<string, number> = {};
-  for (const b of BEDS) bedEarly[b.id] = earlyBeds((ischaemiaStarts[b.region] ?? []).find((h) => h >= onsetH - 1e-9) ?? onsetH)[b.id] ?? 0;
+  // (a bed that loses tissue: from the start of the lesion that kills most of it, also before the
+  // index onset: V1-1)
+  for (const b of BEDS) {
+    const own = lesions.bed[b.id];
+    bedEarly[b.id] = earlyBeds(own !== undefined ? onsetH + own : (ischaemiaStarts[b.region] ?? []).find((h) => h >= onsetH - 1e-9) ?? onsetH)[b.id] ?? 0;
+  }
   cascadeInput.bedEarly = bedEarly;
   cascadeInput.basilarNotReopened = basilarNotReopened(input, plan);
   // first pass: everything but what reads the symptom list (the aspiration warning and the
@@ -1011,7 +1129,7 @@ function modelFor(input: SimInput): Model {
   const { cascade, input: shiftedInput } = herniationFollowsShift(
     computeCascade(cascadeInput),
     cascadeInput,
-    { course, untreated, x, unitSaved, hemoAcute, hemoAfter, onsetH, edemaReperfusionH },
+    { course, untreated, x, unitSaved, hemoAcute, hemoAfter, onsetH, edemaReperfusionH, bedOnsetH: lesions.bed, hemiOnsetH: lesions.compartment },
     input.decompression,
   );
   const prodromes = onsetH > 0 ? prodromalAttacks(input, course, finalH, onsetH, untreated, x) : [];
@@ -1041,6 +1159,8 @@ function modelFor(input: SimInput): Model {
     lesionStarts: lesionStartsOf(input, course, finalH, untreated, x, onsetH),
     posteriorStarts: allStarts.filter((h) => posteriorIschaemiaAt(input, course, hemoAtT, h)),
     cordFinal: BEDS.reduce((a, b) => a + (REGION_BY_ID[b.region].category === SPINAL ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0),
+    bedOnsetH: lesions.bed,
+    hemiOnsetH: lesions.compartment,
   };
   if (modelCache.size > 200) modelCache.clear();
   modelCache.set(key, model);
@@ -1444,7 +1564,7 @@ function brainstemCourse(input: SimInput, model: Model): BrainstemCourse | null 
 }
 
 /** what the oedema model needs of a model to give the midline shift at any time */
-type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH' | 'edemaReperfusionH'>;
+type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH' | 'edemaReperfusionH' | 'bedOnsetH' | 'hemiOnsetH'>;
 
 /**
  * the oedema model's mass effect (mm: the swelling of both hemispheres together as the midline
@@ -1452,12 +1572,12 @@ type ShiftModel = TissueModel & Pick<Model, 'hemoAcute' | 'hemoAfter' | 'onsetH'
  * the side it pushes from: the side of the midline shift, or both when the hemispheres swell alike
  * and the midline stays in place, `t` h after the index onset
  */
-function shiftAt(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, t: number): { mm: number; from: Side | 'both' | null } {
+function shiftAt(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, t: number): { mm: number; lateral: number; from: Side | 'both' | null } {
   const { beds } = tissueAt(model, t + model.onsetH, null);
   const edemaBeds: Record<string, EdemaBedInput> = {};
   for (const b of BEDS) edemaBeds[b.id] = edemaBedOf(model, b.id, beds[b.id], effectsAt(cascade, b.id, t));
   const e = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression, beds: edemaBeds, cascade });
-  return { mm: e.massEffectMm, from: e.shiftFrom ?? (e.massEffectMm > 0 ? 'both' : null) };
+  return { mm: e.massEffectMm, lateral: e.midlineShiftMm, from: e.shiftFrom ?? (e.massEffectMm > 0 ? 'both' : null) };
 }
 
 /** the shift is sampled this often (h, clinical clock) up to the horizon, and the crossings refined to about 0.1 h */
@@ -1468,20 +1588,26 @@ const SHIFT_BISECT = 6;
 /**
  * For each side whose oedema may herniate (a malignant one, or one with a moderate mass effect:
  * W2-1): the largest mass effect, when it first reaches the coma range pushing from that side (or
- * from both, Y2-13) and when, after the herniation began, it falls below it again
- * (cascade.CascadeInput.shift; R6-5, R6-2).
+ * from both, Y2-13), when, after the herniation began, it falls below it again (cascade.CascadeInput.shift;
+ * R6-5, R6-2), and the largest midline shift pushing from that side (V1-4); each side over the
+ * weeks after its own lesion began (V1-1). With both sides, the same for the swelling of both
+ * together, from whichever side it pushes (the central herniation, V1-4).
  */
-function herniationShifts(model: ShiftModel, cascade: CascadeOutput, decompression: boolean, sides: Side[]): Partial<Record<Side, HerniationShift>> {
-  const memo = new Map<number, { mm: number; from: Side | 'both' | null }>();
+function herniationShifts(
+  model: ShiftModel,
+  cascade: CascadeOutput,
+  decompression: boolean,
+  sides: Side[],
+): { sides: Partial<Record<Side, HerniationShift>>; central: HerniationShift | null } {
+  const memo = new Map<number, { mm: number; lateral: number; from: Side | 'both' | null }>();
   const at = (t: number) => {
     let v = memo.get(t);
     if (!v) memo.set(t, (v = shiftAt(model, cascade, decompression, t)));
     return v;
   };
-  const out: Partial<Record<Side, HerniationShift>> = {};
-  for (const s of sides) {
-    const pushes = (t: number) => at(t).from === s || at(t).from === 'both';
-    const inComa = (t: number) => pushes(t) && at(t).mm >= COMA_SHIFT_MM;
+  /** the course of one swelling: `inComa` decides, over the weeks from `from` (clinical clock), the herniation from `floor` on */
+  const course = (inComa: (t: number) => boolean, from: number, floor: number, pushes: (t: number) => boolean): HerniationShift => {
+    const horizon = from + SHIFT_HORIZON_H;
     // the first time in (a, b] with the value inComa(b) has, where inComa(a) differs from it
     const edge = (a: number, b: number) => {
       const before = inComa(a);
@@ -1493,35 +1619,54 @@ function herniationShifts(model: ShiftModel, cascade: CascadeOutput, decompressi
       return b;
     };
     let peakMm = 0;
-    let peakT = 0;
+    let peakT = from;
+    let lateralPeakMm = 0;
     let comaFromH: number | null = null;
     // (the peak of the mass effect, from whichever side: when the other hemisphere pushes harder,
     // the text says it herniates instead)
-    for (let t = SHIFT_STEP_H; t <= SHIFT_HORIZON_H; t += SHIFT_STEP_H) {
+    for (let t = from + SHIFT_STEP_H; t <= horizon; t += SHIFT_STEP_H) {
       const v = at(t);
       if (v.from !== null && v.mm > peakMm) [peakMm, peakT] = [v.mm, t];
+      if (pushes(t) && v.lateral > lateralPeakMm) lateralPeakMm = v.lateral;
       if (comaFromH === null && inComa(t)) comaFromH = edge(t - SHIFT_STEP_H, t);
     }
     // the peak between the samples, near enough for the text (a tenth of a millimetre)
-    if (peakT > 0)
+    if (peakT > from)
       for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) {
         const v = at(peakT + d);
         if (v.from !== null && v.mm > peakMm) peakMm = v.mm;
+        if (pushes(peakT + d) && v.lateral > lateralPeakMm) lateralPeakMm = v.lateral;
       }
     let comaUntilH: number | null = null;
     if (comaFromH !== null) {
-      const onset = Math.max(UNCAL_ONSET_H, comaFromH);
+      const onset = Math.max(floor, comaFromH);
       if (!inComa(onset)) comaUntilH = onset;
       else
-        for (let t = Math.ceil(onset / SHIFT_STEP_H) * SHIFT_STEP_H; t <= SHIFT_HORIZON_H; t += SHIFT_STEP_H)
+        for (let t = from + Math.ceil((onset - from) / SHIFT_STEP_H) * SHIFT_STEP_H; t <= horizon; t += SHIFT_STEP_H)
           if (t > onset && !inComa(t)) {
             comaUntilH = edge(Math.max(onset, t - SHIFT_STEP_H), t);
             break;
           }
     }
-    out[s] = { peakMm, comaFromH, comaUntilH };
+    return { peakMm, comaFromH, comaUntilH, lateralPeakMm };
+  };
+  const onsetOf = (sd: Side) => model.hemiOnsetH[sd] ?? 0;
+  const out: Partial<Record<Side, HerniationShift>> = {};
+  for (const s of sides) {
+    const pushes = (t: number) => at(t).from === s || at(t).from === 'both';
+    out[s] = course((t) => pushes(t) && at(t).mm >= COMA_SHIFT_MM, onsetOf(s), onsetOf(s) + UNCAL_ONSET_H, (t) => at(t).from === s);
   }
-  return out;
+  // both hemispheres together: from the first lesion's onset, the herniation from day 3 of the newer
+  const central =
+    sides.includes('r') && sides.includes('l')
+      ? course(
+          (t) => at(t).from !== null && at(t).mm >= COMA_SHIFT_MM,
+          Math.min(onsetOf('r'), onsetOf('l')),
+          Math.max(onsetOf('r'), onsetOf('l')) + UNCAL_ONSET_H,
+          () => false,
+        )
+      : null;
+  return { sides: out, central };
 }
 
 /**
@@ -1544,12 +1689,17 @@ function herniationFollowsShift(
   const bedEffects: Record<string, BedEffect[]> = {};
   for (const [id, list] of Object.entries(cascade.bedEffects)) bedEffects[id] = list.filter((e) => !herniation.test(e.event));
   const primary = herniationShifts(model, { ...cascade, bedEffects }, decompression, sides);
-  const firstInput = { ...input, shift: primary };
+  const firstInput: CascadeInput = { ...input, shift: primary.sides, ...(primary.central ? { centralShift: primary.central } : {}) };
   const next = computeCascade(firstInput);
   const still = sides.filter((s) => next.events.some((e) => e.id === `uncal_${s}`));
   if (!still.length) return { cascade: next, input: firstInput };
   // the input is returned too, so that the second pass (R3-1) keeps the same herniation timing
-  const finalInput = { ...input, shift: { ...primary, ...herniationShifts(model, next, decompression, still) } };
+  // (whether one side herniates or both herniate centrally is decided on the first timing: a
+  // central herniation adds no secondary infarct)
+  const timed = herniationShifts(model, next, decompression, still).sides;
+  const shift = { ...primary.sides };
+  for (const s of still) shift[s] = { ...timed[s]!, lateralPeakMm: primary.sides[s]!.lateralPeakMm };
+  const finalInput: CascadeInput = { ...firstInput, shift };
   return { cascade: computeCascade(finalInput), input: finalInput };
 }
 
@@ -1587,13 +1737,18 @@ function ischaemiaStartsOf(starts: number[], course: Course, hemoAt: (tH: number
   return out;
 }
 
-/** when blood returns (see Model.reopenings): the treatment's reopening (null: it reopens nothing), and the end of every phase that ends */
+/**
+ * when blood returns (see Model.reopenings): the treatment's reopening (null: it reopens nothing),
+ * and the end of every phase that ends, but not a phase that ends because the vessel gets worse (a
+ * stenosis that occludes: V1-7, the stuttering basilar was told "blood returned 0 min after onset"
+ * at the moment it closed completely)
+ */
 function reopeningTimes(occlusions: Occlusion[], opensH: number | null): number[] {
   const out = new Set<number>();
   if (opensH !== null) out.add(opensH);
   for (const o of occlusions) {
     const e = endOf(o);
-    if (e !== null && e > startOf(o)) out.add(e);
+    if (e !== null && e > startOf(o) && !progressed(occlusions, o)) out.add(e);
   }
   return [...out].sort((a, b) => a - b);
 }
@@ -1732,7 +1887,9 @@ const effectsAt = (cascade: CascadeOutput, bedId: string, t: number) =>
   (cascade.bedEffects[bedId] ?? []).filter((e) => e.onsetH <= t && t < (e.endH ?? Infinity));
 
 /** one bed's input to the oedema model, from its tissue before secondary infarcts overwrite it */
-const edemaBedOf = (model: Pick<Model, 'hemoAcute' | 'hemoAfter'>, bedId: string, bs: BedTimeState, effects: BedEffect[]): EdemaBedInput => ({
+const edemaBedOf = (model: Pick<Model, 'hemoAcute' | 'hemoAfter' | 'bedOnsetH'>, bedId: string, bs: BedTimeState, effects: BedEffect[]): EdemaBedInput => ({
+  // (each lesion swells on its own clock: V1-1)
+  onsetH: model.bedOnsetH[bedId] ?? 0,
   infarct: bs.infarct,
   // (the surviving tissue past the time it is at risk still takes up water as before: W2-10)
   penumbra: bs.frac.penumbra + bs.holding,
@@ -2206,7 +2363,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       model.finish();
       return model.shownCascade;
     },
-    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, cord },
+    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, savedSecondary: cascade.savedSecondary, cord },
     neuronsLost: brainCore * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH && (cascade.hydrocephalusEndH === null || t < cascade.hydrocephalusEndH),
     edema,

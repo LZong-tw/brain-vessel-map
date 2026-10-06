@@ -141,20 +141,30 @@ describe('Z3-4 with stacked occlusions: each hemisphere swells from its own lesi
 });
 
 describe('Z3-12: survivors of the destruction of both hemispheres', () => {
-  const Z28 = input([o('mca_m1_l', 0), o('mca_m1_r', 48)], 'moderate');
-  const BOTH_M1 = input([o('mca_m1_r'), o('mca_m1_l')], 'good');
+  // (V1-4: both M1 arteries, or the right one two days after the left, no longer destroy both
+  // hemispheres: two hemispheres that swell alike herniate downward, with no secondary infarcts, and
+  // the right hemisphere whose own push across never reaches the coma range does not herniate to
+  // its side. Both carotid T arteries do, with or without a herniation's infarcts)
+  const Z28 = input([o('ica_terminal_l', 0), o('ica_terminal_r', 48)], 'moderate');
+  const BOTH_ICAT = input([o('ica_terminal_r'), o('ica_terminal_l')], 'good');
+  // the right M1, then the left one a week later (poor): each herniates to its own side
+  const SEQ = input([o('mca_m1_r', 0), o('mca_m1_l', 168)], 'poor');
 
   it.each([
-    ['left M1, then right M1 at 48 h (moderate)', Z28, 384],
-    ['both M1 (good)', BOTH_M1, 336],
+    ['left carotid T, then right carotid T at 48 h (moderate)', Z28, 384],
+    ['both carotid T (good)', BOTH_ICAT, 336],
   ] as const)('%s: a disorder of consciousness from two weeks after the newer lesion, scored as unresponsive (1a = 3)', (_name, i, from) => {
     for (const tH of STOPS.filter((h) => h >= from)) {
       const r = at(i, tH);
       const doc = r.symptoms.find((s) => s.id === 'disorder_of_consciousness');
-      expect(doc?.sev, `${tH} h`).toBe(3);
+      // (or, while the swelling keeps the patient in its coma, that coma, which it follows: both
+      // carotid T swell into the third week)
+      const coma = r.symptoms.some((s) => s.id === 'coma' && s.sev === 3) && r.edema.massEffectMm >= 8;
+      expect(doc?.sev ?? (coma ? 3 : undefined), `${tH} h`).toBe(3);
       expect(r.nihss.items['1a'], `${tH} h`).toBe(3);
       expect([r.nihss.items['1b'], r.nihss.items['1c']], `${tH} h`).toEqual([2, 2]);
     }
+    expect(at(i, 720).symptoms.find((s) => s.id === 'disorder_of_consciousness')?.sev).toBe(3);
     const ev = at(i, 4320).cascade.events.find((e) => e.id === 'hemispheres_destroyed')!;
     expect(ev.onsetH).toBeCloseTo(from, 0);
     expect(ev.desc.en).toMatch(/Adams 2000|vegetative/);
@@ -172,7 +182,7 @@ describe('Z3-12: survivors of the destruction of both hemispheres', () => {
 
   it('a cerebral peduncle the herniation infarcted keeps the third-nerve palsy of the fascicles that cross it', () => {
     for (const tH of [720, 2160]) {
-      const z = at(Z28, tH);
+      const z = at(SEQ, tH);
       expect(z.regions.midbrain_peduncle_r.infarct).toBeGreaterThan(0.9);
       expect(z.regions.midbrain_peduncle_l.infarct).toBeGreaterThan(0.9);
       expect(has(z, 'cn3_palsy', 'r') && has(z, 'cn3_palsy', 'l'), `${tH} h`).toBe(true);
@@ -186,7 +196,7 @@ describe('Z3-12: survivors of the destruction of both hemispheres', () => {
   });
 
   it('the Outcome tab gives both hemispheres their own survival note, not the figures of one hemisphere', () => {
-    for (const i of [Z28, BOTH_M1]) {
+    for (const i of [Z28, BOTH_ICAT]) {
       const out = finalOutcome(i);
       expect(out.fatal).toEqual(['herniation']);
       expect(out.caveats).toEqual(['bilateral_hemispheres']);

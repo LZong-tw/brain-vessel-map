@@ -54,6 +54,12 @@ import { CORE_REL } from './tissue';
 
 /** per-bed tissue state at the displayed time, as computed by simulate() */
 export interface EdemaBedInput {
+  /**
+   * when this bed's lesion began, on the clock of `tH` (0 when left out): every lesion swells,
+   * resolves and shrinks on its own clock (V1-1). A bed whose lesion has not begun yet at `tH` is
+   * still on the clock of `tH` (what an earlier occlusion did to it)
+   */
+  onsetH?: number;
   /** fraction infarcted by the arterial occlusion itself (incl. lacunes), before secondary effects */
   infarct: number;
   /** fraction still in the penumbra (ischaemic, alive) */
@@ -75,7 +81,8 @@ export interface EdemaInput {
   reperfusionH: number | null;
   decompression: boolean;
   beds: Record<string, EdemaBedInput>;
-  cascade: Pick<CascadeOutput, 'volumes' | 'hydrocephalusOnsetH'>;
+  /** (a decompressive hemicraniectomy acts from its event, at the latest DECOMPRESSION_H after onset) */
+  cascade: Pick<CascadeOutput, 'volumes' | 'hydrocephalusOnsetH' | 'events'>;
 }
 
 // ── time constants & magnitudes ──────────────────────────────────────
@@ -228,8 +235,6 @@ type Compartment = Side | 'infra';
  */
 export function computeEdema(input: EdemaInput): EdemaState {
   const { tH: t, reperfusionH: tr, decompression, beds, cascade } = input;
-  if (!(t > 0)) return NO_EDEMA;
-  const recanalized = tr !== null && t >= tr;
 
   const vol = cascade.volumes;
   const size: Record<Compartment, number> = {
@@ -238,30 +243,50 @@ export function computeEdema(input: EdemaInput): EdemaState {
     infra: sizeFactor((vol.cerebellum.r + vol.cerebellum.l + vol.brainstem) / (COMPARTMENT_ML.infra || 1)),
   };
 
-  // time curves shared by all primary lesions (their clock starts at onset)
-  const dwi = dwiCurve(t);
-  const rise = vasoRise(t);
-  const resolve = resolveCurve(t);
-  const atrophy = atrophyCurve(t);
-  const appear = 1 - Math.exp(-t / DWI_APPEAR_H);
-  // reperfusion of dead tissue: transient, and worse the later it comes
-  const since = recanalized ? t - (tr as number) : 0;
-  const reperfPulse = recanalized
-    ? smoothstep(0.5, 6, tr as number) * (1 - Math.exp(-since / REPERF_RISE_H)) * Math.exp(-since / REPERF_DECAY_H)
-    : 0;
+  // time curves shared by all primary lesions of the same onset (their clock starts at that onset;
+  // with one index event every bed is on the clock of `t`): V1-1
+  const curvesAt = new Map<number, ReturnType<typeof curvesOf>>();
+  const curvesOf = (onset: number) => {
+    const a = t - onset;
+    // the first reopening counts for a lesion that had begun by then
+    const recanalized = tr !== null && tr >= onset && t >= tr;
+    const trA = recanalized ? (tr as number) - onset : 0;
+    // reperfusion of dead tissue: transient, and worse the later it comes
+    const since = recanalized ? t - (tr as number) : 0;
+    return {
+      a,
+      recanalized,
+      trA,
+      since,
+      dwi: dwiCurve(a),
+      rise: vasoRise(a),
+      resolve: resolveCurve(a),
+      atrophy: atrophyCurve(a),
+      appear: 1 - Math.exp(-a / DWI_APPEAR_H),
+      reperfPulse: recanalized ? smoothstep(0.5, 6, trA) * (1 - Math.exp(-since / REPERF_RISE_H)) * Math.exp(-since / REPERF_DECAY_H) : 0,
+      dwiTrace: dwiTraceCurve(a),
+      gliosis: gliosisCurve(a),
+    };
+  };
+  const curves = (onset: number) => {
+    let c = curvesAt.get(onset);
+    if (!c) curvesAt.set(onset, (c = curvesOf(onset)));
+    return c;
+  };
 
   const swelling: Record<string, number> = {};
   const cytotoxic: Record<string, number> = {};
   const vasogenic: Record<string, number> = {};
   const dwiImg: Record<string, number> = {};
   const flairImg: Record<string, number> = {};
-  const dwiTrace = dwiTraceCurve(t);
-  const gliosis = gliosisCurve(t);
   const extra: Record<Compartment, number> = { r: 0, l: 0, infra: 0 };
   let cytoMl = 0;
   let ionMl = 0;
   let vasoMl = 0;
   let atrophyMl = 0;
+  /** infarcted volume per lesion onset, overall and in the posterior fossa: whose clock names the phase */
+  const byOnset = new Map<number, number>();
+  const infraByOnset = new Map<number, number>();
 
   for (const b of BEDS) {
     const st = beds[b.id];
@@ -270,44 +295,59 @@ export function computeEdema(input: EdemaInput): EdemaState {
     if (reg.compartment === 'none' || reg.side === 'm') continue;
     const comp: Compartment = reg.compartment === 'infra' ? 'infra' : reg.side;
     const inf = clamp(st.infarct, 0, 1);
+    // the bed's own clock, or that of `t` while its lesion has not begun; before either began (or at
+    // its onset) nothing primary has swollen yet, while a secondary infarct swells on its own clock
+    const own = st.onsetH ?? 0;
+    const onset = t - own > 0 ? own : 0;
+    const secondary = st.secondaryOnsetH !== null && t >= st.secondaryOnsetH;
+    if (!(t - onset > 0) && !secondary) continue;
+    const { recanalized, trA, since, dwi, rise, resolve, atrophy, appear, reperfPulse, dwiTrace, gliosis, a } = curves(onset);
+    // (the primary terms below are all 0 at a = 0; before it they are left out)
+    const primaryOn = a > 0;
+    if (inf > 0 && primaryOn) {
+      byOnset.set(onset, (byOnset.get(onset) ?? 0) + inf * b.volume);
+      if (comp === 'infra') infraByOnset.set(onset, (infraByOnset.get(onset) ?? 0) + inf * b.volume);
+    }
 
     // ionic water uptake: driven by whatever flow reaches the tissue, before and after reopening
     const reflowed = recanalized && st.relAfter > st.relAcute + 0.05;
     const d0 = delivery(st.relAcute);
-    const dose = recanalized ? d0 * (tr as number) + delivery(st.relAfter) * since : d0 * t;
+    const dose = recanalized ? d0 * trA + delivery(st.relAfter) * since : d0 * a;
     const ionProg = 1 - Math.exp(-dose / ION_TAU_H);
 
     // ── primary infarct ──
     const pulse = reflowed ? reperfPulse : 0;
     const ion = ION_MAX * ionProg * resolve;
     const vaso = VASO_MAX * size[comp] * rise * resolve + REPERF_BOOST * pulse;
-    let sw = inf * (ion + vaso - atrophy);
-    let cy = inf * dwi;
-    let vg = inf * (rise * resolve + REPERF_FLAIR * pulse);
+    const pi = primaryOn ? inf : 0;
+    let sw = pi * (ion + vaso - atrophy);
+    let cy = pi * dwi;
+    let vg = pi * (rise * resolve + REPERF_FLAIR * pulse);
     // the image: DWI with its T2 shine-through, T2/FLAIR with the scar (C4-F5)
-    let dImg = inf * dwiTrace;
-    let fImg = inf * Math.max(rise * resolve + REPERF_FLAIR * pulse, gliosis);
-    let ionV = inf * ion;
-    let vasoV = inf * vaso;
-    let atroV = inf * atrophy;
+    let dImg = pi * dwiTrace;
+    let fImg = pi * Math.max(rise * resolve + REPERF_FLAIR * pulse, gliosis);
+    let ionV = pi * ion;
+    let vasoV = pi * vaso;
+    let atroV = pi * atrophy;
 
-    if (st.secondaryOnsetH !== null && t >= st.secondaryOnsetH) {
+    if (secondary) {
+      const sOn = st.secondaryOnsetH as number;
       // ── the rest of the bed died later from compression (herniation): its own clock ──
-      const a = t - st.secondaryOnsetH;
+      const a2 = t - sOn;
       const rest = 1 - inf;
-      const r2 = resolveCurve(a);
-      const ion2 = ION_MAX * (1 - Math.exp(-(delivery(0) * a) / ION_TAU_H)) * r2;
-      const vaso2 = SECONDARY_VASO * VASO_MAX * size[comp] * vasoRise(a) * r2;
-      const atro2 = atrophyCurve(a);
+      const r2 = resolveCurve(a2);
+      const ion2 = ION_MAX * (1 - Math.exp(-(delivery(0) * a2) / ION_TAU_H)) * r2;
+      const vaso2 = SECONDARY_VASO * VASO_MAX * size[comp] * vasoRise(a2) * r2;
+      const atro2 = atrophyCurve(a2);
       sw += rest * (ion2 + vaso2 - atro2);
-      cy += rest * dwiCurve(a);
-      vg += rest * SECONDARY_VASO * vasoRise(a) * r2;
-      dImg += rest * dwiTraceCurve(a);
-      fImg += rest * Math.max(SECONDARY_VASO * vasoRise(a) * r2, gliosisCurve(a));
+      cy += rest * dwiCurve(a2);
+      vg += rest * SECONDARY_VASO * vasoRise(a2) * r2;
+      dImg += rest * dwiTraceCurve(a2);
+      fImg += rest * Math.max(SECONDARY_VASO * vasoRise(a2) * r2, gliosisCurve(a2));
       ionV += rest * ion2;
       vasoV += rest * vaso2;
       atroV += rest * atro2;
-    } else {
+    } else if (primaryOn) {
       // ── ischaemic but alive: penumbra, and tissue rescued by reperfusion ──
       const pen = clamp(st.penumbra, 0, 1);
       const penIon = pen * PENUMBRA_ION * ION_MAX * ionProg;
@@ -317,11 +357,11 @@ export function computeEdema(input: EdemaInput): EdemaState {
       dImg += pen * PENUMBRA_DWI * appear;
       const salv = clamp(st.salvaged, 0, 1);
       if (salv > 0 && recanalized) {
-        const ionAtReopen = 1 - Math.exp(-(d0 * (tr as number)) / ION_TAU_H);
+        const ionAtReopen = 1 - Math.exp(-(d0 * trA) / ION_TAU_H);
         const back = salv * PENUMBRA_ION * ION_MAX * ionAtReopen * Math.exp(-since / SALVAGED_ION_DECAY_H);
         sw += back;
         ionV += back;
-        const back2 = salv * PENUMBRA_DWI * (1 - Math.exp(-(tr as number) / DWI_APPEAR_H)) * Math.exp(-since / SALVAGED_DWI_DECAY_H);
+        const back2 = salv * PENUMBRA_DWI * (1 - Math.exp(-trA / DWI_APPEAR_H)) * Math.exp(-since / SALVAGED_DWI_DECAY_H);
         cy += back2;
         dImg += back2;
       }
@@ -345,6 +385,15 @@ export function computeEdema(input: EdemaInput): EdemaState {
       flairImg[b.id] = fImg;
     }
   }
+  /** the onset of the largest infarct among `m` (the earlier on a tie), or the clock of `t` */
+  const dominant = (m: Map<number, number>) => {
+    let best = 0;
+    let ml = -1;
+    for (const o of [...m.keys()].sort((x, y) => x - y)) if (m.get(o)! > ml + 1e-9) [best, ml] = [o, m.get(o)!];
+    return best;
+  };
+  const main = curves(dominant(byOnset));
+  const resolve = main.resolve;
 
   const oedemaMl = ionMl + vasoMl;
   if (cytoMl + oedemaMl + atrophyMl < NEGLIGIBLE_ML) return NO_EDEMA;
@@ -354,11 +403,13 @@ export function computeEdema(input: EdemaInput): EdemaState {
   if (atrophyMl > oedemaMl) phase = 'atrophy';
   else if (resolve < 0.95) phase = 'resolving';
   else if (vasoMl >= ionMl) phase = 'vasogenic';
-  else if (1 - Math.exp(-t / ION_TAU_H) >= 0.3) phase = 'ionic';
+  else if (1 - Math.exp(-main.a / ION_TAU_H) >= 0.3) phase = 'ionic';
   else phase = 'cytotoxic';
 
   // ── midline shift: net extra volume of the more swollen hemisphere ──
-  const decompressed = decompression && t >= DECOMPRESSION_H;
+  // (from the first hemicraniectomy, when the swelling of a lesion that began earlier is decompressed: V1-1)
+  const decompressionH = Math.min(DECOMPRESSION_H, ...cascade.events.filter((e) => e.id.startsWith('hemicraniectomy_')).map((e) => e.onsetH));
+  const decompressed = decompression && t >= decompressionH;
   const push = { r: Math.max(0, extra.r), l: Math.max(0, extra.l) };
   const diff = push.r - push.l;
   let midlineShiftMm = Math.min(SHIFT_MAX_MM, SHIFT_MM_PER_ML * Math.max(0, Math.abs(diff) - SHIFT_RESERVE_ML));
@@ -385,7 +436,7 @@ export function computeEdema(input: EdemaInput): EdemaState {
   const hOnset = cascade.hydrocephalusOnsetH;
   const hydro =
     hOnset !== null && t >= hOnset
-      ? HYDRO_MAX * Math.min(1, 0.25 + (0.75 * (t - hOnset)) / HYDRO_RAMP_H) * Math.max(HYDRO_RESIDUAL, resolve)
+      ? HYDRO_MAX * Math.min(1, 0.25 + (0.75 * (t - hOnset)) / HYDRO_RAMP_H) * Math.max(HYDRO_RESIDUAL, curves(dominant(infraByOnset)).resolve)
       : 0;
   const ventricleChange = clamp(hydro + exVacuo - Math.min(0.9, compress), -0.9, 1.5);
 

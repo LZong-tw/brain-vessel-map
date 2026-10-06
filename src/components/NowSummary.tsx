@@ -71,7 +71,13 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
     // the oedema model's "atrophy" sentence already describes the clearing and shrinking
     sentences.push(sim.edema.phase === 'atrophy' ? t.nowChronicLoss(fmtMl(core)) : t.nowChronic(fmtMl(core)));
   } else if (sim.recanalized && reperf !== null && saved >= 0.5 && tH < 168) {
-    sentences.push(t.nowRecanalized({ at: formatHours(reperf, lang), saved: fmtMl(saved) }));
+    sentences.push(
+      t.nowRecanalized({
+        at: formatHours(reperf, lang),
+        saved: fmtMl(saved),
+        ...(sim.volumes.savedSecondary >= 0.5 ? { secondary: fmtMl(sim.volumes.savedSecondary) } : {}),
+      }),
+    );
   } else if (notable(grew, core) && notable(pen, core)) {
     sentences.push(t.nowCoreGrowing({ grew: fmtMl(grew), since: formatHours(tH - prevH, lang), core: fmtMl(core), pen: fmtMl(pen), penNote }));
   } else if (notable(pen, core)) {

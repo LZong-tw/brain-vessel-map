@@ -11,7 +11,7 @@ import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, phasesOf, startOf } from '../engine/schedule';
-import type { TreatmentOptions } from '../engine/treatment';
+import { GRADE_REPERFUSED, type TreatmentOptions } from '../engine/treatment';
 import { UI } from '../i18n/ui';
 import { CASE_UI } from '../i18n/uiCase';
 import { STACK_UI } from '../i18n/uiStack';
@@ -108,14 +108,17 @@ const treatmentTime = (h: number, lang: Lang) => (REPERFUSION_STOPS.includes(h) 
 
 /**
  * "未治療", "24 小時再通 · 取栓 · eTICI 2b67", plus decompression when chosen. `compact` puts the
- * treatment details in brackets after the time, for the summary line.
+ * treatment details in brackets after the time, for the summary line. An attempt that reopens
+ * nothing (eTICI 0) is an attempt at that time, not a reopening (V1-12): the recanalisation event
+ * of the same case says it failed.
  */
 export function treatmentLine(s: Pick<CaseState, 'reperfusionH' | 'treatment' | 'decompression'>, lang: Lang, compact = false): string {
   const c = CASE_UI[lang];
   const parts: string[] = [];
   if (s.reperfusionH === null) parts.push(s.decompression ? c.noReperfusion : c.untreated);
   else {
-    const when = c.reopenedAt(treatmentTime(s.reperfusionH, lang));
+    const failed = !!s.treatment && GRADE_REPERFUSED[s.treatment.grade] === 0;
+    const when = (failed ? c.attemptedAt : c.reopenedAt)(treatmentTime(s.reperfusionH, lang));
     const details = treatmentSummary(s.treatment, lang);
     if (!details) parts.push(when);
     else if (compact) parts.push(c.withDetails(when, details));

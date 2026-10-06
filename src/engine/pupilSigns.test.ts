@@ -62,8 +62,11 @@ describe('an eye with a third-nerve palsy shows no Horner syndrome of its own (W
     }
   });
 
-  it('both M1: third-nerve palsies on both sides, no Horner syndrome on either', () => {
-    const r = simulate({ ...input(['mca_m1_r', 'mca_m1_l'], 'good'), tH: 2160 });
+  // (both M1 at once swell alike and herniate downward, with no one-sided third-nerve palsy: V1-4;
+  // the left one a week after the right, each herniates to its own side)
+  it('the right M1, then the left one a week later: third-nerve palsies on both sides, no Horner syndrome on either', () => {
+    const i = input(['mca_m1_r', 'mca_m1_l'], 'poor');
+    const r = simulate({ ...i, occlusions: [i.occlusions[0], { ...i.occlusions[1], fromH: 168 }], tH: 2160 });
     for (const side of ['r', 'l'] as const) {
       expect(on(r, 'cn3_palsy', side), side).toBe(true);
       expect(on(r, 'horner', side), side).toBe(false);

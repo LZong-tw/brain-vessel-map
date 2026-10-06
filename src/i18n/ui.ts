@@ -179,7 +179,9 @@ const zh = {
     (a.penNote === 'saved' ? `半影區還有約 ${a.pen} mL 可救。` : `約 ${a.pen} mL 的半影區仍可能壞死${a.penNote === 'late' ? '（已過了再通治療的時間）' : ''}。`),
   nowHolding: (a: { core: string; pen: string }) => `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 的半影區靠側枝勉強維持。`,
   nowHoldingNoCore: (pen: string) => `幾乎還沒有組織壞死；約 ${pen} mL 缺血，暫時靠側枝血流撐著。`,
-  nowRecanalized: (a: { at: string; saved: string }) => `血管已在發作後 ${a.at}再通：半影區停止惡化，模型估計救回約 ${a.saved} mL。`,
+  // (the part of what it saves that a herniation of the untreated swelling would have infarcted, V1-6)
+  nowRecanalized: (a: { at: string; saved: string; secondary?: string }) =>
+    `血管已在發作後 ${a.at}再通：半影區停止惡化，模型估計救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}。`,
   nowSettled: (core: string) => `梗塞範圍大致定型（約 ${core} mL）；接下來的變化主要來自水腫與對其他腦區的續發影響。`,
   nowChronic: (core: string) => `壞死組織（約 ${core} mL）正被清除、形成疤痕與腦軟化；其餘腦區透過可塑性慢慢代償。`,
   nowChronicLoss: (core: string) => `約 ${core} mL 的腦組織已經永久失去；其餘腦區透過可塑性慢慢代償。`,
@@ -522,7 +524,10 @@ const en: Strings = {
       : `about ${a.pen} mL of penumbra may still be lost${a.penNote === 'late' ? ' (too late now to reopen the artery)' : ''}.`),
   nowHolding: (a: { core: string; pen: string }) => `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL of penumbra is just holding on through collaterals.`,
   nowHoldingNoCore: (pen: string) => `Almost nothing has died yet; about ${pen} mL is ischaemic and survives on collateral flow for now.`,
-  nowRecanalized: (a: { at: string; saved: string }) => `The vessel was reopened ${a.at} after onset: the penumbra stopped dying — the model estimates about ${a.saved} mL saved.`,
+  nowRecanalized: (a: { at: string; saved: string; secondary?: string }) =>
+    `The vessel was reopened ${a.at} after onset: the penumbra stopped dying — the model estimates about ${a.saved} mL saved${
+      a.secondary ? `, about ${a.secondary} mL of it in territories that the herniation of the untreated swelling would have infarcted` : ''
+    }.`,
   nowSettled: (core: string) => `The infarct has largely settled (about ${core} mL); what changes next comes from swelling and knock-on effects on other regions.`,
   nowChronic: (core: string) => `The dead tissue (about ${core} mL) is being cleared into a scar (encephalomalacia); the rest of the brain slowly compensates through plasticity.`,
   nowChronicLoss: (core: string) => `About ${core} mL of brain tissue is permanently lost; the rest of the brain slowly compensates through plasticity.`,

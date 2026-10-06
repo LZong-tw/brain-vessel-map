@@ -8,7 +8,7 @@ import { consciousnessFromShift, symptomsAddedAt } from './cascade';
 import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
-import { progressed, startOf, successorOf } from './schedule';
+import { endOf, progressed, startOf, successorOf } from './schedule';
 import { ALL_STOPS, noUnexplainedReturn } from './testing/courseChecks';
 import { unitState } from './tissue';
 import { DEFAULT_TISSUE } from './tissueParams';
@@ -51,6 +51,18 @@ describe('output invariants', () => {
         const treated = simulate(inputOf(id, { collateral, reperfusionH, tH: 24 })).volumes.finalInfarct;
         expect(treated, `${id} ${collateral} reperfusion ${reperfusionH} h`).toBeLessThanOrEqual(untreated + 0.01);
       }
+    }
+  });
+
+  // V1-6: what treatment saves is what the untreated course loses in the end and this one does not,
+  // the infarcts of a herniation that the reopening prevents included (the brain's, as the saved
+  // volume counts it)
+  it.each(withComplete.map((s) => [s.id]))('%s: the saved volume is the untreated final infarct less the treated one (V1-6)', (id) => {
+    const brain = (r: SimResult) => r.volumes.finalInfarct - r.volumes.cord.final;
+    for (const reperfusionH of [1, 4.5, 12]) {
+      const treated = simulate(inputOf(id, { reperfusionH, tH: 4320 }));
+      const untreated = simulate(inputOf(id, { reperfusionH: null, tH: 4320 }));
+      expect(treated.volumes.saved, `${id} reopened at ${reperfusionH} h`).toBeCloseTo(Math.max(0, brain(untreated) - brain(treated)), 1);
     }
   });
 
@@ -414,6 +426,27 @@ describe('syndromes and events agree with the symptoms', () => {
     ['anterior spinal artery good', [{ vessel: 'asa', severity: 1 }], 'good'],
     ['mca_m2_sup_r good', [{ vessel: 'mca_m2_sup_r', severity: 1 }], 'good'],
     ['ica_cervical_l 90 % at MAP 60', [{ vessel: 'ica_cervical_l', severity: 0.9 }], 'good', null, 60],
+    // V1-1: a larger occlusion of the other hemisphere a week after a malignant (poor) or a moderate
+    // (good) right M1 infarct; V1-4: both M1 arteries, which swell alike; V1-11: a left M1 that
+    // reopens by itself after 45 min, leaving an infarct
+    [
+      'mca_m1_r, then mca_m1_l at 1 week, poor',
+      [
+        { vessel: 'mca_m1_r', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 168 },
+      ],
+      'poor',
+    ],
+    [
+      'mca_m1_r, then mca_m1_l at 1 week, good',
+      [
+        { vessel: 'mca_m1_r', severity: 1, fromH: 0 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 168 },
+      ],
+      'good',
+    ],
+    ['both M1 moderate', [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], 'moderate'],
+    ['mca_m1_l moderate reopened by itself at 45 min', [{ vessel: 'mca_m1_l', severity: 1, toH: 0.75 }], 'moderate'],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -795,7 +828,9 @@ describe('syndromes and events agree with the symptoms', () => {
       if (!deficit || !TIA_STORY.some((id) => r.cascade.events.some((e) => e.id === id))) return;
       for (const id of TIA_STORY) expect(active, `${name} ${tH} h: ${id}`).not.toContain(id);
       const since = tH - Math.max(...r.input.occlusions.map((o) => Math.max(0, o.fromH ?? 0)).filter((h) => h <= tH));
-      if (since < 24) expect(active.filter((id) => id === 'treatment_window' || id === 'ear_stroke_workup'), `${name} ${tH} h`).toHaveLength(1);
+      // (until a treatment has reopened the artery: V1-11)
+      const treated = r.input.reperfusionH !== null && tH >= r.input.reperfusionH && !!r.treatment && !r.treatment.failed && r.treatment.reopened.length > 0;
+      if (since < 24) expect(active.filter((id) => id === 'treatment_window' || id === 'ear_stroke_workup'), `${name} ${tH} h`).toHaveLength(treated ? 0 : 1);
     });
   });
 
@@ -888,6 +923,72 @@ describe('syndromes and events agree with the symptoms', () => {
       expect(d.name.en, d.id).not.toMatch(/\((M1|M2|A1|A2|P1|P2|V4)\)/);
       expect(d.name.zh, d.id).not.toMatch(/（(M1|M2|A1|A2|P1|P2|V4)）/);
     }
+  });
+
+  /**
+   * V1: the swelling and the treatment course. Classes of contradiction: dead tissue coming back, or
+   * an earlier infarct's swelling and herniation vanishing, when a later occlusion begins (V1-1); a
+   * herniation to one side beside a midline that the swelling does not push across (V1-4); a story
+   * of blood returning when nothing reopened (V1-7); and the treatment windows offered for an artery
+   * that has been reopened (V1-11).
+   */
+  it.each(CASES)('%s: the core never shrinks, and a later occlusion leaves the earlier swelling and its herniation in place as it begins (V1-1)', (name) => {
+    const rs = series(name);
+    rs.forEach((r, i) => {
+      if (i) expect(r.volumes.core, `${name} ${STOPS[i]} h`).toBeGreaterThanOrEqual(rs[i - 1].volumes.core - 0.5);
+    });
+    const { input } = rs[0];
+    for (const s of [...new Set(input.occlusions.map(startOf))].filter((h) => h > 0)) {
+      const before = simulate({ ...input, tH: s - 0.1 });
+      const now = simulate({ ...input, tH: s });
+      expect(now.volumes.core, `${name} at ${s} h`).toBeGreaterThanOrEqual(before.volumes.core - 0.5);
+      expect(now.edema.massEffectMm, `${name} at ${s} h`).toBeGreaterThanOrEqual(before.edema.massEffectMm - 0.5);
+      if (before.cascade.fatalRisk.includes('herniation')) expect(now.cascade.fatalRisk, `${name} at ${s} h`).toContain('herniation');
+    }
+  });
+
+  it.each(CASES)('%s: a herniation to one side only where that side pushes the midline across (V1-4)', (name) => {
+    const rs = series(name);
+    const last = rs[rs.length - 1];
+    for (const side of ['r', 'l'] as const) {
+      const uncal = last.cascade.events.find((e) => e.id === `uncal_${side}`);
+      if (!uncal && !last.cascade.events.some((e) => e.id === `subfalcine_${side}`)) continue;
+      // (the stops, and the herniation itself, which may fall between them)
+      const at = uncal ? [uncal.onsetH, uncal.onsetH + 24, ...(uncal.endH !== undefined ? [(uncal.onsetH + uncal.endH) / 2] : [])] : [];
+      const shifts = [...rs, ...at.map((tH) => simulate({ ...last.input, tH }))];
+      const across = Math.max(...shifts.map((r) => (r.edema.shiftFrom === side ? r.edema.midlineShiftMm : 0)));
+      expect(across, `${name}: ${side}`).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it.each(CASES)('%s: a malignant oedema is told one way: not pushed across and down at once, nor at high risk while said to be malignant (V1-4)', (name) => {
+    for (const e of series(name)[STOPS.length - 1].cascade.events.filter((x) => x.id.startsWith('malignant_edema_'))) {
+      expect(/The swollen hemisphere pushes the midline across/.test(e.desc.en) && /push the brain down rather than across/.test(e.desc.en), `${name}: ${e.id}`).toBe(false);
+      expect(/腫脹的半球把中線推向對側/.test(e.desc.zh) && /把腦往下擠而不是推向對側/.test(e.desc.zh), `${name}: ${e.id}`).toBe(false);
+      if (/high risk/.test(e.title.en)) expect(e.desc.en, `${name}: ${e.id}`).not.toMatch(/is a malignant oedema/);
+    }
+  });
+
+  it.each(CASES)('%s: no event tells of blood returning when nothing reopened (V1-7)', (name) => {
+    const r = series(name)[STOPS.length - 1];
+    const { occlusions, reperfusionH } = r.input;
+    if (reperfusionH !== null || occlusions.some((o) => endOf(o) !== null && !progressed(occlusions, o))) return;
+    for (const e of r.cascade.events) {
+      expect(e.desc.en, `${name}: ${e.id}`).not.toMatch(/[Bb]lood returned/);
+      expect(e.desc.zh, `${name}: ${e.id}`).not.toContain('血流在發作後');
+    }
+  });
+
+  it.each(CASES)('%s: no treatment windows once a treatment has reopened the artery, or once an infarct\'s artery has reopened (V1-11)', (name) => {
+    series(name).forEach((r, i) => {
+      const tH = STOPS[i];
+      const { occlusions, reperfusionH } = r.input;
+      if (!occlusions.every((o) => startOf(o) === 0)) return;
+      const active = r.cascade.events.filter((e) => e.onsetH <= tH && tH < (e.endH ?? Infinity)).map((e) => e.id);
+      const treated = reperfusionH !== null && tH >= reperfusionH && !!r.treatment && !r.treatment.failed && r.treatment.reopened.length > 0;
+      const infarctOpen = r.recanalized && !r.cascade.events.some((e) => e.id === 'ischemia_no_infarct');
+      if (treated || infarctOpen) expect(active, `${name} ${tH} h`).not.toContain('treatment_window');
+    });
   });
 
   /**

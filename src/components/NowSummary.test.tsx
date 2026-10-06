@@ -239,3 +239,20 @@ describe('W3-8: an infarct of the upper cervical cord is told on Now', () => {
     expect(textAt(0, lang)).toMatch(lang === 'en' ? /about 2(\.0)? mL/i : /約 2(\.0)? mL/);
   });
 });
+
+describe('V1-6: what a reopening saves names the herniation it prevents', () => {
+  // the malignant right M1 of the template reopened at 2 h: without treatment it would herniate
+  const sc = SCENARIO_BY_ID['r_m1_malignant'];
+  const series = TIME_STOPS.map((st) =>
+    simulate({ occlusions: sc.occlusions, variants: [], collateral: sc.collateral ?? 'good', map: 93, tH: st.h, reperfusionH: 2, decompression: false }),
+  );
+  it.each(['zh-TW', 'en'] as Lang[])('%s: the saved volume, and the part a herniation of the untreated swelling would have infarcted', (lang) => {
+    const i = at(24);
+    const r = series[i];
+    expect(r.volumes.savedSecondary).toBeGreaterThan(50);
+    useApp.setState({ lang, tIndex: i });
+    const { container } = render(<NowSummary sim={r} series={series} />);
+    const text = container.textContent ?? '';
+    expect(text).toContain(UI[lang].nowRecanalized({ at: lang === 'en' ? '2 h' : '2 小時', saved: r.volumes.saved.toFixed(0), secondary: r.volumes.savedSecondary.toFixed(0) }));
+  });
+});

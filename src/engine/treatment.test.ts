@@ -92,10 +92,14 @@ describe('default treatment = the model before treatment details', () => {
   // four limbs and its gaze palsies at 72 h (NIHSS 8, was 4), and the progressive basilar
   // thrombosis reopened 6 h after it closed still a mild gaze palsy at 168 h (3, was 0). Their
   // volumes and the grading of the event did not change.
+  // V1: re-pinned deliberately. V1-6: what the treatment saves counts, besides the rescued
+  // penumbra, the territories that the herniation of the untreated swelling would have infarcted:
+  // the poor-collateral right M1 opened at 3 h saves 340.02 mL (was 151.61, the 485 mL of the
+  // untreated course with its herniation less the 145 mL left). Nothing else changed.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
     ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 29.51682781073422, finalInfarct: 29.51682781073422, saved: 136.00165047043836, nihss: 3, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
     ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5482283448164386, finalInfarct: 0.5482283448164386, saved: 2.289181788259874, nihss: 8, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 145.11593871100814, finalInfarct: 145.11593871100814, saved: 151.6100745947155, nihss: 14, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 145.11593871100814, finalInfarct: 145.11593871100814, saved: 340.0224159904678, nihss: 14, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
     ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5551361205040257, finalInfarct: 0.5551361205040257, saved: 2.2822740125722865, nihss: 3, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {

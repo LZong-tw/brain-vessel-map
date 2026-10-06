@@ -173,7 +173,9 @@ describe('Y2-13: both hemispheres and the level of consciousness', () => {
     expect(r.edema.midlineShiftMm).toBe(0);
     expect(r.edema.massEffectMm).toBeGreaterThanOrEqual(8);
     expect(item(r, '1a')).toBe(3);
-    expect(r.cascade.events.some((e) => e.id.startsWith('uncal_'))).toBe(true);
+    // (they swell alike, so the brain herniates downward, centrally: V1-4)
+    expect(r.cascade.events.some((e) => e.id === 'central_herniation')).toBe(true);
+    expect(r.cascade.events.some((e) => /^(uncal|subfalcine)_/.test(e.id))).toBe(false);
     expect(r.cascade.fatalRisk).toContain('herniation');
     // one fatal row, not one per hemisphere
     expect(r.cascade.events.filter((e) => e.id.startsWith('herniation_fatal_'))).toHaveLength(1);

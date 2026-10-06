@@ -39,10 +39,13 @@ describe('salvaged tissue', () => {
       for (const reperfusionH of [REPERFUSION_STOPS[0], 6, 24]) {
         const r = sim({ occlusions: sc.occlusions, variants: sc.variants ?? [], collateral: sc.collateral ?? 'good', map: sc.map ?? 93, reperfusionH, tH: 4320 });
         // tissue that treatment saved but that later dies from herniation is not salvaged, so the
-        // salvaged volume can only fall short of the saved volume when there are secondary infarcts
+        // salvaged volume can only fall short of the saved volume when there are secondary infarcts;
+        // the saved volume also counts the territories a herniation of the untreated swelling would
+        // have infarcted, which the map does not show as salvaged (V1-6)
+        const primary = r.volumes.saved - r.volumes.savedSecondary;
         const secondary = BEDS.some((b) => r.beds[b.id].effect === 'secondary');
-        if (secondary) expect(salvagedMl(r), `reperfusion ${reperfusionH} h`).toBeLessThanOrEqual(r.volumes.saved + 0.5);
-        else expect(salvagedMl(r), `reperfusion ${reperfusionH} h`).toBeCloseTo(r.volumes.saved, 0);
+        if (secondary) expect(salvagedMl(r), `reperfusion ${reperfusionH} h`).toBeLessThanOrEqual(primary + 0.5);
+        else expect(salvagedMl(r), `reperfusion ${reperfusionH} h`).toBeCloseTo(primary, 0);
       }
     },
   );

@@ -163,6 +163,11 @@ export interface FinalOutcome {
   fatal: FatalRisk[];
   /** the case as set has a substantial mortality (course.caveats): the 3- and 6-month results are a survivor's */
   caveats: SurvivalCaveat[];
+  /**
+   * its herniation is the central one of two hemispheres swelling alike (V1-4): the figures of one
+   * swollen hemisphere are named as such, without its outcome of survivors
+   */
+  centralHerniation: boolean;
   /** deficits at 3 and 6 months by group */
   deficits: { m3: Record<DeficitGroup, SymptomItem[]>; m6: Record<DeficitGroup, SymptomItem[]> };
   late: CascadeEvent[];
@@ -190,6 +195,7 @@ export function finalOutcome(input: OutcomeInput, known?: { m3?: SimResult; m6?:
     unsettled: finalH > H_6M + UNSETTLED_SLACK_H,
     fatal: course.fatal,
     caveats: course.caveats,
+    centralHerniation: course.m6.cascade.events.some((e) => e.id === 'central_herniation'),
     deficits: { m3: groupDeficits(course.m3.symptoms), m6: groupDeficits(course.m6.symptoms) },
     late: lateEvents(course.m6),
     regions: finalRegions(course.m6),

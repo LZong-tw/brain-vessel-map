@@ -244,6 +244,7 @@ export const SCIENTIFIC_REFERENCES: string[] = [
   'Ayata C, Ropper AH. Ischaemic brain oedema. J Clin Neurosci 2002;9:113–124.',
   'Hacke W et al. \'Malignant\' middle cerebral artery territory infarction: clinical course and prognostic signs. Arch Neurol 1996;53:309–315.',
   'Ropper AH. Lateral displacement of the brain and level of consciousness in patients with an acute hemispheral mass. N Engl J Med 1986;314:953–958.',
+  'Riveros Gilardi B et al. Types of cerebral herniation and their imaging features. Radiographics 2019;39:1598–1610.',
   'Krabbe-Hartkamp MJ et al. Circle of Willis: morphologic variation on three-dimensional time-of-flight MR angiograms. Radiology 1998;207:103–111.',
   'Hindenes LB et al. Variations in the circle of Willis in a large population sample using 3D TOF angiography: the Tromsø Study. PLoS One 2020;15:e0241373.',
   'Dirnagl U, Iadecola C, Moskowitz MA. Pathobiology of ischaemic stroke: an integrated view. Trends Neurosci 1999;22:391–397.',

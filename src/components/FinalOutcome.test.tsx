@@ -419,7 +419,9 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
       { vessel: a, severity: 1 },
       { vessel: b, severity: 1 },
     ];
-    useApp.setState({ occlusions: both('mca_m1_r', 'mca_m1_l'), collateral: 'good', rightTab: 'final' });
+    // (both carotid T: both MCA infarcts with good collaterals no longer destroy both hemispheres,
+    // their herniation being central, with no secondary infarcts: V1-4)
+    useApp.setState({ occlusions: both('ica_terminal_r', 'ica_terminal_l'), collateral: 'good', rightTab: 'final' });
     const { container } = render(<RightPanel sim={simOf()} />);
     const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
     const danger = nihss.querySelector('.callout.danger') as HTMLElement;
@@ -441,6 +443,29 @@ describe('最終 tab: a course that usually ends in death (C4-F1)', () => {
     expect(n3.querySelector('.callout.danger')).toBeNull();
     expect((n3.querySelector('.callout.warn') as HTMLElement).textContent).toBe(OUTCOME_UI['zh-TW'].survival.bilateral_hemispheres);
     within(n3).getByText('6 個月（假如存活）');
+  });
+
+  // V1-4: both cervical ICAs swell alike and herniate downward: not the figures and the survivors of one hemisphere
+  it('two hemispheres herniating downward together: their own note, not one hemisphere\'s outcome of survivors', () => {
+    useApp.setState({
+      occlusions: [
+        { vessel: 'ica_cervical_r', severity: 1 },
+        { vessel: 'ica_cervical_l', severity: 1 },
+      ],
+      collateral: 'good',
+      rightTab: 'final',
+    });
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const nihss = container.querySelector('.outcome-nihss') as HTMLElement;
+    expect((nihss.querySelector('.callout.danger') as HTMLElement).textContent).toBe(OUTCOME_UI['zh-TW'].fatalCentral);
+    expect(nihss.textContent).not.toContain('存活者多數仍可達 mRS 0–4');
+    within(nihss).getByText('3 個月（假如存活）');
+    cleanup();
+    useApp.setState({ lang: 'en' });
+    const en = render(<RightPanel sim={simOf()} />);
+    const n2 = en.container.querySelector('.outcome-nihss') as HTMLElement;
+    expect(n2.textContent).toContain(OUTCOME_UI.en.fatalCentral);
+    expect(n2.textContent).not.toContain('most survivors still reach mRS 0–4');
   });
 
   // Y3-11: a locked-in syndrome is not "usually fatal", but its 3- and 6-month NIHSS is a survivor's

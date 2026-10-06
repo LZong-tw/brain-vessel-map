@@ -130,6 +130,12 @@ export interface CascadeInput {
   bedFinal: Record<string, number>;
   /** eventual infarcted fraction per bed if nothing were done */
   bedFinalUntreated: Record<string, number>;
+  /**
+   * the final infarct (mL) if nothing were done, with the secondary infarcts of its own herniation
+   * (that course's withSecondary); given when there is a treatment. What the treatment saves is
+   * counted against it, so the herniation infarcts it prevents count as saved too (V1-6)
+   */
+  untreatedWithSecondary?: number;
   /** infarcted fraction per bed at 14 h (≈ the early DWI lesion used to predict malignant oedema) */
   bedEarly: Record<string, number>;
   /** fraction of each region that is dysfunctional in the first hours (core + penumbra) */
@@ -151,6 +157,12 @@ export interface CascadeInput {
    * artery, or an occlusion reopening by itself; null or left out when it never does
    */
   flowReturnsH?: number | null;
+  /**
+   * when the index occlusion is first reopened (hours after onset): by treatment, or by itself,
+   * even if it closes again later; null or left out when it never is. The treatment windows end
+   * then (V1-11)
+   */
+  reopensH?: number | null;
   /**
    * how the treatment at reperfusionH went (engine/treatment.ts); left out for the default
    * treatment (complete, lasting reperfusion), which keeps the general event texts
@@ -201,6 +213,19 @@ export interface CascadeInput {
    * default timing (day 3 to two weeks).
    */
   shift?: Partial<Record<Side, HerniationShift>>;
+  /**
+   * the swelling of both hemispheres together when both swell (the mass effect from whichever side,
+   * or both; clinical clock), worked out by simulate(): when it reaches the coma range while the
+   * midline shift of neither side does, the brain herniates downward, centrally (V1-4)
+   */
+  centralShift?: HerniationShift;
+  /**
+   * when each hemisphere's and the posterior fossa's own lesion began (clinical clock; before the
+   * index onset for an earlier lesion): the occlusion start credited with most of its infarct. Its
+   * swelling, herniation and oedema events run on that clock (V1-1). Left out, every lesion dates
+   * from the index onset.
+   */
+  hemiOnsetH?: Partial<Record<Side | 'infra', number>>;
 }
 
 /**
@@ -305,6 +330,11 @@ export interface HerniationShift {
   comaFromH: number | null;
   /** when, after the herniation began, it falls below the coma range again (null: not within the horizon) */
   comaUntilH: number | null;
+  /**
+   * the largest midline shift (mm) pushing from this side: the horizontal displacement itself, which
+   * only differs from the mass effect when both hemispheres swell (V1-4)
+   */
+  lateralPeakMm?: number;
 }
 
 /**
@@ -602,6 +632,21 @@ function outcomeSentence(outcome: ReperfusionOutcome | undefined, savedVolume = 
 }
 
 /**
+ * what the treatment spares, split when part of it is the infarct a herniation of the untreated
+ * swelling would have added (the territories it compresses; V1-6): "~382 mL less infarct: ~193 mL
+ * of penumbra, and ~189 mL …"
+ */
+function savedSplit(saved: number, secondary: number): L {
+  if (secondary < 0.5) return { zh: '', en: '' };
+  const pen = (saved - secondary).toFixed(0);
+  const sec = secondary.toFixed(0);
+  return {
+    zh: `：約 ${pen} mL 是救回的半影區，約 ${sec} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域`,
+    en: `: ~${pen} mL of penumbra, and ~${sec} mL of the territories that the herniation of the untreated swelling would have infarcted`,
+  };
+}
+
+/**
  * The recanalisation event when the treatment details differ from the default: it names the
  * method and the eTICI grade, says how much of the territory got its flow back, and says so when
  * the attempt failed.
@@ -615,6 +660,7 @@ function reperfusionEvent(
   avoided: FatalRisk[] = [],
   treatedFatal = false,
   rightSided = false,
+  savedSecondary = 0,
 ): CascadeEvent {
   const m = METHOD_NAME[t.method];
   const g = GRADE_MEANING[t.grade];
@@ -650,8 +696,8 @@ function reperfusionEvent(
     onsetH: reperfusionH,
     title: { zh: `血管再通：${m.zh}，eTICI ${t.grade}`, en: `Recanalisation: ${m.en}, eTICI ${t.grade}` },
     desc: {
-      zh: `eTICI ${t.grade}：${g.zh}${ivtNote.zh}。${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-      en: `eTICI ${t.grade}: ${g.en}${ivtNote.en}.${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+      zh: `eTICI ${t.grade}：${g.zh}${ivtNote.zh}。${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+      en: `eTICI ${t.grade}: ${g.en}${ivtNote.en}.${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
     },
     regions: [],
   };
@@ -716,7 +762,14 @@ export interface CascadeOutput {
   /** mL, eventual infarct volume per compartment */
   /** eventual infarct volumes of the arterial occlusion itself (mL); `withSecondary` adds tissue lost to herniation etc. */
   volumes: { supra: Record<Side, number>; cerebellum: Record<Side, number>; brainstem: number; total: number; withSecondary: number };
+  /**
+   * mL the treatment spares in the end: the untreated final infarct with its herniation's secondary
+   * infarcts less this course's (V1-6); without the untreated course's figure, of the primary
+   * infarct only
+   */
   savedVolume: number;
+  /** … of which the infarcts a herniation of the untreated swelling would have added (V1-6) */
+  savedSecondary: number;
   hydrocephalusOnsetH: number | null;
   /** when the acute obstructive episode is over (the 'hydrocephalus' event's endH) */
   hydrocephalusEndH: number | null;
@@ -933,6 +986,11 @@ export interface AttackStory {
   /** the flow came back with IV thrombolysis (alone or before thrombectomy) */
   thrombolysed: boolean;
   /**
+   * when a treatment reopened the artery, or null: the windows for it end then, whatever the
+   * deficit (V1-11)
+   */
+  treatedH?: number | null;
+  /**
    * only the inner ear is ischaemic: while the deafness and vertigo last, the inner-ear stroke
    * emergency instead of the brain's treatment windows
    */
@@ -954,14 +1012,15 @@ const ATTACK_EAR_INTRO: L = {
 /**
  * The story of brain ischaemia that began at `fromH` and left no infarct, cut off at `untilH`
  * (when a later occlusion starts a new episode): the treatment windows while its deficit lasts
- * (within a day of its start), and the TIA story from when the deficit has cleared (Z4-11).
+ * (within a day of its start, and until a treatment reopened the artery: V1-11), and the TIA story
+ * from when the deficit has cleared (Z4-11).
  * simulate() also tells it for a reopened phase before the index event, such as the prodromal
  * attack of a progressive basilar thrombosis (C3-F8).
  */
 export function noInfarctEvents(fromH: number, untilH: number, attack: AttackStory): CascadeEvent[] {
   const events: CascadeEvent[] = [];
   const clears = attack.clearsH !== null && attack.clearsH < untilH ? Math.max(fromH, attack.clearsH) : null;
-  const windowEnd = Math.min(clears ?? Infinity, untilH, fromH + 24);
+  const windowEnd = Math.min(clears ?? Infinity, untilH, fromH + 24, attack.treatedH ?? Infinity);
   if (windowEnd > fromH)
     events.push(
       attack.earOnly
@@ -1426,7 +1485,16 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     else if (reg.category === 'brainstem') vol.brainstem += v;
     else vol.cerebellum[s] += v;
   }
-  const savedVolume = Math.max(0, untreatedTotal - vol.total);
+  /** what the treatment spares of the primary infarct (the penumbra it rescues) */
+  const savedPrimary = Math.max(0, untreatedTotal - vol.total);
+  /**
+   * what it spares in the end: the untreated final infarct with its herniation's secondary infarcts
+   * less this course's, so a herniation infarct it prevents counts as saved (V1-6); the primary
+   * part until those are placed (below)
+   */
+  let savedVolume = savedPrimary;
+  /** … of which the infarcts of a herniation that the untreated swelling would have caused */
+  let savedSecondary = 0;
   const earlySupra: Record<Side, number> = { r: 0, l: 0 };
   /** the MCA share of each hemisphere's infarct, early (≤ 14 h) and final (Z3-4) */
   const mcaEarly: Record<Side, number> = { r: 0, l: 0 };
@@ -1480,6 +1548,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         earOnly: ischaemicRegions.every((rid) => REGION_BY_ID[rid].category === 'ear'),
         thrombolysed:
           reperfusionH !== null && input.occlusions.some(isTreatable) && !!input.treatment && input.treatment.method !== 'evt' && !input.treatment.failed,
+        // (a treatment that reopened the artery has been given: its windows end then, V1-11)
+        treatedH: reperfusionH !== null && input.occlusions.some(isTreatable) && !input.treatment?.failed ? reperfusionH : null,
       }),
     );
   else if (brainStory) {
@@ -1516,16 +1586,21 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           },
       regions: [],
     });
-    events.push({
-      id: 'treatment_window',
-      kind: 'treatment',
-      severity: 'warn',
-      onsetH: 0,
-      endH: 24,
-      title: { zh: '治療時間窗', en: 'Treatment windows' },
-      desc: lacunarOnly ? LACUNAR_WINDOW : treatmentWindowDesc(story),
-      regions: [],
-    });
+    // offered within a day of onset, until the artery is reopened (by treatment or by itself): an
+    // artery already open was still offered thrombolysis and thrombectomy for the rest of the day
+    // (V1-11), while the TIA story already ended them when the deficit cleared (Z4-11)
+    const windowEndH = Math.min(24, input.reopensH ?? Infinity);
+    if (windowEndH > 0)
+      events.push({
+        id: 'treatment_window',
+        kind: 'treatment',
+        severity: 'warn',
+        onsetH: 0,
+        endH: windowEndH,
+        title: { zh: '治療時間窗', en: 'Treatment windows' },
+        desc: lacunarOnly ? LACUNAR_WINDOW : treatmentWindowDesc(story),
+        regions: [],
+      });
   }
 
   // the spinal cord has a story of its own, beside the brain's when the medulla is ischaemic too (W3-8)
@@ -1554,7 +1629,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const delayH = starts.length ? reperfusionH - Math.max(...starts) : reperfusionH;
     reperfusion = {
       at: events.length,
-      make: (avoided, treatedFatal) => reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome, avoided, treatedFatal, rightSided),
+      make: (avoided, treatedFatal) =>
+        reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome, avoided, treatedFatal, rightSided, savedSecondary),
     };
     events.push(reperfusion.make([], false));
     pushTreatmentComplications(events, treatment, reperfusionH);
@@ -1569,8 +1645,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: reperfusionH,
         title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
         desc: {
-          zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-          en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+          zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+          en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
         },
         regions: [],
       };
@@ -1584,14 +1660,42 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   let hydrocephalusEndH: number | null = null;
   const fatalRisk = new Set<FatalRisk>();
   let palatalTremorFromH: number | null = null;
+  /**
+   * when each hemisphere's and the posterior fossa's own lesion began (clinical clock; before the
+   * index onset for an earlier lesion): its swelling, its herniation and its oedema events run on
+   * that clock. With stacked occlusions the other hemisphere's swelling follows its own lesion
+   * (Z3-4: the oedema of a right M1 occluded two days after a left one began on day 1 of the left),
+   * and so does an earlier lesion's (V1-1: a malignant right M1 infarct lost its swelling, its
+   * herniation infarct and its events for days when a larger left M1 began a week later and became
+   * the index event)
+   */
+  const lesionOnset = (k: Side | 'infra') => input.hemiOnsetH?.[k] ?? 0;
+  const sideOnset = (sd: Side) => lesionOnset(sd);
+  const infraOnset = lesionOnset('infra');
   if (vol.total >= 3) {
+    // the index lesion's, joined with those of the other lesions whose oedema overlaps it: from the
+    // first barrier breakdown to the last resolution (V1-1: a malignant right M1 infarct's oedema
+    // event vanished for half a day when a larger left M1 began a week later)
+    let first = 12;
+    let last = 400;
+    const others = [
+      ...(['r', 'l'] as Side[]).filter((sd) => vol.supra[sd] > 0).map(sideOnset),
+      ...(vol.cerebellum.r + vol.cerebellum.l + vol.brainstem > 0 ? [infraOnset] : []),
+    ].sort((a, b) => a - b);
+    for (let grew = true; grew; ) {
+      grew = false;
+      for (const o of others)
+        if (o + 12 < last && o + 400 > first && (o + 12 < first || o + 400 > last)) {
+          [first, last, grew] = [Math.min(first, o + 12), Math.max(last, o + 400), true];
+        }
+    }
     events.push({
       id: 'vasogenic_edema',
       kind: 'mechanism',
       severity: 'warn',
-      onsetH: 12,
-      peakH: 84,
-      endH: 400,
+      onsetH: first,
+      peakH: first + 72,
+      endH: last,
       shiftSymptoms: true,
       title: { zh: '血管性水腫（第 2–5 天達高峰）', en: 'Vasogenic oedema (peaks day 2–5)' },
       desc: {
@@ -1606,19 +1710,6 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // can reach the malignant course and the coma range although the midline hardly moves
   /** texts that quote the final volumes, written once the herniations' secondary infarcts are placed (Y3-3) */
   const withVolumes: ((wholeMl: number, secondaryMl: Record<Side, number>) => void)[] = [];
-  /**
-   * when each hemisphere's own lesion began (clinical clock): its earliest region that its occlusions
-   * infarct, not before the index onset. With stacked occlusions the other hemisphere's swelling
-   * follows its own lesion (Z3-4: the oedema of a right M1 occluded two days after a left one began
-   * on day 1 of the left)
-   */
-  const hemiOnset: Record<Side, number> = { r: Infinity, l: Infinity };
-  for (const b of BEDS) {
-    const reg = REGION_BY_ID[b.region];
-    if (reg.compartment !== 'supra' || reg.side === 'm' || (rf[b.region] ?? 0) < 0.25) continue;
-    hemiOnset[reg.side] = Math.min(hemiOnset[reg.side], Math.max(0, input.regionOnsetH?.[b.region] ?? 0));
-  }
-  const sideOnset = (sd: Side) => (Number.isFinite(hemiOnset[sd]) ? hemiOnset[sd] : 0);
   const bothSwell = vol.supra.r >= MASS_EFFECT_ML && vol.supra.l >= MASS_EFFECT_ML;
   // Together, two hemispheres reach the malignant course only by their MCA infarcts, each of a size
   // that swells (Z3-4): the thresholds come from MCA-territory infarction (Oppenheim 2000; Hacke
@@ -1627,6 +1718,45 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // moderate mass effect, whose swelling still counts together for the level of consciousness.
   const bothMca = mcaFinal.r >= MASS_EFFECT_ML && mcaFinal.l >= MASS_EFFECT_ML;
   const jointMalignant = bothSwell && bothMca && (mcaEarly.r + mcaEarly.l >= MALIGNANT_EARLY_ML || mcaFinal.r + mcaFinal.l >= MALIGNANT_FINAL_ML);
+  /** at risk by this hemisphere's own infarct, not only with the other's (Z3-4) */
+  const ownRiskOf = (sd: Side) => earlySupra[sd] >= MALIGNANT_EARLY_ML || vol.supra[sd] >= MALIGNANT_FINAL_ML;
+  // Two hemispheres that swell together while the midline itself stays short of the coma range
+  // push the brain down, not across: when their joint swelling reaches the coma range, the
+  // herniation is central (descending transtentorial: the diencephalon and the midbrain are pushed
+  // down through the tentorial notch; transtentorial herniation is lateral or central, Riveros
+  // Gilardi 2019), not one to one side with a subfalcine herniation, a one-sided third-nerve palsy,
+  // a Kernohan notch and one-sided secondary infarcts (V1-4: both cervical ICAs herniated to the
+  // right beside a midline shift of 1.3 mm). From day 3 of the newer lesion, while the joint
+  // swelling stays in the coma range, as a herniation to one side does. Which hemisphere's swelling
+  // decides: a side whose own push across reaches the coma range herniates to its side, as before.
+  const cs = input.centralShift;
+  const centralFromH = cs && cs.comaFromH !== null ? Math.max(Math.max(sideOnset('r'), sideOnset('l')) + UNCAL_ONSET_H, cs.comaFromH) : null;
+  const central =
+    !decompression &&
+    bothSwell &&
+    cs &&
+    centralFromH !== null &&
+    (cs.comaUntilH === null || cs.comaUntilH > centralFromH) &&
+    !(['r', 'l'] as Side[]).some((sd) => (input.shift?.[sd]?.lateralPeakMm ?? 0) >= COMA_SHIFT_MM)
+      ? { fromH: centralFromH, untilH: cs.comaUntilH, peakMm: cs.peakMm }
+      : null;
+  /** the swelling of this hemisphere (alone or with the other one) reaches the coma range (W2-1), or both herniate centrally */
+  const swellsIntoComaOf = (sd: Side) => (input.shift?.[sd]?.comaFromH ?? null) !== null || (central !== null && vol.supra[sd] >= MASS_EFFECT_ML);
+  /**
+   * the herniation of one side: from day 3 of its own lesion (V1-1), or later when the shift gets
+   * into the coma range later, until it falls below it again (R6-5, R6-2); when both hemispheres
+   * swell, only when that side's own push across reaches the coma range (V1-4)
+   */
+  const lateralOf = (sd: Side) => {
+    const sh = input.shift?.[sd];
+    const floor = sideOnset(sd) + UNCAL_ONSET_H;
+    const uncalH = Math.max(floor, sh?.comaFromH ?? floor);
+    const endH = sh ? sh.comaUntilH : sideOnset(sd) + HERNIATION_END_H;
+    const across = !bothSwell || !sh || sh.lateralPeakMm === undefined || sh.lateralPeakMm >= COMA_SHIFT_MM;
+    const malignant = ownRiskOf(sd) || jointMalignant || swellsIntoComaOf(sd);
+    const herniates = malignant && !decompression && across && (!sh || (sh.comaFromH !== null && (endH === null || endH > uncalH)));
+    return { sh, uncalH, endH, herniates };
+  };
   for (const s of ['r', 'l'] as Side[]) {
     const v = vol.supra[s];
     const sideZh = s === 'r' ? '右' : '左';
@@ -1644,8 +1774,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // C4-F2). Timing: of 53 massive MCA infarcts that deteriorated from oedema, 36% did so within
     // 24 h and 68% by 48 h, and deaths peaked on day 3 (Qureshi AI et al. Crit Care Med
     // 2003;31:272–277); deterioration over days 2–5 (Hacke W et al. Arch Neurol 1996;53:309–315).
-    /** at risk by this hemisphere's own infarct, not only with the other's (Z3-4) */
-    const ownRisk = earlySupra[s] >= MALIGNANT_EARLY_ML || v >= MALIGNANT_FINAL_ML;
+    const ownRisk = ownRiskOf(s);
     // The swelling the oedema model computes for this hemisphere (alone, or with the other one:
     // Y2-13) reaches the coma range, whatever the size thresholds say (W2-1): a swelling that
     // large is a malignant oedema, and it herniates as the others do (from day 3, while the shift
@@ -1655,26 +1784,33 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // first fall in consciousness, even coma, came with the horizontal shift before any
     // transtentorial herniation, which is why the coma here comes first and the herniation from
     // day 3: Ropper 1986.)
-    const swellsIntoComa = (input.shift?.[s]?.comaFromH ?? null) !== null;
+    const swellsIntoComa = swellsIntoComaOf(s);
     if (ownRisk || jointMalignant || swellsIntoComa) {
       // Without decompression the swelling herniates when the oedema model's midline shift
       // reaches the coma range (≥ 8 mm, Ropper 1986): from day 3, or later when the shift gets
       // there later, until it falls below it again; a shift that stays below it brings
       // drowsiness or stupor, not a herniation (R6-5, R6-2). A large early lesion still carries
       // the risk, which the event names.
-      const sh = input.shift?.[s];
-      const uncalH = Math.max(UNCAL_ONSET_H, sh?.comaFromH ?? UNCAL_ONSET_H);
-      const herniationEndH = sh ? sh.comaUntilH : HERNIATION_END_H;
-      const herniates = !decompression && (!sh || (sh.comaFromH !== null && (herniationEndH === null || herniationEndH > uncalH)));
-      const peakMm = sh ? +sh.peakMm.toFixed(1) : null;
+      const { sh, uncalH, endH: herniationEndH, herniates } = lateralOf(s);
+      const peakMm = central ? +central.peakMm.toFixed(1) : sh ? +sh.peakMm.toFixed(1) : null;
       const outlook: L = decompression
         ? { zh: '已施行減壓性顱骨切除，讓腦組織向外膨出而不壓迫腦幹。', en: 'Decompressive craniectomy lets the brain swell outward instead of into the brainstem.' }
         : herniates
           ? { zh: '若未減壓，大多數會因疝脫死亡（見「疝脫後很可能死亡」）。', en: 'Without decompression most patients die of herniation (see "Death likely after herniation").' }
-          : bothSwell && (peakMm ?? 0) >= COMA_SHIFT_MM
+          : central
+            ? {
+                zh: '兩側一起腫脹：若未減壓，大多數會因腦向下的中央型疝脫死亡（見「中央型天幕切跡疝脫」與「疝脫後很可能死亡」）。',
+                en: 'Swelling together with the other hemisphere, without decompression most patients die of a central herniation, the brain pushed down through the tentorial notch (see "Central transtentorial herniation" and "Death likely after herniation").',
+              }
+            : bothSwell && (peakMm ?? 0) >= COMA_SHIFT_MM && lateralOf(o).herniates
             ? {
                 zh: `與另一側合計的腫脹已達昏迷的範圍（換算約 ${peakMm} mm 的中線偏移），疝脫來自腫得較厲害的另一側半球（見該側的事件）。`,
                 en: `Together with the other hemisphere's swelling it reaches the coma range (about ${peakMm} mm, counted as one side's midline shift); the herniation comes from the more swollen other hemisphere (see its events).`,
+              }
+            : bothSwell && (peakMm ?? 0) >= COMA_SHIFT_MM
+            ? {
+                zh: `與另一側合計的腫脹已達昏迷的範圍（換算約 ${peakMm} mm 的中線偏移），但在第 3 天之前就降到昏迷的範圍以下，模型沒有讓它疝脫。這麼大的梗塞仍是高風險，實務上要密切觀察。`,
+                en: `Together with the other hemisphere's swelling it reaches the coma range (about ${peakMm} mm, counted as one side's midline shift), but falls below it again before day 3, and the model does not let it herniate. Lesions this size are still at high risk and are watched closely.`,
               }
             : bothSwell
               ? {
@@ -1698,9 +1834,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       // PCA territories it compresses), when it adds any, which are known only once its effects
       // are placed (withVolumes below)
       const early = earlySupra[s].toFixed(0);
+      // (when both swell, the push across is the rule for one swollen hemisphere, which the note on
+      // the other then qualifies: V1-4)
       const rest = {
-        zh: `腫脹的半球把中線推向對側，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
-        en: ` The swollen hemisphere pushes the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
+        zh: `${bothSwell ? '單側腫脹的半球會把中線推向對側' : '腫脹的半球把中線推向對側'}，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
+        en: ` ${bothSwell ? 'On its own, a swollen hemisphere pushes' : 'The swollen hemisphere pushes'} the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
       };
       const event: CascadeEvent = {
         id: `malignant_edema_${s}`,
@@ -1711,7 +1849,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         endH: sideOnset(s) + 336,
         shiftSymptoms: true,
         title:
-          decompression || herniates
+          decompression || herniates || central
             ? { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` }
             : { zh: `${sideZh}大腦半球：惡性腦水腫高風險`, en: `${sideEn === 'right' ? 'Right' : 'Left'} hemisphere: high risk of malignant oedema` },
         desc: { zh: '', en: '' },
@@ -1759,8 +1897,22 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
                 en: ` On its own this hemisphere's early infarct is under the 145 mL that marks a malignant infarct; but the MCA infarcts of both hemispheres are large enough to swell, ≈ ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL in both hemispheres together within 14 h and ≈ ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL in the end, and the model holds both hemispheres together against the thresholds of one (> 145 mL within 14 h, or a very large final infarct).`,
               }
             : {
-                zh: `單看大小，這個梗塞未達惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）；但模型算出的腫脹${bothSwell ? '與另一側合計' : ''}已達昏迷的範圍（${bothSwell ? '換算為單側' : ''}約 ${peakMm} mm 的中線偏移，模型從 8 mm 起算昏迷）：腫到讓人昏迷就是惡性腦水腫，模型讓它和其他惡性水腫一樣，從第 3 天起、在中線偏移仍達昏迷範圍時疝脫。`,
-                en: ` By its size alone this infarct does not reach the thresholds of a malignant infarct (> 145 mL within 14 h, or a very large final infarct); but the swelling the model computes${bothSwell ? ' together with the other hemisphere’s' : ''} reaches the coma range (about ${peakMm} mm${bothSwell ? ', counted as one side’s midline shift' : ' of midline shift'}; the model counts coma from 8 mm). A swelling that puts the patient into a coma is a malignant oedema, and the model lets it herniate as it does the others: from day 3, while the shift stays in the coma range.`,
+                // (how it herniates: to its own side, downward with the other hemisphere, or not at
+                // all, the herniation coming from the other side: V1-4)
+                zh: `單看大小，這個梗塞未達惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）；但模型算出的腫脹${bothSwell ? '與另一側合計' : ''}已達昏迷的範圍（${bothSwell ? '換算為單側' : ''}約 ${peakMm} mm 的中線偏移，模型從 8 mm 起算昏迷）${
+                  herniates
+                    ? '：腫到讓人昏迷就是惡性腦水腫，模型讓它和其他惡性水腫一樣，從第 3 天起、在中線偏移仍達昏迷範圍時疝脫。'
+                    : central
+                      ? '：腫到讓人昏迷就是惡性腦水腫。兩側腫得差不多，中線本身沒有被推到昏迷的範圍，模型讓腦向下疝脫（中央型疝脫），從第 3 天起、在兩側合計的腫脹仍達昏迷範圍時。'
+                      : '。'
+                }`,
+                en: ` By its size alone this infarct does not reach the thresholds of a malignant infarct (> 145 mL within 14 h, or a very large final infarct); but the swelling the model computes${bothSwell ? ' together with the other hemisphere’s' : ''} reaches the coma range (about ${peakMm} mm${bothSwell ? ', counted as one side’s midline shift' : ' of midline shift'}; the model counts coma from 8 mm)${
+                  herniates
+                    ? '. A swelling that puts the patient into a coma is a malignant oedema, and the model lets it herniate as it does the others: from day 3, while the shift stays in the coma range.'
+                    : central
+                      ? '. A swelling that puts the patient into a coma is a malignant oedema. The two hemispheres swell alike and the midline itself is not pushed into the coma range, so the model lets the brain herniate downward (central herniation): from day 3, while their joint swelling stays in the coma range.'
+                      : '.'
+                }`,
               };
         event.desc = { zh: `${head.zh}${tail.zh}${joint.zh}${rest.zh}`, en: `${head.en}${tail.en}${joint.en}${rest.en}` };
       });
@@ -1770,7 +1922,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           id: `hemicraniectomy_${s}`,
           kind: 'treatment',
           severity: 'good',
-          onsetH: 36,
+          onsetH: sideOnset(s) + 36,
           title: { zh: '減壓性半側顱骨切除術', en: 'Decompressive hemicraniectomy' },
           desc: {
             zh: '在 48 小時內（60 歲以下證據最強）移除一大片頭骨並擴大硬腦膜。三個隨機試驗的合併分析（60 歲以下、48 小時內）：一年存活 78% vs 未手術 29%，mRS 0–4 的比例 75% vs 24%；但存活者常留下中重度失能（Vahedi 2007）。',
@@ -1874,6 +2026,55 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     }
   }
 
+  // The central herniation of two hemispheres swelling alike (V1-4, see `central` above). The
+  // diencephalon and then the midbrain and the rostral pons are pressed down through the tentorial
+  // notch while the joint swelling stays in the coma range; the signs are those of both sides
+  // (Plum and Posner: drowsiness, then small pupils, periodic breathing and posturing, the pupils
+  // later fixed in mid-position), not the one-sided dilated pupil and Kernohan weakness of an
+  // uncal herniation. The posterior cerebral arteries can be pressed against the tentorial edge in
+  // any transtentorial herniation; the model adds no secondary infarct here, as it cannot tell
+  // which side or how much (a model choice, said in the text). Death is the usual end without
+  // decompression; the figures of one hemisphere (Hacke 1996; Vahedi 2007) are named as such.
+  if (central) {
+    const { fromH, untilH } = central;
+    const compressionEndH = untilH ?? undefined;
+    const mid = BEDS.filter((b) => /^midbrain_/.test(b.region));
+    mid.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: fromH, endH: compressionEndH, event: 'central_herniation' }));
+    const ponsH = fromH + PONS_COMPRESSION_LAG_H;
+    const pons = BEDS.filter((b) => /^pons_rostral_(tegmentum|basis)/.test(b.region));
+    if (compressionEndH === undefined || compressionEndH > ponsH)
+      pons.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: ponsH, endH: compressionEndH, event: 'central_herniation' }));
+    events.push({
+      id: 'central_herniation',
+      kind: 'secondary',
+      severity: 'danger',
+      onsetH: fromH,
+      peakH: Math.max(120, fromH),
+      ...(untilH === null ? {} : { endH: untilH }),
+      title: { zh: '中央型天幕切跡疝脫 → 間腦與中腦向下受壓', en: 'Central transtentorial herniation → diencephalon & midbrain pushed down' },
+      desc: {
+        zh: `兩側大腦半球一起腫脹，把腦往下擠而不是推向一側：間腦、接著中腦與上段橋腦被往下壓進小腦天幕切跡——天幕切跡疝脫分成向一側的（鉤迴）與中央型兩種，這裡是中央型。意識降到昏迷，呼吸可能變成週期性（陳施氏呼吸），瞳孔先是小而有反應、之後固定在中間大小，兩側肢體出現異常姿勢；早期不會像鉤迴疝脫那樣一側瞳孔放大，也沒有大腦鐮下疝脫（那需要中線被推向對側）。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。任何天幕切跡疝脫都可能把後大腦動脈壓在天幕邊緣而造成枕葉梗塞；模型在這裡沒有加上這種續發梗塞，因為無法從兩側的腫脹判斷是哪一側、多大。若病人存活，昏迷要等水腫消退、兩側合計的腫脹降到昏迷範圍（換算 8 mm）以下${untilH === null ? '' : `（這裡約在發病後 ${Math.round(untilH)} 小時）`}才逐漸解除。`,
+        en: `Both hemispheres swell together and push the brain down rather than to one side: the diencephalon, then the midbrain and the upper pons are pressed down through the tentorial notch. Transtentorial herniation is lateral (uncal) or central, and this is central. Consciousness falls into coma, breathing may become periodic (Cheyne–Stokes), the pupils are first small and reactive and later fixed in mid-position, and both sides posture; there is no early one-sided dilated pupil as in an uncal herniation, and no subfalcine herniation, which needs the midline pushed across. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal. Any transtentorial herniation can press a posterior cerebral artery against the tentorial edge and infarct the occipital lobe; the model adds no such secondary infarct here, since the swelling of both sides does not tell which side or how much. If the patient survives, the coma lifts only gradually as the oedema subsides and the swelling of both hemispheres together falls below the coma range (8 mm, counted as one side’s shift)${untilH === null ? '' : ` (here about ${Math.round(untilH)} h after onset)`}.`,
+      },
+      regions: [...new Set([...mid, ...pons].map((b) => b.region))],
+      symptoms: [{ id: 'coma', side: null, sev: 3 }],
+      symptomsWhileShiftMm: COMA_SHIFT_MM,
+    });
+    fatalRisk.add('herniation');
+    events.push({
+      id: 'herniation_fatal_central',
+      kind: 'secondary',
+      severity: 'danger',
+      onsetH: fromH,
+      title: { zh: '疝脫後很可能死亡（未減壓）', en: 'Death likely after herniation (no decompression)' },
+      desc: {
+        zh: '兩側大腦半球一起腫脹，腦向下疝脫（中央型）又沒有減壓：死亡很可能是結局。常引用的數字講的是單側：完整中大腦動脈區梗塞的 55 位病人中 43 位（78%）因天幕切跡疝脫與腦死而死亡（Hacke 1996），三個隨機試驗的合併分析中未手術的一年存活率只有 29%（Vahedi 2007）——它們描述的是一側，不是兩側；兩側同時大範圍梗塞通常後果嚴重。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是「假如病人存活」的情況。',
+        en: 'Both hemispheres swell together and the brain herniates downward (central herniation), without decompression: death is the likely end. The figures usually quoted — 43 of 55 patients (78%) with complete MCA-territory infarction died of transtentorial herniation and brain death (Hacke 1996), and 1-year survival without surgery was only 29% in the pooled analysis of three randomised trials (Vahedi 2007) — describe one hemisphere, not both; extensive infarction of both hemispheres at once is usually devastating. The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show what happens if the patient survives.',
+      },
+      regions: [],
+    });
+  }
+
   // Both hemispheres largely out of action from the start (Y2-13): at least two-thirds of the
   // cortical areas of each MCA territory dysfunctional in the first hours (the extent of a large
   // hemispheric infarction). simulate() lists at least drowsiness while that lasts, in the first
@@ -1932,13 +2133,14 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const surgeryEn = decompression
       ? ' Suboccipital decompressive craniectomy (± an external ventricular drain) has been performed: most recover well, but pooled mortality is still about 20%.'
       : ' Suboccipital decompressive craniectomy is indicated when consciousness falls (AHA/ASA 2014). A ventricular drain alone, without decompression, can let the cerebellum herniate upward through the tentorial notch, so drainage should be combined with suboccipital decompression; in patients who are awake or only drowsy, surgery was not better than medical care.';
+    // (on the clock of the posterior fossa's own lesion, like its swelling: V1-1)
     events.push({
       id: 'cerebellar_edema',
       kind: 'secondary',
       severity: malignant ? 'danger' : 'warn',
-      onsetH: 24,
-      peakH: 72,
-      endH: 336,
+      onsetH: infraOnset + 24,
+      peakH: infraOnset + 72,
+      endH: infraOnset + 336,
       title: malignant
         ? { zh: '占位性小腦梗塞：可能惡性腫脹，壓迫第四腦室與腦幹', en: 'Space-occupying cerebellar infarct: malignant swelling likely, compressing the 4th ventricle and brainstem' }
         : { zh: '占位性小腦梗塞：有腫脹風險，需密切觀察', en: 'Space-occupying cerebellar infarct: risk of swelling, watch closely' },
@@ -1951,18 +2153,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     if (malignant && !decompression) {
       // consciousness follows the swelling (R6-1): stupor from day 3, coma around the peak, then
       // stupor and drowsiness again as it subsides, if the patient survives
+      // (the texts give the times after the lesion's own onset; the events run on the clinical clock)
       const { comaFromH, comaUntilH, stuporUntilH, drowsyUntilH } = CEREBELLAR_COURSE;
       const h = (x: number) => Math.round(x);
-      hydrocephalusOnsetH = CEREBELLAR_DETERIORATION_H;
-      hydrocephalusEndH = stuporUntilH;
-      bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: CEREBELLAR_DETERIORATION_H, endH: drowsyUntilH, event: 'brainstem_compression' }));
-      const compressed = { fromH: CEREBELLAR_DETERIORATION_H, untilH: stuporUntilH };
+      const at = (x: number) => infraOnset + x;
+      hydrocephalusOnsetH = at(CEREBELLAR_DETERIORATION_H);
+      hydrocephalusEndH = at(stuporUntilH);
+      bs.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: at(CEREBELLAR_DETERIORATION_H), endH: at(drowsyUntilH), event: 'brainstem_compression' }));
+      const compressed = { fromH: at(CEREBELLAR_DETERIORATION_H), untilH: at(stuporUntilH) };
       events.push({
         id: 'brainstem_compression',
         kind: 'secondary',
         severity: 'danger',
-        onsetH: CEREBELLAR_DETERIORATION_H,
-        endH: drowsyUntilH,
+        onsetH: at(CEREBELLAR_DETERIORATION_H),
+        endH: at(drowsyUntilH),
         title: { zh: '小腦腫脹壓迫腦幹', en: 'Swollen cerebellum compresses the brainstem' },
         desc: {
           zh: `腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。未手術時意識隨腫脹變化：第 3 天木僵，腫脹高峰前後（這裡約發病後 ${h(comaFromH)}–${h(comaUntilH)} 小時）昏迷，之後隨腫脹消退回到木僵、嗜睡，約 ${h(drowsyUntilH)} 小時後清醒（假如病人存活）。小腦腫脹讓病人延遲陷入昏迷是有記載的（一個上小腦動脈梗塞的解剖病理系列中，有小腦與前庭症狀的 9 位中有 6 位）；每個腫脹程度對應哪一種意識程度是模型的選擇，比照大腦半球腫脹時中線偏移的分級。`,
@@ -1971,7 +2175,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         regions: [...new Set(bs.map((b) => b.region))],
         symptoms: [
           { id: 'coma', side: null, sev: 2, ...compressed },
-          { id: 'somnolence', side: null, sev: 1, fromH: stuporUntilH, untilH: drowsyUntilH },
+          { id: 'somnolence', side: null, sev: 1, fromH: at(stuporUntilH), untilH: at(drowsyUntilH) },
           { id: 'miosis', side: null, sev: 1, ...compressed },
           { id: 'corneal_reflex_loss', side: null, sev: 1, ...compressed },
           { id: 'gaze_palsy_horizontal', side: sideCb, sev: 1, ...compressed },
@@ -1982,7 +2186,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         id: 'hydrocephalus',
         kind: 'secondary',
         severity: 'danger',
-        onsetH: CEREBELLAR_DETERIORATION_H,
+        onsetH: at(CEREBELLAR_DETERIORATION_H),
         endH: hydrocephalusEndH,
         symptoms: [
           // raised pressure and a dilated aqueduct: drowsiness and upgaze palsy
@@ -2003,8 +2207,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         id: 'posterior_fossa_fatal',
         kind: 'secondary',
         severity: 'danger',
-        onsetH: comaFromH,
-        endH: comaUntilH,
+        onsetH: at(comaFromH),
+        endH: at(comaUntilH),
         title: { zh: '危及生命：腦幹受壓合併昏迷，未減壓', en: 'Life-threatening: brainstem compression with coma, no decompression' },
         desc: {
           zh: `小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況，昏迷隨腫脹消退而解除（這裡約在發病後 ${h(comaUntilH)} 小時）。`,
@@ -2566,7 +2770,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     );
     if ((drivers.length && vol.supra[s] >= 8) || carotidCortex >= CCD_CORTEX_ML) {
       const cb = BEDS.filter((b) => /^cerebellum_(superior|posterior_inferior|anterior_inferior)_/.test(b.region) && b.region.endsWith(`_${opp(s)}`));
-      cb.forEach((b) => addEffect(b.id, { kind: 'diaschisis', onsetH: CCD_ONSET_H, event: `ccd_${s}` }));
+      // (from that hemisphere's own lesion: V1-1)
+      cb.forEach((b) => addEffect(b.id, { kind: 'diaschisis', onsetH: sideOnset(s) + CCD_ONSET_H, event: `ccd_${s}` }));
       // the text names the trigger (R6-4): the carotid-territory evidence for the capsule, the
       // motor and frontal pathways or extensive carotid-territory cortex; the thalamic evidence when
       // only the ventrolateral thalamus (the relay of the cerebellar output to the motor cortex) is
@@ -2581,7 +2786,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         id: `ccd_${s}`,
         kind: 'secondary',
         severity: 'info',
-        onsetH: CCD_ONSET_H,
+        onsetH: sideOnset(s) + CCD_ONSET_H,
         title: { zh: '交叉性小腦功能抑制（遠隔效應）', en: 'Crossed cerebellar diaschisis (remote effect)' },
         desc: carotid
           ? {
@@ -2906,13 +3111,6 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
   }
 
-  // what the treatment avoided, now that this course's own fatal risks are known (Z2-3)
-  if (reperfusion && input.reperfusionOutcome)
-    events[reperfusion.at] = reperfusion.make(
-      input.reperfusionOutcome.untreatedFatal.filter((k) => !fatalRisk.has(k)),
-      fatalRisk.size > 0,
-    );
-  events.sort((a, b) => a.onsetH - b.onsetH);
   // tissue that dies later from herniation / compression of other arteries (permanent effects)
   let secondaryLoss = 0;
   // … per side of the herniation that causes it (the event ids end in the side)
@@ -2927,6 +3125,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     if (side) secondaryBySide[side] += ml;
   }
   withVolumes.forEach((write) => write(vol.total + secondaryLoss, secondaryBySide));
+  // what the treatment spares in the end, the herniation infarcts it prevents included (V1-6)
+  if (input.untreatedWithSecondary !== undefined) {
+    savedVolume = Math.max(0, input.untreatedWithSecondary - (vol.total + secondaryLoss));
+    savedSecondary = Math.max(0, savedVolume - savedPrimary);
+  }
+  // what the treatment avoided, now that this course's own fatal risks and what it saves are known (Z2-3)
+  if (reperfusion)
+    events[reperfusion.at] = input.reperfusionOutcome
+      ? reperfusion.make(
+          input.reperfusionOutcome.untreatedFatal.filter((k) => !fatalRisk.has(k)),
+          fatalRisk.size > 0,
+        )
+      : reperfusion.make([], false);
+  events.sort((a, b) => a.onsetH - b.onsetH);
 
   // Both hemispheres destroyed (Z3-12): two-thirds or more of each hemisphere's supratentorial
   // tissue infarcted in the end, with the secondary infarcts of a herniation. Awareness needs the
@@ -2972,10 +3184,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     });
     // the herniation's figures are those of one hemisphere: both get their own note
     const hf = events.find((e) => e.id.startsWith('herniation_fatal_'));
+    // (a central herniation adds no secondary infarct: V1-4)
+    const withSec = hf?.id !== 'herniation_fatal_central';
     if (hf)
       hf.desc = {
-        zh: `兩側大腦半球幾乎整個梗塞（右側約 ${pr}%、左側約 ${pl}%，包括疝脫造成的續發梗塞），又沒有減壓：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字——55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）、未手術的一年存活率 29%（Vahedi 2007）——講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重（一篇病例報告與文獻回顧）。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在植物人狀態，最好也只是最小意識狀態（見「兩側大腦半球大多梗塞」）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是這樣一位存活者的情況。`,
-        en: `Both hemispheres are infarcted almost entirely (about ${pr}% of the right and ${pl}% of the left, with the secondary infarcts of the herniation), without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a vegetative or at best a minimally conscious state (see "Both hemispheres mostly infarcted"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.`,
+        zh: `兩側大腦半球幾乎整個梗塞（右側約 ${pr}%、左側約 ${pl}%${withSec ? '，包括疝脫造成的續發梗塞' : ''}），又沒有減壓：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字——55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）、未手術的一年存活率 29%（Vahedi 2007）——講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重（一篇病例報告與文獻回顧）。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在植物人狀態，最好也只是最小意識狀態（見「兩側大腦半球大多梗塞」）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是這樣一位存活者的情況。`,
+        en: `Both hemispheres are infarcted almost entirely (about ${pr}% of the right and ${pl}% of the left${withSec ? ', with the secondary infarcts of the herniation' : ''}), without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a vegetative or at best a minimally conscious state (see "Both hemispheres mostly infarcted"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.`,
       };
     // the drowsiness of the first two weeks gives way to it
     const bh = events.find((e) => e.id === 'bilateral_hemispheres');
@@ -2991,6 +3205,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     bedEffects,
     volumes: { ...vol, withSecondary: vol.total + secondaryLoss },
     savedVolume,
+    savedSecondary,
     hydrocephalusOnsetH,
     hydrocephalusEndH,
     fatalRisk: [...fatalRisk],

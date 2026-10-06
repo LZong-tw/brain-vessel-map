@@ -191,10 +191,11 @@ export function FinalOutcome() {
       <section className="nihss outcome-nihss">
         <h3>{o.nihssTitle}</h3>
         {/* the course usually or often ends in death, which the model does not represent (C4-F1, Y3-11) */}
-        {/* (both hemispheres destroyed: not the figures of one hemisphere, and who survives: Z3-12) */}
+        {/* (both hemispheres destroyed: not the figures of one hemisphere, and who survives: Z3-12; nor
+            for two hemispheres herniating downward together: V1-4) */}
         {out.fatal.map((k) => (
           <p key={k} className="callout danger">
-            {k === 'herniation' && bothDestroyed ? o.fatalBilateral : o.fatal[k]}
+            {k === 'herniation' && bothDestroyed ? o.fatalBilateral : k === 'herniation' && out.centralHerniation ? o.fatalCentral : o.fatal[k]}
           </p>
         ))}
         {/* a state with a substantial mortality of its own: the figures are a survivor's (Y3-11) */}

@@ -143,6 +143,16 @@ describe('treatmentLine', () => {
     expect(treatmentLine({ ...s, treatment: { ...s.treatment, method: 'ivt' } }, 'en', true)).toBe('reopened at 24 h (IV thrombolysis · eTICI 2b67)');
   });
 
+  // V1-12: an attempt that reopens nothing is not a reopening (the event says "Recanalisation failed")
+  it('a failed attempt (eTICI 0) is an attempt at that time, not a reopening', () => {
+    const s = { ...base, reperfusionH: 3, treatment: { ...DEFAULT_TREATMENT, grade: '0' as const } };
+    expect(treatmentLine(s, 'zh-TW')).toBe('3 小時嘗試、未再通 · 取栓 · eTICI 0');
+    expect(treatmentLine(s, 'zh-TW', true)).toBe('3 小時嘗試、未再通（取栓 · eTICI 0）');
+    expect(treatmentLine(s, 'en')).toBe('Attempted at 3 h, not reopened · Thrombectomy · eTICI 0');
+    expect(treatmentLine(s, 'en', true)).toBe('attempted at 3 h, not reopened (Thrombectomy · eTICI 0)');
+    expect(treatmentLine({ ...s, treatment: { ...s.treatment, method: 'ivt' } }, 'en', true)).toBe('attempted at 3 h, not reopened (IV thrombolysis · eTICI 0)');
+  });
+
   it('adds decompression, with or without recanalisation', () => {
     expect(treatmentLine({ ...base, decompression: true }, 'zh-TW')).toBe('未再通 · 必要時減壓手術');
     expect(treatmentLine({ ...base, reperfusionH: 6, decompression: true }, 'zh-TW')).toBe('6 小時再通 · 必要時減壓手術');

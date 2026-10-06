@@ -95,17 +95,32 @@ describe('Y3-3: the malignant-oedema text quotes the final infarct the Outcome t
     expect(e.desc.zh).toContain(`加上疝脫造成的續發梗塞，最終約 ${y} mL`);
   });
 
+  // (both M1 at once herniate downward, with no secondary infarct: V1-4; the left one a week after
+  // the right, each to its own side, with its own)
   it('with both hemispheres infarcted, each side gives its own figures and the whole brain’s, the Outcome tab’s', () => {
-    const input = occInput([
+    const both = occInput([
       { vessel: 'mca_m1_r', severity: 1 },
       { vessel: 'mca_m1_l', severity: 1 },
     ]);
-    const y = finalOutcome(input).course.finalInfarct.toFixed(0);
-    for (const s of ['r', 'l']) {
-      const e = at(input, 72).cascade.events.find((x) => x.id === `malignant_edema_${s}`)!;
-      expect(e.desc.en).toMatch(/mL in this hemisphere in the end; with the secondary infarcts from the herniation ≈ \d+ mL in this hemisphere in the end/);
-      expect(e.desc.en).toContain(`(≈ ${y} mL in the whole brain, the final infarct on the Outcome tab)`);
-      expect(e.desc.zh).toContain(`（全腦合計約 ${y} mL，即「最終」頁的最終梗塞）`);
+    const seq = occInput(
+      [
+        { vessel: 'mca_m1_r', severity: 1 },
+        { vessel: 'mca_m1_l', severity: 1, fromH: 168 },
+      ],
+      'poor',
+    );
+    for (const [input, secondary] of [
+      [both, false],
+      [seq, true],
+    ] as const) {
+      const y = finalOutcome(input).course.finalInfarct.toFixed(0);
+      for (const s of ['r', 'l']) {
+        const e = at(input, 336).cascade.events.find((x) => x.id === `malignant_edema_${s}`)!;
+        if (secondary) expect(e.desc.en).toMatch(/mL in this hemisphere in the end; with the secondary infarcts from the herniation ≈ \d+ mL in this hemisphere in the end/);
+        else expect(e.desc.en).toMatch(/≈ \d+ mL in this hemisphere in the end \(≈/);
+        expect(e.desc.en).toContain(`(≈ ${y} mL in the whole brain, the final infarct on the Outcome tab)`);
+        expect(e.desc.zh).toContain(`（全腦合計約 ${y} mL，即「最終」頁的最終梗塞）`);
+      }
     }
   });
 

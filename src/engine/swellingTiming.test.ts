@@ -105,10 +105,11 @@ describe('W2-3: an occlusion that has not begun yet changes nothing at the displ
 
 describe('W2-1: a swelling that reaches the coma range takes the malignant course and herniates', () => {
   const bilateralIca = input([o('ica_cervical_l'), o('ica_cervical_r')], 'good');
+  // (they swell alike, so they herniate downward together, centrally: V1-4)
   it('both cervical ICAs (good collaterals): comatose from the swelling of both hemispheres, which herniate, with the fatal risk', () => {
     const r = at(bilateralIca, 72);
     expect(consciousnessFromShift(r.edema.massEffectMm)?.sev).toBe(3);
-    expect(active(r, 72).some((id) => /^uncal_/.test(id))).toBe(true);
+    expect(active(r, 72)).toContain('central_herniation');
     expect(active(r, 72).some((id) => /^malignant_edema_/.test(id))).toBe(true);
     expect(active(r, 72).some((id) => /^mass_effect_/.test(id))).toBe(false);
     expect(finalOutcome(bilateralIca).fatal).toContain('herniation');
