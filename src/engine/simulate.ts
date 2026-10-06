@@ -74,6 +74,7 @@ import {
   type CascadeTreatment,
   type HerniationShift,
   type ListedCourse,
+  type SwallowStretch,
 } from './cascade';
 import {
   DYS_THR,
@@ -879,11 +880,17 @@ const comaLike = (s: SymptomItem) => (s.id === 'coma' && s.sev >= 2) || s.id ===
 /** the first two weeks, in which the aspiration and cardiac warnings run */
 const LISTED_WINDOW_H = 336;
 
+/** a change in what the list shows between two samples is placed to within (gap / 2^LISTED_BISECT) */
+const LISTED_BISECT = 8;
+
 /**
- * When the symptom list first shows dysphagia, reduced consciousness, or stupor and coma in the
- * first two weeks after the index onset (clinical clock), sampled at the time stops a learner can
- * see: those of the clinical clock and those of the simulation clock from the onset on. Runs on a
- * cached model (its first-pass cascade), so each sample costs only the per-time part.
+ * What the symptom list shows over the first two weeks after the index onset (clinical clock):
+ * the stretches with dysphagia or, without it, a reduced level of consciousness (X3-1, X3-3), and
+ * when stupor or coma is first listed (X3-4). Sampled at the time stops a learner can see — those
+ * of the clinical clock and those of the simulation clock from the onset on — with a change
+ * between two samples found by bisection, so that the warnings that follow the list also agree
+ * with it between the stops. Runs on a cached model (its first-pass cascade), so each sample
+ * costs only the per-time part.
  */
 function listedCourse(input: SimInput, onsetH: number): ListedCourse {
   const times = new Set<number>();
@@ -891,21 +898,47 @@ function listedCourse(input: SimInput, onsetH: number): ListedCourse {
     if (s.h < LISTED_WINDOW_H) times.add(onsetH + s.h);
     if (s.h >= onsetH && s.h - onsetH < LISTED_WINDOW_H) times.add(s.h);
   }
-  const out: ListedCourse = { dysphagiaFromH: null, drowsyFromH: null, comaFromH: null, dysphagiaRegions: [] };
-  const regions = new Set<string>();
-  for (const tAbs of [...times].sort((a, b) => a - b)) {
-    const h = tAbs - onsetH;
-    for (const s of symptomsAt({ ...input, tH: tAbs })) {
-      if (s.id === 'dysphagia') {
-        out.dysphagiaFromH ??= h;
-        for (const r of s.sources) regions.add(r);
-      }
-      if (DROWSY_IDS.includes(s.id)) out.drowsyFromH ??= h;
-      if (comaLike(s)) out.comaFromH ??= h;
+  const memo = new Map<number, SymptomItem[]>();
+  const listAt = (tAbs: number) => {
+    let l = memo.get(tAbs);
+    if (!l) memo.set(tAbs, (l = symptomsAt({ ...input, tH: tAbs })));
+    return l;
+  };
+  const swallowAt = (tAbs: number): SwallowStretch['kind'] | null => {
+    const l = listAt(tAbs);
+    return l.some((s) => s.id === 'dysphagia') ? 'dysphagia' : l.some((s) => DROWSY_IDS.includes(s.id)) ? 'drowsy' : null;
+  };
+  const comaAt = (tAbs: number) => listAt(tAbs).some(comaLike);
+  /** the first time in (a, b] at which f has the value it has at b, where f(a) differs from it */
+  const edge = <T>(f: (t: number) => T, a: number, b: number) => {
+    const before = f(a);
+    for (let k = 0; k < LISTED_BISECT; k++) {
+      const m = (a + b) / 2;
+      if (f(m) === before) a = m;
+      else b = m;
     }
+    return b;
+  };
+  const sorted = [...times].sort((a, b) => a - b);
+  const swallow: SwallowStretch[] = [];
+  let comaFromH: number | null = null;
+  let prev: number | null = null;
+  for (const tAbs of sorted) {
+    const kind = swallowAt(tAbs);
+    const before = prev === null ? null : swallowAt(prev);
+    if (prev === null || kind !== before) {
+      const from = prev === null ? tAbs : edge(swallowAt, prev, tAbs);
+      const open = swallow[swallow.length - 1];
+      if (open && open.untilH === null) open.untilH = from - onsetH;
+      if (kind) swallow.push({ kind, fromH: from - onsetH, untilH: null, regions: [] });
+    }
+    const open = swallow[swallow.length - 1];
+    if (kind === 'dysphagia' && open?.untilH === null)
+      for (const s of listAt(tAbs)) if (s.id === 'dysphagia') open.regions.push(...s.sources.filter((r) => !open.regions.includes(r)));
+    if (comaFromH === null && comaAt(tAbs)) comaFromH = (prev === null ? tAbs : edge(comaAt, prev, tAbs)) - onsetH;
+    prev = tAbs;
   }
-  out.dysphagiaRegions = [...regions];
-  return out;
+  return { swallow, comaFromH };
 }
 
 /** the labels of the bilateral ventral pons and the state of the brainstem course each names (cascade.brainstemEvents) */

@@ -92,6 +92,25 @@ export interface EvidenceRow {
  * thrombectomy and says nothing about when the drug was given.
  */
 export const IVT_LAG_H = { min: 1, max: 3 };
+/**
+ * The middle of that range (close to the INTERRSeCT median): the drug start it implies decides
+ * whether IV thrombolysis alone was most likely started within the window (a note) or after it (a
+ * warning, with the late-thrombolysis trials). Flow back at 6 h means a start at about 3–5 h,
+ * mostly within 4.5 h, so it is no longer called late (X3-6).
+ */
+const IVT_LAG_MID_H = (IVT_LAG_H.min + IVT_LAG_H.max) / 2;
+
+/** IV thrombolysis alone with flow back `delayH` after onset was most likely started after the window */
+export const ivtStartLate = (delayH: number, windowH: number) => delayH - IVT_LAG_MID_H > windowH + 1e-6;
+
+/**
+ * When the drug-start range straddles the window: how long the artery must have taken to reopen
+ * for the drug to have been started within it ("1.5 h"), else null.
+ */
+export function ivtLagForWindow(delayH: number, windowH: number, lang: Lang): string | null {
+  const eps = 1e-6;
+  return delayH - IVT_LAG_H.max <= windowH + eps && delayH - IVT_LAG_H.min > windowH + eps ? formatHours(delayH - windowH, lang) : null;
+}
 
 /** "3–5 h" / "3–5 小時": the drug start implied by flow returning `delayH` after onset */
 export function ivtStartRange(delayH: number, lang: Lang): string {
@@ -137,7 +156,7 @@ export function evidenceRows(
     add('tnk-sich', s.rows.tnkSich, ev.tenecteplase.sich);
     if (has(TNK_SITES)) add('tnk-reperfusion', s.rows.tnkReperfusion, ev.tenecteplase.reperfusionBeforeEvt);
     const allBasilar = sites.length > 0 && sites.every((g) => g === 'basilar');
-    if (method === 'ivt' && delayH !== undefined && delayH - IVT_LAG_H.min > ev.ivtWindowH + 1e-6 && !allBasilar) add('lateIvt', s.rows.lateIvt, ev.lateIvt);
+    if (method === 'ivt' && delayH !== undefined && ivtStartLate(delayH, ev.ivtWindowH) && !allBasilar) add('lateIvt', s.rows.lateIvt, ev.lateIvt);
   }
   add('reocclusion', s.rows.reocclusion, ev.reocclusion[method]);
   // thrombectomy data: not shown for IV thrombolysis alone
@@ -213,19 +232,21 @@ export function treatmentWarnings(
   };
   if (t.method === 'ivt') {
     // the window refers to when the drug is started; the time chosen here is when flow returns,
-    // usually 1–3 h after the drug, so the latest plausible drug start is 1 h before it
+    // usually 1–3 h after the drug: the latest plausible drug start is 1 h before it, and the
+    // drug was most likely started 2 h before it (ivtStartLate, X3-6)
     const latestStart = delayH - IVT_LAG_H.min;
+    const lag = ivtLagForWindow(delayH, ev.ivtWindowH, lang);
     if (latestStart <= eps) out.push({ key: 'ivtTooEarly', text: s.warnIvtTooEarly(delay) });
-    else if (latestStart > ev.ivtWindowH + eps) {
+    else if (ivtStartLate(delayH, ev.ivtWindowH)) {
       // a guideline consensus window (basilar) keeps a warning, worded as consensus
       const cw = consensusUpTo(latestStart);
       out.push(
         cw
           ? { key: 'ivtWindowConsensus', text: s.warnIvtWindowConsensus(ivtWindow, cw, delay) }
-          : { key: 'ivtWindow', text: s.warnIvtWindow(ivtWindow, delay, ivtStartRange(delayH, lang)) },
+          : { key: 'ivtWindow', text: s.warnIvtWindow(ivtWindow, delay, ivtStartRange(delayH, lang), lag) },
       );
     } else if (delayH > ev.ivtWindowH + eps)
-      out.push({ key: 'ivtWindowFits', level: 'note', text: s.noteIvtWindowFits(ivtWindow, delay, ivtStartRange(delayH, lang)) });
+      out.push({ key: 'ivtWindowFits', level: 'note', text: s.noteIvtWindowFits(ivtWindow, delay, ivtStartRange(delayH, lang), lag) });
   }
   // bridging: thrombectomy restores flow, so its time says nothing about when the drug was given
   if (t.method === 'bridging' && delayH > ev.ivtWindowH + eps)

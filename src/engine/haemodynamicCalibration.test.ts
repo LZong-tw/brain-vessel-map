@@ -228,10 +228,12 @@ describe('R4-6: the chest-wall and neck collaterals also compensate CCA and brac
   // the brain is fed through the undrawn subclavian links (thyrocervical trunk / superior thyroid
   // → external carotid → carotid bifurcation; around an innominate occlusion also from the aorta
   // through the internal thoracic artery into the reversed subclavian and on into the carotid).
+  // X3-0: moved when the flow model mirrored the pial arteries of the hemispheres (was 5.1, 4.47
+  // and 7.57 mL; NIHSS still 0)
   const PINNED: [string, number][] = [
-    ['cca_r', 5.1],
-    ['cca_l', 4.47],
-    ['brachiocephalic', 7.57],
+    ['cca_r', 5.48],
+    ['cca_l', 4.09],
+    ['brachiocephalic', 7.86],
   ];
   it.each(PINNED)('%s with poor collaterals at 24 h: NIHSS 0 and a small infarct', (vessel, finalInfarct) => {
     const r = sim({ occlusions: occl(vessel), collateral: 'poor', tH: 24 });

@@ -47,8 +47,8 @@
 
 - [ ] **臨床審閱**：請神經科／神經放射科醫師審閱腦區—症狀對應、症候群規則與時間軸（最重要）
   · **Clinical review** of the region–symptom mapping, syndrome rules and time courses by a neurologist / neuroradiologist (most important)
-- [ ] 以公開資料（例如取栓試驗的最終梗塞體積分佈）做更系統的參數校正，並把校正結果寫進測試；包括跨越兩段的基底動脈阻塞（目前側枝中等或差時再通幾乎無效）
-  · Systematic calibration against public data (e.g. final infarct volumes in thrombectomy trials), encoded as tests, including basilar occlusions over two segments (with moderate or poor collaterals reopening them is nearly futile in the model now)
+- [ ] 以公開資料（例如取栓試驗的最終梗塞體積分佈）做更系統的參數校正，並把校正結果寫進測試；包括跨越兩段的基底動脈阻塞（目前側枝中等或差時再通幾乎無效），以及讓 Willis 環與後顱窩的動脈也左右對稱（目前只有大腦半球表面的動脈對稱，後循環的校正要跟著重做）
+  · Systematic calibration against public data (e.g. final infarct volumes in thrombectomy trials), encoded as tests, including basilar occlusions over two segments (with moderate or poor collaterals reopening them is nearly futile in the model now) and making the circle of Willis and the posterior-fossa arteries mirror images too (only the arteries over the hemispheres are now; the posterior calibration would have to be redone with them)
 - [ ] 病例卡片可直接改單一階段血管的阻塞程度（目前要到血管詳細資料改）
   · Change a single-phase vessel's degree of occlusion in the case card (currently only in the vessel details)
 - [ ] 靜脈系統與靜脈竇血栓；出血性中風（目前完全沒有模擬）

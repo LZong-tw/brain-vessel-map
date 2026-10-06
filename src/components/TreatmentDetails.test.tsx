@@ -163,19 +163,28 @@ describe('published figures', () => {
 });
 
 describe('warnings', () => {
-  it('IV thrombolysis at 6 h is outside its usual window; thrombectomy at 6 h is not', () => {
-    useApp.setState({ reperfusionH: 6 });
+  it('IV thrombolysis with flow back at 8 h is outside its usual window; thrombectomy at 8 h is not', () => {
+    useApp.setState({ reperfusionH: 8 });
     render(<TreatmentDetails evidence={EMPTY} />);
     expect(screen.queryByText(/靜脈血栓溶解須在發作後 4.5 小時內開始用藥/)).toBeNull();
 
     fireEvent.click(screen.getByRole('radio', { name: '靜脈血栓溶解' }));
     // the window refers to drug start; the time chosen is when flow returns (C2-F5)
-    screen.getByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥.*這裡選的是血流恢復的時間：發作後 6 小時；用藥後動脈通常在接下來 1–3 小時內才逐漸打通/);
+    screen.getByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥.*這裡選的是血流恢復的時間：發作後 8 小時；用藥後動脈通常在接下來 1–3 小時內才逐漸打通/);
 
     // bridging: thrombectomy sets the time, so a neutral note instead of the warning (R4-8)
     fireEvent.click(screen.getByRole('radio', { name: '兩者（橋接）' }));
     expect(screen.queryByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥/)).toBeNull();
     const note = screen.getByText(/^橋接治療的靜脈血栓溶解也須在發作後 4.5 小時內開始用藥.*取栓恢復血流的時間/);
+    expect(note.className).toBe('callout note');
+  });
+
+  it('IV thrombolysis with flow back at 6 h fits a drug started within 4.5 h: a note that says how fast the artery must have reopened (X3-6)', () => {
+    useApp.setState({ reperfusionH: 6 });
+    useApp.getState().setTreatment({ method: 'ivt' });
+    render(<TreatmentDetails evidence={EMPTY} />);
+    expect(screen.queryByText(/^靜脈血栓溶解須在發作後/)).toBeNull();
+    const note = screen.getByText(/和 4.5 小時內開始用藥相符.*發作後約 3–5 小時開始的（動脈在用藥後 1.5 小時以上才打通時，是在 4.5 小時內開始/);
     expect(note.className).toBe('callout note');
   });
 

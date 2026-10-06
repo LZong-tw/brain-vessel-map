@@ -178,10 +178,15 @@ describe('colour, reading and writing need an awake patient (R1-5, R1-9 with R5-
     for (const tH of [120, 168, 336, 720, 2160]) {
       const r = scenario('basilar_tip', tH);
       expect(unaware(r), `${tH} h`).toBe(true);
-      // the field defect is still there; the colour vision inside the part still seen cannot be tested
-      expect(sided(r.symptoms), `${tH} h`).toContain('quadrant_sup(r)');
       expect(ids(r), `${tH} h`).not.toContain('hemiachromatopsia');
       expect(ids(r), `${tH} h`).not.toContain('achromatopsia');
+    }
+    // the field defect is still there while it lasts (to two weeks since the pial arteries are
+    // mirrored in the flow model, X3-0); the colour vision inside the part still seen cannot be tested
+    for (const tH of [120, 168, 336]) {
+      const r = scenario('basilar_tip', tH);
+      expect(sided(r.symptoms), `${tH} h`).toContain('quadrant_sup(r)');
+      expect(sided(r.unexaminable), `${tH} h`).toContain('hemiachromatopsia(r)');
     }
   });
 

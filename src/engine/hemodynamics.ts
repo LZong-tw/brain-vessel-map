@@ -283,6 +283,76 @@ const nodeOf = (s: SupplyDef): string => (s.at === 'mid' ? `${s.v}@mid` : VESSEL
 
 const FLOW_VESSELS = VESSELS.filter((v) => !v.visualOnly);
 
+/**
+ * Left and right in the flow model (R1-8, X3-0, X3-13).
+ *
+ * The template brain (MNI ICBM152 2009c asymmetric) and the territory atlas drawn on it are not
+ * mirror images, and the flow model took both as they are: each artery's resistance from the
+ * length of its course traced on the template, and each artery's demand from the atlas volume it
+ * feeds. The same artery therefore had a different resistance and demand on the two sides — the
+ * left temporo-occipital artery, for example, is traced 115 mm long against 98 mm on the right and
+ * feeds 14.6 against 11.6 mL — and where collaterals decide the outcome, a left and a right
+ * occlusion of the same artery ended differently: with good collaterals the left calcarine
+ * territory, which draws its collateral blood through that artery, lost a hemianopia's worth of
+ * cortex while the right one recovered with no lasting field defect.
+ *
+ * For the pial arteries of the cerebral hemispheres — A2, M2 and P2 with their cortical branches —
+ * and the leptomeningeal anastomoses between them the flow model now takes the mean of the two
+ * sides: an artery and its mirror image have the same length, and the same baseline flow leaves
+ * each of their branch points (the beds keep their shares of it). The measured bed volumes, and so
+ * the infarct volumes, stay as the atlas gives them. The circle of Willis, the perforators and the
+ * vertebrobasilar and cerebellar arteries keep their traced values, because the calibrations of
+ * the posterior circulation (BRAINSTEM_PIAL and the cerebellar anastomoses) and of the circle were
+ * made on them; left and right can still differ a little there (README, limitations).
+ */
+const MIRRORED_TRUNKS = new Set(['aca_a2', 'mca_m2_sup', 'mca_m2_inf', 'pca_p2']);
+const CEREBRAL_FAMILIES = new Set(['ACA', 'MCA', 'PCA']);
+const isPialCerebral = (v: Vessel) =>
+  v.side !== 'm' && CEREBRAL_FAMILIES.has(v.family) && (v.kind === 'branch' || MIRRORED_TRUNKS.has(v.baseId));
+/** the nodes where the pial cerebral arteries end (their anastomoses join them there) */
+const PIAL_CEREBRAL_ENDS = new Set(VESSELS.filter(isPialCerebral).map((v) => v.to));
+/** a pial cerebral artery, or a leptomeningeal anastomosis between two of them: mirrored in the flow model */
+export const isMirroredInFlow = (v: Vessel): boolean =>
+  isPialCerebral(v) || (v.kind === 'collateral' && v.side !== 'm' && PIAL_CEREBRAL_ENDS.has(v.from) && PIAL_CEREBRAL_ENDS.has(v.to));
+const mirrorOf = (v: Vessel): Vessel | undefined => VESSEL_BY_ID[`${v.baseId}_${v.side === 'r' ? 'l' : 'r'}`];
+/** the length the flow model uses: an explicit `len`, the traced course, or for a mirrored artery the mean of both sides' */
+const flowLength = (v: Vessel): number => {
+  if (v.len != null) return v.len;
+  const m = isMirroredInFlow(v) ? mirrorOf(v) : undefined;
+  return m && m.len == null ? (pathLength(v) + pathLength(m)) / 2 : pathLength(v);
+};
+/**
+ * The factor on each unit's baseline flow at the branch points of the mirrored arteries: the mean
+ * of the two sides' demand there over this side's (the default anatomy's supply; a variant's
+ * supply override keeps the factor of the branch point it feeds from). 1 everywhere else.
+ */
+const DEMAND_FACTOR: Map<string, number> = (() => {
+  const nodeVessel = new Map<string, Vessel>();
+  for (const v of VESSELS.filter(isPialCerebral)) {
+    nodeVessel.set(v.to, v);
+    nodeVessel.set(`${v.id}@mid`, v);
+  }
+  const demand = new Map<string, number>();
+  for (const bed of BEDS) {
+    if (bed.baseFlow <= 0) continue;
+    const total = bed.supply.reduce((a, s) => a + s.share, 0) || 1;
+    for (const s of bed.supply) {
+      const node = nodeOf(s);
+      if (nodeVessel.has(node)) demand.set(node, (demand.get(node) ?? 0) + (s.share / total) * bed.baseFlow);
+    }
+  }
+  const factor = new Map<string, number>();
+  for (const [node, q] of demand) {
+    const v = nodeVessel.get(node)!;
+    const m = mirrorOf(v);
+    if (!m) continue;
+    const mirrorNode = node.endsWith('@mid') ? `${m.id}@mid` : m.to;
+    const qm = demand.get(mirrorNode);
+    if (qm && qm > 0 && q > 0) factor.set(node, (q + qm) / 2 / q);
+  }
+  return factor;
+})();
+
 interface CollateralLink {
   id: string;
   a: string;
@@ -331,6 +401,7 @@ function buildUnits(overrides: Map<string, SupplyDef[]>): Unit[] {
         });
       }
     }
+    for (const u of merged.values()) u.baseFlow *= DEMAND_FACTOR.get(u.node) ?? 1;
     units.push(...merged.values());
   }
   return units;
@@ -428,7 +499,7 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
       vesselG.set(v.id, (v.collStrength ?? 1) * COLL_GRADE[collateral] * Math.max(fref, 5) * COLL_SCALE);
     } else {
       const r = v.r * f;
-      vesselG.set(v.id, (K_POISEUILLE * (KIND_FACTOR[v.kind] ?? 1) * (v.n ?? 1) * r ** 4) / (v.len ?? pathLength(v)));
+      vesselG.set(v.id, (K_POISEUILLE * (KIND_FACTOR[v.kind] ?? 1) * (v.n ?? 1) * r ** 4) / flowLength(v));
     }
   }
 

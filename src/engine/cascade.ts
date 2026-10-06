@@ -158,16 +158,26 @@ export interface CascadeInput {
   shift?: Partial<Record<Side, HerniationShift>>;
 }
 
-/** when (h after onset) the symptom list first shows what makes swallowing unsafe, or null */
-export interface ListedCourse {
-  /** dysphagia */
-  dysphagiaFromH: number | null;
-  /** reduced consciousness: somnolence, stupor or coma, or a disorder of consciousness */
-  drowsyFromH: number | null;
-  /** stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness */
-  comaFromH: number | null;
+/**
+ * One stretch of the first two weeks in which the symptom list shows what makes swallowing
+ * unsafe (clinical clock): dysphagia, or else a reduced level of consciousness (somnolence, stupor
+ * or coma, a disorder of consciousness).
+ */
+export interface SwallowStretch {
+  kind: 'dysphagia' | 'drowsy';
+  fromH: number;
+  /** when the list first shows something else, or null: still listed at the end of the two weeks */
+  untilH: number | null;
   /** the regions the listed dysphagia comes from */
-  dysphagiaRegions: string[];
+  regions: string[];
+}
+
+/** what the symptom list shows over the first two weeks after onset (clinical clock) */
+export interface ListedCourse {
+  /** the stretches with dysphagia or reduced consciousness, in time order, none overlapping (X3-1, X3-3) */
+  swallow: SwallowStretch[];
+  /** when stupor or coma (NIHSS 1a ≥ 2), or a disorder of consciousness, is first listed, or null */
+  comaFromH: number | null;
   /**
    * the brainstem consciousness course the labels show (X2-7, X2-10, X2-11, X2-15): coma with
    * quadriplegia, a disorder of consciousness after it, classical or incomplete locked-in syndrome,
@@ -1621,58 +1631,67 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // ── 6. systemic complications ──────────────────────────────────
   // The aspiration risk follows what the case lists (C1-F4, R3-1 … R3-3): dysphagia (one-sided
   // hemispheric, lacunar and later-appearing ones included) or a reduced level of consciousness,
-  // read from the symptom list itself, so the warning runs whenever they are listed and names
-  // dysphagia only when it is. Dysphagia roughly triples the risk of pneumonia, and aspiration
-  // multiplies it by about 11 (Martino R et al. Stroke 2005;36:2756-2763, PMID 16269630); when it
-  // is there from the start, the swallow screen comes before any oral intake (onset 0 h). A large
-  // supratentorial infarct with neither listed keeps a warning, but one that says so: dysphagia
-  // was found in 37–78 % of stroke patients depending on how it was tested (Martino 2005), so the
-  // swallow is screened anyway.
+  // read from the symptom list itself. One warning per stretch in which they are listed (X3-1,
+  // X3-3), titled by what is listed then: dysphagia while it is listed, reduced consciousness
+  // while that is listed without it, and none once both have cleared (a dysphagia that clears when
+  // blood returns ends its warning). Dysphagia roughly triples the risk of pneumonia, and
+  // aspiration multiplies it by about 11 (Martino R et al. Stroke 2005;36:2756-2763, PMID
+  // 16269630); when it is there from the start, the swallow screen comes before any oral intake
+  // (onset 0 h). A large supratentorial infarct keeps a warning from onset that says it lists
+  // neither, until one of them is listed: dysphagia was found in 37–78 % of stroke patients
+  // depending on how it was tested (Martino 2005), so the swallow is screened anyway — titling it
+  // "dysphagia" from onset when the dysphagia appears only on day 3 named a deficit the case did
+  // not show (X3-3).
   // A TIA (blood back before any tissue died) leaves no swallowing problem or immobility behind:
   // its symptoms clear when the flow returns, so the complications of a lasting deficit (aspiration,
   // venous thrombosis) are not told for it; ischaemia that lasts without infarction keeps them
   const tia = noInfarct && input.flowReturnsH != null;
   const listed = input.listed;
-  const swallowFromH = lockedIn ? 0 : (listed?.dysphagiaFromH ?? null);
-  const drowsyFromH = listed?.drowsyFromH ?? null;
   const largeSupra = vol.supra.r + vol.supra.l > 60;
-  if (listed && !tia && (swallowFromH !== null || drowsyFromH !== null || largeSupra)) {
-    const kind = swallowFromH !== null ? 'dysphagia' : drowsyFromH !== null ? 'drowsy' : 'screen';
-    const fromH = Math.min(swallowFromH ?? Infinity, drowsyFromH ?? Infinity);
-    events.push({
-      id: 'aspiration',
-      kind: 'complication',
-      severity: 'warn',
-      onsetH: kind === 'screen' || largeSupra ? 0 : fromH,
-      endH: 336,
-      title:
-        kind === 'dysphagia'
-          ? { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' }
-          : kind === 'drowsy'
-            ? { zh: '意識變差 → 吸入性肺炎', en: 'Reduced consciousness → aspiration pneumonia' }
-            : { zh: '吸入風險：進食前先做吞嚥篩檢', en: 'Aspiration risk: swallow screen before oral intake' },
-      // fever early after an ischaemic stroke is mostly infection or aspiration (Grau AJ et al.,
-      // J Neurol Sci 1999;171:115–120); central fever is described mostly with haemorrhage and
-      // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is shown only as a
-      // risk after extensive bilateral tegmental infarction with coma ('central_hyperthermia'
-      // above; see the temperature section of anatomy/symptoms.ts)
-      desc: {
-        zh:
-          (kind === 'drowsy'
-            ? '意識變差的病人無法安全吞嚥、也保護不了呼吸道，容易吸入。'
-            : kind === 'screen'
-              ? '這個病例沒有列出吞嚥困難或意識變差，但梗塞很大。吞嚥困難在中風後很常見（依檢查方法不同，37–78%），模型沒有列出的也可能存在，所以仍要先做吞嚥篩檢。'
-              : '') +
-          '吸入性肺炎是中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見（主要是兩側腦幹被蓋大範圍受損又昏迷時，見「中樞性高熱的風險」），只有排除感染後才考慮。',
-        en:
-          (kind === 'drowsy'
-            ? 'A patient with reduced consciousness cannot swallow safely or protect the airway, and is prone to aspiration. '
-            : kind === 'screen'
-              ? 'This case lists no swallowing problem or reduced consciousness, but the infarct is large. Dysphagia is common after stroke (37–78 % depending on how it is tested) and can be present even where the model lists none, so the swallow is still screened. '
-              : '') +
-          'Aspiration pneumonia is one of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.',
-      },
-      regions: kind === 'dysphagia' ? [...listed.dysphagiaRegions] : [],
+  if (listed && !tia) {
+    // (a locked-in patient's dysphagia is in the list from the start, so it needs no rule of its own)
+    const stretches = listed.swallow;
+    const phases: { kind: SwallowStretch['kind'] | 'screen'; fromH: number; untilH: number | null; regions: string[] }[] = [];
+    const firstH = stretches.length ? stretches[0].fromH : null;
+    if (largeSupra && (firstH === null || firstH > 0)) phases.push({ kind: 'screen', fromH: 0, untilH: firstH, regions: [] });
+    phases.push(...stretches);
+    phases.forEach((ph, i) => {
+      const { kind } = ph;
+      events.push({
+        id: i === 0 ? 'aspiration' : `aspiration_${i + 1}`,
+        kind: 'complication',
+        severity: 'warn',
+        onsetH: ph.fromH,
+        endH: Math.min(ph.untilH ?? 336, 336),
+        title:
+          kind === 'dysphagia'
+            ? { zh: '吞嚥困難 → 吸入性肺炎', en: 'Dysphagia → aspiration pneumonia' }
+            : kind === 'drowsy'
+              ? { zh: '意識變差 → 吸入性肺炎', en: 'Reduced consciousness → aspiration pneumonia' }
+              : { zh: '吸入風險：進食前先做吞嚥篩檢', en: 'Aspiration risk: swallow screen before oral intake' },
+        // fever early after an ischaemic stroke is mostly infection or aspiration (Grau AJ et al.,
+        // J Neurol Sci 1999;171:115–120); central fever is described mostly with haemorrhage and
+        // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is shown only as a
+        // risk after extensive bilateral tegmental infarction with coma ('central_hyperthermia'
+        // above; see the temperature section of anatomy/symptoms.ts)
+        desc: {
+          zh:
+            (kind === 'drowsy'
+              ? '意識變差的病人無法安全吞嚥、也保護不了呼吸道，容易吸入。'
+              : kind === 'screen'
+                ? '這個病例沒有列出吞嚥困難或意識變差，但梗塞很大。吞嚥困難在中風後很常見（依檢查方法不同，37–78%），模型沒有列出的也可能存在，所以仍要先做吞嚥篩檢。'
+                : '') +
+            '吸入性肺炎是中風後最常見的致死併發症之一。進食前需做吞嚥篩檢，必要時暫時以鼻胃管餵食。中風後發燒要先找感染（肺炎、尿路感染）；腦部本身引起的「中樞性發燒」在缺血性中風很少見（主要是兩側腦幹被蓋大範圍受損又昏迷時，見「中樞性高熱的風險」），只有排除感染後才考慮。',
+          en:
+            (kind === 'drowsy'
+              ? 'A patient with reduced consciousness cannot swallow safely or protect the airway, and is prone to aspiration. '
+              : kind === 'screen'
+                ? 'This case lists no swallowing problem or reduced consciousness, but the infarct is large. Dysphagia is common after stroke (37–78 % depending on how it is tested) and can be present even where the model lists none, so the swallow is still screened. '
+                : '') +
+            'Aspiration pneumonia is one of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.',
+        },
+        regions: kind === 'dysphagia' ? [...new Set(ph.regions)] : [],
+      });
     });
   }
   // the heart after any stroke (C10-F5): serious cardiac adverse events in 19 % of 846 ischaemic
@@ -1686,39 +1705,50 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // et al. Neurology 2006;66:477-483, PMID 16505298). Prolonged monitoring newly finds atrial
   // fibrillation in 23.7 % (Sposato LA et al. Lancet Neurol 2015;14:377-387, PMID 25748102) —
   // cause-finding, not a complication. "Severe" stands for stroke severity: a large infarct
-  // (≥ 60 mL), a locked-in state, or stupor or coma in the symptom list during the first two
-  // weeks (R3-4: a comatose top-of-the-basilar or swollen cerebellar stroke is severe whatever
-  // its volume).
+  // (≥ 60 mL) or a locked-in state from onset, and stupor or coma from when the symptom list first
+  // shows it in the first two weeks (R3-4: a comatose top-of-the-basilar or swollen cerebellar
+  // stroke is severe whatever its volume). Until then the warning does not call the stroke severe:
+  // a cerebellar infarct that swells into coma on day 2 is a mild, alert stroke before that (X3-4),
+  // so the warning has a second stretch, 'cardiac_2', from the stupor on.
   const brainInfarct = anyIschemia && !eyeOnly && !earInfarct && !noInfarct;
   if (brainInfarct) {
     const insula = (['insula_r', 'insula_l'] as const).filter((r) => acute(r, 0.3));
-    const severe = vol.total >= 60 || lockedIn || (listed?.comaFromH ?? null) !== null;
+    const severeFromH = vol.total >= 60 || lockedIn ? 0 : (listed?.comaFromH ?? null);
     const sideZh = (r: string) => (r.endsWith('_r') ? '右' : '左');
     const sideEn = (r: string) => (r.endsWith('_r') ? 'right' : 'left');
-    events.push({
-      id: 'cardiac',
-      kind: 'complication',
-      severity: severe || insula.length > 0 ? 'warn' : 'info',
-      onsetH: 0,
-      endH: 336,
-      title: { zh: '中風後的心臟：心律不整、心肌受損', en: 'The heart after a stroke: arrhythmia, cardiac injury' },
-      desc: {
-        zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；較長時間的心律監測約可新發現四分之一的心房顫動——這是在找中風的原因，不是中風造成的併發症。${
-          severe ? '這是嚴重的中風，風險較高。' : ''
-        }${
-          insula.length
-            ? `梗塞包含${insula.map(sideZh).join('、')}側島葉：島葉參與心臟的自主神經控制，但哪一側比較重要，證據不一致——右側背前島葉與 troponin 上升有關，左側島葉與之後一年的心臟事件有關。`
-            : ''
-        }`,
-        en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; longer rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${
-          severe ? ' This is a severe stroke, which carries a higher risk.' : ''
-        }${
-          insula.length
-            ? ` The infarct involves the ${insula.map(sideEn).join(' and ')} insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.`
-            : ''
-        }`,
-      },
-      regions: [...insula],
+    const stretches: { fromH: number; endH: number; severe: boolean }[] =
+      severeFromH !== null && severeFromH > 0 && severeFromH < 336
+        ? [
+            { fromH: 0, endH: severeFromH, severe: false },
+            { fromH: severeFromH, endH: 336, severe: true },
+          ]
+        : [{ fromH: 0, endH: 336, severe: severeFromH !== null && severeFromH < 336 }];
+    stretches.forEach(({ fromH, endH, severe }, i) => {
+      events.push({
+        id: i === 0 ? 'cardiac' : `cardiac_${i + 1}`,
+        kind: 'complication',
+        severity: severe || insula.length > 0 ? 'warn' : 'info',
+        onsetH: fromH,
+        endH,
+        title: { zh: '中風後的心臟：心律不整、心肌受損', en: 'The heart after a stroke: arrhythmia, cardiac injury' },
+        desc: {
+          zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；較長時間的心律監測約可新發現四分之一的心房顫動——這是在找中風的原因，不是中風造成的併發症。${
+            severe ? (fromH > 0 ? '這是嚴重的中風（已出現木僵或昏迷），風險較高。' : '這是嚴重的中風，風險較高。') : ''
+          }${
+            insula.length
+              ? `梗塞包含${insula.map(sideZh).join('、')}側島葉：島葉參與心臟的自主神經控制，但哪一側比較重要，證據不一致——右側背前島葉與 troponin 上升有關，左側島葉與之後一年的心臟事件有關。`
+              : ''
+          }`,
+          en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; longer rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${
+            severe ? (fromH > 0 ? ' This is a severe stroke (it has brought stupor or coma), which carries a higher risk.' : ' This is a severe stroke, which carries a higher risk.') : ''
+          }${
+            insula.length
+              ? ` The infarct involves the ${insula.map(sideEn).join(' and ')} insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.`
+              : ''
+          }`,
+        },
+        regions: [...insula],
+      });
     });
   }
   const legWeak = ['paracentral', 'ic_posterior_limb', 'midbrain_peduncle', 'pons_rostral_basis', 'pons_caudal_basis', 'medulla_medial'].some(

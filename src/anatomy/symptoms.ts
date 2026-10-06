@@ -991,14 +991,14 @@ export const SYMPTOMS: SymptomDef[] = [
     id: 'aphasia_global',
     name: { zh: '全面性失語', en: 'Global aphasia' },
     desc: {
-      zh: '說、聽、複誦都嚴重受損，幾乎無法溝通。恢復最差的失語類型；變輕之後會轉成較輕的類型（例如韋尼克或布洛卡型），模型就改列那個類型。',
-      en: 'Expression, comprehension and repetition are all severely impaired. The aphasia type with the poorest recovery; as it becomes milder it changes into a milder type (a Wernicke or Broca type, for example), and the model then lists that type.',
+      zh: '說、聽、複誦都嚴重受損，幾乎無法溝通。恢復最差的失語類型；變輕之後會轉成較輕的類型，模型就改列那個類型：理解先恢復就成為布洛卡型，說話先變流暢就成為韋尼克型。之後類型只會往更輕的方向變，說話流暢的失語不會再變回不流暢。',
+      en: 'Expression, comprehension and repetition are all severely impaired. The aphasia type with the poorest recovery; as it becomes milder it changes into a milder type, and the model then lists that type: a Broca type if comprehension recovers first, a Wernicke type if speech becomes fluent first. From then on the type only moves towards milder forms, and a fluent aphasia does not become non-fluent again.',
     },
     system: 'language',
     lateralised: false,
     // 3 = mute, following no one-step command (clinical.ts then scores 1c = 2 and 10 = 2, R1-1);
-    // a global aphasia that has become mild is listed as another type (R1-2: Pedersen PM et al.
-    // Cerebrovasc Dis 2004;17:35-43, PMID 14530636), so in practice it scores 3
+    // a global aphasia that has become mild is listed as a Broca or Wernicke type (R1-2, X3-14:
+    // Pedersen PM et al. Cerebrovasc Dis 2004;17:35-43, PMID 14530636), so in practice it scores 3
     nihss: { item: '9', pts: [2, 3, 3] },
   },
   {

@@ -529,20 +529,27 @@ export function lesionSymptoms(
       }
       if (best > 0) sev = Math.max(1, Math.min(3, Math.round(best))) as 1 | 2 | 3;
       // Global aphasia is the most severe type by definition (Kertesz & Poole), so a mild one
-      // is no longer global: in the first year the type changes only towards less severe forms,
-      // a global aphasia for example into a Wernicke type (Copenhagen aphasia study: Pedersen PM
-      // et al. Cerebrovasc Dis 2004;17:35-43, PMID 14530636). It follows the components still at
-      // moderate severity or, when all are mild, the one most severe after its own compensation
-      // (R1-2).
+      // is no longer global. In the first year the type always changed to a less severe form, and
+      // a fluent aphasia never became non-fluent (global to Wernicke's, Broca's to anomic;
+      // Copenhagen aphasia study: Pedersen PM et al. Cerebrovasc Dis 2004;17:35-43, PMID
+      // 14530636). The type follows the components still at moderate severity (R1-2). When all
+      // are mild, comprehension or fluency, whichever is now the less impaired, has recovered
+      // first: a Broca type (comprehension recovered) or a Wernicke type (fluency recovered), both
+      // keeping the impaired repetition; when the two are equally impaired it stays a Broca type,
+      // as the rule before gave for components of equal severity (X3-14). Taking instead the one
+      // component most severe after its own compensation let the type swing between a fluent and
+      // a non-fluent one when two components of almost the same severity recovered at slightly
+      // different rates (a conduction type, then Broca's, then a conduction type again).
       if (sev < 2) {
         const strong = components.filter((s) => s.sev >= 2);
         const strongType = strong.length > 0 ? aphasiaType(features(strong)) : 'aphasia_global';
         const now = (s: SymptomItem) => aphasiaNow.get(s.id) ?? s.sev;
-        const dominant = components.reduce((a, b) => (now(b) > now(a) ? b : a));
-        const kept = strongType !== 'aphasia_global' ? strong : [dominant];
-        type = strongType !== 'aphasia_global' ? strongType : dominant.id;
+        const strongest = (f: 'nonfluent' | 'comprehension') => Math.max(0, ...components.filter((s) => APHASIA_FEATURES[s.id][f]).map(now));
+        type = strongType !== 'aphasia_global' ? strongType : strongest('comprehension') <= strongest('nonfluent') ? 'aphasia_broca' : 'aphasia_wernicke';
+        const shares = (s: SymptomItem) => (Object.keys(APHASIA_FEATURES[s.id]) as (keyof (typeof APHASIA_FEATURES)[string])[]).some((f) => APHASIA_FEATURES[type][f]);
+        const kept = strongType !== 'aphasia_global' ? strong : components.filter(shares);
         sev = Math.max(...kept.map((s) => s.sev)) as 1 | 2 | 3;
-        recovery = kept.find((s) => s.sev === sev)?.recovery;
+        recovery = kept.reduce((a, b) => (now(b) > now(a) ? b : a)).recovery;
       }
     }
     const sources = [...new Set(components.flatMap((s) => s.sources))];

@@ -139,7 +139,8 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
   // calibration; the small shifts allowed come from the ischaemic lag (goal 7)
   const BEFORE: Record<string, number> = {
     l_m1: 148.916,
-    l_m1_thrombectomy: 60.198,
+    // X3-0: the pial arteries of the hemispheres are mirrored in the flow model (was 60.198)
+    l_m1_thrombectomy: 58.046,
     r_m1_malignant: 485.138,
     r_m1_decompression: 296.726,
     r_ica_t: 493.241,
@@ -159,8 +160,10 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
     fetal_pca: 76.199,
     // C1-F3: the calcarine artery now feeds 60 % of the cuneus, so the parieto-occipital artery
     // carries less, its end pressure is higher, and its border-zone beds (precuneus, superior
-    // parietal, lateral occipital) lose less at low blood pressure (was 17.861)
-    watershed: 16.331,
+    // parietal, lateral occipital) lose less at low blood pressure (was 17.861). X3-0: with the pial
+    // arteries of the hemispheres mirrored in the flow model, the right posterior border zone loses
+    // more again (was 16.331)
+    watershed: 17.791,
     subclavian_steal: 0,
     amaurosis: 0,
     // added with the occlusion schedules: a 5-minute event within the ischaemic lag leaves no infarct

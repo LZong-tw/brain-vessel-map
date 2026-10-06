@@ -69,12 +69,16 @@ export interface TreatmentStrings {
   range: (typical: string | null, low: string, high: string) => string;
   source: string;
   /** warnings */
-  /** IV thrombolysis alone with flow back so late that the drug start (`start`, after onset) is beyond the window */
-  warnIvtWindow: (window: string, delay: string, start: string) => string;
+  /**
+   * IV thrombolysis alone with flow back so late that the drug start (`start`, after onset) was
+   * most likely beyond the window; `lag`: how long the artery must have taken to reopen for the
+   * start to fall within it, when the range straddles the window (X3-6)
+   */
+  warnIvtWindow: (window: string, delay: string, start: string, lag: string | null) => string;
   /** beyond the standard window but within a guideline's consensus window (basilar) */
   warnIvtWindowConsensus: (window: string, consensusWindow: string, delay: string) => string;
-  /** note: flow back after the window, but early enough for a drug started within it */
-  noteIvtWindowFits: (window: string, delay: string, start: string) => string;
+  /** note: flow back after the window, but early enough for a drug most likely started within it (`lag` as for warnIvtWindow) */
+  noteIvtWindowFits: (window: string, delay: string, start: string, lag: string | null) => string;
   /** IV thrombolysis alone with flow back within about 1 h of onset */
   warnIvtTooEarly: (delay: string) => string;
   /** note for bridging after the window: thrombectomy sets the time (`consensusWindow`: basilar) */
@@ -155,12 +159,16 @@ const zh: TreatmentStrings = {
   },
   range: (typical, low, high) => (typical ? `約 ${typical}（${low}–${high}）` : `${low}–${high}`),
   source: '來源',
-  warnIvtWindow: (w, d, start) =>
-    `靜脈血栓溶解須在發作後 ${w}內開始用藥（更晚只在影像篩選後：WAKE-UP、EXTEND 試驗；無法取栓的大血管阻塞可在 24 小時內用 tenecteplase：TRACE-III，中國病人）。這裡選的是血流恢復的時間：發作後 ${d}；用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以藥物是在發作後約 ${start}開始的。`,
+  warnIvtWindow: (w, d, start, lag) =>
+    `靜脈血栓溶解須在發作後 ${w}內開始用藥（更晚只在影像篩選後：WAKE-UP、EXTEND 試驗；無法取栓的大血管阻塞可在 24 小時內用 tenecteplase：TRACE-III，中國病人）。這裡選的是血流恢復的時間：發作後 ${d}；用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以藥物是在發作後約 ${start}開始的，多半已超過時限${
+      lag ? `：只有動脈在用藥後 ${lag}以上才打通，才可能是在 ${w}內開始` : ''
+    }。`,
   warnIvtWindowConsensus: (w, cw, d) =>
     `靜脈血栓溶解的標準是發作後 ${w}內開始用藥；這裡是發作後 ${d}（血流恢復的時間）。基底動脈阻塞時，ESO/ESMINT 指引依專家共識建議可用到 ${cw}，但證據確定性非常低。`,
-  noteIvtWindowFits: (w, d, start) =>
-    `發作後 ${d}血流恢復，和 ${w}內開始用藥相符：用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以藥物是在發作後約 ${start}開始的。`,
+  noteIvtWindowFits: (w, d, start, lag) =>
+    `發作後 ${d}血流恢復，和 ${w}內開始用藥相符：用藥後動脈通常在接下來 1–3 小時內才逐漸打通，所以藥物是在發作後約 ${start}開始的${
+      lag ? `（動脈在用藥後 ${lag}以上才打通時，是在 ${w}內開始；打通得更快，就是超過時限才用藥）` : ''
+    }。`,
   warnIvtTooEarly: (d) =>
     `發作後才 ${d}就恢復血流，比靜脈血栓溶解通常能做到的更快：要先做腦部影像才能用藥，用藥後動脈通常在接下來 1–3 小時內才逐漸打通（INTERRSeCT 世代研究中，從開始用藥到評估再通的中位數約 2 小時）。`,
   noteBridgingDrugStart: (w, cw, d) =>
@@ -239,12 +247,16 @@ const en: TreatmentStrings = {
   },
   range: (typical, low, high) => (typical ? `about ${typical} (${low}–${high})` : `${low}–${high}`),
   source: 'Source',
-  warnIvtWindow: (w, d, start) =>
-    `IV thrombolysis must be started within ${w} of onset (later only after imaging selection: the WAKE-UP and EXTEND trials; or tenecteplase up to 24 h for a large-vessel occlusion without access to thrombectomy: TRACE-III, Chinese patients). The time chosen here is when flow returns, ${d} after onset; after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about ${start} after onset.`,
+  warnIvtWindow: (w, d, start, lag) =>
+    `IV thrombolysis must be started within ${w} of onset (later only after imaging selection: the WAKE-UP and EXTEND trials; or tenecteplase up to 24 h for a large-vessel occlusion without access to thrombectomy: TRACE-III, Chinese patients). The time chosen here is when flow returns, ${d} after onset; after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about ${start} after onset, most likely after the window${
+      lag ? `: within ${w} only if the artery took ${lag} or longer to reopen` : ''
+    }.`,
   warnIvtWindowConsensus: (w, cw, d) =>
     `IV thrombolysis is standard when started within ${w} of onset; this is ${d} after onset (when flow returns). For basilar-artery occlusion the ESO/ESMINT guideline suggests it up to ${cw}, by expert consensus at very low certainty of evidence.`,
-  noteIvtWindowFits: (w, d, start) =>
-    `Flow returning ${d} after onset fits a drug started within ${w}: after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about ${start} after onset.`,
+  noteIvtWindowFits: (w, d, start, lag) =>
+    `Flow returning ${d} after onset fits a drug started within ${w}: after the drug the artery usually reopens gradually over the next 1–3 h, so it was started about ${start} after onset${
+      lag ? ` — within ${w} if the artery took ${lag} or longer to reopen, later if it reopened faster` : ''
+    }.`,
   warnIvtTooEarly: (d) =>
     `Flow returning only ${d} after onset is faster than IV thrombolysis usually achieves: the drug is started only after brain imaging, and the artery then usually reopens gradually over the next 1–3 h (in the INTERRSeCT cohort recanalisation was assessed a median of about 2 h after the drug was started).`,
   noteBridgingDrugStart: (w, cw, d) =>

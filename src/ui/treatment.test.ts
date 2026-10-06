@@ -100,11 +100,11 @@ describe('C2-F2: tenecteplase and thrombolysis beyond 4.5 h', () => {
   });
 
   it('the IV thrombolysis window warning names imaging selection and tenecteplase up to 24 h', () => {
-    const t = warn('ivt', 6, ['m1']).find((x) => x.key === 'ivtWindow')!.text;
+    const t = warn('ivt', 8, ['m1']).find((x) => x.key === 'ivtWindow')!.text;
     expect(t).toMatch(/WAKE-UP/);
     expect(t).toMatch(/EXTEND/);
     expect(t).toMatch(/TRACE-III/);
-    const zh = warn('ivt', 6, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text;
+    const zh = warn('ivt', 8, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text;
     expect(zh).toMatch(/WAKE-UP/);
   });
 });
@@ -124,11 +124,11 @@ describe('C2-F3: large-core thrombectomy figures', () => {
 
 describe('C2-F5: the IV thrombolysis window refers to drug start', () => {
   it('the warning says the drug must be started within 4.5 h and that reopening comes 1–3 h later', () => {
-    const t = warn('ivt', 6, ['m1']).find((x) => x.key === 'ivtWindow')!.text;
+    const t = warn('ivt', 8, ['m1']).find((x) => x.key === 'ivtWindow')!.text;
     expect(t).toMatch(/started within 4\.5 h/);
     expect(t).toMatch(/1–3 h/);
-    expect(t).toMatch(/6 h after onset/);
-    const zh = warn('ivt', 6, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text;
+    expect(t).toMatch(/8 h after onset/);
+    const zh = warn('ivt', 8, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text;
     expect(zh).toMatch(/4\.5 小時內開始/);
     expect(zh).toMatch(/1–3 小時/);
   });
@@ -323,8 +323,8 @@ describe('R4-8: the 4.5 h window is about the drug start, which comes 1–3 h be
     expect(t).toMatch(/5 h after onset/);
     expect(t).toMatch(/within 4\.5 h/);
     expect(warn('ivt', 5, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindowFits')!.text).toMatch(/4\.5 小時內開始用藥相符/);
-    // later, the warning and the late trials
-    for (const h of [6, 8]) {
+    // later, the warning and the late trials (X3-6: once the drug was most likely started late)
+    for (const h of [7, 8]) {
       expect(keys(warn('ivt', h, ['m1'])), `${h} h`).toContain('ivtWindow');
       expect(evRows(['m1'], 'ivt', 'en', h).some((r) => r.key === 'lateIvt'), `${h} h`).toBe(true);
     }
@@ -333,8 +333,8 @@ describe('R4-8: the 4.5 h window is about the drug start, which comes 1–3 h be
   });
 
   it('the warning gives the drug start implied by the flow-return time', () => {
-    expect(warn('ivt', 6, ['m1']).find((x) => x.key === 'ivtWindow')!.text).toMatch(/about 3–5 h after onset/);
-    expect(warn('ivt', 6, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text).toMatch(/發作後約 3–5 小時/);
+    expect(warn('ivt', 8, ['m1']).find((x) => x.key === 'ivtWindow')!.text).toMatch(/about 5–7 h after onset/);
+    expect(warn('ivt', 8, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text).toMatch(/發作後約 5–7 小時/);
   });
 
   it('bridging: thrombectomy sets the time, so no window warning and no late-trial row, only a neutral note', () => {
@@ -360,5 +360,50 @@ describe('R4-8: the 4.5 h window is about the drug start, which comes 1–3 h be
 
   it('warnings are warnings unless marked as notes', () => {
     expect(warn('ivt', 8, ['m1']).find((x) => x.key === 'ivtWindow')!.level).toBeUndefined();
+  });
+});
+
+/**
+ * X3-6: the warning and the note follow the drug start the flow-return time implies. With the
+ * artery reopening 1–3 h after the drug (about 2 h in the middle: INTERRSeCT assessed it a median
+ * of about 2 h after the drug), flow back at 6 h means a start at about 3–5 h, mostly within the
+ * 4.5 h window: that fits standard thrombolysis and is a note, not a warning that contradicts its
+ * own figures. The warning (and the late-thrombolysis trials) come once the start was most likely
+ * after the window; where the start range straddles the window, both texts say how long the
+ * reopening must have taken for the start to fall within it.
+ */
+describe('X3-6: IV thrombolysis with flow back at 6 h is not called late', () => {
+  it('6 h: a note that the start fits the window if the artery took 1.5 h or more, no warning, no late-trial row', () => {
+    const w = warn('ivt', 6, ['m1']);
+    expect(keys(w)).not.toContain('ivtWindow');
+    const note = w.find((x) => x.key === 'ivtWindowFits')!;
+    expect(note.level).toBe('note');
+    expect(note.text).toMatch(/about 3–5 h after onset/);
+    expect(note.text).toMatch(/within 4\.5 h if the artery took 1\.5 h or longer to reopen, later if it reopened faster/);
+    const zh = warn('ivt', 6, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindowFits')!.text;
+    expect(zh).toMatch(/發作後約 3–5 小時/);
+    expect(zh).toMatch(/動脈在用藥後 1\.5 小時以上才打通時，是在 4\.5 小時內開始；打通得更快，就是超過時限才用藥/);
+    expect(evRows(['m1'], 'ivt', 'en', 6).some((r) => r.key === 'lateIvt')).toBe(false);
+  });
+
+  it('7 h: the warning, which says the start was most likely late and when it would still fit', () => {
+    const t = warn('ivt', 7, ['m1']).find((x) => x.key === 'ivtWindow')!.text;
+    expect(t).toMatch(/about 4–6 h after onset, most likely after the window: within 4\.5 h only if the artery took 2\.5 h or longer to reopen/);
+    expect(warn('ivt', 7, ['m1'], 'zh-TW').find((x) => x.key === 'ivtWindow')!.text).toMatch(
+      /發作後約 4–6 小時開始的，多半已超過時限：只有動脈在用藥後 2\.5 小時以上才打通，才可能是在 4\.5 小時內開始/,
+    );
+    // 8 h: the whole range is late, no condition
+    expect(warn('ivt', 8, ['m1']).find((x) => x.key === 'ivtWindow')!.text).not.toMatch(/only if/);
+  });
+
+  it('at every delay the level agrees with the start it gives: a warning only when the middle of the range is past the window', () => {
+    for (let h = 4.75; h <= 30; h += 0.25) {
+      const w = warn('ivt', h, ['m1']);
+      const start = h - 2;
+      const late = start > RECANALISATION_EVIDENCE.ivtWindowH + 1e-9;
+      expect(keys(w).includes('ivtWindow'), `${h} h`).toBe(late);
+      expect(keys(w).includes('ivtWindowFits'), `${h} h`).toBe(!late);
+      expect(evRows(['m1'], 'ivt', 'en', h).some((r) => r.key === 'lateIvt'), `${h} h`).toBe(late);
+    }
   });
 });

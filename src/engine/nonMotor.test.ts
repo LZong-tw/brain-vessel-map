@@ -345,8 +345,11 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // thalamic aphasia and dysarthria (10: 0 → 1); was 21 (R6-12: not 22). R5-7: in a disorder of
   // consciousness the thalamic aphasia is not listed (9: 1 → 0); R5-9: the soft speech of the
   // anterior thalamic infarct has improved by 3 months (10: 1 → 0); was 24. MERGE (R1-1 with R5-7):
-  // a disorder of consciousness is mute and follows no command (9: 0 → 3, 1c: 0 → 2, 10: 0 → 2); was 22
-  'basilar_tip@2160': [29, { '1a': 2, '1b': 2, '1c': 2, 2: 1, 3: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 3, 10: 2 }, ['top_of_basilar']],
+  // a disorder of consciousness is mute and follows no command (9: 0 → 3, 1c: 0 → 2, 10: 0 → 2); was 22.
+  // X3-0: with the pial arteries of the hemispheres mirrored in the flow model, the left lingual
+  // gyrus keeps less infarct (0.27 → 0.23 of the region), so the upper quadrantanopia has gone by
+  // 3 months (3: 1 → 0); was 29
+  'basilar_tip@2160': [28, { '1a': 2, '1b': 2, '1c': 2, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 3, 10: 2 }, ['top_of_basilar']],
   // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
   'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
   // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome
@@ -392,8 +395,10 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // with its other deficits (10: 1 → 0, 11: 1 → 0; was 7)
   'fetal_pca@2160': [5, { 3: 2, 7: 1, 8: 2 }, ['pca_r', 'thalamic_sensory_r', 'thalamic_tuberothalamic_r']],
   // C5-F1 drift: was 7; R1-3: a moderate proximal (shoulder) weakness is some effort against
-  // gravity, not drift (5l: 1 → 2; was 5)
-  'watershed@24': [6, { 4: 1, '5l': 2, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']],
+  // gravity, not drift (5l: 1 → 2; was 5). X3-0: with the pial arteries of the hemispheres mirrored
+  // in the flow model, the right occipital pole loses more of its MCA–PCA border zone at the low
+  // pressure, giving a central scotoma (3: 0 → 1; was 6)
+  'watershed@24': [7, { 3: 1, 4: 1, '5l': 2, '6l': 1, 8: 1, 10: 1 }, ['watershed_r']],
   // C1-F6: the anterior border zone of the motor strip leaves a mild proximal arm weakness, so
   // the label is no longer clinically silent (was 0, {}; the silent case is now at 65 mmHg,
   // syndromeSigns.test.ts)
