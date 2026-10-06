@@ -5,6 +5,10 @@
 
 import type { Lang } from '../anatomy/types';
 
+/** after a reopening, where blood did not come back: the tissue there is still dying, or has died since (T2-6) */
+const NOT_BACK_ZH = { none: '', dying: '，但血流沒有回來的地方，組織仍在壞死', died: '，但血流沒有回來的地方，組織之後仍壞死了' };
+const NOT_BACK_EN = { none: '', dying: ', but tissue is still dying where blood has not come back', died: ', but where blood did not come back the tissue has died since' };
+
 const zh = {
   appTitle: '腦血管互動地圖',
   appSubtitle: '3D 腦血管、腦幹與小腦 · 栓塞後果模擬',
@@ -174,9 +178,13 @@ const zh = {
   nowTitle: '此刻發生什麼',
   nowPhase: (time: string | null, phase: string) => (time ? `發作後 ${time} · ${phase}` : `發作當下 · ${phase}`),
   nowOnset: (pen: string) => `血流剛中斷：神經元約 10 秒內停止放電，症狀立刻出現；組織還沒壞死，但約 ${pen} mL 已經缺血。`,
-  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string; penNote: 'saved' | 'atRisk' | 'late' }) =>
+  // (the penumbra that the flow it has now still kills, and what survives on collaterals anyway: T2-7)
+  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string | null; survives: string | null; penNote: 'saved' | 'atRisk' | 'late' }) =>
     `梗塞核心正在擴大：過去 ${a.since}內多了 ${a.grew} mL（目前約 ${a.core} mL），` +
-    (a.penNote === 'saved' ? `半影區還有約 ${a.pen} mL 可救。` : `約 ${a.pen} mL 的半影區仍可能壞死${a.penNote === 'late' ? '（已過了再通治療的時間）' : ''}。`),
+    (a.pen === null
+      ? `其餘缺血組織（約 ${a.survives} mL）會靠側枝存活。`
+      : (a.penNote === 'saved' ? `半影區還有約 ${a.pen} mL 可救` : `約 ${a.pen} mL 的半影區仍可能壞死${a.penNote === 'late' ? '（已過了再通治療的時間）' : ''}`) +
+        (a.survives === null ? '。' : a.penNote === 'saved' ? `；其餘約 ${a.survives} mL 缺血組織即使血管不通，也會靠側枝存活。` : `；其餘約 ${a.survives} mL 缺血組織會靠側枝存活。`)),
   nowHolding: (a: { core: string; pen: string }) => `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 的半影區靠側枝勉強維持。`,
   nowHoldingNoCore: (pen: string) => `幾乎還沒有組織壞死；約 ${pen} mL 缺血，暫時靠側枝血流撐著。`,
   // the deep white matter behind a perforating end artery, alive with no flow at all (V2-8)
@@ -185,11 +193,13 @@ const zh = {
   nowHoldingNoFlowNoCore: (pen: string) =>
     `幾乎還沒有組織壞死；約 ${pen} mL 缺血。深部穿通動脈是終末動脈，沒有側枝血流能到達；這些組織還活著，是因為深部纖維束的白質在完全沒有血流時，要幾個小時才會壞死。`,
   // (the part of what it saves that a herniation of the untreated swelling would have infarcted, V1-6)
-  nowRecanalized: (a: { at: string; saved: string; secondary?: string }) =>
-    `血管已在發作後 ${a.at}再通：半影區停止惡化，模型估計救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}。`,
+  // (`partial`: blood came back to part of the territory only, and the rest is still dying, or has
+  // died since: T2-6)
+  nowRecanalized: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `血管已在發作後 ${a.at}再通：${a.partial ? '' : '半影區停止惡化，'}模型估計救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}${NOT_BACK_ZH[a.partial ?? 'none']}。`,
   // an artery that reopened by itself, against the same case had it stayed closed (U2-10)
-  nowRecanalizedSelf: (a: { at: string; saved: string; secondary?: string }) =>
-    `血管在發作後 ${a.at}自行再通（沒有治療）：半影區停止惡化，模型估計比血管一直阻塞救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是血管一直阻塞時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}。`,
+  nowRecanalizedSelf: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `血管在發作後 ${a.at}自行再通（沒有治療）：${a.partial ? '' : '半影區停止惡化，'}模型估計比血管一直阻塞救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是血管一直阻塞時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}${NOT_BACK_ZH[a.partial ?? 'none']}。`,
   nowSettled: (core: string) => `梗塞範圍大致定型（約 ${core} mL）；接下來的變化主要來自水腫與對其他腦區的續發影響。`,
   nowChronic: (core: string) => `壞死組織（約 ${core} mL）正被清除、形成疤痕與腦軟化；其餘腦區透過可塑性慢慢代償。`,
   nowChronicLoss: (core: string) => `約 ${core} mL 的腦組織已經永久失去；其餘腦區透過可塑性慢慢代償。`,
@@ -525,25 +535,32 @@ const en: Strings = {
   nowTitle: 'What is happening now',
   nowPhase: (time: string | null, phase: string) => (time ? `${time} after onset · ${phase}` : `At onset · ${phase}`),
   nowOnset: (pen: string) => `Flow has just stopped: neurons fall silent within ~10 s and symptoms start at once. Nothing has died yet, but about ${pen} mL is already ischaemic.`,
-  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string; penNote: 'saved' | 'atRisk' | 'late' }) =>
+  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string | null; survives: string | null; penNote: 'saved' | 'atRisk' | 'late' }) =>
     `The infarct core is still growing: ${a.grew} mL more in the last ${a.since} (now about ${a.core} mL); ` +
-    (a.penNote === 'saved'
-      ? `about ${a.pen} mL of penumbra can still be saved.`
-      : `about ${a.pen} mL of penumbra may still be lost${a.penNote === 'late' ? ' (too late now to reopen the artery)' : ''}.`),
+    (a.pen === null
+      ? `the ischaemic tissue left (about ${a.survives} mL) survives on its collaterals.`
+      : (a.penNote === 'saved'
+          ? `about ${a.pen} mL of penumbra can still be saved`
+          : `about ${a.pen} mL of penumbra may still be lost${a.penNote === 'late' ? ' (too late now to reopen the artery)' : ''}`) +
+        (a.survives === null
+          ? '.'
+          : a.penNote === 'saved'
+            ? `; the other ${a.survives} mL survives on collaterals even if the artery stays closed.`
+            : `; the other ${a.survives} mL of ischaemic tissue survives on its collaterals.`)),
   nowHolding: (a: { core: string; pen: string }) => `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL of penumbra is just holding on through collaterals.`,
   nowHoldingNoCore: (pen: string) => `Almost nothing has died yet; about ${pen} mL is ischaemic and survives on collateral flow for now.`,
   nowHoldingNoFlow: (a: { core: string; pen: string }) =>
     `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL is still alive with no blood flow at all: no collateral reaches the territory of a deep perforating artery, an end artery, but the white matter of its fibre tracts takes a few hours to die.`,
   nowHoldingNoFlowNoCore: (pen: string) =>
     `Almost nothing has died yet; about ${pen} mL is ischaemic. No collateral flow reaches it, as a deep perforating artery is an end artery; it is still alive because the white matter of the deep fibre tracts takes a few hours to die with no blood flow at all.`,
-  nowRecanalized: (a: { at: string; saved: string; secondary?: string }) =>
-    `The vessel was reopened ${a.at} after onset: the penumbra stopped dying — the model estimates about ${a.saved} mL saved${
+  nowRecanalized: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `The vessel was reopened ${a.at} after onset: ${a.partial ? '' : 'the penumbra stopped dying — '}the model estimates about ${a.saved} mL saved${
       a.secondary ? `, about ${a.secondary} mL of it in territories that the herniation of the untreated swelling would have infarcted` : ''
-    }.`,
-  nowRecanalizedSelf: (a: { at: string; saved: string; secondary?: string }) =>
-    `The artery reopened by itself ${a.at} after onset, without treatment: the penumbra stopped dying — the model estimates about ${a.saved} mL saved compared with an artery that stayed closed${
+    }${NOT_BACK_EN[a.partial ?? 'none']}.`,
+  nowRecanalizedSelf: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `The artery reopened by itself ${a.at} after onset, without treatment: ${a.partial ? '' : 'the penumbra stopped dying — '}the model estimates about ${a.saved} mL saved compared with an artery that stayed closed${
       a.secondary ? `, about ${a.secondary} mL of it in territories that the herniation of the swelling would have infarcted` : ''
-    }.`,
+    }${NOT_BACK_EN[a.partial ?? 'none']}.`,
   nowSettled: (core: string) => `The infarct has largely settled (about ${core} mL); what changes next comes from swelling and knock-on effects on other regions.`,
   nowChronic: (core: string) => `The dead tissue (about ${core} mL) is being cleared into a scar (encephalomalacia); the rest of the brain slowly compensates through plasticity.`,
   nowChronicLoss: (core: string) => `About ${core} mL of brain tissue is permanently lost; the rest of the brain slowly compensates through plasticity.`,

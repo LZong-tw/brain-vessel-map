@@ -6,13 +6,15 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render } from '@testing-library/react';
-import { tr } from '../anatomy';
+import { BED_BY_ID, tr } from '../anatomy';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { SymptomItem } from '../engine/clinical';
+import type { Occlusion } from '../engine/hemodynamics';
 import { simulate, type SimResult } from '../engine/simulate';
+import type { TreatmentOptions } from '../engine/treatment';
 import { useApp } from '../state/store';
 import { UI } from '../i18n/ui';
 import { symptomLabel } from '../ui/format';
@@ -394,5 +396,102 @@ describe('"what is happening now" after an artery reopens by itself (U2-10)', ()
     useApp.setState({ lang: 'en', tIndex: at(1) });
     const { container } = render(<NowSummary sim={series[at(1)]} series={series} />);
     expect(container.textContent).not.toMatch(/reopened by itself/);
+  });
+});
+
+// T2-6, T2-7: the penumbra the summary says can still be saved is the tissue that dies unless the
+// artery reopens, not the hypoperfused tissue that survives on its collaterals anyway; and after a
+// reopening that brings blood back to only part of the territory (eTICI 2a–2c, no-reflow, a clot
+// fragment downstream) it does not say that the penumbra stopped dying while the rest still dies
+describe('"what is happening now": the penumbra that can be saved, and a reopening that leaves tissue dying (T2-6, T2-7)', () => {
+  const tx = (method: TreatmentOptions['method'], over: Partial<TreatmentOptions> = {}): TreatmentOptions => ({ method, grade: '3', reocclusionAfterH: null, distalEmbolus: null, noReflow: 0, ...over });
+  const seriesFor = (occlusions: Occlusion[], collateral: 'good' | 'moderate' | 'poor', reperfusionH: number | null = null, treatment?: TreatmentOptions) =>
+    TIME_STOPS.map((st) => simulate({ occlusions, variants: [], collateral, map: 93, tH: st.h, reperfusionH, decompression: false, ...(treatment ? { treatment } : {}) }));
+  const tissueText = (series: SimResult[], i: number, lang: Lang) => {
+    useApp.setState({ lang, tIndex: i });
+    const { container } = render(<NowSummary sim={series[i]} series={series} />);
+    const text = container.querySelector('.now-summary p')?.textContent ?? '';
+    cleanup();
+    return text;
+  };
+  const brain = (r: SimResult) => ({ core: r.volumes.core - r.volumes.cord.core, final: r.volumes.finalInfarct - r.volumes.cord.final });
+  /** the primary core: what the arteries have killed, without a herniation's secondary infarcts */
+  const primaryCore = (r: SimResult) => Object.entries(r.beds).reduce((a, [id, b]) => (b.effect === 'secondary' ? a : a + b.infarct * (BED_BY_ID[id].volume ?? 0)), 0);
+
+  it.each(['zh-TW', 'en'] as Lang[])('%s: a left M1 at 1 h, before the thrombectomy of the template: what dies unless it reopens, and what survives anyway', (lang) => {
+    const series = seriesOf('l_m1_thrombectomy', 'good');
+    const r = series[at(1)];
+    const untreated = simulate({ ...r.input, reperfusionH: null, treatment: undefined, tH: 4320 });
+    const stillDies = brain(untreated).final - brain(r).core;
+    const pen = r.volumes.penumbra - r.volumes.cord.penumbra;
+    expect(pen - stillDies).toBeGreaterThan(50);
+    const text = tissueText(series, at(1), lang);
+    const saved = Number((lang === 'en' ? /about ([\d.]+) mL of penumbra can still be saved/ : /半影區還有約 ([\d.]+) mL 可救/).exec(text)?.[1]);
+    expect(Math.abs(saved - stillDies), text).toBeLessThan(1);
+    const survives = Number((lang === 'en' ? /the other ([\d.]+) mL survives on collaterals/ : /其餘約 ([\d.]+) mL 缺血組織即使血管不通/).exec(text)?.[1]);
+    expect(Math.abs(survives - (pen - stillDies)), text).toBeLessThan(1);
+  });
+
+  // the reviewer's cases: eTICI 2a at 4.5 h, 2b50 at 1 h, no-reflow of 30 % at 3 h, a fragment in the A2
+  const PARTIAL: [string, SimResult[]][] = [
+    ['right M1, bridging, eTICI 2a at 4.5 h', seriesFor([{ vessel: 'mca_m1_r', severity: 1 }], 'good', 4.5, tx('bridging', { grade: '2a' }))],
+    ['right M1 (moderate), thrombectomy, eTICI 2b50 at 1 h', seriesFor([{ vessel: 'mca_m1_r', severity: 1 }], 'moderate', 1, tx('evt', { grade: '2b50' }))],
+    ['right M1 (moderate), thrombectomy at 3 h with 30 % no-reflow', seriesFor([{ vessel: 'mca_m1_r', severity: 1 }], 'moderate', 3, tx('evt', { noReflow: 0.3 }))],
+    ['left M1, thrombectomy at 2 h with a fragment in the A2', seriesFor([{ vessel: 'mca_m1_l', severity: 1 }], 'good', 2, tx('evt', { distalEmbolus: 'aca_a2_l' }))],
+  ];
+  it.each(PARTIAL)('%s: not "the penumbra stopped dying" while the core grows; the rest is still dying', (_name, series) => {
+    const reperf = series[0].input.reperfusionH!;
+    for (const lang of ['en', 'zh-TW'] as Lang[]) {
+      let grown = 0;
+      TIME_STOPS.forEach((st, i) => {
+        if (st.h < reperf || st.h >= 120) return;
+        const text = tissueText(series, i, lang);
+        expect(text, `${st.h} h`).not.toMatch(lang === 'en' ? /stopped dying/ : /半影區停止惡化/);
+        // still dying while the arteries' infarct grows on to the next time; once it has stopped, died since
+        const next = series[i + 1];
+        const growsOn = !!next && primaryCore(next) - primaryCore(series[i]) >= Math.max(0.5, 0.1 * primaryCore(series[i]));
+        if (growsOn) expect(text, `${st.h} h`).toMatch(lang === 'en' ? /still dying where blood has not come back/ : /血流沒有回來的地方，組織仍在壞死/);
+        else expect(text, `${st.h} h`).toMatch(lang === 'en' ? /still dying where blood has not come back|where blood did not come back the tissue has died since/ : /血流沒有回來的地方，組織(仍在壞死|之後仍壞死了)/);
+        if (/still growing|正在擴大/.test(text)) grown++;
+      });
+      expect(grown, lang).toBeGreaterThan(0);
+    }
+  });
+
+  it('a complete reopening still says that the penumbra stopped dying', () => {
+    const series = seriesOf('l_m1_thrombectomy', 'good');
+    expect(tissueText(series, at(6), 'en')).toMatch(/the penumbra stopped dying/);
+    // … also once a later attack has added an infarct of its own: the reopening left nothing at risk
+    const twice = seriesFor([{ vessel: 'mca_m1_l', severity: 1, toH: 0.25 }, { vessel: 'mca_m1_l', severity: 1, fromH: 24, toH: 24.25 }], 'good');
+    for (const h of [48, 120]) {
+      const text = tissueText(twice, at(h), 'en');
+      expect(text, `${h} h`).toMatch(/reopened by itself 15 min after onset, without treatment: the penumbra stopped dying/);
+      expect(text, `${h} h`).not.toMatch(/has died since|still dying where/);
+    }
+  });
+
+  // the classes: "can still be saved" never counts more than the untreated course still kills, and
+  // "stopped dying" never stands beside a core that keeps growing
+  const CLASS: [string, SimResult[]][] = [
+    ...PARTIAL,
+    ...(['good', 'moderate', 'poor'] as const).flatMap((c) =>
+      ['mca_m1_l', 'mca_m2_inf_l', 'basilar_mid', 'pca_p2_r', 'ica_terminal_r'].flatMap((v) => [
+        [`${v} ${c}`, seriesFor([{ vessel: v, severity: 1 }], c)] as [string, SimResult[]],
+        [`${v} ${c}, thrombectomy at 4.5 h`, seriesFor([{ vessel: v, severity: 1 }], c, 4.5, tx('evt'))] as [string, SimResult[]],
+      ]),
+    ),
+  ];
+  it.each(CLASS)('%s: the penumbra quoted as saveable is what the untreated course still kills; "stopped dying" only when the core stops growing', (_name, series) => {
+    const untreated = simulate({ ...series[0].input, reperfusionH: null, treatment: undefined, tH: 4320 });
+    TIME_STOPS.forEach((st, i) => {
+      if (st.h >= 168) return;
+      const text = tissueText(series, i, 'en');
+      const saveable = /about ([\d.]+) mL of penumbra can still be saved/.exec(text);
+      if (saveable) expect(Number(saveable[1]), `${st.h} h: ${text}`).toBeLessThanOrEqual(brain(untreated).final - brain(series[i]).core + 0.5);
+      if (/stopped dying/.test(text) && i + 1 < series.length) {
+        const grew = primaryCore(series[i + 1]) - primaryCore(series[i]);
+        expect(grew, `${st.h} h: ${text}`).toBeLessThan(Math.max(0.5, 0.1 * primaryCore(series[i])));
+      }
+    });
   });
 });

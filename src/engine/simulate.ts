@@ -80,6 +80,8 @@ import {
   computeCascade,
   consciousnessFromShift,
   noInfarctEvents,
+  RECENT_INFARCT_MAX_H,
+  RECENT_INFARCT_MIN_H,
   symptomsAddedAt,
   type BedEffect,
   type BedEffectKind,
@@ -147,7 +149,7 @@ import { LACUNE_DYSFUNCTION, LACUNE_ML, canBeLacunar, lacuneSiteOf } from '../an
 import { DELAYED_ONSET_H } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { LOCKED_IN_BASES_FLOOR, haemodynamicSetting, isMcaTerritory, isWatershedPicture, type BorderPicture } from '../anatomy/syndromes';
-import { NEURONS_PER_ML, infarctFractionOf, ischaemicHours, lossSteps, silentAfterReflow, tissueCourse, type FlowPhase, type TissueState } from './tissue';
+import { NEURONS_PER_ML, finalInfarctProb, infarctFractionOf, ischaemicHours, lossSteps, silentAfterReflow, tissueCourse, type FlowPhase, type TissueState } from './tissue';
 
 export interface SimInput extends HemoInput {
   tH: number;
@@ -174,6 +176,12 @@ export interface BedTimeState {
   holding: number;
   /** infarcted fraction including secondary infarcts */
   infarct: number;
+  /**
+   * share of the bed (within `frac.penumbra`) that the flow it has now still kills: the penumbra at
+   * risk, which only restoring flow can save. The rest of the penumbra survives on its collaterals
+   * even if the flow stays as it is (T2-7)
+   */
+  atRisk: number;
   /**
    * share of the bed (within `frac.penumbra`) that is ischaemic and still alive with no flow at all:
    * the deep white matter behind a perforating end artery (DEEP_WHITE_MATTER_TISSUE), or a lacune
@@ -247,6 +255,14 @@ export interface SimResult {
      * matter takes hours to die (V2-8)
      */
     noFlow: number;
+    /**
+     * of the brain's penumbra, what the flow it has now still kills in the end: the tissue at risk,
+     * which only restoring flow can save (BedTimeState.atRisk). The rest survives on its collaterals
+     * even if the flow stays as it is: the operational penumbra of perfusion imaging includes such
+     * tissue, and in patients who were not reperfused a large part, but not all, of the mismatch
+     * was incorporated into the final infarct (tissue.ts; T2-7)
+     */
+    penumbraAtRisk: number;
   };
   /** neurons lost in the dead brain tissue (the estimate per mL is the brain's: Saver 2006; the spinal cord is not counted) */
   neuronsLost: number;
@@ -446,6 +462,8 @@ function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], save
   // the part of stabilised penumbra that is still dying is penumbra, not working tissue (Z2-8)
   const still = Math.min(1 - f, dying ?? 0);
   bs.frac.penumbra += still * frac;
+  // of the penumbra, what the flow it has now still kills (T2-7)
+  bs.atRisk += (rest === 'penumbra' ? Math.min(1 - f, Math.max(0, finalInfarctProb(currentRel(history, tH), p) - f)) : still) * frac;
   // past the time it is at risk, the part that survives is no longer penumbra but still silent (W2-10)
   if (held) bs.holding += (1 - f - still) * frac;
   if (stabilisedH !== undefined) bs.regaining += (1 - f - still) * frac * (1 - smoothstep(0, REGAIN_H, stabilisedH));
@@ -1070,6 +1088,21 @@ interface Model {
 
 const modelCache = new Map<string, Model>();
 
+/**
+ * The core when treatment is decided, per bed: what the lesion of the index onset has killed by
+ * then, not an earlier infarct (T2-8: a right M1 that closed a month after a left M1 infarct was
+ * told of a "large core, about 166 mL, larger than in most of these trials", the old left infarct,
+ * while its own was 0 at onset and about 70 mL at 6 h). With one onset at 0, the infarct at that time.
+ */
+function decisionCore(c: Course, onsetH: number, decisionH: number): Record<string, number> {
+  const atDecision = bedInfarctAt(c, decisionH);
+  if (onsetH <= 0) return atDecision;
+  const before = bedInfarctAt(c, onsetH);
+  const out: Record<string, number> = {};
+  for (const [id, v] of Object.entries(atDecision)) out[id] = Math.max(0, v - (before[id] ?? 0));
+  return out;
+}
+
 function modelKey(input: SimInput): string {
   const occ = input.occlusions.map((o) => `${o.vessel}:${o.severity}:${o.branch ? `b${o.lacuneSite ?? ''}` : ''}:${startOf(o)}:${endOf(o)}`).join(',');
   const key = `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}|${input.reperfusionH}|${input.decompression}`;
@@ -1083,7 +1116,7 @@ function modelKey(input: SimInput): string {
  * phases of the same vessel after it), on the clinical clock, against which what the reopening saved
  * is counted, as a treatment's saving is counted against the untreated course (V1-6).
  */
-function stayedClosedOf(input: SimInput, reopened: Occlusion[], atH: number, onsetH: number): SpontaneousReopening {
+function stayedClosedOf(input: SimInput, reopened: Occlusion[], atH: number, onsetH: number): { reopening: SpontaneousReopening; compressibleBy: (h: number) => Record<string, number> } {
   const same = (a: Occlusion, b: Occlusion) => a.vessel === b.vessel && startOf(a) === startOf(b) && endOf(a) === endOf(b);
   const occlusions: Occlusion[] = [];
   for (const o of input.occlusions) {
@@ -1094,8 +1127,17 @@ function stayedClosedOf(input: SimInput, reopened: Occlusion[], atH: number, ons
       occlusions.push(closed);
     } else if (!reopened.some((x) => x.vessel === o.vessel && startOf(o) >= atH - 1e-9)) occlusions.push(o);
   }
-  const closed = modelFor({ ...input, occlusions }).cascade.volumes;
-  return { atH: atH - onsetH, vessels: [...new Set(reopened.map((o) => o.vessel))], stayedClosed: { total: closed.total, withSecondary: closed.withSecondary } };
+  const closedInput: SimInput = { ...input, occlusions };
+  const model = modelFor(closedInput);
+  const closed = model.cascade.volumes;
+  // what a herniation finds alive is judged on that course too, as a treated reopening is judged on
+  // the untreated one (T2-2), on this model's clinical clock
+  const u = model.untreated ?? model.course;
+  const all = addLacunes(bedInfarctAt(u, model.finalH), u, model.finalH);
+  return {
+    reopening: { atH: atH - onsetH, vessels: [...new Set(reopened.map((o) => o.vessel))], stayedClosed: { total: closed.total, withSecondary: closed.withSecondary } },
+    compressibleBy: untreatedFinalBy(closedInput, u, model.finalH, onsetH, all),
+  };
 }
 
 function modelFor(input: SimInput): Model {
@@ -1231,12 +1273,17 @@ function modelFor(input: SimInput): Model {
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // … but the artery was reopened then, which ends the treatment windows (V1-11)
     reopensH: Number.isFinite(reopenedAtH) ? reopenedAtH - onsetH : null,
-    ...(spontaneous ? { spontaneous } : {}),
+    ...(spontaneous ? { spontaneous: spontaneous.reopening, compressibleBy: spontaneous.compressibleBy } : {}),
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
-    bedAtDecision: bedInfarctAt(untreated ?? course, decisionH),
+    bedAtDecision: decisionCore(untreated ?? course, onsetH, decisionH),
     map: input.map,
   };
+  // an earlier lesion that leaves an infarct, begun a day to 3 months before this one, counts
+  // against IV thrombolysis (T2-8)
+  const lesionStarts = lesionStartsOf(input, course, finalH, untreated, x, onsetH);
+  const earlier = lesionStarts.filter((h) => h <= onsetH - RECENT_INFARCT_MIN_H + 1e-9 && h >= onsetH - RECENT_INFARCT_MAX_H - 1e-9);
+  if (earlier.length) cascadeInput.priorInfarctH = onsetH - Math.max(...earlier);
   const edemaReperfusionH = episodeEndH === null ? null : episodeEndH - onsetH;
   const allStarts = [...new Set(occlusions.map(startOf))].sort((a, b) => a - b);
   const ischaemiaStarts = ischaemiaStartsOf(allStarts, course, hemoAtT);
@@ -1301,7 +1348,7 @@ function modelFor(input: SimInput): Model {
     reopenings: reopeningTimes(occlusions, plan && plan.reopened.length ? opensH : null),
     heldAt: new Map(),
     ischaemiaStarts,
-    lesionStarts: lesionStartsOf(input, course, finalH, untreated, x, onsetH),
+    lesionStarts,
     posteriorStarts: allStarts.filter((h) => posteriorIschaemiaAt(input, course, hemoAtT, h)),
     cordFinal: BEDS.reduce((a, b) => a + (REGION_BY_ID[b.region].category === SPINAL ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0),
     bedOnsetH: lesions.bed,
@@ -2017,6 +2064,7 @@ function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null, set
       regaining: 0,
       holding: 0,
       infarct: 0,
+      atRisk: 0,
       noFlow: 0,
       dys: 0,
       effect: null,
@@ -2063,6 +2111,8 @@ function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null, set
       for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - xl - p;
       bs.regaining *= 1 - xl - p;
       bs.holding *= 1 - xl - p;
+      // (a lacune's branch has no flow while it is closed: what is alive of it is at risk)
+      bs.atRisk = bs.atRisk * (1 - xl - p) + p;
       bs.noFlow = bs.noFlow * (1 - xl - p) + (wm ? p : 0);
       bs.frac.core += xl;
       bs.frac.penumbra += p;
@@ -2159,6 +2209,7 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
       bs.frac = { normal: 0, oligemia: 0, penumbra: 0, core: 1, salvaged: 0 };
       bs.regaining = 0;
       bs.holding = 0;
+      bs.atRisk = 0;
       bs.noFlow = 0;
     }
   }
@@ -2580,6 +2631,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   let core = 0;
   let pen = 0;
   let noFlow = 0;
+  let atRisk = 0;
   const cord = { core: 0, penumbra: 0, final: model.cordFinal };
   for (const b of BEDS) {
     const cat = REGION_BY_ID[b.region].category;
@@ -2591,6 +2643,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
     core += beds[b.id].infarct * b.volume;
     pen += beds[b.id].frac.penumbra * b.volume;
     noFlow += beds[b.id].noFlow * b.volume;
+    atRisk += beds[b.id].atRisk * b.volume;
   }
   const brainCore = core;
   // the spinal cord's part is counted with the brain's and named apart (W3-8)
@@ -2614,7 +2667,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       model.finish();
       return model.shownCascade;
     },
-    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, savedSecondary: cascade.savedSecondary, cord, noFlow },
+    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, savedSecondary: cascade.savedSecondary, cord, noFlow, penumbraAtRisk: atRisk },
     neuronsLost: brainCore * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH && (cascade.hydrocephalusEndH === null || t < cascade.hydrocephalusEndH),
     edema,

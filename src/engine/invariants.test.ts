@@ -1898,3 +1898,70 @@ describe('tissue and recovery calibration (Y1)', () => {
     }
   });
 });
+
+describe('reperfusion, the circle of Willis and the treatment windows (T2)', () => {
+  const run = (occlusions: Occlusion[], collateral: CollateralGrade, over: Partial<SimInput> = {}): SimInput => ({
+    occlusions,
+    variants: [],
+    collateral,
+    map: 93,
+    tH: 4320,
+    reperfusionH: null,
+    decompression: false,
+    ...over,
+  });
+  const o = (vessel: string, over: Partial<Occlusion> = {}): Occlusion => ({ vessel, severity: 1, ...over });
+  const EVT: TreatmentOptions = { method: 'evt', grade: '3', reocclusionAfterH: null, distalEmbolus: null, noReflow: 0 };
+
+  // T2-2: an artery that reopens by itself is judged as a treated reopening is: what a herniation
+  // finds alive is that of the same case had the artery stayed closed. So it never ends larger than
+  // had it stayed closed, and ends as a complete thrombectomy at the same hour does
+  const SELF: [string, CollateralGrade, number][] = [];
+  for (const v of ['mca_m1_l', 'mca_m1_r', 'ica_terminal_l', 'ica_terminal_r', 'mca_m2_sup_l', 'basilar_mid', 'pca_p2_l', 'aca_a2_l'])
+    for (const c of ['good', 'moderate', 'poor'] as const) for (const h of [6, 12, 24]) SELF.push([v, c, h]);
+  it.each(SELF)('%s, %s collaterals, reopening by itself at %s h: never larger than closed, and as a thrombectomy then', (v, c, h) => {
+    const closed = simulate(run([o(v)], c)).volumes.finalInfarct;
+    const self = simulate(run([o(v, { toH: h })], c)).volumes.finalInfarct;
+    expect(self).toBeLessThanOrEqual(closed + 0.01);
+    expect(self).toBeCloseTo(simulate(run([o(v)], c, { reperfusionH: h, treatment: EVT })).volumes.finalInfarct, 1);
+  });
+
+  // T2-4: the circle of Willis is told as enough (green) only when the territory beyond the block
+  // shows no deficit while the artery is closed, for an occlusion of a few minutes as for a lasting one
+  const BEFORE_CIRCLE = VESSELS.filter((v) => isOccludable(v.id) && /^(brachiocephalic|cca_|ica_|aca_a1_|pca_p1_|basilar_|va_)/.test(v.id)).map((v) => v.id);
+  it.each(BEFORE_CIRCLE.map((v) => [v]))('%s, closed for 5 min, 2 h or for good: a green circle of Willis only beside no deficit', (v) => {
+    for (const c of ['good', 'moderate', 'poor'] as const)
+      for (const toH of [1 / 12, 2, null]) {
+        const occ = [o(v, toH === null ? {} : { toH })];
+        const e = simulate(run(occ, c)).cascade.events.find((x) => x.id === 'willis_compensation');
+        if (e?.severity !== 'good') continue;
+        const onset = simulate(run(occ, c, { tH: 0 }));
+        expect(onset.symptoms.map((s) => s.id), `${v} ${c} ${toH ?? 'lasting'}`).toEqual([]);
+        expect(onset.nihss.total, `${v} ${c} ${toH ?? 'lasting'}`).toBe(0);
+      }
+  });
+
+  // T2-8: a treatment window quotes as its core only what the lesion it is for has killed by the
+  // decision, never an earlier infarct; and within 3 months of an earlier infarct (from a day before
+  // on) IV thrombolysis is not offered as standard
+  const SECOND: [string, SimInput][] = [];
+  for (const [a, b] of [['mca_m1_l', 'mca_m1_r'], ['mca_m1_r', 'mca_m1_l'], ['ica_terminal_r', 'mca_m1_l'], ['mca_m2_sup_l', 'mca_m1_r'], ['pca_p2_l', 'mca_m2_sup_r'], ['mca_m1_l', 'basilar_mid']])
+    for (const t of [24, 48, 168, 720, 2400])
+      for (const c of ['good', 'poor'] as const) SECOND.push([`${a}, then ${b} at ${t} h, ${c}`, run([o(a), o(b, { fromH: t })], c)]);
+  it.each(SECOND)('%s: the window of the later lesion quotes its own core, and no standard IV thrombolysis within 3 months of an infarct', (_name, input) => {
+    const r = simulate({ ...input, tH: 2400 + 24 });
+    const onsetH = startOf(input.occlusions[1]);
+    if (r.schedule.onsetH !== onsetH) return;
+    const w = r.cascade.events.find((e) => e.id === 'treatment_window' && Math.abs(e.onsetH - onsetH) < 1e-6);
+    if (!w) return;
+    const own = simulate({ ...input, tH: onsetH + 6 }).volumes.core - simulate({ ...input, tH: onsetH }).volumes.core;
+    const quoted = /Large core \(about (\d+) mL/.exec(w.desc.en);
+    if (quoted) expect(Number(quoted[1]), w.desc.en).toBeLessThanOrEqual(own + 0.5);
+    const earlier = startOf(input.occlusions[0]);
+    const leftInfarct = simulate({ ...input, tH: onsetH - 1e-3 }).volumes.finalInfarct >= 0.05;
+    const recent = leftInfarct && onsetH - earlier >= 24 && onsetH - earlier <= 2160;
+    expect(/standard when started within 4\.5 h/.test(w.desc.en), w.desc.en).toBe(!recent);
+    expect(/previous 3 months/.test(w.desc.en)).toBe(recent);
+    expect(w.desc.zh.includes('3 個月內')).toBe(recent);
+  });
+});

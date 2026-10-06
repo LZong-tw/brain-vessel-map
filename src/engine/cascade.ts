@@ -29,7 +29,7 @@
  * TODO(medical-review): thresholds and timings are educational approximations.
  */
 
-import { BEDS, REGIONS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
+import { BEDS, BED_BY_ID, REGIONS, REGION_BY_ID, VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { Bed, DeficitRef, Family, L, Region, Side } from '../anatomy';
 import { DELAYED_ONSET_H, SYMPTOM_BY_ID, symptomOnsetH } from '../anatomy/symptoms';
 import { MCA_CORTEX } from '../anatomy/syndromes';
@@ -189,6 +189,12 @@ export interface CascadeInput {
    * without treatment (the large-core thrombectomy trials select on the core at that point)
    */
   bedAtDecision?: Record<string, number>;
+  /**
+   * how long before the index onset (h) the latest earlier lesion that leaves an infarct of its own
+   * began, when that was a day to 3 months before (T2-8): an ischaemic stroke within 3 months counts
+   * against IV thrombolysis. Left out, none
+   */
+  priorInfarctH?: number;
   /** mean arterial pressure (mmHg); left out, no blood-pressure note */
   map?: number;
   /**
@@ -257,6 +263,14 @@ export interface CascadeInput {
    * Left out, the untreated final infarct of every occlusion (bedFinalUntreated)
    */
   untreatedFinalBy?: (h: number) => Record<string, number>;
+  /**
+   * the same for the beds a herniation compresses, when an index artery reopened by itself: the
+   * course of the same case had it stayed closed, as a treated reopening is judged on the untreated
+   * course (T2-2: judged on the reopened course, the border zones the reopening had partly saved
+   * fell under half infarcted, and the herniation killed them whole, more than the closed artery
+   * left). Left out, untreatedFinalBy
+   */
+  compressibleBy?: (h: number) => Record<string, number>;
   /**
    * when each bed's lesion began (clinical clock; lesionOnsetsOf): a hemisphere's swelling is
    * classified by its own lesion, the beds that began within a day of it (U1-2). Left out, every
@@ -1390,7 +1404,7 @@ const BEYOND_TRIALS_ML = 100;
 const STORY_TISSUE: ReadonlySet<string | undefined> = new Set(['cortex', 'deep', 'brainstem', 'cerebellum', 'ear', 'eye']);
 
 /** which treatment-window story fits the complete occlusions in effect, with the core when treatment is decided (mL), if known */
-function windowStoryOf(occlusions: readonly Occlusion[], coreMl: number | null): WindowStory {
+function windowStoryOf(occlusions: readonly Occlusion[], coreMl: number | null, priorInfarctH: number | null = null): WindowStory {
   const occluded = occlusions.filter((o) => o.severity >= 1);
   const occludedBases = new Set(occluded.map((o) => baseOf(o.vessel)));
   const anteriorSides = new Set(occluded.filter((o) => ANTERIOR_LVO.includes(baseOf(o.vessel))).map((o) => sideOf(o.vessel)));
@@ -1404,6 +1418,7 @@ function windowStoryOf(occlusions: readonly Occlusion[], coreMl: number | null):
     v4: !basilar && VERTEBRAL_V4.some((b) => occludedBases.has(b)),
     mevo: !anterior && !basilar && MEVO.some((b) => occludedBases.has(b)),
     coreMl,
+    priorInfarctH,
   };
 }
 
@@ -1431,6 +1446,8 @@ interface WindowStory {
   mevo: boolean;
   /** largest supratentorial core of one side when treatment is decided (mL), if known */
   coreMl: number | null;
+  /** an earlier infarct began this long before (h), within 3 months: it counts against IV thrombolysis (T2-8) */
+  priorInfarctH: number | null;
 }
 
 const IVT_INTRO: L = {
@@ -1446,10 +1463,33 @@ const SAVER: L = {
   en: 'Each minute of delay in a typical large-vessel stroke costs ~1.9 million neurons (Saver 2006); the actual rate varies from under 35,000 to over 27 million a minute (Desai 2019), faster the poorer the collaterals.',
 };
 
+/**
+ * IV thrombolysis after an ischaemic stroke in the previous 3 months (T2-8): the second occlusion of
+ * a case was offered it as "standard within 4.5 h" a month after a large infarct. Guidelines
+ * recommend against IV thrombolysis within 3 months of an ischaemic stroke; in 293 patients aged 66
+ * or older thrombolysed within 3 months of one, symptomatic haemorrhage was more frequent only when
+ * that stroke was within the previous 14 days (16.3 % vs 4.8 %; Shah S et al. Circ Cardiovasc Qual
+ * Outcomes 2020;13:e006031). It is a relative contraindication resting largely on expert consensus,
+ * and repeat thrombolysis within 90 days has been reported in selected patients (63 cases, no
+ * symptomatic haemorrhage: Scala I et al. J Neurol 2026;273:607). An earlier lesion that began less
+ * than a day before is part of the same presentation, and this is not said then (a model choice).
+ */
+export const RECENT_INFARCT_MAX_H = 2160;
+export const RECENT_INFARCT_MIN_H = 24;
+const recentIvtIntro = (h: number): L => {
+  const days = Math.max(1, Math.round(h / 24));
+  return {
+    zh: `靜脈血栓溶解（alteplase 或 tenecteplase）：這裡不是標準治療。過去 3 個月內發生過缺血性中風時，指引建議不要使用（這位病人較早的梗塞約在這次阻塞前 ${days} 天開始）；這是相對禁忌，主要依據專家共識：美國一個登錄研究中，293 位在中風後 3 個月內接受血栓溶解的 66 歲以上病人，只有前一次中風在 14 天內時症狀性腦出血較多（16.3% vs 4.8%）；3 個月內再次血栓溶解只見於經過挑選的病人的報告。適合取栓的阻塞，是否取栓依影像決定。`,
+    en: `IV thrombolysis (alteplase or tenecteplase): not standard here. Guidelines advise against it after an ischaemic stroke in the previous 3 months (this patient's earlier infarct began about ${days} day${days === 1 ? '' : 's'} before this occlusion), a relative contraindication resting largely on expert consensus: in a US registry of 293 patients aged 66 or older thrombolysed within 3 months of a stroke, symptomatic haemorrhage was more frequent only when that stroke was within the previous 14 days (16.3% vs 4.8%); repeat thrombolysis within 3 months is reported only in selected patients. Where the occlusion suits thrombectomy, it is decided on imaging.`,
+  };
+};
+
 /** what fits this occlusion site: thrombolysis, thrombectomy and the trials behind them */
 function treatmentWindowDesc(w: WindowStory): L {
-  const zh: string[] = [IVT_INTRO.zh];
-  const en: string[] = [IVT_INTRO.en];
+  const recent = w.priorInfarctH;
+  const intro = recent === null ? IVT_INTRO : recentIvtIntro(recent);
+  const zh: string[] = [intro.zh];
+  const en: string[] = [intro.en];
   const core = w.coreMl === null ? null : Math.round(w.coreMl);
   if (w.anterior) {
     // TRACE-III: Xiong Y et al. N Engl J Med 2024;391:203–212
@@ -1477,12 +1517,12 @@ function treatmentWindowDesc(w: WindowStory): L {
     // 2024), Lindsberg PJ & Mattle HP 2006
     zh.push(
       `基底動脈阻塞：ATTENTION 試驗中發作 12 小時內取栓、BAOCHE 試驗中 6–24 小時取栓都改善了預後；效益見於 NIHSS ≥ 10（ESO/ESMINT 2024 指引：低於 10 分沒有證據），遠端（頂端）阻塞的效果比近端或中段弱${w.basilarTip ? '，這裡正是遠端（頂端）阻塞' : ''}。` +
-        '指引依專家共識（證據確定性非常低）建議靜脈血栓溶解可用到發作後 24 小時，並建議先打靜脈血栓溶解再取栓，而非直接取栓。' +
+        `${recent === null ? '' : '沒有禁忌時，'}指引依專家共識（證據確定性非常低）建議靜脈血栓溶解可用到發作後 24 小時，並建議先打靜脈血栓溶解再取栓，而非直接取栓。` +
         '試驗中（多為 NIHSS ≥ 10 的中國病人；對照組 34% 與 21% 也打了靜脈血栓溶解）90 天死亡率：ATTENTION 取栓 37% vs 內科 55%，BAOCHE 31% vs 42%（差異未達統計顯著）。沒有再通時，只有約 2% 預後良好（Lindsberg 與 Mattle 2006，病例系列）。',
     );
     en.push(
       `Basilar-artery occlusion: in ATTENTION thrombectomy within 12 h of onset, and in BAOCHE thrombectomy 6–24 h after onset, improved outcome; the benefit was shown for NIHSS ≥ 10 (ESO/ESMINT 2024: no evidence below 10), and the effect was weaker for distal than for proximal or middle occlusions${w.basilarTip ? '; this is a distal (tip) occlusion' : ''}. ` +
-        'The guideline suggests IV thrombolysis up to 24 h after onset, by expert consensus at very low certainty, and IV thrombolysis plus thrombectomy over direct thrombectomy. ' +
+        `${recent === null ? 'The guideline suggests' : 'Without a contraindication, the guideline suggests'} IV thrombolysis up to 24 h after onset, by expert consensus at very low certainty, and IV thrombolysis plus thrombectomy over direct thrombectomy. ` +
         'In the trials (mostly Chinese patients with NIHSS ≥ 10; IV thrombolysis in 34% and 21% of the control arms) 90-day mortality was 37% with thrombectomy vs 55% with medical care (ATTENTION) and 31% vs 42% (BAOCHE; not statistically significant). Without recanalisation only about 2% have a good outcome (Lindsberg & Mattle 2006, case series).',
     );
   }
@@ -1504,10 +1544,12 @@ function treatmentWindowDesc(w: WindowStory): L {
   if (w.mevo) {
     // ESCAPE-MeVO (Goyal M et al. 2025), DISTAL (Psychogios M et al. 2025)
     zh.push(
-      '這是中型／遠端血管阻塞：靜脈血栓溶解是標準治療。2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後；症狀性出血 ESCAPE-MeVO 5.4% vs 2.2%、DISTAL 5.9% vs 2.6%（作者認為相近），只有 ESCAPE-MeVO 的死亡率較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
+      `這是中型／遠端血管阻塞：${recent === null ? '' : '沒有禁忌時，'}靜脈血栓溶解是標準治療。` +
+        '2025 年 ESCAPE-MeVO 與 DISTAL 試驗中常規取栓沒有改善預後；症狀性出血 ESCAPE-MeVO 5.4% vs 2.2%、DISTAL 5.9% vs 2.6%（作者認為相近），只有 ESCAPE-MeVO 的死亡率較高（13.3% vs 8.4%）；近端、優勢側的 M2（DISTAL 未納入）仍不確定，個別考慮。',
     );
     en.push(
-      'This is a medium/distal vessel occlusion: IV thrombolysis is standard. Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), and mortality higher only in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
+      `This is a medium/distal vessel occlusion: ${recent === null ? 'IV thrombolysis is standard.' : 'without a contraindication, IV thrombolysis is the standard treatment.'} ` +
+        'Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), and mortality higher only in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
     );
   }
   if (!w.anterior && !w.basilar && !w.cervicalIsolated && !w.v4 && !w.mevo) {
@@ -1798,7 +1840,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       const reg = REGION_BY_ID[b.region];
       if (reg.compartment === 'supra') decisionSupra[reg.side === 'm' ? 'r' : reg.side] += (input.bedAtDecision[b.id] ?? 0) * b.volume;
     }
-  const story = windowStoryOf(input.occlusions, input.bedAtDecision ? Math.max(decisionSupra.r, decisionSupra.l) : null);
+  const story = windowStoryOf(input.occlusions, input.bedAtDecision ? Math.max(decisionSupra.r, decisionSupra.l) : null, input.priorInfarctH ?? null);
 
   // ── 1–2. hyperacute mechanisms, imaging and treatment windows ──────
   // which story fits: only the retina is ischaemic (eye stroke), brain ischaemia that leaves no
@@ -2105,7 +2147,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
    * back as penumbra when the A2 closed on day 7)
    */
   const compressedBeds = (sd: Side, supply: RegExp, h: number) => {
-    const final = input.untreatedFinalBy?.(h) ?? bedFinalUntreated;
+    const final = input.compressibleBy?.(h) ?? input.untreatedFinalBy?.(h) ?? bedFinalUntreated;
     return BEDS.filter((b) => b.region.endsWith(`_${sd}`) && b.supply.some((x) => supply.test(x.v)) && stillAlive(final[b.id]));
   };
   // (the midline moves little only when the two swell alike; otherwise the larger swelling still
@@ -3628,6 +3670,23 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       // (a bed that the territory supplies in part counts whole: its infarct comes from what that part lost)
       if (b.supply.some((x) => circle.beyond.has(x.v))) shortMl += (bedFinal[b.id] ?? 0) * b.volume;
     }
+    // … and said to fall short where that territory is out of action while the artery is closed,
+    // though nothing infarcts (T2-4): a carotid T or a basilar artery closed for five minutes gave a
+    // complete MCA syndrome or a locked-in picture beside a green "enough to prevent an infarct ...
+    // can cause no symptoms at all"; nothing infarcted because the attack was short, not because of
+    // the circle (which cannot reach the MCA behind a carotid T at all). A region of that territory
+    // at the symptom threshold at onset (0.25) is out of action
+    const failed =
+      shortMl < 1 &&
+      REGIONS.some(
+        (r) =>
+          STORY_TISSUE.has(r.category) &&
+          (regionAcute[r.id] ?? 0) >= 0.25 - 1e-6 &&
+          r.beds.some((bid) => BED_BY_ID[bid]?.supply.some((x) => circle.beyond.has(x.v))),
+      );
+    // (while it is closed: the event ends when the artery reopens, and the story of the attack, or of
+    // the reopening, tells what follows)
+    const reopens = failed ? input.reopensH ?? input.flowReturnsH ?? null : null;
     const both = circle.pcommCount > 1;
     const ROUTE: Record<CircleRoute, L> = {
       acomm: { zh: '前交通動脈（從對側）', en: 'through the anterior communicating artery (from the other side)' },
@@ -3641,20 +3700,29 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     events.push({
       id: 'willis_compensation',
       kind: 'mechanism',
-      severity: short ? 'info' : 'good',
+      severity: short || failed ? 'info' : 'good',
       onsetH: 0,
+      ...(reopens !== null && reopens > 0 ? { endH: reopens } : {}),
       title: { zh: 'Willis 環側枝代償啟動', en: 'Circle of Willis collaterals switched on' },
       desc: {
         zh:
           `血液改走${names.map((x) => x.zh).join('、')}，送進阻塞之後的血管，從其他動脈「借血」。` +
           (short
             ? `但這裡還不夠：這些血管的供血區仍有約 ${ml} mL 梗塞，是這些通道補不足或到不了的地方。`
-            : '這裡足以避免梗塞：這就是為什麼 Willis 環之前或環上的狹窄或阻塞（甚至整條頸動脈阻塞），可能完全沒有症狀。'),
+            : failed
+              ? reopens !== null
+                ? '但這裡還不夠讓這些血管的供血區在動脈阻塞時維持運作：症狀就來自那裡，是這些通道補不足或到不了的地方。'
+                : '但這裡還不夠讓這些血管的供血區維持運作：症狀就來自那裡，是這些通道補不足或到不了的地方。'
+              : '這裡足以避免梗塞：這就是為什麼 Willis 環之前或環上的狹窄或阻塞（甚至整條頸動脈阻塞），可能完全沒有症狀。'),
         en:
           `Blood reroutes ${en} into the arteries beyond the blockage, borrowing from other trunks.` +
           (short
             ? ` Here it is not enough: about ${ml} mL of their territory still infarcts, where these routes fall short or cannot reach.`
-            : ' Here it is enough to prevent an infarct: this is why a narrowing or an occlusion before or within the circle, even of a whole carotid artery, can cause no symptoms at all.'),
+            : failed
+              ? reopens !== null
+                ? ' Here it is not enough to keep their territory working while the artery is closed: the deficits come from there, where these routes fall short or cannot reach.'
+                : ' Here it is not enough to keep their territory working: the deficits come from there, where these routes fall short or cannot reach.'
+              : ' Here it is enough to prevent an infarct: this is why a narrowing or an occlusion before or within the circle, even of a whole carotid artery, can cause no symptoms at all.'),
       },
       regions: [],
     });

@@ -1,4 +1,4 @@
-import { REGION_BY_ID, regionName, tr } from '../anatomy';
+import { BEDS, REGION_BY_ID, regionName, tr } from '../anatomy';
 import { PHASE_LABEL, REPERFUSION_STOPS, TIME_STOPS, formatHours, phaseOf } from '../anatomy/timeline';
 import type { CascadeEvent, EventSeverity } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
@@ -41,6 +41,13 @@ const NOTABLE_SHARE = 0.1;
 const notable = (v: number, core: number) => v >= NOTABLE_ML || (v >= SHOWN_ML && v >= NOTABLE_SHARE * core);
 /** the model offers a reopening up to this long after an occlusion starts (h) */
 const REOPENING_OFFERED_H = Math.max(...REPERFUSION_STOPS);
+const BRAIN_TISSUE: ReadonlySet<string> = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
+/** what the arteries have killed of the brain (mL): the core without a herniation's secondary infarcts */
+const primaryCore = (r: SimResult) =>
+  BEDS.reduce((a, b) => {
+    const s = r.beds[b.id];
+    return !s || s.effect === 'secondary' || !BRAIN_TISSUE.has(REGION_BY_ID[b.region].category) ? a : a + s.infarct * b.volume;
+  }, 0);
 
 /**
  * "What is happening now": the phase, what the tissue is doing, swelling, temporary silencing and
@@ -74,6 +81,36 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   // start of an occlusion still in effect, before any reopening (Z4-13); after it, it may still be lost
   const lastStart = Math.max(-Infinity, ...sim.activeOcclusions.map(startOf));
   const penNote = sim.recanalized ? 'atRisk' : tH - lastStart <= REOPENING_OFFERED_H + 1e-9 ? 'saved' : 'late';
+  // of the penumbra, what the flow it has now still kills: what a reopening can save, or what may
+  // still be lost; the rest survives on its collaterals even if the flow stays as it is (T2-7: about
+  // 283 mL "can still be saved" at 1 h beside 136 mL that a thrombectomy at 2 h saved)
+  const atRisk = Math.min(pen, sim.volumes.penumbraAtRisk);
+  const survives = pen - atRisk;
+  const growing = (note: typeof penNote) =>
+    t.nowCoreGrowing({
+      grew: fmtMl(grew),
+      since: formatHours(tH - prevH, lang),
+      core: fmtMl(core),
+      // (the part at risk named whenever the part that survives is not)
+      pen: notable(atRisk, core) || !notable(survives, core) ? fmtMl(atRisk) : null,
+      survives: notable(survives, core) ? fmtMl(survives) : null,
+      penNote: note,
+    });
+  // after a reopening, tissue that the flow it has now still kills, or the arteries' infarct grown
+  // since: blood came back to part of the territory only (eTICI 2a–2c, no-reflow, a clot fragment
+  // downstream, another artery still shut), and the penumbra did not stop dying (T2-6: "the penumbra
+  // stopped dying" beside a core that grew from 56 to 136 mL)
+  const stillDying = notable(atRisk, core);
+  const partialSince = (reopenedH: number): 'dying' | 'died' | undefined => {
+    if (stillDying) return 'dying';
+    // (died since: the reopening left tissue at risk, and the arteries' infarct has grown since; not
+    // the infarct of a later occlusion after a reopening that left nothing at risk)
+    const i = TIME_STOPS.findIndex((s) => s.h >= reopenedH - 1e-9);
+    if (i < 0 || i > tIndex) return undefined;
+    const then = series[i];
+    const leftAtRisk = notable(Math.min(then.volumes.penumbra - then.volumes.cord.penumbra, then.volumes.penumbraAtRisk), then.volumes.core - then.volumes.cord.core);
+    return leftAtRisk && notable(primaryCore(sim) - primaryCore(then), core) ? 'died' : undefined;
+  };
   if (core < SHOWN_ML && !notable(pen, core)) {
     const oligemia = Object.values(sim.regions).some((r) => r.dominant === 'oligemia');
     sentences.push(oligemia ? t.nowOligemia : cordShown ? t.nowCordOnly : t.nowNothing);
@@ -88,8 +125,10 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
         at: formatHours(reperf, lang),
         saved: fmtMl(saved),
         ...(sim.volumes.savedSecondary >= 0.5 ? { secondary: fmtMl(sim.volumes.savedSecondary) } : {}),
+        ...(partialSince(reperf) ? { partial: partialSince(reperf) } : {}),
       }),
     );
+    if (stillDying && notable(grew, core)) sentences.push(growing('atRisk'));
   } else if (spontaneous && sim.recanalized && tH >= spontaneous.atH - 1e-9 && spontaneous.saved >= 0.5 && tH < 168) {
     // an artery that reopened by itself: the same as after a treated reopening, said to be without treatment (U2-10)
     sentences.push(
@@ -97,10 +136,12 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
         at: formatHours(spontaneous.atH - sim.schedule.onsetH, lang),
         saved: fmtMl(spontaneous.saved),
         ...(spontaneous.savedSecondary >= 0.5 ? { secondary: fmtMl(spontaneous.savedSecondary) } : {}),
+        ...(partialSince(spontaneous.atH) ? { partial: partialSince(spontaneous.atH) } : {}),
       }),
     );
+    if (stillDying && notable(grew, core)) sentences.push(growing('atRisk'));
   } else if (notable(grew, core) && notable(pen, core)) {
-    sentences.push(t.nowCoreGrowing({ grew: fmtMl(grew), since: formatHours(tH - prevH, lang), core: fmtMl(core), pen: fmtMl(pen), penNote }));
+    sentences.push(growing(penNote));
   } else if (notable(pen, core)) {
     // most of it is the deep white matter behind a perforating end artery (a lacune, or the whole
     // bundle), alive with no flow at all: it lasts because white matter dies slowly, not on
