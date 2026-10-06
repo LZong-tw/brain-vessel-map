@@ -5,7 +5,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES, haemodynamicSetting, type SymptomQuery } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { consciousnessFromShift, symptomsAddedAt } from './cascade';
-import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
+import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, PART_OF, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { endOf, progressed, startOf, successorOf } from './schedule';
@@ -563,6 +563,9 @@ describe('syndromes and events agree with the symptoms', () => {
         'basilar_coma',
         'pontine_doc',
         'pontine_anteromedial',
+        // U3-11: monocular vision loss and one-sided deafness, which only the patient can tell
+        'amaurosis',
+        'labyrinthine',
       ]),
     );
     // a label is either named for its signs or for its vascular pattern
@@ -643,6 +646,35 @@ describe('syndromes and events agree with the symptoms', () => {
       for (const s of r.symptoms.filter((x) => x.side === 'both'))
         expect(r.symptoms.some((x) => x.id === s.id && (x.side === 'r' || x.side === 'l')), `${where}: ${s.id}`).toBe(false);
       expect(r.symptoms.filter((x) => x.id === 'gaze_deviation').length, where).toBeLessThan(2);
+    });
+  });
+
+  // U3-7: one deficit of one side is listed once: a part of a broader deficit of the same side (the
+  // shoulder of a weak arm, one modality or part of the body of an all-modality hemisensory loss,
+  // the lower face of a whole-face palsy, a quadrant of a hemianopia) is not listed beside it unless
+  // it is the more severe of the two, listed or not examinable
+  const PARTS: [string, string][] = [
+    ['arm_weak_proximal', 'arm_weak'],
+    ['sens_face_arm', 'sens_hemibody'],
+    ['sens_leg', 'sens_hemibody'],
+    ['pain_temp_body', 'sens_hemibody'],
+    ['pain_temp_face', 'sens_hemibody'],
+    ['proprio_loss', 'sens_hemibody'],
+    ['sens_face_all', 'sens_hemibody'],
+    ['face_weak', 'face_weak_peripheral'],
+    ['quadrant_sup', 'hemianopia'],
+    ['quadrant_inf', 'hemianopia'],
+    ['central_scotoma', 'hemianopia'],
+  ];
+  it.each(CASES)('%s: no part of a broader deficit of the same side is listed beside it, unless more severe (U3-7)', (name) => {
+    series(name).forEach((r, i) => {
+      const given = [...r.symptoms, ...r.unexaminable];
+      for (const [part, whole] of PARTS)
+        for (const side of ['r', 'l'] as const) {
+          const p = given.find((s) => s.id === part && s.side === side);
+          const w = given.find((s) => s.id === whole && s.side === side);
+          if (p && w) expect(p.sev, `${name} ${STOPS[i]} h: ${part}/${side} beside ${whole}/${side}`).toBeGreaterThan(whole === 'hemianopia' ? 3 : w.sev);
+        }
     });
   });
 
@@ -779,7 +811,10 @@ describe('syndromes and events agree with the symptoms', () => {
     for (let i = 1; i < runs.length; i++) {
       if (STOPS[i - 1] < 24 || changedBetween(runs[i], STOPS[i - 1], STOPS[i])) continue;
       for (const s of runs[i].symptoms.filter((x) => ['arm_weak', 'leg_weak', 'face_weak'].includes(x.id) && fromBrainstem(x))) {
-        const before = runs[i - 1].symptoms.find((x) => x.id === s.id && x.side === s.side)?.sev ?? 0;
+        // (a part listed before as the broader deficit of the same side that took it in was there at
+        // that deficit's severity: U3-7)
+        const prior = runs[i - 1].symptoms;
+        const before = (prior.find((x) => x.id === s.id && x.side === s.side) ?? prior.find((x) => x.id === PART_OF[s.id] && x.side === s.side))?.sev ?? 0;
         expect(s.sev - before, `${name} ${s.id} ${s.side}: ${STOPS[i - 1]} → ${STOPS[i]} h`).toBeLessThanOrEqual(1);
       }
     }
@@ -847,6 +882,17 @@ describe('syndromes and events agree with the symptoms', () => {
         if (hand >= 3) expect(listed('hand_clumsy') || listed('jerky_dystonic_hand'), where).toBe(false);
         // and it is named, not lost
         for (const u of r.unexaminable.filter((x) => x.why === 'paralysed' && x.side === side)) expect(['ataxia_limb', 'tremor', 'holmes_tremor', 'hand_clumsy', 'jerky_dystonic_hand'], where).toContain(u.id);
+      }
+      // U3-12: nor a gait or truncal ataxia while neither leg can move against gravity (the patient
+      // can neither stand nor sit unsupported); it is named apart, and only then
+      const legs = (['r', 'l'] as const).map((side) =>
+        r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, [1, 3, 4][s.sev - 1]), 0),
+      );
+      const where = `${name} ${STOPS[i]} h`;
+      if (Math.min(...legs) >= 3) expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), where).toBe(false);
+      for (const u of r.unexaminable.filter((x) => x.why === 'paralysed' && x.side === null)) {
+        expect(u.id, where).toBe('ataxia_gait');
+        expect(Math.min(...legs), where).toBeGreaterThanOrEqual(3);
       }
     });
   });
@@ -1204,6 +1250,17 @@ describe('syndromes and events agree with the symptoms', () => {
       ['mca_m2_inf_l', 'mca_m1_r', 'moderate', 168],
       ['pica_r', 'sca_l', 'moderate', 168],
       ['mca_m1_l', 'mca_m2_sup_r', 'moderate', 24],
+      // U3: a lateral medullary infarct beside a hemispheric one of the same side or the other, both
+      // vertebral arteries, and pairs whose sensory and motor deficits overlap
+      ['va_v4_dist_r', 'mca_m2_sup_r', 'moderate', 0],
+      ['pica_r', 'mca_m2_sup_r', 'good', 0],
+      ['pica_l', 'mca_m1_l', 'moderate', 0],
+      ['va_v4_dist_r', 'ica_terminal_r', 'good', 0],
+      ['va_v4_dist_r', 'mca_m2_sup_l', 'moderate', 0],
+      ['va_v4_dist_r', 'va_v4_dist_l', 'good', 0],
+      ['pica_l', 'pontine_paramedian_rostral_l', 'moderate', 0],
+      ['thalamogeniculate_l', 'pica_l', 'good', 0],
+      ['va_v4_dist_l', 'mca_m2_sup_l', 'moderate', 168],
     ];
     const occ = (vessel: string, fromH: number): Occlusion => (fromH ? { vessel, severity: 1, fromH } : { vessel, severity: 1 });
     const inputs = new Map<string, SimInput>();
@@ -1235,6 +1292,61 @@ describe('syndromes and events agree with the symptoms', () => {
         expect(both.volumes.finalInfarct, `${name}: than ${what} alone`).toBeGreaterThanOrEqual(alone.volumes.finalInfarct - 0.5);
         for (const side of ['r', 'l'] as const) expect(hemisphere(both, side), `${name}: ${side} hemisphere than ${what} alone`).toBeGreaterThanOrEqual(hemisphere(alone, side) - 2);
         for (const [rid, st] of Object.entries(alone.regions)) expect(both.regions[rid].infarct, `${name}: ${rid} than ${what} alone`).toBeGreaterThanOrEqual(st.infarct - 0.1);
+      }
+    });
+
+    // U3-13: adding an occlusion never lowers the recovery of a deficit it does not cause: one whose
+    // pathway its lesion does not reach (no region of the pair is a dead source of it that is not one
+    // with the first occlusion alone) keeps its two-sidedness and, while its own sources are as
+    // infarcted as alone, its compensation. The face weakness of a lateral medullary infarct, which
+    // cuts only part of one hemisphere's fibres to that face (most cross in the pons: Kanbayashi &
+    // Sonoo 2021), recovers as it would alone beside any other occlusion.
+    const atMemo = new Map<string, SimResult>();
+    const runAt = (occs: Occlusion[], c: CollateralGrade, tH: number) => {
+      const key = `${occs.map((o) => `${o.vessel}@${startOf(o)}`).join('+')} ${c} ${tH}`;
+      let r = atMemo.get(key);
+      if (!r) atMemo.set(key, (r = simulate({ occlusions: occs, variants: [], collateral: c, map: 93, tH, reperfusionH: null, decompression: false })));
+      return r;
+    };
+    const given = (r: SimResult) => [...r.symptoms, ...r.unexaminable];
+    const medullary = (s: { id: string; sources: string[] }) => s.id === 'face_weak' && s.sources.length > 0 && s.sources.every((src) => REGION_BY_ID[src]?.baseId === 'medulla_lateral');
+    /** the regions whose dead tissue (from the symptom threshold) serves a deficit, but for the lateral medulla's share of the facial fibres */
+    const deadSources = (r: SimResult, id: string) =>
+      Object.entries(r.regions)
+        .filter(([rid, st]) => {
+          const reg = REGION_BY_ID[rid];
+          if (st.lost < 0.25 - 1e-6 || (id === 'face_weak' && reg.baseId === 'medulla_lateral')) return false;
+          return reg.deficits.some((d) => d.s === id && (!d.only || reg.side === d.only) && (!d.minLevel || st.lost >= d.minLevel));
+        })
+        .map(([rid]) => rid);
+    it.each(PAIRS.map((p) => [pairName(p), p] as const))('%s: neither occlusion lowers the recovery of a deficit it does not cause, nor of a lateral medullary face weakness (U3-13)', (name, [a, b, c, t]) => {
+      const pair = [occ(a, 0), occ(b, t)];
+      for (const self of pair) {
+        const other = pair.find((o) => o !== self)!;
+        const ownMedulla = new Set(STOPS.flatMap((tH) => given(runAt([self], c, tH)).filter(medullary).map((s) => s.side)));
+        for (const tH of [720, 2160, 4320]) {
+          const one = runAt([self], c, tH);
+          const both = runAt(pair, c, tH);
+          for (const s of given(one)) {
+            const w = given(both).find((x) => x.id === s.id && x.side === s.side);
+            if (!w?.recovery || !s.recovery) continue;
+            // (the other occlusion causes it when its lesion is a dead source of it, alone or by what
+            // the two do together: a herniation of their joint swelling)
+            const before = new Set(deadSources(one, s.id));
+            if (deadSources(both, s.id).some((rid) => !before.has(rid)) || deadSources(runAt([other], c, tH), s.id).length > 0) continue;
+            const where = `${name} at ${tH} h: ${s.id}/${s.side} of ${self.vessel}`;
+            expect(w.recovery.bilateral, where).toBe(s.recovery.bilateral);
+            if (s.sources.every((src) => Math.abs((both.regions[src]?.lost ?? 0) - (one.regions[src]?.lost ?? 0)) < 0.005) && w.sources.length === s.sources.length)
+              expect(w.recovery.compensated, where).toBeGreaterThanOrEqual(s.recovery.compensated - 1e-3);
+          }
+          for (const w of given(both).filter((x) => medullary(x) && ownMedulla.has(x.side))) {
+            const where = `${name} at ${tH} h: the medullary face_weak/${w.side} of ${self.vessel}`;
+            const s = given(one).find((x) => x.id === w.id && x.side === w.side);
+            expect(s, `${where}, gone alone`).toBeDefined();
+            expect(w.recovery?.bilateral, where).toBe(s!.recovery?.bilateral);
+            expect(w.recovery?.compensated ?? 0, where).toBeGreaterThanOrEqual((s!.recovery?.compensated ?? 0) - 1e-3);
+          }
+        }
       }
     });
 

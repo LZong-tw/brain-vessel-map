@@ -914,7 +914,12 @@ export const SYNDROMES: SyndromeDef[] = [
     // signs are listed (e.g. behind a PICA occlusion) is also named; the label needs the crossed
     // sensory loss with an ipsilateral Horner or facial pain/temperature loss
     test: (c, s) => c.has('medulla_lateral', s, 0.25),
-    requires: (q, s) => q.on('pain_temp_body', other(s)) && (q.on('horner', s) || q.on('pain_temp_face', s)),
+    // (the medulla's loss of pain sensation on a side with a hemisensory loss of all modalities no
+    // milder is listed as that loss, which takes in its source: U3-7)
+    requires: (q, s) => {
+      const painOn = (id: string, side: Side) => q.on(id, side) || (q.on('sens_hemibody', side) && q.from('sens_hemibody', s, 'medulla_lateral'));
+      return painOn('pain_temp_body', other(s)) && (q.on('horner', s) || painOn('pain_temp_face', s));
+    },
   },
   {
     id: 'dejerine',
@@ -1010,6 +1015,9 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Sudden one-sided deafness with severe vertigo; a vascular cause usually takes hearing and the vestibule together, unlike a viral one. The inner ear is an end organ whose infarct brain DWI does not show. It can herald a larger AICA infarct within days to weeks (13 of 82 AICA infarcts had transient episodes within the month before).',
     },
     test: (c, s) => c.has('inner_ear', s, 0.3),
+    // U3-11: named for its sign, the deafness of that ear, which only the patient can tell (as the
+    // retinal label)
+    requires: (q, s) => q.on('hearing_loss', s),
   },
 
   // ─────────────── lacunar (supratentorial) ───────────────
@@ -1247,6 +1255,10 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Sudden darkening or loss of vision in one eye — a "stroke of the eye" and a warning sign of same-side carotid disease; as urgent as a brain stroke. Clearing within minutes it is amaurosis fugax; lasting, with the retina infarcted, it is a central retinal artery occlusion.',
     },
     test: (c, s) => c.has('retina', s, 0.3),
+    // U3-11: named for its sign, the loss of sight in one eye, which only the patient can tell: shown
+    // beside it while it is listed, not while aphasia or a lowered consciousness leaves it unexaminable
+    // (it is named apart then, with why), as the neglect label is not shown in coma
+    requires: (q, s) => q.on('monocular_blind', s),
   },
   {
     id: 'carotid_compensated',

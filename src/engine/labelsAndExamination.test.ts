@@ -496,3 +496,143 @@ describe('V2-10: limb ataxia and the clumsy hand are not examined in a paralysed
       }
   });
 });
+
+/**
+ * U3-7: one deficit of one side is listed once. A part of a broader deficit of the same side that is
+ * no more severe than it — the shoulder of a weak arm, one modality or one part of the body of an
+ * all-modality hemisensory loss, the lower face of a whole-face (peripheral) palsy — is that deficit,
+ * as a quadrantanopia is part of a hemianopia; a part more severe than the whole is listed beside it,
+ * as what is worse there.
+ */
+describe('U3-7: a part of a broader deficit of the same side is not listed beside it', () => {
+  /** [part, the broader deficit that takes it in] */
+  const PARTS: [string, string][] = [
+    ['arm_weak_proximal', 'arm_weak'],
+    ['sens_face_arm', 'sens_hemibody'],
+    ['sens_leg', 'sens_hemibody'],
+    ['pain_temp_body', 'sens_hemibody'],
+    ['pain_temp_face', 'sens_hemibody'],
+    ['proprio_loss', 'sens_hemibody'],
+    ['sens_face_all', 'sens_hemibody'],
+    ['face_weak', 'face_weak_peripheral'],
+  ];
+  const given = (r: SimResult) => [...r.symptoms, ...r.unexaminable];
+  const find = (r: SimResult, id: string, side: 'r' | 'l') => given(r).find((s) => s.id === id && s.side === side);
+  const noPartBesideWhole = (r: SimResult, where: string) => {
+    for (const [part, whole] of PARTS)
+      for (const sd of ['r', 'l'] as const) {
+        const p = find(r, part, sd);
+        const w = find(r, whole, sd);
+        if (p && w) expect(p.sev, `${where}: ${part}/${sd} beside ${whole}/${sd}`).toBeGreaterThan(w.sev);
+      }
+  };
+
+  it.each(['r_m1_malignant', 'r_ica_t', 'ica_isolated'])('%s: the plegic arm is not also a mildly weak shoulder', (id) => {
+    for (const tH of STOPS) noPartBesideWhole(scenario(id, tH), `${id} ${tH} h`);
+    const end = scenario(id, 4320);
+    const arm = end.symptoms.find((s) => s.id === 'arm_weak' && s.side === 'l');
+    expect(arm?.sev).toBe(3);
+    expect(end.symptoms.some((s) => s.id === 'arm_weak_proximal')).toBe(false);
+    // the shoulder's own source (the medial frontal cortex) is a source of the arm weakness now
+    expect(arm?.sources).toContain('medial_frontal_r');
+    expect(item(end, '5l')).toBe(4);
+  });
+
+  it.each([
+    ['l_pca', 'r', 'thalamus_ventrolateral_l', 'midbrain_lateral_l'],
+    ['fetal_pca', 'l', 'thalamus_ventrolateral_r', 'midbrain_lateral_r'],
+  ] as const)('%s: the all-modality hemisensory loss takes in its milder parts, and the NIHSS stays', (id, sd, thalamus, midbrain) => {
+    for (const tH of STOPS) noPartBesideWhole(scenario(id, tH), `${id} ${tH} h`);
+    for (const tH of [1, 24, 4320]) {
+      const r = scenario(id, tH);
+      const all = r.symptoms.find((s) => s.id === 'sens_hemibody' && s.side === sd);
+      expect(all?.sources, `${tH} h`).toEqual(expect.arrayContaining([thalamus, midbrain]));
+      for (const part of ['pain_temp_body', 'pain_temp_face', 'proprio_loss']) expect(find(r, part, sd), `${part} at ${tH} h`).toBeUndefined();
+      expect(item(r, '8'), `${tH} h`).toBe(2);
+    }
+  });
+
+  it('a part more severe than the whole is listed beside it, as what is worse there', () => {
+    // the face and arm lose more sensation than the whole side after an M1 occlusion
+    const r = scenario('r_m1_malignant', 1);
+    expect(sev(r, 'sens_face_arm', 'l')).toBe(3);
+    expect(sev(r, 'sens_hemibody', 'l')).toBe(1);
+  });
+
+  it('the peripheral facial palsy of a locked-in patient is not also a central one that spares the forehead', () => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const tH of STOPS) noPartBesideWhole(simulate(inputOf('basilar_mid', { tH, collateral })), `basilar_mid ${collateral} ${tH} h`);
+  });
+
+  it('a hemisensory loss of all modalities still shows the crossed sensory sign of a lateral medullary infarct', () => {
+    // left M1 + left PICA: the right body's pain loss of the medulla is part of the right
+    // hemisensory loss of the capsule; the lateral medullary label stays
+    const r = run(occl('mca_m1_l', 'pica_l'), 24);
+    expect(find(r, 'pain_temp_body', 'r')).toBeUndefined();
+    expect(labels(r)).toContain('wallenberg_l');
+  });
+});
+
+/**
+ * U3-11: the retinal-ischaemia label is named for its sign, monocular vision loss: it is shown
+ * only while that sign is listed, as the neglect label is not shown in coma; while the sign cannot
+ * be examined (aphasia, stupor, coma) it is named apart, with why, and the label comes back with it.
+ */
+describe('U3-11: the retinal-ischaemia label is shown only beside its sign', () => {
+  const C13: SimInput = { occlusions: occl('ica_cervical_l'), variants: ['acomm_absent'], collateral: 'good', map: 60, tH: 0, reperfusionH: null, decompression: false };
+  const cases: [string, SimInput, 'r' | 'l'][] = [
+    ['left cervical ICA without AComm at MAP 60 (global aphasia, then coma)', C13, 'l'],
+    ...(['good', 'moderate', 'poor'] as CollateralGrade[]).map((c) => [`ica_isolated, ${c} collaterals (coma on days 2–7)`, inputOf('ica_isolated', { collateral: c }), 'r'] as [string, SimInput, 'r' | 'l']),
+    ['amaurosis', inputOf('amaurosis'), 'r'],
+  ];
+  it.each(cases)('%s', (_name, input, side) => {
+    for (const tH of STOPS) {
+      const r = simulate({ ...input, tH });
+      const listed = r.symptoms.some((s) => s.id === 'monocular_blind' && s.side === side);
+      expect(labels(r).includes(`amaurosis_${side}`), `${tH} h`).toBe(listed);
+    }
+  });
+  it('the label comes back with its sign once the patient can tell again', () => {
+    const r = (tH: number) => simulate({ ...inputOf('ica_isolated', { collateral: 'moderate' }), tH });
+    expect(labels(r(1))).toContain('amaurosis_r');
+    expect(labels(r(72))).not.toContain('amaurosis_r');
+    expect(r(72).unexaminable.some((s) => s.id === 'monocular_blind' && s.why === 'consciousness')).toBe(true);
+    expect(labels(r(720))).toContain('amaurosis_r');
+  });
+});
+
+/**
+ * U3-12: gait and truncal ataxia are seen walking, standing and sitting upright (truncal ataxia is
+ * graded by imbalance when walking, when standing and when sitting: Carmona S et al. Front Neurol
+ * 2016;7:125, PMID 27551274). With one leg too weak to walk the trunk can still be tested sitting
+ * (the lateropulsion of a lateral medullary infarct beside a hemiparesis of the other side); with
+ * neither leg able to move against gravity the patient can neither stand nor, the trunk weak from
+ * both sides, sit unsupported, and the ataxia cannot be told from the weakness, as the NIHSS scores
+ * no ataxia in a paralysed limb. It is named apart then, as limb ataxia in a paralysed limb (V2-10).
+ */
+describe('U3-12: gait and truncal ataxia are not examined while neither leg can be lifted against gravity', () => {
+  const legPts = (r: SimResult, sd: 'r' | 'l') =>
+    r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, [1, 3, 4][s.sev - 1]), 0);
+  it('both distal vertebral arteries (all four limbs plegic): named apart as not examinable, the NIHSS unchanged', () => {
+    for (const tH of [24, 720, 4320]) {
+      const r = run(occl('va_v4_dist_r', 'va_v4_dist_l'), tH);
+      expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), `${tH} h`).toBe(false);
+      expect(r.unexaminable.find((s) => s.id === 'ataxia_gait')?.why, `${tH} h`).toBe('paralysed');
+      expect([legPts(r, 'r'), legPts(r, 'l')], `${tH} h`).toEqual([4, 4]);
+    }
+    expect(run(occl('va_v4_dist_r', 'va_v4_dist_l'), 24).nihss.total).toBe(20);
+  });
+  it('one leg plegic: the trunk can still be tested sitting, and the ataxia stays listed', () => {
+    const r = run(occl('pica_l', 'pontine_paramedian_rostral_l'), 24, 'moderate');
+    expect(legPts(r, 'r')).toBe(4);
+    expect(r.symptoms.some((s) => s.id === 'ataxia_gait')).toBe(true);
+    expect(scenario('r_wallenberg', 24).symptoms.some((s) => s.id === 'ataxia_gait')).toBe(true);
+  });
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: no gait ataxia listed with both legs unable to move against gravity', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const tH of STOPS) {
+        const r = simulate(inputOf(id, { tH, collateral }));
+        if (legPts(r, 'r') >= 3 && legPts(r, 'l') >= 3) expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), `${collateral} ${tH} h`).toBe(false);
+      }
+  });
+});

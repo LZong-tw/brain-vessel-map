@@ -189,7 +189,7 @@ const zh: RecoveryStrings = {
     paralysed: {
       label: '肢體癱瘓，目前無法檢查',
       title:
-        '病灶仍會造成這些缺損，但肢體運動失調（指鼻、跟膝脛測試）、手臂動作時的顫抖與手指的精細動作，都要病人能移動那一側的手腳才看得出來；這一側的手臂無法對抗重力抬起（或腿完全不能動），所以暫時不列在症狀清單裡，也不算改善（NIHSS 也不計分這一側的運動失調）。無力本身仍會列出並計分；手腳能動到可以檢查時會再列出。',
+        '病灶仍會造成這些缺損，但肢體運動失調（指鼻、跟膝脛測試）、手臂動作時的顫抖與手指的精細動作，都要病人能移動那一側的手腳才看得出來；這一側的手臂無法對抗重力抬起（或腿完全不能動），所以暫時不列在症狀清單裡，也不算改善（NIHSS 也不計分這一側的運動失調）。步態與軀幹不穩要看病人走路、站立與坐直：兩腿都無法對抗重力抬起時，病人站不起來，軀幹兩側也無力、無法自己坐穩，不穩分不出是失調還是無力，所以也暫時不列（只有一腿無力時仍可讓病人坐著檢查軀幹）。無力本身仍會列出並計分；手腳能動到可以檢查時會再列出。',
       tag: '肢體癱瘓',
     },
   },
@@ -305,7 +305,7 @@ const en: RecoveryStrings = {
     paralysed: {
       label: 'Cannot be examined: the limb is paralysed',
       title:
-        'The lesion still causes these deficits, but limb ataxia (the finger–nose and heel–shin tests), a tremor of the moving arm and fine finger movements only show when the patient can move that arm or leg; on this side the arm cannot move against gravity (or the leg cannot move at all), so they are left out of the symptom list for now and do not count as improved (the NIHSS does not score the ataxia of this side either). The weakness itself is still listed and scored; they are listed again once the limb moves enough to test them.',
+        'The lesion still causes these deficits, but limb ataxia (the finger–nose and heel–shin tests), a tremor of the moving arm and fine finger movements only show when the patient can move that arm or leg; on this side the arm cannot move against gravity (or the leg cannot move at all), so they are left out of the symptom list for now and do not count as improved (the NIHSS does not score the ataxia of this side either). Gait and truncal ataxia are seen walking, standing and sitting upright: with neither leg able to move against gravity the patient cannot stand and, the trunk being weak from both sides, cannot sit unsupported, so the unsteadiness cannot be told from the weakness and it is left out too (with one weak leg the trunk can still be tested sitting). The weakness itself is still listed and scored; they are listed again once the limb moves enough to test them.',
       tag: 'paralysed limb',
     },
   },

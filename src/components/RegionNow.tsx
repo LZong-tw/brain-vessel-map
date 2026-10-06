@@ -29,6 +29,7 @@ import {
   UNEXAMINABLE_FILL,
   bottleneckSites,
   compensatedShare,
+  foldedInto,
   hasNoBackup,
   peakSeverity,
   regionFunctionGroup,
@@ -100,7 +101,8 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
       if (i === tIndex) return;
       for (const sy of fromRegion(s, id)) {
         const k = symptomKey(sy);
-        if (nowKeys.has(k)) continue;
+        // (a part now listed as the broader deficit of the same side has not gone: U3-7)
+        if (nowKeys.has(k) || foldedInto(sy, [...now, ...unexaminable])) continue;
         if (i < tIndex) earlier.set(k, sy);
         else if (!earlier.has(k) && !later.has(k)) later.set(k, { s: sy, i });
       }

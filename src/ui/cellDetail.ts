@@ -1,8 +1,9 @@
 import type { SymptomSystem } from '../anatomy';
-import type { SymptomItem } from '../engine/clinical';
+import { PART_OF, type SymptomItem } from '../engine/clinical';
 import { consciousnessFromShift, symptomsAddedAt, type CascadeEvent } from '../engine/cascade';
 import type { SimResult } from '../engine/simulate';
 import { symptomKey, systemOf } from './format';
+import { foldedInto } from './recoveryFormat';
 
 /** `again`: listed again now that it can be examined, after a stop at which it could not be (X1-2) */
 export type SymptomChange = 'new' | 'worse' | 'better' | 'same' | 'again';
@@ -57,13 +58,17 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
   const activeEvents = now.cascade.events.filter((e) => adds(e).length > 0 || swells(e));
   const explains = (e: CascadeEvent, id: string) =>
     adds(e).some((x) => x.id === id) || (swells(e) && (byShift?.id === id || (e.id === 'bilateral_hemispheres' && id === 'somnolence')));
+  // a part of a broader deficit of the same side was listed as that deficit, at its severity (U3-7)
+  const prevAll = prev ? [...prev.symptoms, ...prev.unexaminable] : [];
+  const foldedSev = (s: SymptomItem) => (foldedInto(s, prevAll) ? prevAll.find((x) => x.id === PART_OF[s.id] && x.side === s.side)!.sev : 0);
   const items: CellSymptom[] = now.symptoms
     .filter(inSystem)
     .map((s) => {
       const shownBefore = prevByKey.get(symptomKey(s));
-      const prevSev = shownBefore?.sev ?? prevHidden.get(symptomKey(s))?.sev ?? 0;
+      const hiddenBefore = prevHidden.get(symptomKey(s))?.sev ?? 0;
+      const prevSev = shownBefore?.sev ?? (hiddenBefore || foldedSev(s));
       const change: SymptomChange =
-        !shownBefore && prevSev > 0 ? 'again' : prevSev === 0 ? 'new' : s.sev > prevSev ? 'worse' : s.sev < prevSev ? 'better' : 'same';
+        !shownBefore && hiddenBefore > 0 ? 'again' : prevSev === 0 ? 'new' : s.sev > prevSev ? 'worse' : s.sev < prevSev ? 'better' : 'same';
       return {
         id: s.id,
         side: s.side,
@@ -77,9 +82,10 @@ export function systemCellDetail(series: SimResult[], index: number, system: Sym
     })
     .sort((a, b) => b.sev - a.sev || a.id.localeCompare(b.id));
   const nowKeys = new Set(items.map((s) => symptomKey(s)));
-  // what cannot be examined now has not resolved (X1-2)
+  // what cannot be examined now has not resolved (X1-2), nor has a part now listed as the broader
+  // deficit of the same side that takes it in (U3-7)
   const resolved = [...prevByKey.values()]
-    .filter((s) => !nowKeys.has(symptomKey(s)) && !hiddenKeys.has(symptomKey(s)))
+    .filter((s) => !nowKeys.has(symptomKey(s)) && !hiddenKeys.has(symptomKey(s)) && !foldedInto(s, [...now.symptoms, ...now.unexaminable]))
     .map((s) => ({ id: s.id, side: s.side, prevSev: s.sev }));
   const unexaminable = hiddenNow.map((s) => ({ id: s.id, side: s.side, sev: s.sev, why: s.why })).sort((a, b) => b.sev - a.sev || a.id.localeCompare(b.id));
   return { system, index, items, resolved, unexaminable };

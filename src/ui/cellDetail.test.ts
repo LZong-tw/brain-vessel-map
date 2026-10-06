@@ -120,3 +120,16 @@ describe('function heat-map cell detail under reduced consciousness', () => {
     expect(d.unexaminable.map((s) => s.id)).not.toContain('executive');
   });
 });
+
+// U3-7: a part of a broader deficit of the same side is listed as that deficit while no more severe
+describe('function heat-map cell detail: a part taken in by the broader deficit of its side (U3-7)', () => {
+  const lm1 = seriesOf({ occlusions: [{ vessel: 'mca_m1_l', severity: 1 }] });
+  it('the face and arm sensory loss of a left M1, taken in by the hemisensory loss at 3 months, is not resolved', () => {
+    const i = at(2160);
+    const listed = (k: number, id: string) => lm1[k].symptoms.some((s) => s.id === id && s.side === 'r');
+    expect(listed(i - 1, 'sens_face_arm')).toBe(true);
+    expect(listed(i, 'sens_face_arm')).toBe(false);
+    expect(listed(i, 'sens_hemibody')).toBe(true);
+    expect(systemCellDetail(lm1, i, 'sensory').resolved.map((s) => s.id)).not.toContain('sens_face_arm');
+  });
+});

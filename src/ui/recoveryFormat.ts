@@ -6,7 +6,7 @@
 import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
 import { isQualifier } from '../anatomy/symptoms';
 import { NO_BACKUP_KINDS, redundancyFor, type BottleneckSite, type RedundancyKind } from '../anatomy/redundancy';
-import type { NihssResult, SymptomItem, UnexaminableWhy } from '../engine/clinical';
+import { PART_OF, type NihssResult, type SymptomItem, type UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
 import type { TissueState } from '../engine/tissue';
 import type { Lang } from '../anatomy/types';
@@ -167,8 +167,11 @@ export interface Improvement {
  * list because it cannot be examined at the patient's level of consciousness now (`unexaminable`,
  * SimResult.unexaminable) has not improved (X1-2). A finding that describes another deficit rather
  * than being one (macular sparing, isQualifier) does not improve when it goes: the field defect has
- * become worse (V2-9).
+ * become worse (V2-9). Nor has a part of a broader deficit of the same side gone when it is listed as
+ * that deficit now (clinical.PART_OF, U3-7).
  */
+export const foldedInto = (s: { id: string; side: SymptomItem['side'] }, now: SymptomItem[]) =>
+  !!PART_OF[s.id] && now.some((x) => x.id === PART_OF[s.id] && x.side === s.side);
 export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexaminable: SymptomItem[] = []): Improvement[] {
   const nowByKey = new Map(now.map((s) => [symptomKey(s), s]));
   const nowIds = new Set(now.map((s) => s.id));
@@ -182,6 +185,7 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
     } else if (
       !hidden.has(symptomKey(b)) &&
       !(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id)) &&
+      !foldedInto(b, now) &&
       // a deficit of both sides now listed once per side (Y2-17) has not gone
       !(b.side === 'both' && now.some((x) => x.id === b.id))
     ) {

@@ -2153,8 +2153,20 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
   const recoveryBeds: Record<string, RecoveryBedInput> = {};
   // (the stabilised penumbra still regaining function is silent, as the penumbra is)
   for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra + beds[b.id].regaining + beds[b.id].holding };
-  // each region's lesion has its own age when a later occlusion caused it (R6-6)
+  // each region's lesion has its own age when a later occlusion caused it (R6-6), and a herniation's
+  // secondary infarct, which no occlusion start dates, that of the swelling lesion that herniated:
+  // the hemisphere on its own side (the herniating side's anterior and posterior cerebral branches,
+  // U1-0). Dated from the index onset instead, a malignant right M1 infarct's herniation infarcts
+  // started over when a larger left M1 occlusion a month later became the index event: their leg
+  // weakness lost all its compensation at that moment (U3-13: adding an occlusion never lowers the
+  // recovery of a deficit it does not cause)
   const regionAgeH = regionAgesAt(model.regionStarts, tAbs);
+  if (regionAgeH)
+    for (const r of REGIONS) {
+      if (regionAgeH[r.id] !== undefined || r.side === 'm') continue;
+      const hemi = model.hemiOnsetH[r.side];
+      if (hemi !== undefined && r.beds.some((bid) => effectsAt(cascade, bid, t).some((e) => e.kind === 'secondary'))) regionAgeH[r.id] = t - hemi;
+    }
   const lacuneShares = Object.fromEntries(lacunes.map((rid) => [rid, lacuneShare(course, rid)]));
   const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss, lacuneShare: lacuneShares, regionAgeH, regionAcute: model.regionAcute });
   const baseMap: Record<string, number> = {};

@@ -201,3 +201,42 @@ describe('U1-2: a later occlusion in the same hemisphere neither relabels the ea
     expect(now.nihss.items['1a'] ?? 0).toBe(before.nihss.items['1a'] ?? 0);
   });
 });
+
+/**
+ * U3-13 (the class "adding an occlusion never lowers the recovery of a deficit it does not cause"): a
+ * herniation's secondary infarct, which no occlusion start dates, has the age of the swelling lesion
+ * that herniated, the hemisphere on its own side. Dated from the index onset instead, a malignant
+ * right M1 infarct's herniation infarcts started over when a left M1 occlusion a month later became
+ * the index event: the left leg weakness lost all its compensation and became plegic the moment the
+ * left M1 closed, before any left tissue had died.
+ */
+describe('U3-13: a herniation infarct keeps the age of the lesion whose swelling caused it', () => {
+  const STAGED: [string, Occlusion[], CollateralGrade][] = [
+    ['right M1, then left M1 at 1 month, poor', [o('mca_m1_r'), o('mca_m1_l', 720)], 'poor'],
+    ['right M1, then left M1 at 48 h, poor', [o('mca_m1_r'), o('mca_m1_l', 48)], 'poor'],
+  ];
+  it.each(STAGED)('%s: as the later occlusion begins, the earlier lesion’s deficits are no worse and recover no less than alone', (_name, occ, collateral) => {
+    const later = occ[1].fromH!;
+    for (const tH of [later, later + 0.5]) {
+      const alone = at(input([occ[0]], collateral), tH);
+      const both = at(input(occ, collateral), tH);
+      for (const s of alone.symptoms.filter((x) => ['arm_weak', 'leg_weak', 'face_weak'].includes(x.id) && x.side === 'l')) {
+        const w = both.symptoms.find((x) => x.id === s.id && x.side === 'l');
+        expect(w?.sev ?? 0, `${s.id} at ${tH} h`).toBeLessThanOrEqual(s.sev);
+        // (no less: the later occlusion may shift the flow to the earlier infarct a little)
+        expect(w?.recovery?.compensated ?? 0, `${s.id} at ${tH} h`).toBeGreaterThanOrEqual(s.recovery!.compensated - 1e-3);
+      }
+      expect(both.nihss.items['6l'] ?? 0, `${tH} h`).toBeLessThanOrEqual(alone.nihss.items['6l'] ?? 0);
+    }
+  });
+  it('the herniation infarct of a later lesion is as young as that lesion, as it would be alone', () => {
+    // left M1, then right M1 at 48 h: the right hemisphere's herniation infarcts date from 48 h, and
+    // the spasticity they give on the left begins two weeks after them, as with the right M1 alone
+    const pair = input([o('mca_m1_l'), o('mca_m1_r', 48)], 'moderate');
+    const alone = input([o('mca_m1_r', 48)], 'moderate');
+    const spastic = (r: SimResult) => r.symptoms.some((s) => s.id === 'spasticity' && s.side === 'l');
+    expect(spastic(at(alone, 336))).toBe(false);
+    expect(spastic(at(pair, 336))).toBe(false);
+    expect(spastic(at(pair, 720))).toBe(spastic(at(alone, 720)));
+  });
+});

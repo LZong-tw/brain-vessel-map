@@ -160,3 +160,15 @@ describe('noBackupNow: what will not improve (V2-5)', () => {
     }
   });
 });
+
+// U3-7: a part of a broader deficit of the same side (one modality of an all-modality hemisensory
+// loss, the shoulder of a weak arm) is listed as that deficit while no more severe: it has not gone
+describe('improvedSince: a part now listed as the broader deficit of its side has not gone (U3-7)', () => {
+  it('the pain and temperature loss of a side, then the hemisensory loss of all modalities alone', () => {
+    expect(improvedSince([item('pain_temp_body', 1, 'r'), item('sens_hemibody', 3, 'r')], [item('sens_hemibody', 3, 'r')])).toEqual([]);
+    expect(improvedSince([item('arm_weak_proximal', 1, 'l'), item('arm_weak', 3, 'l')], [item('arm_weak', 3, 'l')])).toEqual([]);
+  });
+  it('… but a part gone beside the broader deficit of the other side has gone', () => {
+    expect(improvedSince([item('pain_temp_body', 1, 'r')], [item('sens_hemibody', 2, 'l')]).map((x) => [x.s.id, x.to])).toEqual([['pain_temp_body', 0]]);
+  });
+});

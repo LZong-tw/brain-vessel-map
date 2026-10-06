@@ -181,6 +181,27 @@ const aphasiaType = (f: { nonfluent?: boolean; comprehension?: boolean; repetiti
 export const POOR_COMPREHENSION_APHASIA = ['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'];
 const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf', 'central_scotoma'];
 /**
+ * One deficit of one side is listed once (U3-7): a part of a broader deficit of the same body side
+ * is that deficit, as a quadrantanopia is part of a hemianopia (below). A plegic arm has no milder
+ * weakness of the shoulder of its own; a hemisensory loss of all modalities takes in the face and
+ * arm, the leg, pain and temperature of the body and of the face, position and vibration sense and
+ * the touch of the face on that side; a whole-face (peripheral) palsy takes in the weakness of the
+ * lower face, the forehead being weak too. While the part is no more severe than the whole, it is
+ * listed as the whole, its sources with it (the whole keeps its own outlook); a part more severe
+ * than the whole is listed beside it, as what is worse there (a face and arm that have lost more
+ * than the rest of the side). Keyed by the part; the value is the deficit that takes it in.
+ */
+export const PART_OF: Readonly<Record<string, string>> = {
+  arm_weak_proximal: 'arm_weak',
+  sens_face_arm: 'sens_hemibody',
+  sens_leg: 'sens_hemibody',
+  pain_temp_body: 'sens_hemibody',
+  pain_temp_face: 'sens_hemibody',
+  proprio_loss: 'sens_hemibody',
+  sens_face_all: 'sens_hemibody',
+  face_weak: 'face_weak_peripheral',
+};
+/**
  * Spasticity grading (C10-F1). Spasticity was present in 42.6 % of patients with a central paresis
  * at 6 months, severe in 15.6 %, and predicted by a severe paresis and hemihypesthesia at onset
  * (Urban PP et al. Stroke 2010;41:2016-2020, PMID 20705930; 19 % of all first strokes at 3 months:
@@ -396,6 +417,17 @@ const NEEDS_MOVEMENT: Readonly<Record<string, 'limbs' | 'arm' | 'hand'>> = {
   hand_clumsy: 'hand',
   jerky_dystonic_hand: 'hand',
 };
+/**
+ * Gait and truncal ataxia (U3-12) are seen walking, standing and sitting upright (truncal ataxia is
+ * graded by the imbalance when walking, when standing and when sitting: Carmona S et al. Front
+ * Neurol 2016;7:125, PMID 27551274). With one leg too weak to walk, the trunk can still be tested
+ * sitting (the body pulled towards a lateral medullary infarct beside a hemiparesis of the other
+ * side); with neither leg able to move against gravity (NIHSS item 6 ≥ 3 on both sides) the patient
+ * can neither stand nor, the trunk being weak from both sides, sit unsupported, and the ataxia cannot
+ * be told from the weakness, as the NIHSS scores no ataxia in a paralysed limb. It is named apart
+ * then, as limb ataxia is in a paralysed limb.
+ */
+const NEEDS_LEGS = ['ataxia_gait'];
 /** NIHSS points of the worst listed (non-delayed) weakness of these symptoms on body side `side` */
 const weaknessPts = (symptoms: SymptomItem[], ids: string[], side: Side) =>
   symptoms.reduce((m, s) => {
@@ -421,7 +453,8 @@ function tooWeakFor(id: string, symptoms: SymptomItem[], side: Side): boolean {
  * would join), or null when it can: the level of consciousness (NEEDS_AWAKE, SPEECH_SIGNS,
  * ATTENTION_SIGNS and NEEDS_ALERT), blindness (NEEDS_SIGHT), akinetic mutism (see
  * AKINETIC_OBSERVED), an aphasia of comprehension (NEEDS_LANGUAGE) or, on body side `side`, a limb
- * too weak to show it (NEEDS_MOVEMENT). The first reason that applies is given.
+ * too weak to show it (NEEDS_MOVEMENT), and for gait and truncal ataxia legs that cannot move
+ * against gravity (NEEDS_LEGS). The first reason that applies is given.
  */
 export function examinability(id: string, symptoms: SymptomItem[], side?: SymptomItem['side']): UnexaminableWhy | null {
   const doc = symptoms.some((s) => s.id === 'disorder_of_consciousness');
@@ -442,6 +475,7 @@ export function examinability(id: string, symptoms: SymptomItem[], side?: Sympto
   }
   if (NEEDS_LANGUAGE.includes(id) && comprehensionLost(symptoms)) return 'aphasia';
   if ((side === 'r' || side === 'l') && tooWeakFor(id, symptoms, side)) return 'paralysed';
+  if (NEEDS_LEGS.includes(id) && (['r', 'l'] as Side[]).every((sd) => weaknessPts(symptoms, ['leg_weak'], sd) >= 3)) return 'paralysed';
   return null;
 }
 
@@ -663,9 +697,7 @@ export function lesionSymptoms(
       // the tract there is lost under a weakness that was plegic at first (Y1-1)
       const early = acuteDys ? Math.max(acuteDys[r.id] ?? 0, inf) : Math.max(dys, inf);
       const tract = corticospinalLoss(d.s, r.baseId, inf, initialSeverity(d.sev ?? 2, early), lacune);
-      // (on the side of the body it is on: a lateral medullary infarct counts for its own face only, V2-0)
-      const body = side === 'r' || side === 'l' ? side : undefined;
-      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy, tract, body);
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy, tract);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
@@ -722,6 +754,15 @@ export function lesionSymptoms(
     if (hi.sev > lo.sev) map.set(`gaze_deviation|${hi.side}`, { ...hi, sev: (hi.sev - lo.sev) as 1 | 2 | 3, sources });
     else map.set('gaze_paresis_bilateral|', { ...hi, id: 'gaze_paresis_bilateral', side: null, sources });
   }
+  // a part of a broader deficit of the same side, no more severe than it, is that deficit (U3-7)
+  for (const [part, whole] of Object.entries(PART_OF))
+    for (const fs of ['r', 'l'] as Side[]) {
+      const p = get(part, fs);
+      const w = get(whole, fs);
+      if (!p || !w || p.sev > w.sev || p.delayed !== w.delayed) continue;
+      for (const src of p.sources) if (!w.sources.includes(src)) w.sources.push(src);
+      del(part, fs);
+    }
   // An eye with a third-nerve palsy shows no Horner syndrome of its own (W1-4): the complete ptosis
   // of the palsy covers the mild ptosis of the Horner syndrome, and a pupil that has lost both its
   // constrictor (the oculomotor fibres) and its dilator (the sympathetic fibres) is neither wide nor
