@@ -11,6 +11,7 @@ import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
+import type { SymptomItem } from '../engine/clinical';
 import { simulate, type SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { UI } from '../i18n/ui';
@@ -72,7 +73,8 @@ describe('"what is happening now" when the patient falls into a coma (X1-2)', ()
     useApp.setState({ lang: 'en', tIndex: at(336) });
     const { container } = render(<NowSummary sim={series[at(336)]} series={series} />);
     expect(series[at(336)].symptoms.map((s) => s.id)).toContain('executive');
-    expect(series[at(336)].unexaminable.every((s) => s.why === 'aphasia')).toBe(true);
+    // (what the aphasia hides, and the clumsy hand of an arm that cannot move against gravity: V2-10)
+    expect(series[at(336)].unexaminable.every((s) => s.why === 'aphasia' || s.why === 'paralysed')).toBe(true);
     const line = container.querySelector('.now-symptoms.unexaminable');
     expect(line?.textContent ?? '').not.toMatch(/level of consciousness/);
   });
@@ -254,5 +256,117 @@ describe('V1-6: what a reopening saves names the herniation it prevents', () => 
     const { container } = render(<NowSummary sim={r} series={series} />);
     const text = container.textContent ?? '';
     expect(text).toContain(UI[lang].nowRecanalized({ at: lang === 'en' ? '2 h' : '2 小時', saved: r.volumes.saved.toFixed(0), secondary: r.volumes.savedSecondary.toFixed(0) }));
+  });
+});
+
+// V2-8: the deep white matter behind a single perforating branch (a lacune), or behind the whole
+// bundle, gets no collateral flow: it is still alive in the first hours because white matter takes
+// hours to die, and the summary says so instead of crediting collaterals
+describe('"what is happening now": tissue behind a perforating end artery does not live on collaterals (V2-8)', () => {
+  const tissue = (id: string, h: number, lang: Lang) => {
+    const series = seriesOf(id, SCENARIO_BY_ID[id].collateral ?? 'good');
+    useApp.setState({ lang, tIndex: at(h) });
+    const { container } = render(<NowSummary sim={series[at(h)]} series={series} />);
+    const text = container.querySelector('p')?.textContent ?? '';
+    cleanup();
+    return text;
+  };
+  it.each([
+    ['l_lacune', 0.25],
+    ['l_lacune', 1],
+    ['l_lacune', 2],
+    ['capsular_warning', 1],
+    ['capsular_warning', 3],
+    ['capsular_warning', 6],
+    ['l_cr_lacune', 1],
+    ['l_lsa', 1],
+    ['l_lsa', 2],
+  ] as [string, number][])('%s at %s h', (id, h) => {
+    const en = tissue(id, h, 'en');
+    expect(en).not.toMatch(/collateral flow for now|through collaterals/);
+    expect(en).toMatch(/end artery/);
+    expect(en).toMatch(/white matter/);
+    const zh = tissue(id, h, 'zh-TW');
+    expect(zh).not.toMatch(/靠側枝/);
+    expect(zh).toMatch(/終末動脈/);
+    expect(zh).toMatch(/白質/);
+  });
+  // every white-matter lacune site, closed for good or for 2 h: no stop credits collaterals
+  it.each([
+    ['lenticulostriate_l', 'pure_motor'],
+    ['lenticulostriate_l', 'ataxic'],
+    ['lenticulostriate_l', 'dch'],
+    ['lenticulostriate_l', 'genu'],
+    ['acha_l', 'pure_motor'],
+    ['acha_l', 'ataxic'],
+  ])('a %s branch (%s): no stop says that collaterals keep it alive', (vessel, lacuneSite) => {
+    for (const toH of [2, undefined]) {
+      const occ = [{ vessel, severity: 1, branch: true, lacuneSite, ...(toH ? { toH } : {}) }];
+      const series = TIME_STOPS.map((st) => simulate({ occlusions: occ, variants: [], collateral: 'good', map: 93, tH: st.h, reperfusionH: null, decompression: false }));
+      TIME_STOPS.forEach((st, i) => {
+        if (st.h > 24) return;
+        for (const lang of ['en', 'zh-TW'] as Lang[]) {
+          useApp.setState({ lang, tIndex: i });
+          const { container } = render(<NowSummary sim={series[i]} series={series} />);
+          const text = container.querySelector('p')?.textContent ?? '';
+          cleanup();
+          expect(text, `${toH ?? 'for good'} ${st.h} h ${lang}`).not.toMatch(/survives on collateral|through collaterals|靠側枝/);
+        }
+      });
+    }
+  });
+
+  it('a territory that collaterals reach keeps the collateral sentence', () => {
+    expect(tissue('l_m2_sup', 0.25, 'en')).toMatch(/survives on collateral flow for now/);
+    expect(tissue('l_m2_sup', 0.25, 'zh-TW')).toMatch(/暫時靠側枝血流撐著/);
+  });
+});
+
+// V2-5: "no backup — will not improve" only once the deficit is all from dead tissue, never beside
+// its own improvement, and not for a deficit from the compression by a swollen neighbour
+describe('"what is happening now": what will not improve (V2-5)', () => {
+  const lines = (id: string, h: number, lang: Lang) => {
+    const series = seriesOf(id, SCENARIO_BY_ID[id].collateral ?? 'good');
+    useApp.setState({ lang, tIndex: at(h) });
+    const { container } = render(<NowSummary sim={series[at(h)]} series={series} />);
+    const out = {
+      improved: container.querySelector('.now-symptoms.improved')?.textContent ?? '',
+      noBackup: container.querySelector('.now-symptoms.nobackup')?.textContent ?? '',
+    };
+    cleanup();
+    return out;
+  };
+  const label = (id: string, side: SymptomItem['side'], lang: Lang) => symptomLabel({ id, side, sev: 1, sources: [], delayed: false }, lang, UI[lang]);
+  it.each([
+    [336, 'gaze_palsy_horizontal'],
+    [720, 'face_weak_peripheral'],
+  ] as [number, string][])('the Foville template at %s h: %s is better, and not said not to improve', (h, id) => {
+    for (const lang of ['en', 'zh-TW'] as Lang[]) {
+      const { improved, noBackup } = lines('l_pontine', h, lang);
+      expect(improved, lang).toContain(label(id, 'l', lang));
+      expect(noBackup, lang).not.toContain(label(id, 'l', lang));
+    }
+  });
+  it('the Foville template at 1 week: the gaze palsy still deepened by the oedema is not said not to improve; the dead sixth-nerve nucleus is', () => {
+    const { noBackup } = lines('l_pontine', 168, 'en');
+    expect(noBackup).not.toContain(label('gaze_palsy_horizontal', 'l', 'en'));
+    expect(noBackup).toContain(label('cn6_palsy', 'l', 'en'));
+  });
+  it('the swollen cerebellum at 1 week: the gaze palsy from the compression of the brainstem is not said not to improve', () => {
+    expect(lines('cerebellar_swelling', 168, 'en').noBackup).not.toContain(label('gaze_palsy_horizontal', 'r', 'en'));
+  });
+  it('the top of the basilar at 1 week: the quadrantanopia from calcarine cortex silenced around a small infarct is not said not to improve', () => {
+    expect(lines('basilar_tip', 168, 'en').noBackup).not.toContain(label('quadrant_sup', 'r', 'en'));
+  });
+});
+
+// V2-9: losing the macular sparing is a worse field defect, not an improvement
+describe('"what is happening now": macular sparing is not a deficit (V2-9)', () => {
+  it.each(['en', 'zh-TW'] as Lang[])('%s: the fetal PCA template at 2 days does not call the loss of the macular sparing better', (lang) => {
+    const series = seriesOf('fetal_pca', SCENARIO_BY_ID.fetal_pca.collateral ?? 'good');
+    expect(series[at(24)].symptoms.map((s) => s.id)).toContain('macular_sparing');
+    useApp.setState({ lang, tIndex: at(48) });
+    const { container } = render(<NowSummary sim={series[at(48)]} series={series} />);
+    expect(container.querySelector('.now-symptoms.improved')?.textContent ?? '').not.toContain(name('macular_sparing', lang));
   });
 });

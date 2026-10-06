@@ -624,6 +624,8 @@ export const SYMPTOMS: SymptomDef[] = [
     },
     system: 'vision',
     lateralised: false,
+    // what a hemianopia keeps, not a deficit (V2-9)
+    qualifies: ['hemianopia'],
   },
   {
     id: 'cortical_blindness',
@@ -1484,3 +1486,6 @@ export const DELAYED_ONSET_H = 336;
 
 /** hours after onset from which a symptom can be listed (0: from the start) */
 export const symptomOnsetH = (def: SymptomDef): number => def.onsetH ?? (def.delayed ? DELAYED_ONSET_H : 0);
+
+/** a finding that describes other deficits rather than a deficit of its own (SymptomDef.qualifies: macular sparing, V2-9) */
+export const isQualifier = (id: string) => !!SYMPTOM_BY_ID[id]?.qualifies;

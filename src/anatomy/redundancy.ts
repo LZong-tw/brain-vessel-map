@@ -103,7 +103,11 @@ export const BOTTLENECK_SITE: Readonly<Record<string, BottleneckSite>> = {
  * weakness comes from the corticobulbar fibres of the other hemisphere that loop down into the
  * medulla after crossing (Kanbayashi T, Sonoo M. BMC Neurol 2021;21:214): with an infarct of the
  * other hemisphere's motor cortex it is a second lesion of the same pathway, not a lesion of both
- * sides.
+ * sides. It cuts that hemisphere's fibres to the face on its own side only, after they have crossed
+ * and on their way up to the facial nucleus (in some people the corticofacial fibres loop down into
+ * the upper medulla, cross and ascend in its dorsolateral part: Urban PP et al. Brain
+ * 2001;124:1866–1876, PMID 11522588), so it counts for a weakness of that face alone (V2-0): every
+ * other source cuts a hemisphere's tract before its fibres part for the two sides of the body.
  */
 export const MOTOR_TRACT_SYMPTOMS: readonly string[] = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'spasticity'];
 /** compensation left after a two-sided lesion at a bottleneck, relative to `bi` (in full: BOTTLENECK_FULL) */

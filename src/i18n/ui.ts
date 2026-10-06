@@ -179,6 +179,11 @@ const zh = {
     (a.penNote === 'saved' ? `半影區還有約 ${a.pen} mL 可救。` : `約 ${a.pen} mL 的半影區仍可能壞死${a.penNote === 'late' ? '（已過了再通治療的時間）' : ''}。`),
   nowHolding: (a: { core: string; pen: string }) => `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 的半影區靠側枝勉強維持。`,
   nowHoldingNoCore: (pen: string) => `幾乎還沒有組織壞死；約 ${pen} mL 缺血，暫時靠側枝血流撐著。`,
+  // the deep white matter behind a perforating end artery, alive with no flow at all (V2-8)
+  nowHoldingNoFlow: (a: { core: string; pen: string }) =>
+    `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 完全沒有血流卻還活著：深部穿通動脈是終末動脈，沒有側枝血流能到達，但其纖維束的白質要幾個小時才會壞死。`,
+  nowHoldingNoFlowNoCore: (pen: string) =>
+    `幾乎還沒有組織壞死；約 ${pen} mL 缺血。深部穿通動脈是終末動脈，沒有側枝血流能到達；這些組織還活著，是因為深部纖維束的白質在完全沒有血流時，要幾個小時才會壞死。`,
   // (the part of what it saves that a herniation of the untreated swelling would have infarcted, V1-6)
   nowRecanalized: (a: { at: string; saved: string; secondary?: string }) =>
     `血管已在發作後 ${a.at}再通：半影區停止惡化，模型估計救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}。`,
@@ -524,6 +529,10 @@ const en: Strings = {
       : `about ${a.pen} mL of penumbra may still be lost${a.penNote === 'late' ? ' (too late now to reopen the artery)' : ''}.`),
   nowHolding: (a: { core: string; pen: string }) => `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL of penumbra is just holding on through collaterals.`,
   nowHoldingNoCore: (pen: string) => `Almost nothing has died yet; about ${pen} mL is ischaemic and survives on collateral flow for now.`,
+  nowHoldingNoFlow: (a: { core: string; pen: string }) =>
+    `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL is still alive with no blood flow at all: no collateral reaches the territory of a deep perforating artery, an end artery, but the white matter of its fibre tracts takes a few hours to die.`,
+  nowHoldingNoFlowNoCore: (pen: string) =>
+    `Almost nothing has died yet; about ${pen} mL is ischaemic. No collateral flow reaches it, as a deep perforating artery is an end artery; it is still alive because the white matter of the deep fibre tracts takes a few hours to die with no blood flow at all.`,
   nowRecanalized: (a: { at: string; saved: string; secondary?: string }) =>
     `The vessel was reopened ${a.at} after onset: the penumbra stopped dying — the model estimates about ${a.saved} mL saved${
       a.secondary ? `, about ${a.secondary} mL of it in territories that the herniation of the untreated swelling would have infarcted` : ''

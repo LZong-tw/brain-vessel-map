@@ -371,3 +371,54 @@ describe('W3-9: the MCA territory labels agree with the signs listed beside them
     expect(labels(run(occl('mca_m1_l'), 2160))).toContain('mca_complete_l');
   });
 });
+
+describe('V2-10: limb ataxia and the clumsy hand are not examined in a paralysed limb', () => {
+  // NIHSS: ataxia is absent in a patient who is paralysed, and the scale's item 7 already leaves it
+  // out on a side whose arm cannot move against gravity or whose leg cannot move at all; the list
+  // names it apart, as the signs that cannot be examined at other levels of consciousness
+  /** NIHSS points of the arm (item 5: arm_weak, and the proximal weakness of a border-zone infarct), of the hand's own weakness and of the leg (item 6) */
+  const paralysedSide = (r: SimResult, sd: 'r' | 'l') => {
+    const pts = (id: string, scale: number[]) =>
+      r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, scale[s.sev - 1]), 0);
+    const hand = pts('arm_weak', [1, 3, 4]);
+    return { arm: Math.max(hand, pts('arm_weak_proximal', [1, 2, 3])), hand, leg: pts('leg_weak', [1, 3, 4]) };
+  };
+  it.each([
+    ['basilar_mid', 0],
+    ['basilar_mid', 4320],
+    ['basilar_stuttering', 0],
+    ['basilar_stuttering', 4320],
+  ] as [string, number][])('%s at %s h: the dysmetria of the paralysed limbs is named as not examinable', (id, tH) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[]) {
+      const r = simulate(inputOf(id, { tH, collateral }));
+      for (const sd of ['r', 'l'] as const) {
+        expect(r.symptoms.some((s) => s.id === 'ataxia_limb' && s.side === sd), `${collateral} ${sd}`).toBe(false);
+        const hidden = r.unexaminable.find((s) => s.id === 'ataxia_limb' && s.side === sd);
+        expect(hidden?.why, `${collateral} ${sd}`).toBe('paralysed');
+      }
+      expect(item(r, '7')).toBe(0);
+    }
+  });
+
+  it('an ataxic hemiparesis with a mild weakness keeps its ataxia, scored', () => {
+    for (const id of ['r_pontine_lacune', 'l_cr_lacune']) {
+      const r = scenario(id, 24);
+      expect(r.symptoms.some((s) => s.id === 'ataxia_limb'), id).toBe(true);
+      expect(item(r, '7'), id).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: no limb ataxia, clumsy hand or intention tremor listed on a side too weak to test it', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const tH of STOPS) {
+        const r = simulate(inputOf(id, { tH, collateral }));
+        for (const sd of ['r', 'l'] as const) {
+          const p = paralysedSide(r, sd);
+          const listed = (sid: string) => r.symptoms.some((s) => s.id === sid && s.side === sd);
+          if (p.arm >= 3 || p.leg >= 4) expect(listed('ataxia_limb'), `${collateral} ${tH} h ${sd}`).toBe(false);
+          if (p.arm >= 3) for (const sid of ['tremor', 'holmes_tremor']) expect(listed(sid), `${sid} ${collateral} ${tH} h ${sd}`).toBe(false);
+          if (p.hand >= 3) for (const sid of ['hand_clumsy', 'jerky_dystonic_hand']) expect(listed(sid), `${sid} ${collateral} ${tH} h ${sd}`).toBe(false);
+        }
+      }
+  });
+});

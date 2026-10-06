@@ -520,7 +520,9 @@ function Results({ sim }: { sim: SimResult }) {
   // the oedema model's shift when it reports one, else the cascade's estimate
   const shift = midlineShiftOf(sim);
   const nihssItems = NIHSS_ORDER.filter((k) => (sim.nihss.items[k] ?? 0) > 0);
-  const unexaminableHead = unexaminableHeading(sim.unexaminable, lang);
+  // (not a finding that only describes another deficit, macular sparing: V2-9)
+  const hiddenNow = unexaminableNow(sim);
+  const unexaminableHead = unexaminableHeading(hiddenNow, lang);
 
   const bySystem = new Map<SymptomSystem, typeof sim.symptoms>();
   for (const s of sim.symptoms) {
@@ -690,12 +692,12 @@ function Results({ sim }: { sim: SimResult }) {
           </div>
         ))}
         {/* what the lesion gives but cannot be examined at this level of consciousness has not gone (X1-2) */}
-        {sim.unexaminable.length > 0 && (
+        {hiddenNow.length > 0 && (
           <div className="sym-group unexaminable">
             <h4 title={unexaminableHead.title}>{unexaminableHead.label}</h4>
             <p className="muted small">{unexaminableHead.title}</p>
             <ul className="bullets">
-              {unexaminableNow(sim).map((s) => (
+              {hiddenNow.map((s) => (
                 <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}

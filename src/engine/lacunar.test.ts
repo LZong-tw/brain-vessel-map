@@ -8,13 +8,13 @@
 import { describe, expect, it } from 'vitest';
 import { POST_STROKE_RISKS } from '../anatomy/postStrokeRisks';
 import { REGION_BY_ID } from '../anatomy';
-import { LACUNE_DYSFUNCTION } from '../anatomy/lacunes';
+import { LACUNE_DYSFUNCTION, LACUNE_SITES } from '../anatomy/lacunes';
 import { REGION_DEFS } from '../anatomy/regions';
 import { SCENARIOS, SCENARIO_BY_ID } from '../anatomy/scenarios';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { caseNotes } from '../ui/postStrokeRisks';
-import { aggregateSymptoms, type SymptomItem } from './clinical';
+import { aggregateSymptoms, lesionSymptoms, type SymptomItem } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
@@ -390,6 +390,46 @@ describe('C6-F9: caudate infarcts', () => {
   });
 });
 
+describe('V2-3: one branch never gives a deficit that its whole bundle closed for as long does not', () => {
+  // the lacune sites that use their region's own deficits (no list of their own): what one branch
+  // silences there is a share of the same structure that the whole bundle infarcts. (A site with a
+  // list of its own names the syndrome of the fibres it lies in, which the region's list for a
+  // larger infarct does not tell apart.)
+  const SITES = Object.entries(LACUNE_SITES).flatMap(([bundle, sites]) =>
+    sites.filter((x) => !x.deficits).flatMap((x) => (['r', 'l'] as const).map((side) => [`${bundle}_${side} (${x.id})`, `${bundle}_${side}`, x.id, `${x.region}_${side}`] as const)),
+  );
+  /** every deficit the lesion gives, listed or not examinable now, at its severity */
+  const all = (r: SimResult) => {
+    const out = new Map<string, number>();
+    for (const s of [...r.symptoms, ...r.unexaminable]) out.set(`${s.id}|${s.side ?? ''}`, Math.max(out.get(`${s.id}|${s.side ?? ''}`) ?? 0, s.sev));
+    return out;
+  };
+  it.each(SITES)('%s: no deficit, NIHSS item or lost share of its structure beyond the trunk\'s, closed for 30 min, 2 h, 6 h or for good', (_name, vessel, site, rid) => {
+    for (const toH of [0.5, 2, 6, undefined])
+      for (const tH of [24, 168, 720, 2160, 4320]) {
+        const w = toH === undefined ? {} : { toH };
+        const branch = sim([lacune(vessel, site, w)], tH);
+        const trunk = sim([{ vessel, severity: 1, ...w }], tH);
+        const at = `closed ${toH ?? 'for good'}, at ${tH} h`;
+        expect(branch.regions[rid].lost, `${rid} ${at}`).toBeLessThanOrEqual(trunk.regions[rid].lost + 1e-6);
+        const t = all(trunk);
+        for (const [k, sev] of all(branch)) expect(t.get(k) ?? 0, `${k} ${at}`).toBeGreaterThanOrEqual(sev);
+        // (limb ataxia is not scored in a limb the trunk's larger infarct has paralysed)
+        for (const [k, v] of Object.entries(branch.nihss.items)) if (k !== '7') expect(item(trunk, k), `item ${k} ${at}`).toBeGreaterThanOrEqual(v ?? 0);
+      }
+  });
+
+  it('the Heubner branch leaves no lasting dysarthria at 3 months, as the whole Heubner artery does not', () => {
+    for (const toH of [0.5, 6, undefined]) {
+      const r = sim([lacune('heubner_r', undefined, toH === undefined ? {} : { toH })], 2160);
+      expect(has(r, 'dysarthria'), `closed ${toH ?? 'for good'}`).toBe(false);
+      expect(item(r, '10'), `closed ${toH ?? 'for good'}`).toBe(0);
+      // the behavioural picture of a caudate infarct stays
+      expect(has(r, 'abulia')).toBe(true);
+    }
+  });
+});
+
 describe('R2-1: the clumsy hand of a dysarthria–clumsy hand lacune recovers, as its label text says', () => {
   it('capsular and pontine: moderate at first, milder within two weeks, gone by one month', () => {
     for (const v of ['lenticulostriate_l', 'pontine_paramedian_rostral_r']) {
@@ -403,8 +443,9 @@ describe('R2-1: the clumsy hand of a dysarthria–clumsy hand lacune recovers, a
   it('taken over by the spared fibres, not as a lost fractionated finger movement; a larger infarct keeps that', () => {
     const r = sim([lacune('lenticulostriate_l', 'dch')], 168);
     expect(get(r, 'hand_clumsy', 'r')?.recovery?.kind).toBe('partial');
+    // (with the arm plegic it is not examinable, but still there: V2-10)
     const big = { pons_rostral_basis_r: 0.9 };
-    const hand = aggregateSymptoms(big, big, 4320).find((s) => s.id === 'hand_clumsy');
+    const hand = lesionSymptoms(big, big, 4320).find((s) => s.id === 'hand_clumsy');
     expect(hand?.recovery?.kind).toBe('fine');
   });
 

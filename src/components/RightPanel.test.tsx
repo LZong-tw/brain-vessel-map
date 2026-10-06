@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { REGION_BY_ID, regionName, tr } from '../anatomy';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
+import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { regionAffectedPct } from '../ui/regionLabel';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
@@ -183,18 +184,22 @@ describe('symptom list under reduced consciousness', () => {
     const { container } = render(<RightPanel sim={sim} />);
     const group = container.querySelector('.sym-group.unexaminable') as HTMLElement;
     expect(group).not.toBeNull();
-    within(group).getByText(lang === 'en' ? 'Cannot be examined: the patient does not understand speech (aphasia)' : '聽不懂話（失語），目前無法檢查');
-    for (const id of ['alexia', 'agraphia']) within(group).getByText(tr(SYMPTOM_BY_ID[id].name, lang));
-    expect(within(group).queryByText(tr(SYMPTOM_BY_ID.apraxia.name, lang))).toBeNull();
+    // (beside the clumsy hand of the plegic arm, named apart for the paralysed limb: V2-10)
+    expect(group.querySelector('h4')?.getAttribute('title')).toContain(RECOVERY_UI[lang].unexaminableBy.aphasia.title);
+    const items = [...group.querySelectorAll('li')].map((li) => li.textContent ?? '');
+    for (const id of ['alexia', 'agraphia']) expect(items.some((x) => x.includes(tr(SYMPTOM_BY_ID[id].name, lang))), id).toBe(true);
+    expect(items.some((x) => x.includes(tr(SYMPTOM_BY_ID.apraxia.name, lang)))).toBe(false);
   });
 
-  it('no such group for an awake patient who understands speech', () => {
+  it('an awake patient who understands speech: only the clumsy hand of the plegic arm is named apart, for the paralysed limb (V2-10)', () => {
     const occlusions = occl('mca_m1_r');
     const sim = simulate({ occlusions, variants: [], map: 93, collateral: 'moderate', tH: 24, reperfusionH: null, decompression: false });
     expect(sim.nihss.items['1a'] ?? 0).toBe(0);
+    expect(sim.unexaminable.map((s) => `${s.id}/${s.side}:${s.why}`)).toEqual(['hand_clumsy/l:paralysed']);
     useApp.setState({ occlusions, collateral: 'moderate', rightTab: 'now', tIndex: tIndexFor(24), lang: 'en' });
     const { container } = render(<RightPanel sim={sim} />);
-    expect(container.querySelector('.sym-group.unexaminable')).toBeNull();
+    const group = container.querySelector('.sym-group.unexaminable') as HTMLElement;
+    within(group).getByText(RECOVERY_UI.en.unexaminableBy.paralysed.label);
   });
 });
 

@@ -107,8 +107,10 @@ describe('treated vs untreated', () => {
     const u = tip.untreated!;
     expect(u.m6.symptoms.map((x) => x.id)).toContain('disorder_of_consciousness');
     expect(u.m6.unexaminable.length).toBeGreaterThan(0);
-    expect(tip.course.m6.unexaminable).toEqual([]);
-    expect(u.lasting).toBe([...u.m6.symptoms, ...u.m6.unexaminable].filter((x) => !SYMPTOM_BY_ID[x.id].possible).length);
+    // (the treated patient is awake: only the dysmetria of the paralysed limbs cannot be examined, V2-10)
+    expect(tip.course.m6.unexaminable.filter((x) => x.why !== 'paralysed')).toEqual([]);
+    // (a finding that only describes a deficit, macular sparing, is not one: V2-9)
+    expect(u.lasting).toBe([...u.m6.symptoms, ...u.m6.unexaminable].filter((x) => !SYMPTOM_BY_ID[x.id].possible && !SYMPTOM_BY_ID[x.id].qualifies).length);
     expect(u.lasting).toBeGreaterThan(tip.course.lasting);
   });
 
@@ -179,6 +181,18 @@ describe('lasting-deficit groups', () => {
     // it reopens after 5 min, so the final infarct is evaluated 5 min after 6 months
     expect(tia.finalH).toBeGreaterThan(H_6M);
     expect(tia.unsettled).toBe(false);
+  });
+});
+
+describe('macular sparing describes the hemianopia, it is not a lasting deficit (V2-9)', () => {
+  it('the fetal PCA template: neither in the deficit groups nor in the count of lasting deficits', () => {
+    const fo = finalOutcome(scenarioInput('fetal_pca'));
+    const m6 = fo.course.m6;
+    expect(m6.symptoms.map((s) => s.id)).toContain('macular_sparing');
+    const grouped = [...fo.deficits.m6.marked, ...fo.deficits.m6.partial, ...fo.deficits.m6.largely].map((s) => s.id);
+    expect(grouped).toContain('hemianopia');
+    expect(grouped).not.toContain('macular_sparing');
+    expect(fo.course.lasting).toBe([...m6.symptoms, ...m6.unexaminable].filter((s) => !SYMPTOM_BY_ID[s.id]?.possible && s.id !== 'macular_sparing').length);
   });
 });
 

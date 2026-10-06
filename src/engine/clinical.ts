@@ -22,15 +22,23 @@ export interface SymptomItem {
   recovery?: SymptomRecovery;
   /** set on the signs that cannot be examined now (SimResult.unexaminable): why not (see examinability) */
   why?: UnexaminableWhy;
+  /**
+   * the severity its sources' dead tissue alone gives it, 0 when it comes only from what passes
+   * (the oedema around an infarct, the compression by a swollen neighbour, ischaemic or rescued
+   * tissue still silent, a cascade event): set by simulate (V2-5). A deficit is no worse than this
+   * once the passing part has gone; one of a function without backup does not improve below it.
+   */
+  deadSev?: 0 | 1 | 2 | 3;
 }
 
 /**
  * Why a sign the lesion gives cannot be examined now: the level of consciousness (stupor, coma, a
  * disorder of consciousness: X1), blindness (no sight to test recognition, reading or reaching by:
- * Y2-14), akinetic mutism (an awake patient without spontaneous action or speech: Y2-15), or an
- * aphasia that leaves too little comprehension to test what is tested through language (Z3-16).
+ * Y2-14), akinetic mutism (an awake patient without spontaneous action or speech: Y2-15), an
+ * aphasia that leaves too little comprehension to test what is tested through language (Z3-16), or
+ * a limb too weak to make the movement that shows it (V2-10).
  */
-export type UnexaminableWhy = 'consciousness' | 'blind' | 'akinetic' | 'aphasia';
+export type UnexaminableWhy = 'consciousness' | 'blind' | 'akinetic' | 'aphasia' | 'paralysed';
 
 export interface NihssResult {
   total: number;
@@ -372,13 +380,50 @@ function consciousnessItem(symptoms: SymptomItem[]): number {
 }
 
 /**
+ * Signs shown by moving a limb (V2-10), and the limb they need: the finger–nose and heel–shin tests
+ * of limb ataxia, the arm for an intention or Holmes tremor, the fingers for the clumsy hand and the
+ * late jerky, dystonic hand. The NIH Stroke Scale scores limb ataxia as absent in a patient who is
+ * paralysed (instructions reproduced in Torab-Miandoab A et al. Turk J Emerg Med 2020;20:118-134,
+ * PMID 32832731), and its item 7 here leaves it out on a side whose arm cannot move against gravity
+ * or whose leg cannot move at all (estimateNihss). On such a side these signs are not listed but
+ * named apart, as those that cannot be examined at a lower level of consciousness: the weakness is
+ * listed and scored, and the sign is listed again once the limb moves enough to show it.
+ */
+const NEEDS_MOVEMENT: Readonly<Record<string, 'limbs' | 'arm' | 'hand'>> = {
+  ataxia_limb: 'limbs',
+  tremor: 'arm',
+  holmes_tremor: 'arm',
+  hand_clumsy: 'hand',
+  jerky_dystonic_hand: 'hand',
+};
+/** NIHSS points of the worst listed (non-delayed) weakness of these symptoms on body side `side` */
+const weaknessPts = (symptoms: SymptomItem[], ids: string[], side: Side) =>
+  symptoms.reduce((m, s) => {
+    const n = SYMPTOM_BY_ID[s.id]?.nihss;
+    return !s.delayed && n && ids.includes(s.id) && (s.side === side || s.side === 'both') ? Math.max(m, n.pts[s.sev - 1]) : m;
+  }, 0);
+/**
+ * the limb that a sign of NEEDS_MOVEMENT on body side `side` needs is too weak to make the movement:
+ * an arm that cannot move against gravity (NIHSS item 5 ≥ 3: for the fingers, the arm's own weakness,
+ * not the shoulder's of a border-zone infarct, whose fingers move), or, for limb ataxia, also a leg
+ * that cannot move at all (item 6 = 4), as for item 7
+ */
+function tooWeakFor(id: string, symptoms: SymptomItem[], side: Side): boolean {
+  const need = NEEDS_MOVEMENT[id];
+  if (!need) return false;
+  if (need === 'hand') return weaknessPts(symptoms, ['arm_weak'], side) >= 3;
+  const arm = weaknessPts(symptoms, ['arm_weak', 'arm_weak_proximal'], side) >= 3;
+  return need === 'arm' ? arm : arm || weaknessPts(symptoms, ['leg_weak'], side) >= 4;
+}
+
+/**
  * Why a sign cannot be examined in a patient whose lesion gives `symptoms` (the symptom list it
  * would join), or null when it can: the level of consciousness (NEEDS_AWAKE, SPEECH_SIGNS,
  * ATTENTION_SIGNS and NEEDS_ALERT), blindness (NEEDS_SIGHT), akinetic mutism (see
- * AKINETIC_OBSERVED) or an aphasia of comprehension (NEEDS_LANGUAGE). The first reason that applies
- * is given.
+ * AKINETIC_OBSERVED), an aphasia of comprehension (NEEDS_LANGUAGE) or, on body side `side`, a limb
+ * too weak to show it (NEEDS_MOVEMENT). The first reason that applies is given.
  */
-export function examinability(id: string, symptoms: SymptomItem[]): UnexaminableWhy | null {
+export function examinability(id: string, symptoms: SymptomItem[], side?: SymptomItem['side']): UnexaminableWhy | null {
   const doc = symptoms.some((s) => s.id === 'disorder_of_consciousness');
   const loc = consciousnessItem(symptoms);
   if (NEEDS_ALERT.includes(id)) {
@@ -396,12 +441,13 @@ export function examinability(id: string, symptoms: SymptomItem[]): Unexaminable
     if (akinetic >= 3 && SPEECH_SIGNS.includes(id)) return 'akinetic';
   }
   if (NEEDS_LANGUAGE.includes(id) && comprehensionLost(symptoms)) return 'aphasia';
+  if ((side === 'r' || side === 'l') && tooWeakFor(id, symptoms, side)) return 'paralysed';
   return null;
 }
 
 /** Whether a sign cannot be examined now (examinability), and so is not listed. */
-export function unexaminable(id: string, symptoms: SymptomItem[]): boolean {
-  return examinability(id, symptoms) !== null;
+export function unexaminable(id: string, symptoms: SymptomItem[], side?: SymptomItem['side']): boolean {
+  return examinability(id, symptoms, side) !== null;
 }
 
 /**
@@ -412,7 +458,7 @@ export function byConsciousness(symptoms: SymptomItem[]): { shown: SymptomItem[]
   const shown: SymptomItem[] = [];
   const hidden: SymptomItem[] = [];
   for (const s of symptoms) {
-    const why = examinability(s.id, symptoms);
+    const why = examinability(s.id, symptoms, s.side);
     if (why) hidden.push({ ...s, why });
     else shown.push(s);
   }
@@ -617,7 +663,9 @@ export function lesionSymptoms(
       // the tract there is lost under a weakness that was plegic at first (Y1-1)
       const early = acuteDys ? Math.max(acuteDys[r.id] ?? 0, inf) : Math.max(dys, inf);
       const tract = corticospinalLoss(d.s, r.baseId, inf, initialSeverity(d.sev ?? 2, early), lacune);
-      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy, tract);
+      // (on the side of the body it is on: a lateral medullary infarct counts for its own face only, V2-0)
+      const body = side === 'r' || side === 'l' ? side : undefined;
+      const rec = symptomCompensation(id === 'hypersomnia' ? id : d.s, r, level, inf, lesions, age, d.fast, Math.round(raw) >= 3, d.redundancy, tract, body);
       if (rec.compensated > 0) {
         sevEff *= 1 - rec.compensated;
         if (sevEff < COMPENSATED_OUT) continue;
@@ -857,11 +905,12 @@ export function lesionSymptoms(
   // is weak on command (R5-7)
   for (const fs of ['r', 'l'] as Side[])
     if (['face_weak', 'face_weak_peripheral'].some((id) => get(id, fs) || get(id, 'both'))) del('emotional_facial_paresis', fs);
-  // misaligned eyes see double; a skew deviation gives vertical double vision (C3-F5)
+  // misaligned eyes see double; a skew deviation gives vertical double vision (C3-F5): as much when
+  // a region also gives a milder double vision of its own (a whole group of pontine perforators
+  // gave a milder one beside the same sixth-nerve palsy than one of its branches did: V2-3)
   const eye = ['cn3_palsy', 'cn4_palsy', 'cn6_palsy', 'ino', 'skew_deviation'];
-  if ([...map.values()].some((s) => eye.includes(s.id)) && !map.has('diplopia|')) {
-    add('diplopia', null, 2, [...map.values()].find((s) => eye.includes(s.id))!.sources[0], false);
-  }
+  const misaligned = [...map.values()].find((s) => eye.includes(s.id));
+  if (misaligned && (map.get('diplopia|')?.sev ?? 0) < 2) add('diplopia', null, 2, misaligned.sources[0], false);
   return [...map.values()];
 }
 

@@ -447,6 +447,12 @@ describe('syndromes and events agree with the symptoms', () => {
     ],
     ['both M1 moderate', [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], 'moderate'],
     ['mca_m1_l moderate reopened by itself at 45 min', [{ vessel: 'mca_m1_l', severity: 1, toH: 0.75 }], 'moderate'],
+    // V2-0: a lateral medullary infarct on the same side as a hemispheric one; V2-3: a Heubner
+    // branch, and an inferior paramedian pontine branch (a quarter of the caudal basis)
+    ['mca_m2_sup_r + va_v4_dist_r moderate', [{ vessel: 'mca_m2_sup_r', severity: 1 }, { vessel: 'va_v4_dist_r', severity: 1 }], 'moderate'],
+    ['mca_m1_l + pica_l moderate', [{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pica_l', severity: 1 }], 'moderate'],
+    ['heubner_r lacune', [{ vessel: 'heubner_r', severity: 1, branch: true }], 'good'],
+    ['pontine_paramedian_inferior_l lacune', [{ vessel: 'pontine_paramedian_inferior_l', severity: 1, branch: true }], 'good'],
   ];
   const STOPS = TIME_STOPS.map((s) => s.h);
   const memo = new Map<string, SimResult[]>();
@@ -768,6 +774,27 @@ describe('syndromes and events agree with the symptoms', () => {
           all.some((s) => s.id === 'cn3_palsy' && s.side === side) && all.some((s) => s.id === 'horner' && s.side === side),
           `${name} ${STOPS[i]} h ${side}`,
         ).toBe(false);
+    });
+  });
+
+  // V2-10: what is shown by moving a limb (the finger–nose and heel–shin tests, a tremor of the
+  // moving arm, fine finger movements) is not listed on a side whose limb is too weak to make the
+  // movement, as the NIHSS leaves the ataxia of a paralysed limb unscored: it is named apart
+  it.each(CASES)('%s: no limb ataxia, tremor or clumsy hand listed in a limb too weak to show it (V2-10)', (name) => {
+    series(name).forEach((r, i) => {
+      for (const side of ['r', 'l'] as const) {
+        const pts = (id: string, scale: number[]) =>
+          r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, scale[s.sev - 1]), 0);
+        const hand = pts('arm_weak', [1, 3, 4]);
+        const arm = Math.max(hand, pts('arm_weak_proximal', [1, 2, 3]));
+        const listed = (id: string) => r.symptoms.some((s) => s.id === id && s.side === side);
+        const where = `${name} ${STOPS[i]} h ${side}`;
+        if (arm >= 3 || pts('leg_weak', [1, 3, 4]) >= 4) expect(listed('ataxia_limb'), where).toBe(false);
+        if (arm >= 3) expect(listed('tremor') || listed('holmes_tremor'), where).toBe(false);
+        if (hand >= 3) expect(listed('hand_clumsy') || listed('jerky_dystonic_hand'), where).toBe(false);
+        // and it is named, not lost
+        for (const u of r.unexaminable.filter((x) => x.why === 'paralysed' && x.side === side)) expect(['ataxia_limb', 'tremor', 'holmes_tremor', 'hand_clumsy', 'jerky_dystonic_hand'], where).toContain(u.id);
+      }
     });
   });
 

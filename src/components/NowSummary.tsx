@@ -8,7 +8,18 @@ import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { fmtMl, midlineShiftOf, pct, shortTitle, stopIndexAtOrAfter, stopTime, symptomLabel } from '../ui/format';
-import { COMPENSATION_SHOWN, bottleneckSites, compensatedShare, hasNoBackup, improvedSince, regainingVolume, silencedVolume, unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
+import {
+  COMPENSATION_SHOWN,
+  bottleneckSites,
+  compensatedShare,
+  hasNoBackup,
+  improvedSince,
+  noBackupNow,
+  regainingVolume,
+  silencedVolume,
+  unexaminableHeading,
+  unexaminableNow,
+} from '../ui/recoveryFormat';
 
 const SEV_RANK: Record<EventSeverity, number> = { danger: 0, warn: 1, good: 2, info: 3 };
 const bySeverity = (a: CascadeEvent, b: CascadeEvent) => SEV_RANK[a.severity] - SEV_RANK[b.severity] || a.onsetH - b.onsetH;
@@ -81,7 +92,15 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   } else if (notable(grew, core) && notable(pen, core)) {
     sentences.push(t.nowCoreGrowing({ grew: fmtMl(grew), since: formatHours(tH - prevH, lang), core: fmtMl(core), pen: fmtMl(pen), penNote }));
   } else if (notable(pen, core)) {
-    sentences.push(core < SHOWN_ML ? t.nowHoldingNoCore(fmtMl(pen)) : t.nowHolding({ core: fmtMl(core), pen: fmtMl(pen) }));
+    // most of it is the deep white matter behind a perforating end artery (a lacune, or the whole
+    // bundle), alive with no flow at all: it lasts because white matter dies slowly, not on
+    // collaterals, which do not reach it (V2-8)
+    const noFlow = sim.volumes.noFlow >= 0.5 * pen;
+    sentences.push(
+      core < SHOWN_ML
+        ? (noFlow ? t.nowHoldingNoFlowNoCore : t.nowHoldingNoCore)(fmtMl(pen))
+        : (noFlow ? t.nowHoldingNoFlow : t.nowHolding)({ core: fmtMl(core), pen: fmtMl(pen) }),
+    );
   } else {
     sentences.push(t.nowSettled(fmtMl(core)));
   }
@@ -144,7 +163,8 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
   const unexaminable = unexaminableNow(sim);
   // why they cannot be examined: the level of consciousness, blindness or akinetic mutism (Y2-14, Y2-15)
   const unexaminableHead = unexaminableHeading(unexaminable, lang);
-  const noBackup = tH >= NO_BACKUP_FROM_H ? sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s)).sort((a, b) => b.sev - a.sev) : [];
+  // only what the dead tissue alone gives, and not beside its own improvement (V2-5)
+  const noBackup = tH >= NO_BACKUP_FROM_H ? noBackupNow(sim, prev) : [];
   recoveryShown ||= noBackup.length > 0;
 
   // ── cascade events: those that began since the previous stop, and those still running ──

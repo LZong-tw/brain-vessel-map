@@ -81,6 +81,8 @@ export interface RecoveryInput {
   lacunes?: string[];
   /** fraction of each lacune that is infarcted at tH (lacunes can start at different times) */
   lacuneLoss?: Record<string, number>;
+  /** share of its region's function each lacune silences once dead (simulate.lacuneShareOf, V2-3); left out, LACUNE_DYSFUNCTION */
+  lacuneShare?: Record<string, number>;
   /** hours since each region became ischaemic, when that differs from tH (clinical.aggregateSymptoms; R6-6) */
   regionAgeH?: Record<string, number>;
   /**
@@ -205,6 +207,11 @@ export function diaschisisCurve(a: number): number {
 export interface LesionSides {
   bySymptom: Map<string, Set<Side>>;
   /**
+   * … from sources that cut a hemisphere's pathway to one side of the body only, by that body side
+   * (the lateral medulla's facial weakness: V2-0); `lostSides` adds them for a deficit of that side
+   */
+  byBodySide: Map<string, Partial<Record<Side, Set<Side>>>>;
+  /**
    * … counting only bottleneck regions (ventral pons, cerebral peduncles): on each side, the
    * infarcted share of the most infarcted one (W1-7)
    */
@@ -229,16 +236,29 @@ export interface LesionSides {
  *     weakness of an inferolateral thalamic infarct) is not a lesion of that pathway;
  *   • a lesion of a motor pathway lies on the side of the hemisphere whose tract it cuts
  *     (MOTOR_TRACT_SYMPTOMS), so a lateral medullary infarct, whose facial weakness is on its own
- *     side, cuts the same pathway as the other hemisphere's motor cortex.
+ *     side, cuts the same pathway as the other hemisphere's motor cortex;
+ *   • … but only that hemisphere's fibres to the face on its own side, after they have crossed
+ *     (V2-0): every other source of a motor deficit cuts a hemisphere's tract before its fibres
+ *     part for the two sides of the body, so it takes away both the main pathway of the other
+ *     side and the backup of its own side (how a lesion of both hemispheres leaves a face
+ *     weakness of both sides that hardly recovers). A lateral medullary infarct is kept apart
+ *     (`byBodySide`) and counts only for a weakness of the face it weakens (`lostSides`): with a
+ *     motor cortex infarct of the same side, that face has lost the crossed fibres of the other
+ *     hemisphere in the medulla and the uncrossed fibres of its own hemisphere, both of its
+ *     pathways, but the other face, weakened by the motor cortex, keeps its backup.
  */
 export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): LesionSides {
   const bySymptom = new Map<string, Set<Side>>();
+  const byBodySide = new Map<string, Partial<Record<Side, Set<Side>>>>();
   const bottleneckBySymptom = new Map<string, Partial<Record<Side, number>>>();
   const bottleneckSites = new Map<string, Set<BottleneckSite>>();
+  /** a source that cuts a hemisphere's fibres to one side of the body only: that side (V2-0) */
+  const oneBodySide = (r: Region, d: DeficitRef): Side | null =>
+    r.side !== 'm' && d.lat === 'ipsi' && MOTOR_TRACT_SYMPTOMS.includes(d.s) ? r.side : null;
   const sidesOf = (r: Region, d: DeficitRef): Side[] => {
     if (r.side === 'm') return ['r', 'l'];
     // the hemisphere whose motor tract is cut: opposite the weak side of the body
-    if (d.lat === 'ipsi' && MOTOR_TRACT_SYMPTOMS.includes(d.s)) return [r.side === 'r' ? 'l' : 'r'];
+    if (oneBodySide(r, d)) return [r.side === 'r' ? 'l' : 'r'];
     return [r.side];
   };
   for (const r of REGIONS) {
@@ -249,6 +269,14 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
       if (d.only && r.side !== d.only) continue;
       if (d.minLevel && inf < d.minLevel) continue;
       if ((d.redundancy ?? redundancyFor(d.s, r.baseId, r.side)).passing) continue;
+      const body = oneBodySide(r, d);
+      if (body) {
+        let bySide = byBodySide.get(d.s);
+        if (!bySide) byBodySide.set(d.s, (bySide = {}));
+        const set = (bySide[body] ??= new Set());
+        for (const sd of sidesOf(r, d)) set.add(sd);
+        continue;
+      }
       let set = bySymptom.get(d.s);
       if (!set) bySymptom.set(d.s, (set = new Set()));
       for (const sd of sidesOf(r, d)) set.add(sd);
@@ -279,7 +307,19 @@ export function lesionSides(regionInf: Record<string, number>, thr = DEAD_THR): 
     const id = `${a.area}_${a.side}`;
     areaInfarct[id] = regionInf[id] ?? 0;
   }
-  return { bySymptom, bottleneckBySymptom, bottleneckSites, cortexInfarct, areaInfarct };
+  return { bySymptom, byBodySide, bottleneckBySymptom, bottleneckSites, cortexInfarct, areaInfarct };
+}
+
+/**
+ * The hemispheres whose pathway of `symptomId` is lost, for a deficit of the body side `bodySide`:
+ * the sources that cut a hemisphere's tract, and those that cut its fibres to that side of the body
+ * only (LesionSides.byBodySide, V2-0); left out, those of either side.
+ */
+export function lostSides(lesions: LesionSides, symptomId: string, bodySide?: Side): Set<Side> {
+  const out = new Set(lesions.bySymptom.get(symptomId) ?? []);
+  const one = lesions.byBodySide.get(symptomId);
+  if (one) for (const bs of bodySide ? [bodySide] : (['r', 'l'] as Side[])) for (const h of one[bs] ?? []) out.add(h);
+  return out;
 }
 
 /**
@@ -330,6 +370,8 @@ export function symptomCompensation(
   own?: Redundancy,
   /** how much of the corticospinal tract this source has lost (corticospinalLoss, Y1-1) */
   tractLoss = 0,
+  /** the side of the body the deficit is on, when it is on one (for the both-sides test: lostSides, V2-0) */
+  bodySide?: Side,
 ): SymptomRecovery {
   const red = own ?? redundancyFor(symptomId, region.baseId, region.side);
   const base = profound && red.profound ? red.profound : red;
@@ -351,7 +393,7 @@ export function symptomCompensation(
     const fall = (x: number) => (x > area.lost ? x - (x - area.lost) * areaLoss : x);
     share = { ...share, uni: fall(share.uni), bi: fall(share.bi) };
   }
-  const bilateral = region.side === 'm' || (lesions.bySymptom.get(symptomId)?.size ?? 0) >= 2;
+  const bilateral = region.side === 'm' || lostSides(lesions, symptomId, bodySide).size >= 2;
   // the bottleneck acts in proportion to how much of both sides is lost there, and is named once it
   // acts substantially (W1-7)
   const depth = bilateral ? bottleneckDepth(lesions, symptomId) : 0;
@@ -415,7 +457,7 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
     }
     // a lacune is small but knocks out most of its tract (as in simulate)
     for (const rid of input.lacunes ?? [])
-      regionInf[rid] = Math.max(regionInf[rid] ?? 0, LACUNE_DYSFUNCTION * (input.lacuneLoss?.[rid] ?? 0));
+      regionInf[rid] = Math.max(regionInf[rid] ?? 0, (input.lacuneShare?.[rid] ?? LACUNE_DYSFUNCTION) * (input.lacuneLoss?.[rid] ?? 0));
     const lesions = lesionSides(regionInf);
     for (const r of REGIONS) {
       const inf = regionInf[r.id] ?? 0;
@@ -424,11 +466,13 @@ export function computeRecovery(input: RecoveryInput): RecoveryState {
       let weight = 0;
       for (const d of r.deficits) {
         if (d.only && r.side !== d.only) continue;
-        if (d.bilateralOnly && (lesions.bySymptom.get(d.s)?.size ?? 0) < 2) continue;
+        if (d.bilateralOnly && lostSides(lesions, d.s).size < 2) continue;
         if (d.minLevel && inf < d.minLevel) continue;
         const early = Math.max(input.regionAcute?.[r.id] ?? 0, inf);
         const tract = corticospinalLoss(d.s, r.baseId, inf, initialSeverity(d.sev ?? 2, early), input.lacunes?.includes(r.id));
-        const c = symptomCompensation(d.s, r, inf, inf, lesions, input.regionAgeH?.[r.id] ?? tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy, tract);
+        // (the side of the body it is on: V2-0)
+        const body: Side | undefined = r.side === 'm' || d.lat === 'none' ? undefined : d.lat === 'ipsi' ? r.side : r.side === 'r' ? 'l' : 'r';
+        const c = symptomCompensation(d.s, r, inf, inf, lesions, input.regionAgeH?.[r.id] ?? tH, d.fast, isProfound(d.sev ?? 2, inf), d.redundancy, tract, body);
         if (c.kind === 'exempt') continue;
         const w = d.sev ?? 2;
         sum += c.compensated * w;

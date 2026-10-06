@@ -3,7 +3,7 @@ import { SCENARIO_BY_ID, SCENARIOS } from '../anatomy/scenarios';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { NEEDS_AWAKE, type SymptomItem } from '../engine/clinical';
 import { simulate, type SimResult } from '../engine/simulate';
-import { improvedSince, unexaminableHeading } from './recoveryFormat';
+import { improvedSince, noBackupNow, unexaminableHeading } from './recoveryFormat';
 
 const item = (id: string, sev: 1 | 2 | 3, side: SymptomItem['side'] = null): SymptomItem => ({ id, side, sev, sources: ['x'], delayed: false });
 
@@ -99,5 +99,64 @@ describe('unexaminableHeading', () => {
 describe('improvedSince: a deficit of both sides now listed per side has not gone (Y2-17)', () => {
   it('arm weakness of both sides, then of each side', () => {
     expect(improvedSince([item('arm_weak', 2, 'both')], [item('arm_weak', 3, 'r'), item('arm_weak', 2, 'l')])).toEqual([]);
+  });
+});
+
+// V2-9: macular sparing is the central vision a hemianopia keeps, a qualifier of it and not a
+// deficit: losing it (the occipital pole silenced too) is no improvement
+describe('macular sparing is not a deficit (V2-9)', () => {
+  it('losing the macular sparing is not an improvement', () => {
+    expect(improvedSince([item('hemianopia', 2, 'l'), item('macular_sparing', 1)], [item('hemianopia', 2, 'l')])).toEqual([]);
+  });
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: never "better" for losing the macular sparing', (id) => {
+    const sc = SCENARIO_BY_ID[id];
+    for (const collateral of ['good', 'moderate', 'poor'] as const) {
+      const runs = TIME_STOPS.map((st) => simulate({ occlusions: sc.occlusions, variants: sc.variants ?? [], collateral, map: sc.map ?? 93, tH: st.h, reperfusionH: sc.reperfusionH ?? null, decompression: sc.decompression ?? false }));
+      for (let i = 1; i < runs.length; i++)
+        expect(improvedSince(runs[i - 1].symptoms, runs[i].symptoms, runs[i].unexaminable).map((x) => x.s.id), `${collateral} ${TIME_STOPS[i].h} h`).not.toContain('macular_sparing');
+    }
+  });
+});
+
+// V2-5: "no backup — will not improve" is said of a deficit only once all of it comes from dead
+// tissue, and never beside its own improvement: a deficit still deepened by the oedema of the first
+// weeks, or caused by the compression of a swollen neighbour, does improve
+describe('noBackupNow: what will not improve (V2-5)', () => {
+  const runsOf = (id: string, collateral: 'good' | 'moderate' | 'poor') => {
+    const sc = SCENARIO_BY_ID[id];
+    return TIME_STOPS.map((st) =>
+      simulate({ occlusions: sc.occlusions, variants: sc.variants ?? [], collateral, map: sc.map ?? 93, tH: st.h, reperfusionH: sc.reperfusionH ?? null, decompression: sc.decompression ?? false }),
+    );
+  };
+  const at = (h: number) => TIME_STOPS.findIndex((s) => s.h === h);
+  const ids = (xs: SymptomItem[]) => xs.map((s) => `${s.id}/${s.side ?? ''}`);
+  it('the Foville template: the gaze palsy and the facial palsy are not said to stay while the oedema still lifts them', () => {
+    const runs = runsOf('l_pontine', 'good');
+    expect(ids(noBackupNow(runs[at(168)], runs[at(120)]))).not.toContain('gaze_palsy_horizontal/l');
+    expect(ids(noBackupNow(runs[at(336)], runs[at(168)]))).not.toContain('face_weak_peripheral/l');
+    // the sixth-nerve palsy of the dead basis is
+    expect(ids(noBackupNow(runs[at(168)], runs[at(120)]))).toContain('cn6_palsy/l');
+  });
+  it('a gaze palsy from the compression by a swollen cerebellum is not said to stay', () => {
+    const runs = runsOf('cerebellar_swelling', SCENARIO_BY_ID.cerebellar_swelling.collateral ?? 'good');
+    expect(ids(noBackupNow(runs[at(168)], runs[at(120)]))).not.toContain('gaze_palsy_horizontal/r');
+  });
+  it('a quadrantanopia from the calcarine cortex silenced around an infarct below the threshold is not said to stay', () => {
+    const runs = runsOf('basilar_tip', SCENARIO_BY_ID.basilar_tip.collateral ?? 'good');
+    for (const h of [168, 336]) expect(ids(noBackupNow(runs[at(h)], runs[at(h) - 1])), `${h} h`).not.toContain('quadrant_sup/r');
+  });
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: a deficit said not to improve is not better at that stop, nor milder at any later one', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const) {
+      const runs = runsOf(id, collateral);
+      for (let i = 1; i < runs.length; i++) {
+        const stay = noBackupNow(runs[i], runs[i - 1]);
+        const better = improvedSince(runs[i - 1].symptoms, runs[i].symptoms, runs[i].unexaminable).map((x) => `${x.s.id}/${x.s.side ?? ''}`);
+        for (const k of ids(stay)) expect(better, `${id} ${collateral}: ${k} at ${TIME_STOPS[i].h} h`).not.toContain(k);
+        // later: as severe, or merged into a larger deficit, or not examinable then
+        for (let j = i + 1; j < runs.length; j++)
+          for (const s of stay)
+            expect(improvedSince([s], runs[j].symptoms, runs[j].unexaminable), `${id} ${collateral}: ${s.id}/${s.side ?? ''} said to stay at ${TIME_STOPS[i].h} h, milder at ${TIME_STOPS[j].h} h`).toEqual([]);
+      }
+    }
   });
 });

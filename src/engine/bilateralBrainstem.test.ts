@@ -81,9 +81,58 @@ describe('a small brainstem edge on the other side does not slow a hemispheric l
     expect(symptomCompensation('arm_weak', motor, 1, 1, thalamus, 2160).bilateral).toBe(false);
     expect(symptomCompensation('face_weak', motor, 1, 1, thalamus, 2160).bilateral).toBe(false);
     // the left lateral medulla weakens the left face, as the right motor cortex does: one pathway
-    expect(symptomCompensation('face_weak', motor, 1, 1, lesionSides({ precentral_face_arm_r: 1, medulla_lateral_l: 1 }), 2160).bilateral).toBe(false);
-    // the right one weakens the right face: the left hemisphere's pathway, so both sides
-    expect(symptomCompensation('face_weak', motor, 1, 1, lesionSides({ precentral_face_arm_r: 1, medulla_lateral_r: 1 }), 2160).bilateral).toBe(true);
+    expect(symptomCompensation('face_weak', motor, 1, 1, lesionSides({ precentral_face_arm_r: 1, medulla_lateral_l: 1 }), 2160, false, false, undefined, 0, 'l').bilateral).toBe(false);
+  });
+
+  // V2-0: the right lateral medulla cuts the left hemisphere's fibres to the right face only, after
+  // they have crossed; the right motor cortex weakens the left face, whose other pathway (from the
+  // left hemisphere) is intact
+  it('a lateral medullary infarct counts only for the face it weakens (V2-0)', () => {
+    const motorR = REGION_BY_ID.precentral_face_arm_r;
+    const medullaR = REGION_BY_ID.medulla_lateral_r;
+    const face = (src: typeof motorR, inf: Record<string, number>, side: 'r' | 'l') =>
+      symptomCompensation('face_weak', src, 1, 1, lesionSides(inf), 2160, false, false, undefined, 0, side).bilateral;
+    // the right motor cortex and the right lateral medulla: the left face weakness is one-sided
+    expect(face(motorR, { precentral_face_arm_r: 1, medulla_lateral_r: 1 }, 'l')).toBe(false);
+    // the right face has lost the left hemisphere's fibres in the medulla and the right
+    // hemisphere's own (uncrossed) ones in its motor cortex: both of its pathways
+    expect(face(medullaR, { precentral_face_arm_r: 1, medulla_lateral_r: 1 }, 'r')).toBe(true);
+    // the left motor cortex and the right lateral medulla cut one pathway of the right face (W1-0)
+    expect(face(medullaR, { precentral_face_arm_l: 1, medulla_lateral_r: 1 }, 'r')).toBe(false);
+    expect(face(REGION_BY_ID.precentral_face_arm_l, { precentral_face_arm_l: 1, medulla_lateral_r: 1 }, 'r')).toBe(false);
+    // both lateral medullas: each face keeps its other hemisphere's fibres
+    expect(face(medullaR, { medulla_lateral_r: 1, medulla_lateral_l: 1 }, 'r')).toBe(false);
+    expect(face(REGION_BY_ID.medulla_lateral_l, { medulla_lateral_r: 1, medulla_lateral_l: 1 }, 'l')).toBe(false);
+    // both motor cortices still cut both pathways of each face
+    expect(face(motorR, { precentral_face_arm_r: 1, precentral_face_arm_l: 1 }, 'l')).toBe(true);
+  });
+});
+
+describe('a lateral medullary infarct on the same side does not slow a hemispheric weakness either (V2-0)', () => {
+  // [name, hemispheric occlusion, the same side's posterior occlusion, collaterals, the body side of the hemispheric weakness]
+  const PAIRS: [string, string, string, SimInput['collateral'], 'r' | 'l'][] = [
+    ['right M2 superior + right V4, moderate', 'mca_m2_sup_r', 'va_v4_dist_r', 'moderate'],
+    ['right M2 superior + right V4, good', 'mca_m2_sup_r', 'va_v4_dist_r', 'good'],
+    ['right M2 superior + right PICA, good', 'mca_m2_sup_r', 'pica_r', 'good'],
+    ['left M1 + left PICA, moderate', 'mca_m1_l', 'pica_l', 'moderate'],
+    ['left M2 superior + left V4, moderate', 'mca_m2_sup_l', 'va_v4_dist_l', 'moderate'],
+    ['right terminal ICA + right V4, good', 'ica_terminal_r', 'va_v4_dist_r', 'good'],
+  ].map(([n, h, p, c]) => [n, h, p, c, (h as string).endsWith('_r') ? 'l' : 'r'] as [string, string, string, SimInput['collateral'], 'r' | 'l']);
+  it.each(PAIRS)('%s: the hemispheric face, arm and leg weakness recover as without the medullary infarct', (_name, hemi, post, collateral, side) => {
+    for (const tH of [720, 2160, 4320]) {
+      const alone = at(input([hemi], collateral), tH);
+      const both = at(input([hemi, post], collateral), tH);
+      for (const s of weak(alone, side)) {
+        const with2 = weak(both, side).find((x) => x.id === s.id);
+        expect(with2?.recovery?.bilateral ?? false, `${s.id} ${side} at ${tH} h`).toBe(s.recovery?.bilateral ?? false);
+        expect(with2?.recovery?.compensated ?? 1, `${s.id} ${side} at ${tH} h`).toBeGreaterThanOrEqual((s.recovery?.compensated ?? 0) - 1e-3);
+      }
+    }
+    // the face item at 3 months is no worse than the worse of the two infarcts alone (the severity of
+    // the others can move by a rounding step: a vertebral occlusion changes the hemispheric infarct
+    // itself by a percent through the collaterals, as above)
+    const face = (occ: string[]) => at(input(occ, collateral), 2160).nihss.items['4'] ?? 0;
+    expect(face([hemi, post])).toBeLessThanOrEqual(Math.max(face([hemi]), face([post])));
   });
 });
 

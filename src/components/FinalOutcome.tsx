@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { REGION_BY_ID, regionName, tr } from '../anatomy';
-import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
+import { SYMPTOM_BY_ID, isQualifier } from '../anatomy/symptoms';
 import { formatHours } from '../anatomy/timeline';
 import type { FatalRisk } from '../engine/cascade';
 import type { NihssResult, SymptomItem } from '../engine/clinical';
@@ -72,7 +72,11 @@ export function FinalOutcome() {
   };
   const deficits = out.deficits[at];
   const shown = at === 'm3' ? course.m3 : m6;
-  const unexaminableHead = unexaminableHeading(shown.unexaminable, lang);
+  // a finding that describes a deficit (macular sparing) is named with it, not as a deficit (V2-9)
+  const hiddenDeficits = shown.unexaminable.filter((s) => !isQualifier(s.id));
+  const qualifiersOf = (s: SymptomItem) =>
+    shown.symptoms.filter((q) => SYMPTOM_BY_ID[q.id]?.qualifies?.includes(s.id)).map((q) => tr(SYMPTOM_BY_ID[q.id].name, lang));
+  const unexaminableHead = unexaminableHeading(hiddenDeficits, lang);
 
   return (
     <div className="results outcome">
@@ -240,19 +244,19 @@ export function FinalOutcome() {
             <p className="muted small">{o.groupNotes[g]}</p>
             <ul className="bullets">
               {bySystem(deficits[g]).map((s) => (
-                <DeficitItem key={s.id + s.side} s={s} />
+                <DeficitItem key={s.id + s.side} s={s} qualifiers={qualifiersOf(s)} />
               ))}
             </ul>
           </div>
         ))}
-        {shown.unexaminable.length > 0 && (
+        {hiddenDeficits.length > 0 && (
           <div className="sym-group outcome-unexaminable">
             <h4 title={unexaminableHead.title}>
-              {unexaminableHead.label} <span className="num">{shown.unexaminable.length}</span>
+              {unexaminableHead.label} <span className="num">{hiddenDeficits.length}</span>
             </h4>
             <p className="muted small">{unexaminableHead.title}</p>
             <ul className="bullets">
-              {bySystem(shown.unexaminable).map((s) => (
+              {bySystem(hiddenDeficits).map((s) => (
                 <li key={s.id + s.side}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}
@@ -382,7 +386,8 @@ function NihssLine({ label, n }: { label: string; n: NihssResult }) {
   );
 }
 
-function DeficitItem({ s }: { s: SymptomItem }) {
+/** one lasting deficit, with what describes it (`qualifiers`: macular sparing beside a hemianopia, V2-9) */
+function DeficitItem({ s, qualifiers = [] }: { s: SymptomItem; qualifiers?: string[] }) {
   const t = useT();
   const lang = useApp((st) => st.lang);
   const o = OUTCOME_UI[lang];
@@ -394,6 +399,11 @@ function DeficitItem({ s }: { s: SymptomItem }) {
     <li title={[tr(SYMPTOM_BY_ID[s.id]?.desc ?? { zh: '', en: '' }, lang), rt.kindExplain[kind], note].filter(Boolean).join('\n')}>
       <span className={`sev sev${s.sev}`} aria-hidden="true" />
       {symptomLabel(s, lang, t)}
+      {qualifiers.map((q) => (
+        <span key={q} className="muted small">
+          {lang === 'en' ? ` (${q})` : `（${q}）`}
+        </span>
+      ))}
       <span className="muted small"> · {tr(sys, lang)}</span>
       {s.delayed && <span className="tag">{t.delayedTag}</span>}
       {hasNoBackup(s) ? (

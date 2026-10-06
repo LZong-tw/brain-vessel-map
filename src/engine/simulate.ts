@@ -126,7 +126,7 @@ import {
   type ScheduleEvent,
   type TreatmentPhase,
 } from './schedule';
-import { PERFORATOR_TISSUE, tissueParamsForUnit, type TissueParams } from './tissueParams';
+import { DEEP_WHITE_MATTER_TISSUE, PERFORATOR_TISSUE, tissueParamsForUnit, type TissueParams } from './tissueParams';
 import {
   DEFAULT_TREATMENT,
   GRADE_REPERFUSED,
@@ -167,6 +167,12 @@ export interface BedTimeState {
   holding: number;
   /** infarcted fraction including secondary infarcts */
   infarct: number;
+  /**
+   * share of the bed (within `frac.penumbra`) that is ischaemic and still alive with no flow at all:
+   * the deep white matter behind a perforating end artery (DEEP_WHITE_MATTER_TISSUE), or a lacune
+   * of it, which no collateral reaches and which takes hours to die (V2-8)
+   */
+  noFlow: number;
   /** dysfunctional fraction (core + penumbra + compressed) */
   dys: number;
   effect: BedEffectKind | null;
@@ -183,7 +189,8 @@ export interface RegionTimeState {
   /**
    * the share of the region's function lost to dead tissue, as the symptoms and their recovery count
    * it: its infarct, or for a lacune (a small infarct in a compact fibre tract) most of the function
-   * of the structure it lies in (LACUNE_DYSFUNCTION of the share of the lacune that has died)
+   * of the structure it lies in (LACUNE_DYSFUNCTION of the share of the lacune that has died, but no
+   * more than its whole bundle feeds there where the site uses the region's own deficits: V2-3)
    */
   lost: number;
   dys: number;
@@ -227,6 +234,12 @@ export interface SimResult {
     saved: number;
     savedSecondary: number;
     cord: { core: number; penumbra: number; final: number };
+    /**
+     * of the brain's penumbra, the deep white matter behind a perforating end artery (or a lacune of
+     * it) that is still alive with no flow at all: no collateral reaches it, it lasts because white
+     * matter takes hours to die (V2-8)
+     */
+    noFlow: number;
   };
   /** neurons lost in the dead brain tissue (the estimate per mL is the brain's: Saver 2006; the spinal cord is not counted) */
   neuronsLost: number;
@@ -420,6 +433,8 @@ const smoothstep = (e0: number, e1: number, x: number) => {
  */
 function addUnitShare(bs: BedTimeState, frac: number, history: FlowPhase[], saved: number, tH: number, p: TissueParams, settled = false): void {
   const { f, rest, stabilisedH, reflowH, ischaemicH, dying, held } = tissueCourse(history, tH, p);
+  // the deep white matter behind an end artery, still alive with no flow at all (V2-8)
+  if (p === DEEP_WHITE_MATTER_TISSUE && rest === 'penumbra' && currentRel(history, tH) < p.coreRel) bs.noFlow += (1 - f) * frac;
   bs.frac.core += f * frac;
   // the part of stabilised penumbra that is still dying is penumbra, not working tissue (Z2-8)
   const still = Math.min(1 - f, dying ?? 0);
@@ -558,6 +573,22 @@ function lacuneDeficitsOf(course: Course): Record<string, DeficitRef[]> {
 const lacuneFractionOf = (vessel: string, rid: string) => Math.min(LACUNE_ML / Math.max(REGION_BY_ID[rid].volume, LACUNE_ML), bundleIn(vessel, rid).share);
 /** … of the lacunes the course has in region `rid` (one lacune, of the largest bundle among them) */
 const lacuneFraction = (course: Course, rid: string) => Math.max(0, ...(course.lacunes.get(rid) ?? []).map((o) => lacuneFractionOf(o.vessel, rid)));
+/**
+ * The share of region `rid`'s function that the lacune of single-branch occlusion `o` silences once
+ * it has died (V2-3). A lacune is small but lies in tightly packed fibres, so it costs most of the
+ * function of the tract it lies in (LACUNE_DYSFUNCTION): so it is where its site has a deficit list of
+ * its own, the syndrome of the fibres at that spot (a pure motor, ataxic or dysarthria–clumsy hand
+ * lacune), which the region's list for a larger infarct does not tell apart. Where the site uses the
+ * region's own deficits, it silences a share of the same structure that its whole bundle infarcts
+ * when it closes, so no more than the bundle feeds there: one branch cannot cost a structure more
+ * than all of its bundle does (a Heubner branch left a lasting dysarthria that the whole Heubner
+ * artery did not, and an inferior paramedian pontine branch a denser hemiparesis than its whole
+ * group).
+ */
+const lacuneShareOf = (o: Occlusion, rid: string): number =>
+  lacuneSiteOf(VESSEL_BY_ID[o.vessel].baseId, o.lacuneSite)?.deficits ? LACUNE_DYSFUNCTION : Math.min(LACUNE_DYSFUNCTION, bundleIn(o.vessel, rid).share);
+/** … of the lacunes the course has in region `rid` (the largest) */
+const lacuneShare = (course: Course, rid: string) => Math.max(0, ...(course.lacunes.get(rid) ?? []).map((o) => lacuneShareOf(o, rid)));
 
 /** dead tissue (mL) below which an attack left no infarct (as the cascade's "ischaemia without infarct") */
 const NO_INFARCT_ML = 0.05;
@@ -1047,10 +1078,11 @@ function modelFor(input: SimInput): Model {
   for (const rid of course.lacunes.keys()) {
     const loss = lacuneLossAt(course, rid, finalH);
     if (loss <= 0 || finalNoLacune[rid] >= 0.25) continue;
-    lacuneFinal[rid] = siteLists[rid] ? { level: LACUNE_DYSFUNCTION * loss, deficits: siteLists[rid] } : { level: LACUNE_DYSFUNCTION * loss };
+    const level = lacuneShare(course, rid) * loss;
+    lacuneFinal[rid] = siteLists[rid] ? { level, deficits: siteLists[rid] } : { level };
   }
   const acuteDys = { ...regionAcute };
-  for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, onsetH)) acuteDys[rid] = Math.max(acuteDys[rid] ?? 0, LACUNE_DYSFUNCTION);
+  for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, onsetH)) acuteDys[rid] = Math.max(acuteDys[rid] ?? 0, lacuneShare(course, rid));
   // a treatment counts as treating the index event when it is given at or after its onset and finds
   // something to reopen: given after an attack has cleared, or with only a stenosis in effect, it
   // reopens nothing and tells no recanalisation (the attack in progress before a later occlusion
@@ -1722,7 +1754,7 @@ function ischaemicLevels(course: Course, hemoAt: (tH: number) => HemoResult, h: 
   const acute: Record<string, number> = {};
   for (const u of course.units) if ((hemo.unitRel[u.id] ?? 1) < tissueParamsForUnit(u).penumbraRel) acute[u.bed] = (acute[u.bed] ?? 0) + u.frac;
   const out = regionAgg(acute);
-  for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, h)) out[rid] = Math.max(out[rid] ?? 0, LACUNE_DYSFUNCTION);
+  for (const rid of course.lacunes.keys()) if (lacuneActiveAt(course, rid, h)) out[rid] = Math.max(out[rid] ?? 0, lacuneShare(course, rid));
   return out;
 }
 
@@ -1826,6 +1858,7 @@ function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null, set
       regaining: 0,
       holding: 0,
       infarct: 0,
+      noFlow: 0,
       dys: 0,
       effect: null,
     };
@@ -1864,11 +1897,14 @@ function tissueAt(model: TissueModel, tAbs: number, hemo: HemoResult | null, set
     const xl = lacuneFraction(course, rid) * lacuneLoss[rid];
     // the part of the lacune that is ischaemic but still alive while its branch is closed
     const p = lacuneFraction(course, rid) * lacuneIsch[rid];
+    // (a lacune of the deep white matter is alive with no flow while its branch is closed: V2-8)
+    const wm = (course.lacunes.get(rid) ?? []).some((o) => bundleIn(o.vessel, rid).tissue === DEEP_WHITE_MATTER_TISSUE);
     for (const bid of REGION_BY_ID[rid].beds) {
       const bs = beds[bid];
       for (const k of Object.keys(bs.frac) as TissueState[]) bs.frac[k] *= 1 - xl - p;
       bs.regaining *= 1 - xl - p;
       bs.holding *= 1 - xl - p;
+      bs.noFlow = bs.noFlow * (1 - xl - p) + (wm ? p : 0);
       bs.frac.core += xl;
       bs.frac.penumbra += p;
       bs.regaining = Math.min(1 - bs.frac.core - bs.frac.penumbra, bs.regaining + lacuneFraction(course, rid) * lacuneRegain[rid]);
@@ -1963,6 +1999,7 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
       bs.frac = { normal: 0, oligemia: 0, penumbra: 0, core: 1, salvaged: 0 };
       bs.regaining = 0;
       bs.holding = 0;
+      bs.noFlow = 0;
     }
   }
   const edema = computeEdema({ tH: t, reperfusionH: model.edemaReperfusionH, decompression: input.decompression, beds: edemaBeds, cascade });
@@ -1971,7 +2008,8 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
   for (const b of BEDS) recoveryBeds[b.id] = { infarct: beds[b.id].infarct, penumbra: beds[b.id].frac.penumbra + beds[b.id].regaining + beds[b.id].holding };
   // each region's lesion has its own age when a later occlusion caused it (R6-6)
   const regionAgeH = regionAgesAt(model.regionStarts, tAbs);
-  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss, regionAgeH, regionAcute: model.regionAcute });
+  const lacuneShares = Object.fromEntries(lacunes.map((rid) => [rid, lacuneShare(course, rid)]));
+  const recovery = computeRecovery({ tH: t, beds: recoveryBeds, edema, cascade, lacunes, lacuneLoss, lacuneShare: lacuneShares, regionAgeH, regionAcute: model.regionAcute });
   const baseMap: Record<string, number> = {};
   for (const b of BEDS) {
     const bs = beds[b.id];
@@ -2005,14 +2043,16 @@ function levelsAt(model: Model, input: SimInput, tAbs: number, hemo: HemoResult 
   // agree; the function it costs is `rInf` (W3-5)
   const rInfShown = { ...rInf };
   for (const rid of lacunes) {
-    const dead = LACUNE_DYSFUNCTION * lacuneLoss[rid];
+    // (no more of the structure than its whole bundle where the site uses the region's deficits: V2-3)
+    const share = lacuneShares[rid];
+    const dead = share * lacuneLoss[rid];
     // (after its branch reopens, what survived regains its function over hours, as tissue rescued
     // behind the whole bundle does: Y1-12, W2-2; a closure of minutes still clears at once)
-    const level = LACUNE_DYSFUNCTION * (lacuneLoss[rid] + lacuneIsch[rid] + lacuneRegain[rid]);
+    const level = share * (lacuneLoss[rid] + lacuneIsch[rid] + lacuneRegain[rid]);
     rDys[rid] = Math.max(rDys[rid] ?? 0, level);
     rPrim[rid] = Math.max(rPrim[rid] ?? 0, level);
     rBase[rid] = Math.max(rBase[rid] ?? 0, level);
-    rSteady[rid] = Math.max(rSteady[rid] ?? 0, LACUNE_DYSFUNCTION * (lacuneLoss[rid] + lacuneIsch[rid]));
+    rSteady[rid] = Math.max(rSteady[rid] ?? 0, share * (lacuneLoss[rid] + lacuneIsch[rid]));
     rInf[rid] = Math.max(rInf[rid] ?? 0, dead);
   }
   // affected volume in border-zone beds of a hemisphere and in total (primary vascular pattern)
@@ -2251,7 +2291,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
 
   // ── per-bed and per-region state at time t, and the lesion's symptom list ──
   // (after a reopening, the swelling does not bring back a deficit that had cleared: X2-9)
-  const { lv, all } = lesionListAt(model, input, tAbs, hemo, heldReference(model, input, tAbs));
+  const { lv, all, border: borderNow } = lesionListAt(model, input, tAbs, hemo, heldReference(model, input, tAbs));
   const { beds, rDys, rPrim, rInf, rInfShown, rRel, lacuneLoss, lacuneIsch, lacuneOnly, borderBySide } = lv;
   const edema = lv.edema;
   const recovery = lv.recovery;
@@ -2289,6 +2329,17 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   // akinetic mutism is left out of the list and named apart (R5-7, X1-2, X1-12, Y2-14, Y2-15)
   const { shown: symptoms, unexaminable } = byConsciousness(all);
   if (symptomsOnly) return symptoms;
+  // what the dead tissue alone gives each deficit (V2-5): the same list from the infarcted share of
+  // every region (a lacune's dead share of its structure's function), without the oedema around it,
+  // the tissue still ischaemic or silent, the compression and the events
+  const deadBorder: Record<string, BorderLevel> = Object.fromEntries(Object.entries(borderNow).map(([rid, b]) => [rid, { ...b, dys: b.inf }]));
+  const deadSev = new Map(
+    lesionSymptoms(lv.rInf, lv.rInf, t, [], lv.lacuneOnly, deadBorder, lacuneDeficitsOf(model.course), model.regionAcute, lv.regionAgeH, undefined, { steady: lv.rInf, base: lv.rInf }).map((s) => [
+      `${s.id}|${s.side ?? ''}`,
+      s.sev,
+    ]),
+  );
+  for (const s of [...symptoms, ...unexaminable]) s.deadSev = deadSev.get(`${s.id}|${s.side ?? ''}`) ?? 0;
   // the NIHSS caveat for posterior strokes (Y3-6): tissue of the vertebrobasilar circulation has
   // become ischaemic by now, and the patient has a symptom (listed, or there but not examinable)
   const posterior = model.posteriorStarts.some((h) => h <= tAbs + 1e-9) && symptoms.length + unexaminable.length > 0;
@@ -2330,6 +2381,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   // ── volumes ──
   let core = 0;
   let pen = 0;
+  let noFlow = 0;
   const cord = { core: 0, penumbra: 0, final: model.cordFinal };
   for (const b of BEDS) {
     const cat = REGION_BY_ID[b.region].category;
@@ -2340,6 +2392,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
     if (!BRAIN.has(cat)) continue;
     core += beds[b.id].infarct * b.volume;
     pen += beds[b.id].frac.penumbra * b.volume;
+    noFlow += beds[b.id].noFlow * b.volume;
   }
   const brainCore = core;
   // the spinal cord's part is counted with the brain's and named apart (W3-8)
@@ -2363,7 +2416,7 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
       model.finish();
       return model.shownCascade;
     },
-    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, savedSecondary: cascade.savedSecondary, cord },
+    volumes: { core, penumbra: pen, finalInfarct, saved: cascade.savedVolume, savedSecondary: cascade.savedSecondary, cord, noFlow },
     neuronsLost: brainCore * NEURONS_PER_ML,
     hydrocephalus: cascade.hydrocephalusOnsetH !== null && t >= cascade.hydrocephalusOnsetH && (cascade.hydrocephalusEndH === null || t < cascade.hydrocephalusEndH),
     edema,

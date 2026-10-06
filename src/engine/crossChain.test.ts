@@ -412,8 +412,12 @@ describe('speech is rated only while the patient speaks, and a clumsy hand only 
       // the weak arm is still scored
       expect(ids(r), name).toContain('arm_weak');
     }
-    // awake at 1 day, the right M1 patient's clumsy hand is listed
-    expect(ids(scenario('r_m1_malignant', 24, { collateral: 'poor' }))).toContain('hand_clumsy');
+    // awake at 1 day, the right M1 patient's clumsy hand is not hidden by the level of
+    // consciousness, but by the arm that cannot move against gravity (V2-10)
+    const awake = scenario('r_m1_malignant', 24, { collateral: 'poor' });
+    expect(awake.unexaminable.find((s) => s.id === 'hand_clumsy')?.why).toBe('paralysed');
+    // the hidden ones above are hidden by the level of consciousness
+    for (const [name, r] of cases) expect(r.unexaminable.find((s) => s.id === 'hand_clumsy')?.why, name).toBe('consciousness');
   });
 });
 

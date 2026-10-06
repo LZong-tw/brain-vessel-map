@@ -4,6 +4,7 @@
  */
 
 import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
+import { isQualifier } from '../anatomy/symptoms';
 import { NO_BACKUP_KINDS, redundancyFor, type BottleneckSite, type RedundancyKind } from '../anatomy/redundancy';
 import type { NihssResult, SymptomItem, UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
@@ -164,7 +165,9 @@ export interface Improvement {
 /**
  * Symptoms that are milder (or gone) now than in `before`, worst first. A symptom left out of the
  * list because it cannot be examined at the patient's level of consciousness now (`unexaminable`,
- * SimResult.unexaminable) has not improved (X1-2).
+ * SimResult.unexaminable) has not improved (X1-2). A finding that describes another deficit rather
+ * than being one (macular sparing, isQualifier) does not improve when it goes: the field defect has
+ * become worse (V2-9).
  */
 export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexaminable: SymptomItem[] = []): Improvement[] {
   const nowByKey = new Map(now.map((s) => [symptomKey(s), s]));
@@ -172,7 +175,7 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
   const hidden = new Set(unexaminable.map(symptomKey));
   const out: Improvement[] = [];
   for (const b of before) {
-    if (b.delayed) continue;
+    if (b.delayed || isQualifier(b.id)) continue;
     const n = nowByKey.get(symptomKey(b));
     if (n) {
       if (n.sev < b.sev) out.push({ s: n, from: b.sev, to: n.sev });
@@ -190,12 +193,26 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
 
 /**
  * What the lesion gives but cannot be examined now (SimResult.unexaminable: at the patient's level
- * of consciousness, in a blind patient, in akinetic mutism), worst first, then in the order of the
- * function systems.
+ * of consciousness, in a blind patient, in akinetic mutism, in a paralysed limb), worst first, then
+ * in the order of the function systems; not a finding that only describes another deficit
+ * (isQualifier, V2-9).
  */
 export function unexaminableNow(sim: SimResult): SymptomItem[] {
   const rank = (s: SymptomItem) => SYSTEM_ORDER.indexOf(systemOf(s.id));
-  return [...sim.unexaminable].sort((a, b) => b.sev - a.sev || rank(a) - rank(b));
+  return sim.unexaminable.filter((s) => !isQualifier(s.id)).sort((a, b) => b.sev - a.sev || rank(a) - rank(b));
+}
+
+/**
+ * The deficits "without backup, that will not improve" at `sim` (V2-5): of a function without
+ * backup (hasNoBackup), at no more than the severity their dead tissue alone gives them
+ * (SymptomItem.deadSev). One still deepened by the oedema around the infarct, caused by the
+ * compression of a swollen neighbour or by tissue that is alive but still silent will improve as
+ * that passes, so it is not named yet; nor is one that has improved since the previous stop
+ * (`prev`), at that stop. Worst first.
+ */
+export function noBackupNow(sim: SimResult, prev: SimResult | null): SymptomItem[] {
+  const better = new Set(prev ? improvedSince(prev.symptoms, sim.symptoms, sim.unexaminable).map((x) => symptomKey(x.s)) : []);
+  return sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s) && (s.deadSev ?? 0) >= s.sev && !better.has(symptomKey(s))).sort((a, b) => b.sev - a.sev);
 }
 
 /**

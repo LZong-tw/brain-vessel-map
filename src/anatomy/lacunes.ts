@@ -44,7 +44,12 @@ import type { DeficitRef, L } from './types';
 /** typical lacune volume, mL */
 export const LACUNE_ML = 0.8;
 
-/** fraction of the structure's function lost by a lacune (compact fibre tracts) */
+/**
+ * fraction of the structure's function lost by a lacune (compact fibre tracts): at a site with a
+ * deficit list of its own; at a site that uses the region's own deficits, no more than the whole
+ * bundle feeds there, as one branch cannot cost a structure more than all of its bundle does
+ * (simulate.lacuneShareOf, V2-3)
+ */
 export const LACUNE_DYSFUNCTION = 0.8;
 
 export interface LacuneSite {

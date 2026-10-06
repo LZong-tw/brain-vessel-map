@@ -8,7 +8,7 @@
 
 import { REGION_BY_ID } from '../anatomy';
 import { TIME_STOPS, phaseOf } from '../anatomy/timeline';
-import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
+import { SYMPTOM_BY_ID, isQualifier } from '../anatomy/symptoms';
 import type { CascadeEvent, FatalRisk, SurvivalCaveat } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
 import { simulate, type SimInput, type SimResult } from '../engine/simulate';
@@ -56,10 +56,13 @@ export function deficitGroup(s: SymptomItem): DeficitGroup {
   return 'marked';
 }
 
-/** Symptoms by group, worst first within a group. */
+/**
+ * Symptoms by group, worst first within a group; not a finding that only describes another deficit
+ * (macular sparing: isQualifier, V2-9), which the Outcome names with the deficit it describes.
+ */
 export function groupDeficits(symptoms: SymptomItem[]): Record<DeficitGroup, SymptomItem[]> {
   const out: Record<DeficitGroup, SymptomItem[]> = { marked: [], partial: [], largely: [] };
-  for (const s of symptoms) out[deficitGroup(s)].push(s);
+  for (const s of symptoms) if (!isQualifier(s.id)) out[deficitGroup(s)].push(s);
   for (const g of DEFICIT_GROUPS) out[g].sort((a, b) => b.sev - a.sev || (a.recovery?.compensated ?? 0) - (b.recovery?.compensated ?? 0));
   return out;
 }
@@ -136,7 +139,8 @@ export interface CourseEnd {
   /**
    * deficits still present at 6 months: those listed and those the lesion still gives that cannot
    * be examined at the patient's level of consciousness (SimResult.unexaminable), which have not
-   * gone (X1-2) — but not a late sign listed only as possible (Y3-9)
+   * gone (X1-2) — but not a late sign listed only as possible (Y3-9), nor a finding that describes
+   * another deficit (macular sparing, V2-9)
    */
   lasting: number;
   /**
@@ -178,7 +182,7 @@ export interface FinalOutcome {
 export function courseEnd(input: OutcomeInput, known?: { m3?: SimResult; m6?: SimResult }): CourseEnd {
   const m3 = known?.m3 ?? simulate({ ...input, tH: H_3M });
   const m6 = known?.m6 ?? simulate({ ...input, tH: H_6M });
-  const definite = [...m6.symptoms, ...m6.unexaminable].filter((s) => !SYMPTOM_BY_ID[s.id]?.possible);
+  const definite = [...m6.symptoms, ...m6.unexaminable].filter((s) => !SYMPTOM_BY_ID[s.id]?.possible && !isQualifier(s.id));
   return { m3, m6, finalInfarct: m6.volumes.finalInfarct, lasting: definite.length, fatal: m6.cascade.fatalRisk, caveats: m6.cascade.survivalCaveat };
 }
 

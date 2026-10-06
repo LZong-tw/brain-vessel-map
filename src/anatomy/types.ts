@@ -344,6 +344,12 @@ export interface SymptomDef {
    */
   fromInfarct?: boolean;
   /**
+   * a finding that describes these deficits (symptom ids) rather than a deficit of its own: macular
+   * sparing, the central vision a hemianopia keeps (V2-9). Losing it is no improvement, and it is
+   * not counted among the deficits; the Outcome names it with the deficit it describes.
+   */
+  qualifies?: string[];
+  /**
    * appears only this many hours after onset (a latent period), not from the start; for a
    * `delayed` symptom it replaces the default start at 2 weeks (symptoms.DELAYED_ONSET_H), so each
    * late consequence starts when its own evidence says (C10-F2)

@@ -189,6 +189,23 @@ describe('最終 tab', () => {
     expect(count('.outcome-group li')).toBe(simulate({ ...simOf().input, tH: 2160 }).symptoms.length);
   });
 
+  // V2-9: macular sparing is the central vision the hemianopia keeps: named with it, not counted as
+  // a lasting deficit of its own
+  it.each(['zh-TW', 'en'] as const)('%s: the fetal PCA template names the macular sparing with the hemianopia, not as a deficit', (lang) => {
+    useApp.getState().loadScenario('fetal_pca');
+    useApp.setState({ rightTab: 'final', lang });
+    const m6 = at6m();
+    expect(m6.symptoms.map((s) => s.id)).toEqual(expect.arrayContaining(['macular_sparing', 'hemianopia']));
+    const { container } = render(<RightPanel sim={simOf()} />);
+    const box = container.querySelector('.outcome-deficits') as HTMLElement;
+    const items = [...box.querySelectorAll('.outcome-group li')].map((li) => li.textContent ?? '');
+    const sparing = lang === 'en' ? SYMPTOM_BY_ID.macular_sparing.name.en : SYMPTOM_BY_ID.macular_sparing.name.zh;
+    const hemianopia = lang === 'en' ? 'hemianopia' : '偏盲';
+    expect(items.filter((x) => x.includes(sparing)).every((x) => x.toLowerCase().includes(hemianopia))).toBe(true);
+    expect(items.some((x) => x.includes(sparing))).toBe(true);
+    expect(items.length).toBe(m6.symptoms.length - 1);
+  });
+
   // X1-12: memory and initiative cannot be examined in a disorder of consciousness; they are not
   // "no longer there"
   it('names apart the deficits that cannot be examined in a disorder of consciousness (top of the basilar at 6 months)', () => {
