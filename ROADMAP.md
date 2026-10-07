@@ -61,6 +61,18 @@
   · An occlusion of one side (most of all an ACA or PCA one) slightly raises the pressure in the circle of Willis and the basilar tip and the other side's collaterals with it, so the other side's infarct (mostly an MCA one) is smaller, by up to about a fifth of a large infarct and more of a small one, and in a few pairs the total infarct is smaller too: keep the pressure an occlusion gives the other branches out of the collateral supply, or let the arteries that regulate flow autoregulate, and encode "adding an occlusion of the other side never shrinks this side's infarct" as a test (a limitation for now: this moves the volumes, swelling and herniation of every combined case it touches)
 - [ ] 缺損改成連續分級（或加上遲滯），讓剛好落在兩級交界的極少量組織不會讓肢體從完全癱瘓跳到稍微能動（目前列為限制：中段基底動脈阻塞、側枝差、12 小時取栓只救回 0.2 mL，3 個月 NIHSS 卻是 20 分而不是 24 分；文字已不把這個差距算在再通身上）
   · Grade deficits continuously (or with hysteresis), so that a sliver of tissue at the edge between two grades cannot turn a plegic limb into one that moves a little (a limitation for now: a mid-basilar occlusion with poor collaterals reopened at 12 h saves 0.2 mL, yet the NIHSS at 3 months is 20 rather than 24; the texts no longer credit the reopening with the difference)
+- [ ] 最後一輪審查留下、尚未修的小問題（都是疊加或分期的阻塞，單一阻塞不受影響）：
+  - 第二個小腦梗塞在第一個之後一天內開始時，第一個梗塞自己的「有腫脹風險」警示會消失，直到兩者合併的病程開始（最多約 24 小時）；
+  - 兩側先後腫脹時，「兩側部分互相抵消」那句引用的中線偏移是較大一側單獨腫脹時的最大值，比兩側同時腫脹時畫面上的偏移高約 1–2 mm；
+  - 不是主要病灶的動脈自行再通時，疝脫範圍仍依再通後的病程判斷，最終梗塞反而比不再通還大，先前寫下的「少了約 N mL」事件卻保留；
+  - 第二個阻塞若在第一個之後幾小時內發生，治療時間窗的「大核心」仍把第一個梗塞這幾小時的擴大算進去（例如左 M1 後 2 小時的基底動脈阻塞被說成核心約 76 mL）；
+  - 做了減壓手術時，兩側腫脹的說明仍寫「中線幾乎不動」，畫面上的偏移卻有 4.5–6.2 mm。
+  · Small issues left by the last review round, not yet fixed (all in stacked or staged occlusions; single occlusions are not affected):
+    - when a second cerebellar infarct begins within a day of the first, the first infarct's own "risk of swelling" warning is dropped until the joint course begins (up to about 24 h);
+    - when two hemispheres swell one after the other, the "partly balance each other" sentence quotes the larger swelling's peak on its own, about 1–2 mm above the shift shown while both swell;
+    - when an artery that is not the index lesion's reopens by itself, its herniation territories are still judged on the reopened course, so the case ends with more infarct than with the artery closed, while the "≈ N mL less infarct" event told earlier is kept;
+    - for a second occlusion a few hours after the first, the treatment window's "large core" still counts the first infarct's growth over those hours (a basilar occlusion 2 h after a left M1 is told its core is about 76 mL);
+    - with decompression, the note on two swelling hemispheres still says "the midline moves little" beside a shown shift of 4.5–6.2 mm.
 - [ ] 脊髓：下方根髓動脈對上段頸髓的補充（目前兩側椎動脈在脊髓分支之後阻塞時，C1–C3 整段梗塞），以及脊髓梗塞自己的恢復曲線（目前沿用腦的，到 6 個月幾乎不變；Robertson 2012）
   · The spinal cord: the radiculomedullary supply of the upper cervical cord from below (both vertebral arteries blocked beyond their spinal roots now infarct all of C1–C3), and a recovery curve of its own for a spinal cord infarct (now the brain's, which leaves it nearly unchanged at 6 months; Robertson 2012)
 - [ ] 中央型疝脫的續發梗塞：目前單獨就會疝脫的半球保留它的後與前大腦動脈區梗塞（前者有病例記載，後者是模型的選擇），只有兩側合計才達昏迷範圍時不加；也還沒有間腦與中腦本身的缺血或 Duret 出血
