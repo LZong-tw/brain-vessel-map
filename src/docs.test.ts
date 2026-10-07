@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import readmeZh from '../README.md?raw';
-import readmeEn from '../README.en.md?raw';
-import roadmap from '../ROADMAP.md?raw';
+import readmeZhRaw from '../README.md?raw';
+import readmeEnRaw from '../README.en.md?raw';
+import roadmapRaw from '../ROADMAP.md?raw';
 import { BEDS, REGIONS, VESSELS } from './anatomy';
 import { SCENARIOS } from './anatomy/scenarios';
 import { SYNDROMES } from './anatomy/syndromes';
 import { VARIANTS } from './anatomy/variants';
 import { CEREBELLAR_MALIGNANT_ML, CEREBELLAR_SPACE_ML } from './engine/cascade';
+
+// a Windows checkout (core.autocrlf) hands ?raw imports CRLF; the checks read lines
+const lf = (text: string) => text.replace(/\r\n/g, '\n');
+const readmeZh = lf(readmeZhRaw);
+const readmeEn = lf(readmeEnRaw);
+const roadmap = lf(roadmapRaw);
 
 /**
  * The documentation quotes counts from the data and exists in two languages. Both drifted

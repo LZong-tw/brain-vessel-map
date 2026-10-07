@@ -3,7 +3,11 @@ import { POST_STROKE_RISKS } from './postStrokeRisks';
 import { SCIENTIFIC_REFERENCES } from './sources';
 import type { L } from './types';
 import { RISK_GROUP_ORDER } from '../ui/postStrokeRisks';
-import REFERENCES_MD from '../../REFERENCES.md?raw';
+import REFERENCES_MDRaw from '../../REFERENCES.md?raw';
+
+// a Windows checkout (core.autocrlf) hands ?raw imports CRLF; the checks read lines
+const lf = (text: string) => text.replace(/\r\n/g, '\n');
+const REFERENCES_MD = lf(REFERENCES_MDRaw);
 
 const filled = (l: L) => l.zh.trim().length > 0 && l.en.trim().length > 0;
 

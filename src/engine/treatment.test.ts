@@ -107,13 +107,16 @@ describe('default treatment = the model before treatment details', () => {
     for (const treatment of [undefined, DEFAULT_TREATMENT, { ...DEFAULT_TREATMENT }]) {
       const r = simulate({ ...scenario(id, over), treatment });
       const rep = eventOf(r, 'reperfusion');
+      // volumes are sums over many units, so their last couple of float digits move with
+      // summation order; nine significant digits is far finer than any real change
+      const sig = (v: number) => Number(v.toPrecision(9));
       expect({
-        core: r.volumes.core,
-        finalInfarct: r.volumes.finalInfarct,
-        saved: r.volumes.saved,
+        core: sig(r.volumes.core),
+        finalInfarct: sig(r.volumes.finalInfarct),
+        saved: sig(r.volumes.saved),
         nihss: r.nihss.total,
         reperfusion: `${rep?.severity}|${rep?.title.en}`,
-      }).toEqual(want);
+      }).toEqual({ ...want, core: sig(want.core), finalInfarct: sig(want.finalInfarct), saved: sig(want.saved) });
     }
   });
 

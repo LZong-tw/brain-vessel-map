@@ -1104,8 +1104,13 @@ function decisionCore(c: Course, onsetH: number, decisionH: number): Record<stri
     const hist = c.histories[i];
     const p = tissueParamsForUnit(unit);
     const prior = hist.filter((ph) => ph.fromH < onsetH - 1e-9).pop();
-    if (prior && prior.rel < p.penumbraRel) return;
-    out[unit.bed] = (out[unit.bed] ?? 0) + (infarctFractionOf(hist, decisionH, p) - infarctFractionOf(hist, onsetH, p)) * unit.frac;
+    let lost = infarctFractionOf(hist, decisionH, p) - infarctFractionOf(hist, onsetH, p);
+    // ... but what worsening flow adds beyond the earlier ischaemia running on unchanged is
+    if (prior && prior.rel < p.penumbraRel) {
+      const unchanged = hist.filter((ph) => ph.fromH < onsetH - 1e-9);
+      lost = infarctFractionOf(hist, decisionH, p) - infarctFractionOf(unchanged, decisionH, p);
+    }
+    if (lost > 0) out[unit.bed] = (out[unit.bed] ?? 0) + lost * unit.frac;
   });
   return out;
 }
@@ -1924,9 +1929,12 @@ function herniationShifts(
   // the largest midline shift sampled, from either side, refined about its sample (T1-1)
   let lateralPeakMm = 0;
   let lateralT: number | null = null;
-  for (const [t, v] of memo) if (v.lateral > lateralPeakMm) [lateralPeakMm, lateralT] = [v.lateral, t];
+  // (only while both swell: before the later lesion begins, the shift is one hemisphere's alone)
+  const bothFrom = Math.max(onsetOf('r'), onsetOf('l'));
+  for (const [t, v] of memo) if (t >= bothFrom && v.lateral > lateralPeakMm) [lateralPeakMm, lateralT] = [v.lateral, t];
   if (lateralT !== null)
-    for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) lateralPeakMm = Math.max(lateralPeakMm, at(lateralT + d).lateral);
+    for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4])
+      if (lateralT + d >= bothFrom) lateralPeakMm = Math.max(lateralPeakMm, at(lateralT + d).lateral);
   return { sides: out, central, lateralPeakMm };
 }
 
@@ -1948,8 +1956,11 @@ function herniationFollowsShift(
   if (!sides.length) {
     // no side herniates (after a decompression, say), but the note on two swelling hemispheres
     // still quotes the midline shift the Now tab shows while both swell
-    if (model.hemiOnsetH.r === undefined || model.hemiOnsetH.l === undefined) return { cascade, input };
-    const from = Math.max(model.hemiOnsetH.r, model.hemiOnsetH.l);
+    // (a single-start schedule dates every lesion from the index onset and lists none)
+    const onsets = model.hemiOnsetH;
+    const staged = Object.keys(onsets).length > 0;
+    if (staged && (onsets.r === undefined || onsets.l === undefined)) return { cascade, input };
+    const from = Math.max(onsets.r ?? 0, onsets.l ?? 0);
     let peak = 0;
     let peakT = from;
     for (let t = from; t <= from + SHIFT_HORIZON_H; t += SHIFT_STEP_H) {

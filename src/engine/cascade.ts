@@ -373,7 +373,9 @@ function keepTheBegun(events: CascadeEvent[], prior: { startH: number; events: C
     if (key) {
       // the compartment's oedema as it is told now, from the newer lesion's first day
       for (const e of out.filter((x) => oedemaKey(x.id) === key && !begun.includes(x))) {
-        if (e.onsetH < from) {
+        // (one the earlier course already told the same, at the same time, is not told anew)
+        const toldBefore = prior.events.some((x) => x.title.en === e.title.en && Math.abs(x.onsetH - e.onsetH) < 1e-6);
+        if (e.onsetH < from && !toldBefore) {
           e.onsetH = from;
           if (e.peakH !== undefined) e.peakH = Math.max(e.peakH, from);
         }

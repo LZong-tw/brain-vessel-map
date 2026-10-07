@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { SCIENTIFIC_REFERENCES } from './sources';
 import { RECANALISATION_EVIDENCE } from './recanalisation';
-import REFERENCES_MD from '../../REFERENCES.md?raw';
-import REGIONS_SRC from './regions.ts?raw';
-import SYNDROMES_SRC from './syndromes.ts?raw';
-import SYMPTOMS_SRC from './symptoms.ts?raw';
-import CASCADE_SRC from '../engine/cascade.ts?raw';
-import TISSUE_SRC from '../engine/tissue.ts?raw';
-import TISSUE_PARAMS_SRC from '../engine/tissueParams.ts?raw';
-import EDEMA_SRC from '../engine/edema.ts?raw';
-import SOURCES_SRC from './sources.ts?raw';
+import REFERENCES_MDRaw from '../../REFERENCES.md?raw';
+import REGIONS_SRCRaw from './regions.ts?raw';
+import SYNDROMES_SRCRaw from './syndromes.ts?raw';
+import SYMPTOMS_SRCRaw from './symptoms.ts?raw';
+import CASCADE_SRCRaw from '../engine/cascade.ts?raw';
+import TISSUE_SRCRaw from '../engine/tissue.ts?raw';
+import TISSUE_PARAMS_SRCRaw from '../engine/tissueParams.ts?raw';
+import EDEMA_SRCRaw from '../engine/edema.ts?raw';
+import SOURCES_SRCRaw from './sources.ts?raw';
+
+// a Windows checkout (core.autocrlf) hands ?raw imports CRLF; the checks read lines
+const lf = (text: string) => text.replace(/\r\n/g, '\n');
+const REFERENCES_MD = lf(REFERENCES_MDRaw);
+const REGIONS_SRC = lf(REGIONS_SRCRaw);
+const SYNDROMES_SRC = lf(SYNDROMES_SRCRaw);
+const SYMPTOMS_SRC = lf(SYMPTOMS_SRCRaw);
+const CASCADE_SRC = lf(CASCADE_SRCRaw);
+const TISSUE_SRC = lf(TISSUE_SRCRaw);
+const TISSUE_PARAMS_SRC = lf(TISSUE_PARAMS_SRCRaw);
+const EDEMA_SRC = lf(EDEMA_SRCRaw);
+const SOURCES_SRC = lf(SOURCES_SRCRaw);
 
 /**
  * Citation corrections from the clinical-detail audit (cluster C11). Each reference was checked
