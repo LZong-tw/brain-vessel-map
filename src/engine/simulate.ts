@@ -761,7 +761,7 @@ function priorSwelling(input: SimInput, onsetH: number): { startH: number; event
   if (!known || !known.known.occlusions.length) return undefined;
   const before = modelFor(known.known);
   const shift = before.onsetH - onsetH;
-  const events = before.cascade.events.filter((e) => (SWELLING_EVENT.test(e.id) || STORY_EVENT.test(e.id)) && e.onsetH + before.onsetH < last - 1e-9);
+  const events = before.cascade.events.filter((e) => SWELLING_EVENT.test(e.id) || (STORY_EVENT.test(e.id) && e.onsetH + before.onsetH < last - 1e-9));
   return { startH: last - onsetH, events: shiftTimes(events, shift) };
 }
 
@@ -1095,11 +1095,18 @@ const modelCache = new Map<string, Model>();
  * while its own was 0 at onset and about 70 mL at 6 h). With one onset at 0, the infarct at that time.
  */
 function decisionCore(c: Course, onsetH: number, decisionH: number): Record<string, number> {
-  const atDecision = bedInfarctAt(c, decisionH);
-  if (onsetH <= 0) return atDecision;
-  const before = bedInfarctAt(c, onsetH);
+
+  if (onsetH <= 0) return bedInfarctAt(c, decisionH);
+  // a unit already ischaemic before this occlusion belongs to the earlier lesion, whose infarct
+  // still growing at the decision is not this one's core (T3)
   const out: Record<string, number> = {};
-  for (const [id, v] of Object.entries(atDecision)) out[id] = Math.max(0, v - (before[id] ?? 0));
+  c.units.forEach((unit, i) => {
+    const hist = c.histories[i];
+    const p = tissueParamsForUnit(unit);
+    const prior = hist.filter((ph) => ph.fromH < onsetH - 1e-9).pop();
+    if (prior && prior.rel < p.penumbraRel) return;
+    out[unit.bed] = (out[unit.bed] ?? 0) + (infarctFractionOf(hist, decisionH, p) - infarctFractionOf(hist, onsetH, p)) * unit.frac;
+  });
   return out;
 }
 
@@ -1259,6 +1266,15 @@ function modelFor(input: SimInput): Model {
     selfReopened.length && BEDS.reduce((a, b) => a + (BRAIN.has(REGION_BY_ID[b.region].category) ? (bedFinal[b.id] ?? 0) * b.volume : 0), 0) >= 0.05
       ? stayedClosedOf(input, selfReopened, selfAtH, onsetH)
       : undefined;
+  // an artery other than the index lesion's that reopens by itself: what a herniation finds alive
+  // is judged on the course with it closed too, so its reopening never ends with more infarct (T3)
+  const otherSelf = input.occlusions.filter(
+    (o) => !onsetPiece.active.includes(o) && endOf(o) !== null && isTreatable(o) && !progressed(occlusions, o) && causeOf(o) === null,
+  );
+  const otherClosed = otherSelf.length
+    ? stayedClosedOf(input, [...(spontaneous ? selfReopened : []), ...otherSelf], Math.min(...otherSelf.map((o) => endOf(o)!)), onsetH)
+    : undefined;
+  const compressibleBy = otherClosed?.compressibleBy ?? spontaneous?.compressibleBy;
   const cascadeInput: CascadeInput = {
     reperfusionH: treats ? reperf! - onsetH : null,
     decompression: input.decompression,
@@ -1279,7 +1295,8 @@ function modelFor(input: SimInput): Model {
     flowReturnsH: episodeEndH === null || plan?.reocclusionH != null ? null : episodeEndH - onsetH,
     // … but the artery was reopened then, which ends the treatment windows (V1-11)
     reopensH: Number.isFinite(reopenedAtH) ? reopenedAtH - onsetH : null,
-    ...(spontaneous ? { spontaneous: spontaneous.reopening, compressibleBy: spontaneous.compressibleBy } : {}),
+    ...(spontaneous ? { spontaneous: spontaneous.reopening } : {}),
+    ...(compressibleBy ? { compressibleBy } : {}),
     // left out for the default treatment, which keeps the former event texts exactly
     ...(cascadeTreatment ? { treatment: cascadeTreatment } : {}),
     bedAtDecision: decisionCore(untreated ?? course, onsetH, decisionH),
@@ -1928,7 +1945,23 @@ function herniationFollowsShift(
   // the sides that herniate by the size of their infarct, and those with a moderate mass effect,
   // whose swelling may still reach the coma range and then herniates too (W2-1)
   const sides = (['r', 'l'] as Side[]).filter((s) => cascade.events.some((e) => e.id === `uncal_${s}` || e.id === `mass_effect_${s}`));
-  if (!sides.length) return { cascade, input };
+  if (!sides.length) {
+    // no side herniates (after a decompression, say), but the note on two swelling hemispheres
+    // still quotes the midline shift the Now tab shows while both swell
+    if (model.hemiOnsetH.r === undefined || model.hemiOnsetH.l === undefined) return { cascade, input };
+    const from = Math.max(model.hemiOnsetH.r, model.hemiOnsetH.l);
+    let peak = 0;
+    let peakT = from;
+    for (let t = from; t <= from + SHIFT_HORIZON_H; t += SHIFT_STEP_H) {
+      const v = shiftAt(model, cascade, decompression, t).lateral;
+      if (v > peak) [peak, peakT] = [v, t];
+    }
+    for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4])
+      if (peakT + d >= from) peak = Math.max(peak, shiftAt(model, cascade, decompression, peakT + d).lateral);
+    if (peak <= 0) return { cascade, input };
+    const shownInput: CascadeInput = { ...input, shownLateralPeakMm: peak };
+    return { cascade: computeCascade(shownInput), input: shownInput };
+  }
   const bedEffects: Record<string, BedEffect[]> = {};
   for (const [id, list] of Object.entries(cascade.bedEffects)) bedEffects[id] = list.filter((e) => !HERNIATION_EVENT.test(e.event));
   const primary = herniationShifts(model, { ...cascade, bedEffects }, decompression, sides);

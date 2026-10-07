@@ -327,6 +327,21 @@ function keepTheBegun(events: CascadeEvent[], prior: { startH: number; events: C
   const from = startH + OEDEMA_ONSET_H;
   const begun = prior.events.filter((e) => SWELLING_EVENT.test(e.id) && e.onsetH < startH - 1e-9);
   const out = keepTheBegunStory(events, prior);
+  // a compartment's swelling warning due after the occlusion began, but before the newer course
+  // tells that compartment's oedema, stays until then
+  for (const p of prior.events) {
+    const key = oedemaKey(p.id);
+    if (!key || !SWELLING_EVENT.test(p.id) || p.onsetH < startH - 1e-9) continue;
+    const newer = out.filter((e) => oedemaKey(e.id) === key);
+    const next = Math.min(...newer.map((e) => e.onsetH));
+    if (!(next > p.onsetH + 1e-9) || newer.some((e) => e.title.en === p.title.en && Math.abs(e.onsetH - p.onsetH) < 1e-6)) continue;
+    for (const e of newer.filter((x) => x.id === p.id)) {
+      let n = 2;
+      while (out.some((x) => x.id === `${p.id}_${n}`)) n++;
+      e.id = `${p.id}_${n}`;
+    }
+    out.push({ ...p, endH: Math.min(p.endH ?? Infinity, next) });
+  }
   if (!begun.length) return out;
   const endOf = (p: CascadeEvent, f: CascadeEvent) => {
     const pe = p.endH ?? Infinity;
@@ -2251,8 +2266,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       ? { zh: '', en: '' }
       : alike
         ? {
-            zh: `另一側半球也梗塞了（最終約 ${vol.supra[o].toFixed(0)} mL；兩側在 14 小時內合計約 ${(earlySupra.r + earlySupra.l).toFixed(0)} mL）：兩側一起腫脹，把腦往下擠而不是推向對側，中線移動不多；模型把兩側的腫脹加在一起，視同單側半球的腫脹來決定意識（這是模型的選擇：Ropper 的分級是在單側占位病人測得的）。`,
-            en: ` The other hemisphere is infarcted too (≈ ${vol.supra[o].toFixed(0)} mL in the end; ≈ ${(earlySupra.r + earlySupra.l).toFixed(0)} mL in both within 14 h): the two swell together and push the brain down rather than across, so the midline moves little; the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).`,
+            zh: `另一側半球也梗塞了（最終約 ${vol.supra[o].toFixed(0)} mL；兩側在 14 小時內合計約 ${(earlySupra.r + earlySupra.l).toFixed(0)} mL）：兩側一起腫脹，把腦往下擠而不是推向對側，中線移動不多（兩側同時腫脹時最多約 ${across.toFixed(1)} mm）；模型把兩側的腫脹加在一起，視同單側半球的腫脹來決定意識（這是模型的選擇：Ropper 的分級是在單側占位病人測得的）。`,
+            en: ` The other hemisphere is infarcted too (≈ ${vol.supra[o].toFixed(0)} mL in the end; ≈ ${(earlySupra.r + earlySupra.l).toFixed(0)} mL in both within 14 h): the two swell together and push the brain down rather than across, so the midline moves little (at most about ${across.toFixed(1)} mm while both swell); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).`,
           }
         : {
             zh: `另一側半球也梗塞了（最終約 ${vol.supra[o].toFixed(0)} mL；兩側在 14 小時內合計約 ${(earlySupra.r + earlySupra.l).toFixed(0)} mL）：兩側同時腫脹、互相抵銷一部分，中線被推過去的距離比腫得較厲害的一側單獨腫脹時少（這裡最多約 ${across.toFixed(1)} mm）；模型把兩側的腫脹加在一起，視同單側半球的腫脹來決定意識（這是模型的選擇：Ropper 的分級是在單側占位病人測得的）。`,
