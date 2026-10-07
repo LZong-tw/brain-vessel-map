@@ -78,6 +78,7 @@ import {
   UNCAL_ONSET_H,
   attackWindow,
   computeCascade,
+  sideOf,
   consciousnessFromShift,
   noInfarctEvents,
   RECENT_INFARCT_MAX_H,
@@ -112,7 +113,7 @@ import {
   type SyndromeMatch,
 } from './clinical';
 import { getUnits, simulateHemodynamics, type HemoInput, type HemoResult, type Occlusion, type Unit } from './hemodynamics';
-import { computeEdema, type EdemaBedInput } from './edema';
+import { computeEdema, decompressionAtH, type EdemaBedInput } from './edema';
 import type { EdemaState } from './edemaTypes';
 import { computeRecovery, type RecoveryBedInput } from './recovery';
 import type { RecoveryState } from './recoveryTypes';
@@ -1092,21 +1093,38 @@ const modelCache = new Map<string, Model>();
  * The core when treatment is decided, per bed: what the lesion of the index onset has killed by
  * then, not an earlier infarct (T2-8: a right M1 that closed a month after a left M1 infarct was
  * told of a "large core, about 166 mL, larger than in most of these trials", the old left infarct,
- * while its own was 0 at onset and about 70 mL at 6 h). With one onset at 0, the infarct at that time.
+ * while its own was 0 at onset and about 70 mL at 6 h). A stenosis that worsens into that occlusion
+ * is the same lesion: the core is the tissue actually dead on its side, including what the stenosis
+ * had already killed, so a tighter stenosis cannot shrink the warning. With one onset at 0, the
+ * infarct at that time.
  */
 function decisionCore(c: Course, onsetH: number, decisionH: number): Record<string, number> {
 
   if (onsetH <= 0) return bedInfarctAt(c, decisionH);
+  // a vessel whose phase at the index onset continues an earlier, milder phase of the same vessel
+  const k = pieceIndex(c.pieces, onsetH);
+  const prev = k > 0 ? c.pieces[k - 1] : null;
+  const worseningSides = new Set<Side>();
+  if (prev)
+    for (const o of c.pieces[k].active) {
+      if (Math.abs(startOf(o) - onsetH) > 1e-6) continue;
+      const earlier = prev.active.find((p) => p.vessel === o.vessel);
+      if (!earlier || !(o.severity > earlier.severity + 1e-9)) continue;
+      const s = sideOf(o.vessel);
+      if (s === 'r' || s === 'l') worseningSides.add(s);
+    }
   // a unit already ischaemic before this occlusion belongs to the earlier lesion, whose infarct
-  // still growing at the decision is not this one's core (T3)
+  // still growing at the decision is not this one's core (T3), unless that ischaemia is the
+  // stenosis this occlusion worsened
   const out: Record<string, number> = {};
   c.units.forEach((unit, i) => {
     const hist = c.histories[i];
     const p = tissueParamsForUnit(unit);
     const prior = hist.filter((ph) => ph.fromH < onsetH - 1e-9).pop();
+    const side = REGION_BY_ID[BED_BY_ID[unit.bed].region].side;
     let lost = infarctFractionOf(hist, decisionH, p) - infarctFractionOf(hist, onsetH, p);
-    // ... but what worsening flow adds beyond the earlier ischaemia running on unchanged is
-    if (prior && prior.rel < p.penumbraRel) {
+    if ((side === 'r' || side === 'l') && worseningSides.has(side)) lost = infarctFractionOf(hist, decisionH, p);
+    else if (prior && prior.rel < p.penumbraRel) {
       const unchanged = hist.filter((ph) => ph.fromH < onsetH - 1e-9);
       lost = infarctFractionOf(hist, decisionH, p) - infarctFractionOf(unchanged, decisionH, p);
     }
@@ -1929,12 +1947,36 @@ function herniationShifts(
   // the largest midline shift sampled, from either side, refined about its sample (T1-1)
   let lateralPeakMm = 0;
   let lateralT: number | null = null;
-  // (only while both swell: before the later lesion begins, the shift is one hemisphere's alone)
+  // (only while both swell: before the later lesion begins, the shift is one hemisphere's alone,
+  // and once either side's own shift has fallen to <= 0.05 mm the two are no longer both swelling)
   const bothFrom = Math.max(onsetOf('r'), onsetOf('l'));
-  for (const [t, v] of memo) if (t >= bothFrom && v.lateral > lateralPeakMm) [lateralPeakMm, lateralT] = [v.lateral, t];
+  const stillBoth = (t: number) => {
+    const v = at(t);
+    return v.own.r > 0.05 && v.own.l > 0.05;
+  };
+  let bothUntil = Infinity;
+  const times = [...memo.keys()].filter((t) => t >= bothFrom).sort((a, b) => a - b);
+  let sawBoth = false;
+  for (let i = 0; i < times.length; i++) {
+    if (stillBoth(times[i])) sawBoth = true;
+    else if (sawBoth) {
+      let lo = times[i - 1];
+      let hi = times[i];
+      for (let k = 0; k < SHIFT_BISECT + 4; k++) {
+        const m = (lo + hi) / 2;
+        if (stillBoth(m)) lo = m;
+        else hi = m;
+      }
+      bothUntil = hi;
+      const edge = at(lo);
+      if (edge.lateral > lateralPeakMm) [lateralPeakMm, lateralT] = [edge.lateral, lo];
+      break;
+    }
+  }
+  for (const [t, v] of memo) if (t >= bothFrom && t < bothUntil && v.lateral > lateralPeakMm) [lateralPeakMm, lateralT] = [v.lateral, t];
   if (lateralT !== null)
     for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4])
-      if (lateralT + d >= bothFrom) lateralPeakMm = Math.max(lateralPeakMm, at(lateralT + d).lateral);
+      if (lateralT + d >= bothFrom && lateralT + d < bothUntil) lateralPeakMm = Math.max(lateralPeakMm, at(lateralT + d).lateral);
   return { sides: out, central, lateralPeakMm };
 }
 
@@ -1961,14 +2003,24 @@ function herniationFollowsShift(
     const staged = Object.keys(onsets).length > 0;
     if (staged && (onsets.r === undefined || onsets.l === undefined)) return { cascade, input };
     const from = Math.max(onsets.r ?? 0, onsets.l ?? 0);
+    const horizon = from + SHIFT_HORIZON_H;
     let peak = 0;
     let peakT = from;
-    for (let t = from; t <= from + SHIFT_HORIZON_H; t += SHIFT_STEP_H) {
+    const consider = (t: number) => {
+      if (t < from || t > horizon) return;
       const v = shiftAt(model, cascade, decompression, t).lateral;
       if (v > peak) [peak, peakT] = [v, t];
+    };
+    for (let t = from; t <= horizon; t += SHIFT_STEP_H) consider(t);
+    // the shift drops at a decompression and at an event boundary, so the peak can sit in the
+    // last instant before one and a coarse grid walks past it
+    const cut = decompressionAtH(decompression, cascade.events);
+    if (cut !== null) consider(cut - 1e-3);
+    for (const e of cascade.events) {
+      consider(e.onsetH - 1e-3);
+      if (e.endH !== undefined) consider(e.endH - 1e-3);
     }
-    for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4])
-      if (peakT + d >= from) peak = Math.max(peak, shiftAt(model, cascade, decompression, peakT + d).lateral);
+    for (const d of [-SHIFT_STEP_H / 2, SHIFT_STEP_H / 2, -SHIFT_STEP_H / 4, SHIFT_STEP_H / 4]) consider(peakT + d);
     if (peak <= 0) return { cascade, input };
     const shownInput: CascadeInput = { ...input, shownLateralPeakMm: peak };
     return { cascade: computeCascade(shownInput), input: shownInput };

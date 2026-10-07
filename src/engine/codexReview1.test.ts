@@ -23,15 +23,24 @@ describe('codex review 1', () => {
     expect(quoted).not.toBeNull();
     const shown = shownMax(occ, 0, 240, true);
     expect(shown).toBeGreaterThan(0.5);
-    expect(quoted!).toBeGreaterThan(0.5);
-    expect(quoted!).toBeLessThanOrEqual(shown + 0.3);
+    expect(Math.abs(quoted! - shown)).toBeLessThanOrEqual(0.3);
   });
 
   it('quotes no more midline shift than shown once a late second hemisphere swells', () => {
     const occ = [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1, fromH: 200 }];
     const quoted = bilateralQuote(occ, false);
     expect(quoted).not.toBeNull();
-    const shown = shownMax(occ, 200, 600, false);
+    // while both swell: from the later lesion, until either side's own shift drops to <= 0.05 mm
+    let shown = 0;
+    let both = false;
+    for (let t = 200; t <= 600; t += 1) {
+      const e = sim(occ, t, false).edema;
+      const swelling = e.ownShiftMm.r > 0.05 && e.ownShiftMm.l > 0.05;
+      if (swelling) both = true;
+      else if (both) break;
+      if (swelling) shown = Math.max(shown, e.midlineShiftMm);
+    }
+    expect(both).toBe(true);
     expect(quoted!).toBeLessThanOrEqual(shown + 0.3);
   });
 });

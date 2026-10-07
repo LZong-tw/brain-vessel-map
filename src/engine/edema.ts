@@ -148,6 +148,12 @@ const SHIFT_RESERVE_ML = 5;
 const SHIFT_MAX_MM = 20;
 /** decompressive craniectomy */
 const DECOMPRESSION_H = 36;
+
+/** when a decompression takes effect on the clinical clock, or null while the skull stays closed */
+export function decompressionAtH(decompression: boolean, events: readonly { id: string; onsetH: number }[]): number | null {
+  if (!decompression) return null;
+  return Math.min(DECOMPRESSION_H, ...events.filter((e) => e.id.startsWith('hemicraniectomy_')).map((e) => e.onsetH));
+}
 const DECOMPRESSION_SHIFT = 0.3;
 const DECOMPRESSION_VENTRICLE = 0.4;
 
@@ -477,8 +483,8 @@ export function computeEdema(input: EdemaInput): EdemaState {
 
   // ── midline shift: net extra volume of the more swollen hemisphere ──
   // (from the first hemicraniectomy, when the swelling of a lesion that began earlier is decompressed: V1-1)
-  const decompressionH = Math.min(DECOMPRESSION_H, ...cascade.events.filter((e) => e.id.startsWith('hemicraniectomy_')).map((e) => e.onsetH));
-  const decompressed = decompression && t >= decompressionH;
+  const decompressionH = decompressionAtH(decompression, cascade.events) ?? Infinity;
+  const decompressed = t >= decompressionH;
   const push = { r: Math.max(0, extra.r), l: Math.max(0, extra.l) };
   const diff = push.r - push.l;
   let midlineShiftMm = Math.min(SHIFT_MAX_MM, SHIFT_MM_PER_ML * Math.max(0, Math.abs(diff) - SHIFT_RESERVE_ML));
