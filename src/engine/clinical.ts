@@ -348,13 +348,19 @@ const APHASIA_TYPES = [...Object.keys(APHASIA_FEATURES), 'aphasia_thalamic'];
  * comprehension returns. Praxis is not among them: ideomotor apraxia is tested by imitating the
  * examiner's gestures, which needs no language, and in left-hemisphere patients it was found
  * nearly always together with an aphasia, yet correlated only loosely with it (De Renzi E et al.
- * Arch Neurol 1980;37:6-10, PMID 7350907). Nor is what the examiner sees (a field defect by
- * threat, a weakness, a gaze palsy, behaviour) or scores by the patient's reaction (the NIHSS
- * scores sensation in an aphasic patient by the grimace or withdrawal).
+ * Arch Neurol 1980;37:6-10, PMID 7350907). The callosal apraxia and agraphia of the left hand is
+ * among them (T3-5): apraxia and apraxic agraphia confined to the left hand (Watson RT, Heilman KM.
+ * Brain 1983;106:391-403, PMID 6850274), told, as the symptom says, by the left hand failing
+ * movements on command and writing that the right hand performs; beside such an aphasia the left
+ * hand's failure cannot be told from the aphasia, while the apraxia of both hands that the left
+ * hemisphere's own lesion gives stays listed. Nor is what the examiner sees (a field defect by threat, a weakness, a
+ * gaze palsy, behaviour, the left hand working against the right) or scores by the patient's
+ * reaction (the NIHSS scores sensation in an aphasic patient by the grimace or withdrawal).
  */
 export const NEEDS_LANGUAGE = [
   'alexia',
   'agraphia',
+  'callosal_apraxia',
   'acalculia',
   'finger_agnosia',
   'amnesia',
@@ -403,8 +409,12 @@ function consciousnessItem(symptoms: SymptomItem[]): number {
 /**
  * Signs shown by moving a limb (V2-10), and the limb they need: the finger–nose and heel–shin tests
  * of limb ataxia, the arm for an intention or Holmes tremor, the fingers for the clumsy hand and the
- * late jerky, dystonic hand. The NIH Stroke Scale scores limb ataxia as absent in a patient who is
- * paralysed (instructions reproduced in Torab-Miandoab A et al. Turk J Emerg Med 2020;20:118-134,
+ * late jerky, dystonic hand, and the hand for the alien hand (purposeful-looking movements outside
+ * voluntary control: grasping, groping, the left hand working against the right) and for the
+ * callosal apraxia and agraphia of the left hand (movements on command and writing), on their own
+ * side (T3-5: both were listed, and kept as lasting deficits, in a hand that could not move). The
+ * NIH Stroke Scale scores limb ataxia as absent in a patient who is paralysed (instructions
+ * reproduced in Torab-Miandoab A et al. Turk J Emerg Med 2020;20:118-134,
  * PMID 32832731), and its item 7 here leaves it out on a side whose arm cannot move against gravity
  * or whose leg cannot move at all (estimateNihss). On such a side these signs are not listed but
  * named apart, as those that cannot be examined at a lower level of consciousness: the weakness is
@@ -416,7 +426,20 @@ const NEEDS_MOVEMENT: Readonly<Record<string, 'limbs' | 'arm' | 'hand'>> = {
   holmes_tremor: 'arm',
   hand_clumsy: 'hand',
   jerky_dystonic_hand: 'hand',
+  alien_hand: 'hand',
+  callosal_apraxia: 'hand',
 };
+/**
+ * The signs of a callosal disconnection in the left hand are told against the right hand (T3-5): the
+ * callosal alien hand is the left hand working against the right (intermanual conflict, Feinberg TE
+ * et al. Neurology 1992;42:19-24, PMID 1734302), and the callosal apraxia and agraphia is the left
+ * hand failing movements on command and writing that the right hand performs (Watson & Heilman
+ * 1983). Neither shows while the right arm cannot move against gravity, so on the left they need the
+ * right hand too: a left M1 infarct with a plegic right arm listed the left hand "working against
+ * the right" for 6 months. (The right alien hand, the frontal type that grasps and gropes, needs
+ * only its own hand.)
+ */
+const TOLD_AGAINST_THE_RIGHT_HAND = ['alien_hand', 'callosal_apraxia'];
 /**
  * Gait and truncal ataxia (U3-12) are seen walking, standing and sitting upright (truncal ataxia is
  * graded by the imbalance when walking, when standing and when sitting: Carmona S et al. Front
@@ -437,13 +460,15 @@ const weaknessPts = (symptoms: SymptomItem[], ids: string[], side: Side) =>
 /**
  * the limb that a sign of NEEDS_MOVEMENT on body side `side` needs is too weak to make the movement:
  * an arm that cannot move against gravity (NIHSS item 5 ≥ 3: for the fingers, the arm's own weakness,
- * not the shoulder's of a border-zone infarct, whose fingers move), or, for limb ataxia, also a leg
- * that cannot move at all (item 6 = 4), as for item 7
+ * not the shoulder's of a border-zone infarct, whose fingers move), for the left hand's callosal
+ * signs also the right arm (TOLD_AGAINST_THE_RIGHT_HAND), or, for limb ataxia, also a leg that
+ * cannot move at all (item 6 = 4), as for item 7
  */
 function tooWeakFor(id: string, symptoms: SymptomItem[], side: Side): boolean {
   const need = NEEDS_MOVEMENT[id];
   if (!need) return false;
-  if (need === 'hand') return weaknessPts(symptoms, ['arm_weak'], side) >= 3;
+  if (need === 'hand')
+    return weaknessPts(symptoms, ['arm_weak'], side) >= 3 || (side === 'l' && TOLD_AGAINST_THE_RIGHT_HAND.includes(id) && weaknessPts(symptoms, ['arm_weak'], 'r') >= 3);
   const arm = weaknessPts(symptoms, ['arm_weak', 'arm_weak_proximal'], side) >= 3;
   return need === 'arm' ? arm : arm || weaknessPts(symptoms, ['leg_weak'], side) >= 4;
 }

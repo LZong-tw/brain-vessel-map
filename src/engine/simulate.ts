@@ -1116,7 +1116,12 @@ function modelKey(input: SimInput): string {
  * phases of the same vessel after it), on the clinical clock, against which what the reopening saved
  * is counted, as a treatment's saving is counted against the untreated course (V1-6).
  */
-function stayedClosedOf(input: SimInput, reopened: Occlusion[], atH: number, onsetH: number): { reopening: SpontaneousReopening; compressibleBy: (h: number) => Record<string, number> } {
+function stayedClosedOf(
+  input: SimInput,
+  reopened: Occlusion[],
+  atH: number,
+  onsetH: number,
+): { reopening: SpontaneousReopening; compressibleBy: (h: number) => Record<string, number>; closedInput: SimInput } {
   const same = (a: Occlusion, b: Occlusion) => a.vessel === b.vessel && startOf(a) === startOf(b) && endOf(a) === endOf(b);
   const occlusions: Occlusion[] = [];
   for (const o of input.occlusions) {
@@ -1137,6 +1142,7 @@ function stayedClosedOf(input: SimInput, reopened: Occlusion[], atH: number, ons
   return {
     reopening: { atH: atH - onsetH, vessels: [...new Set(reopened.map((o) => o.vessel))], stayedClosed: { total: closed.total, withSecondary: closed.withSecondary } },
     compressibleBy: untreatedFinalBy(closedInput, u, model.finalH, onsetH, all),
+    closedInput,
   };
 }
 
@@ -1369,6 +1375,16 @@ function modelFor(input: SimInput): Model {
       ...shiftedInput,
       listed: { ...listedCourse(input, model, listAt), brainstem: brainstemCourse(input, model) },
       ...(cascadeInput.reperfusionH !== null && plan && !plan.failed && plan.reopened.length ? { reperfusionOutcome: reperfusionOutcomeOf(input, model) } : {}),
+      lockedInWithout: (reopenH, h) => {
+        // the same case without that reopening: untreated, or with the artery left closed (T3-11)
+        const without =
+          cascadeInput.reperfusionH !== null && Math.abs(reopenH - cascadeInput.reperfusionH) < 1e-6
+            ? { ...input, reperfusionH: null, treatment: undefined }
+            : spontaneous && Math.abs(reopenH - spontaneous.reopening.atH) < 1e-6
+              ? spontaneous.closedInput
+              : null;
+        return without === null || run({ ...without, tH: onsetH + h }, false).syndromes.some((m) => m.def.id === 'locked_in');
+      },
     });
     model.cascade = second;
     // each prodromal attack's TIA story from when the list shows its deficit cleared (Z4-11)

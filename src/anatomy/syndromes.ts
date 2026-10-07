@@ -131,6 +131,11 @@ export const MCA_CORTEX = [
 ];
 
 const mcaCount = (c: SyndromeCtx, s: Side) => MCA_CORTEX.filter((b) => c.has(b, s, 0.3)).length;
+/**
+ * the weakness and sensory loss of the other side that the complete-MCA label names (T3-9): a
+ * weakness of the face, arm or leg, or a sensory loss of the face and arm or of the whole side
+ */
+const MCA_MOTOR_SENSORY = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'sens_face_arm', 'sens_hemibody'];
 
 /**
  * The aphasia of each MCA division (W3-9): the superior division (Broca's area and the frontal
@@ -335,7 +340,17 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '整個中大腦動脈區受損，通常是中大腦動脈主幹（M1）阻塞，或內頸動脈阻塞而側枝補不上：對側臉與手臂重於腿的偏癱與感覺喪失、對側同側偏盲、雙眼偏向病灶側。左側（優勢半球）：全面性失語；右側：左側忽略、病覺缺失。豆紋動脈區（基底核、內囊）因沒有側枝，常最先壞死。',
       en: 'The whole MCA territory, usually from an occlusion of the MCA trunk (M1), or of the internal carotid when collaterals cannot make up for it: contralateral face/arm > leg weakness and sensory loss, homonymous hemianopia, gaze deviation towards the lesion. Left (dominant): global aphasia; right: left neglect and anosognosia. The lenticulostriate territory (basal ganglia, capsule) has no collaterals and usually dies first.',
     },
-    test: (c, s) => mcaCount(c, s) >= 4 && c.hasAny(['putamen', 'ic_posterior_limb', 'ic_genu'], s, 0.3),
+    // T3-9: and beside the weakness or sensory loss it names, listed or not examinable, or with the
+    // internal capsule infarcted: four of its cortical areas and the striatum were enough, and an M1
+    // thrombectomy whose clot fragment blocked the inferior division (or the prefrontal or posterior
+    // temporal branch) left the striatum (dead within the first hour), that branch's cortex with the
+    // insula, the capsule spared by the early reopening, and the label beside a Wernicke aphasia, a
+    // hemianopia and no weakness or sensory loss at all, from 6 h to 6 months; the division label it
+    // superseded is shown then, as by the sign rule of that label (V3-14)
+    test: (c, s) =>
+      mcaCount(c, s) >= 4 &&
+      c.hasAny(['putamen', 'ic_posterior_limb', 'ic_genu'], s, 0.3) &&
+      (c.hasAny(['ic_posterior_limb', 'ic_genu'], s, 0.3) || MCA_MOTOR_SENSORY.some((id) => c.signFrom(id, s))),
     supersedes: ['mca_superior', 'mca_inferior'],
   },
   {

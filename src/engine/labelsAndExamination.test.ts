@@ -9,7 +9,7 @@ import { REGION_BY_ID } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { NEEDS_SIGHT, aggregateSymptoms, estimateNihss, isBlind, type SymptomItem } from './clinical';
+import { NEEDS_SIGHT, aggregateSymptoms, estimateNihss, examinability, isBlind, type SymptomItem } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
@@ -634,5 +634,137 @@ describe('U3-12: gait and truncal ataxia are not examined while neither leg can 
         const r = simulate(inputOf(id, { tH, collateral }));
         if (legPts(r, 'r') >= 3 && legPts(r, 'l') >= 3) expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), `${collateral} ${tH} h`).toBe(false);
       }
+  });
+});
+
+/**
+ * T3-5: the alien hand makes purposeful-looking movements the patient does not intend (grasping,
+ * groping, the left hand working against the right), and the callosal apraxia and agraphia of the
+ * left hand is its failure to perform movements on command or to write, while the right hand can.
+ * Both need a hand that moves: in a hand whose arm cannot move against gravity (NIHSS item 5 ≥ 3)
+ * neither can be seen, as the clumsy hand cannot (V2-10). The callosal signs of the left hand are
+ * told against the right hand (the left hand works against the right; it fails what the right hand
+ * performs), so they need the right hand to move too. The callosal apraxia is also asked for in
+ * words and in writing: beside a moderate or severe aphasia of comprehension the left hand's failure
+ * on command cannot be told from the aphasia, as agraphia cannot (Z3-16). Each is named apart then,
+ * not listed as a lasting deficit; the left hand that works against the right is seen, not asked
+ * for, and stays listed beside an aphasia while both hands move.
+ */
+describe('T3-5: the alien hand and the callosal apraxia are examined only in hands that move, the apraxia only in a patient who understands', () => {
+  it.each([['r_m1_malignant'], ['r_ica_t'], ['ica_isolated']])('%s: neither is listed in the plegic left hand; both are named apart', (id) => {
+    for (const tH of [336, 4320]) {
+      const r = scenario(id, tH);
+      expect(item(r, '5l'), `${tH} h`).toBeGreaterThanOrEqual(3);
+      for (const sid of ['alien_hand', 'callosal_apraxia']) {
+        expect(r.symptoms.some((s) => s.id === sid && s.side === 'l'), `${sid} ${tH} h`).toBe(false);
+        expect(r.unexaminable.find((s) => s.id === sid && s.side === 'l')?.why, `${sid} ${tH} h`).toBe('paralysed');
+      }
+    }
+  });
+
+  it('a left M1 infarct with poor collaterals: no alien hand on either side with the right arm plegic, no apraxia of the left hand beside the global aphasia', () => {
+    for (const tH of [336, 4320]) {
+      const r = run(occl('mca_m1_l'), tH, 'poor');
+      expect(item(r, '5r'), `${tH} h`).toBe(4);
+      expect(sev(r, 'aphasia_global'), `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(r.unexaminable.find((s) => s.id === 'alien_hand' && s.side === 'r')?.why, `${tH} h`).toBe('paralysed');
+      // the left hand cannot be seen working against a right hand that does not move
+      expect(r.unexaminable.find((s) => s.id === 'alien_hand' && s.side === 'l')?.why, `${tH} h`).toBe('paralysed');
+      expect(r.unexaminable.find((s) => s.id === 'callosal_apraxia' && s.side === 'l')?.why, `${tH} h`).toBe('aphasia');
+      expect(r.symptoms.some((s) => s.id === 'callosal_apraxia' || s.id === 'alien_hand'), `${tH} h`).toBe(false);
+    }
+  });
+
+  it('the left M1 template with moderate collaterals does not list the left hand working against a plegic right one', () => {
+    for (const tH of [336, 4320]) {
+      const r = simulate(inputOf('l_m1', { tH, collateral: 'moderate' }));
+      expect(item(r, '5r'), `${tH} h`).toBeGreaterThanOrEqual(3);
+      expect(r.symptoms.some((s) => s.id === 'alien_hand'), `${tH} h`).toBe(false);
+      expect(r.unexaminable.find((s) => s.id === 'alien_hand' && s.side === 'l')?.why, `${tH} h`).toBe('paralysed');
+    }
+  });
+
+  it('a left pericallosal and inferior-division infarct: the left hand working against the right is seen beside the aphasia, its apraxia is not examined', () => {
+    for (const tH of [24, 336, 4320]) {
+      const r = run(occl('aca_pericallosal_l', 'mca_m2_inf_l'), tH);
+      expect(item(r, '5r'), `${tH} h`).toBeLessThan(3);
+      expect(sev(r, 'aphasia_wernicke') + sev(r, 'aphasia_global'), `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(r.symptoms.some((s) => s.id === 'alien_hand' && s.side === 'l'), `${tH} h`).toBe(true);
+      expect(r.unexaminable.find((s) => s.id === 'callosal_apraxia' && s.side === 'l')?.why, `${tH} h`).toBe('aphasia');
+    }
+  });
+
+  it('an A2 infarct with a mild weakness keeps both listed', () => {
+    for (const side of ['r', 'l'] as const)
+      for (const tH of [24, 4320]) {
+        const r = run(occl(`aca_a2_${side}`), tH);
+        expect(r.symptoms.some((s) => s.id === 'callosal_apraxia' && s.side === 'l'), `${side} ${tH} h`).toBe(true);
+        expect(r.symptoms.some((s) => s.id === 'alien_hand' && s.side === 'l'), `${side} ${tH} h`).toBe(true);
+        expect(r.unexaminable.filter((s) => ['alien_hand', 'callosal_apraxia'].includes(s.id)), `${side} ${tH} h`).toEqual([]);
+      }
+  });
+
+  it('examinability: the right alien hand needs only its own hand, the callosal signs of the left hand need the right one too, and the alien hand needs no language', () => {
+    const plegicRight = [sym('arm_weak', 'r', 2)];
+    const plegicLeft = [sym('arm_weak', 'l', 2)];
+    expect(examinability('alien_hand', plegicRight, 'r')).toBe('paralysed');
+    expect(examinability('alien_hand', plegicRight, 'l')).toBe('paralysed');
+    expect(examinability('callosal_apraxia', plegicRight, 'l')).toBe('paralysed');
+    expect(examinability('alien_hand', plegicLeft, 'r')).toBeNull();
+    expect(examinability('alien_hand', plegicLeft, 'l')).toBe('paralysed');
+    // a weak arm that still lifts against gravity (NIHSS 5 = 1) shows them
+    expect(examinability('alien_hand', [sym('arm_weak', 'r', 1)], 'l')).toBeNull();
+    const global = [sym('aphasia_global', null, 2)];
+    expect(examinability('alien_hand', global, 'l')).toBeNull();
+    expect(examinability('callosal_apraxia', global, 'l')).toBe('aphasia');
+  });
+});
+
+/**
+ * T3-9: the complete-MCA label names the picture of the whole territory, contralateral face and arm
+ * weakness and sensory loss among it. Four of its nine cortical areas and the striatum were enough:
+ * an M1 thrombectomy whose clot fragment blocked the inferior division (or the prefrontal or the
+ * posterior temporal branch) leaves the striatum infarcted (it has no collaterals and dies in the
+ * first hour), the capsule spared by the early reopening, and the cortex of that branch, the insula
+ * among it, infarcted: four areas, and the label beside no weakness and no sensory loss at all, from
+ * 6 h to 6 months. The label now needs the weakness or the sensory loss it names, listed or not
+ * examinable, or the internal capsule infarcted; the inferior-division label it supersedes is shown
+ * instead.
+ */
+describe('T3-9: the complete-MCA label needs the part of the territory that gives its weakness and sensory loss', () => {
+  const evt = (v: string, d: string, c: CollateralGrade, at: number) => (tH: number) =>
+    run(occl(v), tH, c, { reperfusionH: at, treatment: { method: 'evt', grade: '3', reocclusionAfterH: null, distalEmbolus: d, noReflow: 0 } });
+  /** a weakness of the face, arm or leg or a hemisensory loss of this body side, listed or not examinable */
+  const motorOrSensory = (r: SimResult, body: 'r' | 'l') =>
+    [...r.symptoms, ...r.unexaminable].some((s) => ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'sens_face_arm', 'sens_hemibody'].includes(s.id) && (s.side === body || s.side === 'both'));
+  it.each([
+    ['mca_m1_l', 'mca_m2_inf_l', 'moderate', 1],
+    ['mca_m1_l', 'mca_m2_inf_l', 'good', 2],
+    ['mca_m1_r', 'mca_m2_inf_r', 'poor', 1],
+    ['mca_m1_l', 'mca_prefrontal_l', 'moderate', 1],
+    ['mca_m1_r', 'mca_prefrontal_r', 'poor', 1],
+    ['mca_m1_r', 'mca_temporal_posterior_r', 'moderate', 1],
+  ] as [string, string, CollateralGrade, number][])('%s reopened, a fragment in the %s (%s, at %s h): no complete-MCA label beside no weakness or sensory loss', (v, d, c, at) => {
+    const side = v.slice(-1) as 'r' | 'l';
+    const body = side === 'r' ? 'l' : 'r';
+    for (const tH of STOPS.filter((h) => h >= at)) {
+      const r = evt(v, d, c, at)(tH);
+      if (!motorOrSensory(r, body)) expect(labels(r), `${tH} h`).not.toContain(`mca_complete_${side}`);
+    }
+    // the case of the report: a Wernicke aphasia and a hemianopia, and the inferior division named
+    if (d === 'mca_m2_inf_l' && c === 'moderate') {
+      const r = evt(v, d, c, at)(4320);
+      expect(sev(r, 'aphasia_wernicke')).toBeGreaterThanOrEqual(1);
+      expect(motorOrSensory(r, 'r')).toBe(false);
+      expect(labels(r)).not.toContain('mca_complete_l');
+      expect(labels(r)).toContain('mca_inferior_l');
+    }
+  });
+
+  it('an M1 or carotid-T occlusion left closed keeps the complete-MCA label', () => {
+    for (const side of ['r', 'l'] as const)
+      for (const v of [`mca_m1_${side}`, `ica_terminal_${side}`])
+        for (const collateral of ['good', 'poor'] as CollateralGrade[])
+          for (const tH of [24, 2160]) expect(labels(run(occl(v), tH, collateral)), `${v} ${collateral} ${tH} h`).toContain(`mca_complete_${side}`);
   });
 });

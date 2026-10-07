@@ -246,3 +246,77 @@ describe('U2-10: an artery that reopens by itself is told', () => {
     expect(event(r)).toBeUndefined();
   });
 });
+
+/**
+ * T3-11: deficits are graded in whole steps, so a sliver of tissue at the edge between two grades can
+ * tip one: a mid-basilar occlusion with poor collaterals has infarcted the ventral pons by 12 h, and a
+ * thrombectomy then saves 0.2 mL (63 % of the caudal basis infarcted untreated, 59 % treated), yet all
+ * four limbs moved a little at 3 months instead of not at all (NIHSS 20 against 24). The event said
+ * "~0 mL less infarct", credited the reopening with that difference and graded it a benefit, and the
+ * incomplete locked-in event said the reopening "saved part of the ventral pons". The model cannot
+ * remove such thresholds; the texts now say how much was saved (a figure under half a millilitre to a
+ * tenth) and, when it is a sliver (under half a millilitre and under a tenth of the infarct the
+ * course would leave without it), credit the reopening with neither the difference nor the movement.
+ * A reopening that saves a real share of a small brainstem infarct keeps its credit; nor is a
+ * reopening credited with limb movement that comes back no sooner than it would without it.
+ */
+describe('T3-11: a reopening that saves a sliver of tissue is not credited with the grade it tips', () => {
+  const basilar = (c: CollateralGrade, h: number, vessel = 'basilar_mid') => at(input([o(vessel)], c, { reperfusionH: h, treatment: tx('evt') }), 4320);
+  const ev = (r: SimResult, id: string) => r.cascade.events.find((e) => e.id === id);
+
+  it('a mid-basilar occlusion with poor collaterals reopened at 12 h: no benefit, no credit, the saving quoted', () => {
+    const r = basilar('poor', 12);
+    const rep = ev(r, 'reperfusion')!;
+    expect(r.volumes.saved).toBeLessThan(0.5);
+    expect(rep.severity).toBe('info');
+    expect(rep.desc.en).toContain('~0.2 mL less infarct');
+    expect(rep.desc.zh).toContain('少了約 0.2 mL 的梗塞');
+    expect(rep.desc.en).not.toMatch(/instead of/);
+    expect(rep.desc.en).toMatch(/does not count this gap as the treatment's benefit/);
+    expect(rep.desc.zh).toMatch(/不把這個差距算作治療的效果/);
+    const li = ev(r, 'locked_in_incomplete')!;
+    expect(li.desc.en).not.toMatch(/saved part of the ventral pons/);
+    expect(li.desc.zh).not.toMatch(/救回部分橋腦腹側/);
+    expect(li.desc.en).toMatch(/^Some limb movement has come back/);
+  });
+
+  it('earlier reopenings that save part of the pons keep their credit', () => {
+    for (const [c, h] of [
+      ['poor', 4.5],
+      ['moderate', 6],
+      ['good', 12],
+    ] as [CollateralGrade, number][]) {
+      const r = basilar(c, h);
+      expect(ev(r, 'reperfusion')!.severity, `${c} ${h} h`).toBe('good');
+      expect(ev(r, 'locked_in_incomplete')!.desc.en, `${c} ${h} h`).toMatch(/saved part of the ventral pons/);
+    }
+  });
+
+  it('a reopening after which the limbs move again no sooner than without it is not credited with the movement', () => {
+    // with good collaterals the untreated mid-basilar infarct turns incomplete about 9 days after
+    // onset; reopened at 2 days (0.5 mL saved, a fifth of the pons basis infarct) it turns incomplete
+    // at the same hour, by thrombectomy or by itself
+    const untreated = at(input([o('basilar_mid')], 'good'), 4320);
+    const lisUntreated = ev(untreated, 'locked_in_incomplete')!;
+    for (const r of [basilar('good', 48), at(input([o('basilar_mid', { toH: 48 })], 'good'), 4320)]) {
+      const li = ev(r, 'locked_in_incomplete')!;
+      expect(Math.abs(li.onsetH - lisUntreated.onsetH)).toBeLessThan(24);
+      expect(li.desc.en).not.toMatch(/saved part of the ventral pons/);
+      expect(li.desc.zh).not.toMatch(/救回部分橋腦腹側/);
+    }
+    // reopened at 1 day, the movement comes back about 6 days sooner, and the reopening is credited
+    const r = basilar('good', 24);
+    expect(ev(r, 'locked_in_incomplete')!.onsetH).toBeLessThan(lisUntreated.onsetH - 24);
+    expect(ev(r, 'locked_in_incomplete')!.desc.en).toMatch(/saved part of the ventral pons/);
+  });
+
+  it('a lower-basilar reopening that saves 0.4 mL, a quarter of the infarct, keeps its credit and quotes the figure', () => {
+    const r = basilar('poor', 6, 'basilar_lower');
+    const rep = ev(r, 'reperfusion')!;
+    expect(r.volumes.saved).toBeLessThan(0.5);
+    expect(rep.severity).toBe('good');
+    expect(rep.desc.en).toContain('~0.4 mL less infarct');
+    expect(rep.desc.en).toMatch(/instead of/);
+    expect(rep.desc.en).not.toMatch(/does not count this gap/);
+  });
+});

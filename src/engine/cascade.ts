@@ -227,6 +227,14 @@ export interface CascadeInput {
    */
   reperfusionOutcome?: ReperfusionOutcome;
   /**
+   * whether the same case without the reopening at `reopenH` (the treatment's: untreated; an
+   * artery's own: had it stayed closed) still shows the classical locked-in state `h` h after the
+   * onset (both on the clinical clock), worked out by simulate() in the second pass (T3-11): a
+   * locked-in state that turns incomplete credits the reopening only when, without it, it would not
+   * have by then. Left out, the reopening is not checked against that course
+   */
+  lockedInWithout?: (reopenH: number, h: number) => boolean;
+  /**
    * the midline shift the oedema model (engine/edema.ts) gives a hemispheric oedema, per side of
    * the swelling (a malignant one, or one with a moderate mass effect), worked out by simulate():
    * an uncal herniation follows only a shift into the coma range, from when it gets there until it
@@ -779,10 +787,44 @@ export interface ReperfusionOutcome {
 const AVOIDED_NIHSS = 2;
 /** TODO(medical-review): a round figure, about a third of a large territorial infarct; 50 mL ≈ odds 0.53 by Boers 2018 */
 const SAVED_ML = 50;
-const reperfusionSeverity = (outcome: ReperfusionOutcome | undefined, savedVolume: number, avoided: FatalRisk[] = []): CascadeEvent['severity'] =>
-  (outcome ? outcome.untreatedNihss - outcome.treatedNihss >= AVOIDED_NIHSS || avoided.length > 0 || savedVolume >= SAVED_ML : savedVolume > 5)
+/**
+ * A sliver of tissue saved (T3-11). Deficits are graded in whole steps, so a sliver of tissue at the
+ * edge between two grades can tip one: a mid-basilar occlusion with poor collaterals has infarcted
+ * the ventral pons by 12 h, and a thrombectomy then saved 0.2 mL of an infarct of 3.8 mL (63 % of the
+ * caudal basis infarcted without it, 59 % with it), yet the four limbs moved a little at 3 months
+ * instead of not at all (NIHSS 20 against 24): the event said "~0 mL less infarct", credited the
+ * reopening with the difference and graded it a benefit, and the incomplete locked-in event said the
+ * reopening "saved part of the ventral pons". The model cannot remove such thresholds (a known
+ * limitation); a reopening that saves less than SLIVER_ML, the figure the event would round to
+ * nothing, and less than SLIVER_SHARE of the infarct the course would leave without it is not
+ * credited with the grade it tips: the 3-month NIHSS does not make it a benefit, the event says why,
+ * and no locked-in text says it saved the pons. A small brainstem infarct is not a sliver: a
+ * reopening that saves 0.4 mL of a 1.5 mL lower-basilar infarct keeps its credit (NIHSS 5 against 17).
+ * TODO(medical-review): both limits are a model choice
+ */
+const SLIVER_ML = 0.5;
+const SLIVER_SHARE = 0.1;
+/**
+ * a locked-in state that turns incomplete credits the reopening before it only when, without that
+ * reopening, the state would still be classical this long after (h): the limb movement came back at
+ * least a day sooner for it (T3-11). TODO(medical-review): a model choice
+ */
+const LIS_SOONER_H = 24;
+/** a reopening saved a sliver: `saved` mL of an infarct of `without` mL without it (see SLIVER_ML) */
+export const savedSliver = (saved: number, without: number) => saved < SLIVER_ML && saved < SLIVER_SHARE * without;
+const reperfusionSeverity = (outcome: ReperfusionOutcome | undefined, savedVolume: number, avoided: FatalRisk[] = [], sliver = false): CascadeEvent['severity'] =>
+  (outcome ? (!sliver && outcome.untreatedNihss - outcome.treatedNihss >= AVOIDED_NIHSS) || avoided.length > 0 || savedVolume >= SAVED_ML : savedVolume > 5)
     ? 'good'
     : 'info';
+/**
+ * the saved volume as the recanalisation event quotes it: to a tenth of a millilitre from 0.05 mL
+ * to half a millilitre, where the whole figure was "~0 mL" beside a sliver of the brainstem that
+ * decided a deficit (T3-11)
+ */
+const savedPhrase = (v: number): L => {
+  const n = v >= SLIVER_ML || v < 0.05 ? v.toFixed(0) : v.toFixed(1);
+  return { zh: `約 ${n} mL`, en: `~${n} mL` };
+};
 /** what the untreated course would have brought that the treated one does not (Z2-3) */
 const FATAL_AVOIDED: Record<FatalRisk, L> = {
   herniation: {
@@ -804,7 +846,15 @@ const FATAL_AVOIDED: Record<FatalRisk, L> = {
  * difference ("about 13 instead of 13"), and an untreated course that is usually fatal is a
  * survivor's score.
  */
-function outcomeSentence(outcome: ReperfusionOutcome | undefined, savedVolume = 0, avoided: FatalRisk[] = [], treatedFatal = false, rightSided = false): L {
+function outcomeSentence(
+  outcome: ReperfusionOutcome | undefined,
+  savedVolume = 0,
+  avoided: FatalRisk[] = [],
+  treatedFatal = false,
+  rightSided = false,
+  /** the reopening saved a sliver of tissue (savedSliver, T3-11) */
+  sliver = false,
+): L {
   if (!outcome) return { zh: '', en: '' };
   const { treatedNihss: t, untreatedNihss: u } = outcome;
   // whose score is a survivor's: the model does not represent death (C4-F1, Y3-11)
@@ -825,7 +875,7 @@ function outcomeSentence(outcome: ReperfusionOutcome | undefined, savedVolume = 
     nihss = { zh: `模型估計 3 個月時 NIHSS 假如病人存活約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} if the patient survives, and about ${u} without treatment.` };
   else
     nihss =
-      t < u
+      t < u && !sliver
         ? { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} instead of ${u} without treatment.` }
         : t === u
           ? { zh: `模型估計 3 個月時 NIHSS 不論治療與否都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment.` }
@@ -839,7 +889,19 @@ function outcomeSentence(outcome: ReperfusionOutcome | undefined, savedVolume = 
           en: ` The scale shows little of the difference, but the treatment spared about ${savedVolume.toFixed(0)} mL of brain, and the final infarct volume predicts the functional outcome on its own${rightSided ? '; the NIHSS also scores a right-hemisphere infarct lower than a left one of the same size' : ''}.`,
         }
       : { zh: '', en: '' };
-  return { zh: nihss.zh + fatal.map((x) => x.zh).join('') + scale.zh, en: nihss.en + fatal.map((x) => x.en).join('') + scale.en };
+  // a sliver saved does not earn the grade it tips (T3-11); a higher score with the treatment is no
+  // benefit to disown
+  const tipped: L =
+    sliver && t < u
+      ? {
+          zh: '這次再通救回的組織不到 0.5 mL，模型不把這個差距算作治療的效果：剩下的組織剛好落在模型兩個嚴重度等級的交界，極少量的組織就會讓它落到其中一邊（模型的已知限制）。',
+          en: " With less than 0.5 mL saved, the model does not count this gap as the treatment's benefit: the tissue left lies at the edge between two of its grades of severity, which a sliver of tissue tips one way or the other (a known limitation of the model).",
+        }
+      : { zh: '', en: '' };
+  return {
+    zh: nihss.zh + tipped.zh + fatal.map((x) => x.zh).join('') + scale.zh,
+    en: nihss.en + tipped.en + fatal.map((x) => x.en).join('') + scale.en,
+  };
 }
 
 /**
@@ -910,6 +972,7 @@ function reperfusionEvent(
   treatedFatal = false,
   rightSided = false,
   savedSecondary = 0,
+  sliver = false,
 ): CascadeEvent {
   const m = METHOD_NAME[t.method];
   const g = GRADE_MEANING[t.grade];
@@ -949,16 +1012,17 @@ function reperfusionEvent(
   const shareEn = partial ? ` The model gives about ${pct(t.reperfusedFraction)} of the downstream territory its flow back; the rest follows the untreated course.` : '';
   const reclosesZh = t.reocclusionH !== null ? '（血管之後又再阻塞，見「再阻塞」）' : '';
   const reclosesEn = t.reocclusionH !== null ? ' in the end (the artery later closes again: see "Reocclusion")' : '';
-  const o = outcomeSentence(outcome, savedVolume, avoided, treatedFatal, rightSided);
+  const o = outcomeSentence(outcome, savedVolume, avoided, treatedFatal, rightSided, sliver);
+  const sp = savedPhrase(savedVolume);
   return {
     id: 'reperfusion',
     kind: 'treatment',
-    severity: reperfusionSeverity(outcome, savedVolume, avoided),
+    severity: reperfusionSeverity(outcome, savedVolume, avoided, sliver),
     onsetH: reperfusionH,
     title: { zh: `血管再通：${m.zh}，eTICI ${shown}`, en: `Recanalisation: ${m.en}, eTICI ${shown}` },
     desc: {
-      zh: `eTICI ${shown}：${gs.zh}${ivtNote.zh}。${cutBranch.zh}${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${reclosesZh}${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-      en: `eTICI ${shown}: ${gs.en}${ivtNote.en}.${cutBranch.en}${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+      zh: `eTICI ${shown}：${gs.zh}${ivtNote.zh}。${cutBranch.zh}${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了${sp.zh} 的梗塞${reclosesZh}${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+      en: `eTICI ${shown}: ${gs.en}${ivtNote.en}.${cutBranch.en}${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ${sp.en} less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
     },
     regions: [],
   };
@@ -1655,9 +1719,17 @@ const resolvesEn = (back: string, end: string, atOnce: boolean) =>
  * The events of the brainstem consciousness course (X2-7, X2-10, X2-11, X2-15): one per stretch
  * of the course the labels show, titled by what they show then and told from what came before
  * and what follows. A stretch that ends when blood returns says so; the times in the texts count
- * from the lesion's own onset. A state that comes back gets a numbered id (locked_in_2 …).
+ * from the lesion's own onset. A state that comes back gets a numbered id (locked_in_2 …). A
+ * classical locked-in state that turns incomplete credits a reopening before it with saving part of
+ * the ventral pons only when `credit` says that the reopening saved more than a sliver and that the
+ * movement came back sooner for it (T3-11).
  */
-function brainstemEvents(course: BrainstemCourse, care: L, regions: { coma: string[]; doc: string[]; lis: string[] }): CascadeEvent[] {
+function brainstemEvents(
+  course: BrainstemCourse,
+  care: L,
+  regions: { coma: string[]; doc: string[]; lis: string[] },
+  credit: (reopenH: number, atH: number) => boolean = () => true,
+): CascadeEvent[] {
   const out: CascadeEvent[] = [];
   const seen: Record<string, number> = {};
   const segs = course.segments;
@@ -1705,7 +1777,7 @@ function brainstemEvents(course: BrainstemCourse, care: L, regions: { coma: stri
         en = `The coma has lifted: the person is awake and aware, but with ${part ? 'severe weakness' : 'total paralysis'} of limbs and face and no speech or swallowing, communicating by vertical eye movements and blinking (the midbrain gaze centres are spared). Because it follows a coma and looks like one, it is easily missed: ask repeatedly for answers by looking up or blinking. With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.`;
       } else if (prev && part) {
         const leadH = reopenedIn(prev.fromH, seg.fromH);
-        const lead = leadH === null ? null : after(leadH);
+        const lead = leadH === null || !credit(leadH, seg.fromH) ? null : after(leadH);
         zh = `${lead ? `血流在發作後 ${lead.zh}恢復，救回部分橋腦腹側：四肢已能稍微動，閉鎖症候群變成「不完全」。` : '四肢已能稍微動：典型閉鎖症候群已變成「不完全」閉鎖。'}病人仍然意識清楚、幾乎不能說話、吞嚥嚴重困難，用垂直眼動與眨眼溝通。`;
         en = `${lead ? `Blood returned ${lead.en} after onset and saved part of the ventral pons: some limb movement has come back, so the locked-in syndrome is now incomplete.` : 'Some limb movement has come back: classical locked-in syndrome has become incomplete.'} The person is still conscious, with little or no speech and severe difficulty swallowing, communicating by vertical eye movements and blinking.`;
       } else if (prev) {
@@ -1775,6 +1847,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
 
   const vol = { supra: { r: 0, l: 0 } as Record<Side, number>, cerebellum: { r: 0, l: 0 } as Record<Side, number>, brainstem: 0, total: 0 };
   let untreatedTotal = 0;
+  /**
+   * what the treatment spares bed by bed, not offset by what a clot fragment it sent infarcts
+   * elsewhere: whether a reopening saved a sliver (T3-11) asks what it saved, not the net change
+   */
+  let savedGross = 0;
   /** supratentorial infarct per side that only the untreated course has (what treatment spares) */
   const untreatedSupra: Record<Side, number> = { r: 0, l: 0 };
   for (const b of BEDS) {
@@ -1785,6 +1862,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const v = (bedFinal[b.id] ?? 0) * b.volume;
     const vu = (bedFinalUntreated[b.id] ?? 0) * b.volume;
     untreatedTotal += vu;
+    savedGross += Math.max(0, vu - v);
     vol.total += v;
     const s = reg.side === 'm' ? 'r' : reg.side;
     if (reg.compartment === 'supra') {
@@ -1804,6 +1882,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   let savedVolume = savedPrimary;
   /** … of which the infarcts of a herniation that the untreated swelling would have caused */
   let savedSecondary = 0;
+  /**
+   * the treatment saved a sliver (savedSliver, T3-11), against the infarct the course would leave
+   * without it: what it spared bed by bed, with the herniation infarcts it prevents (a reopening
+   * that saves the pons is not a sliver because its clot fragment infarcted a P2 territory)
+   */
+  const sliver = () => savedSliver(savedGross + savedSecondary, input.untreatedWithSecondary ?? untreatedTotal);
   const earlySupra: Record<Side, number> = { r: 0, l: 0 };
   /** the MCA share of each hemisphere's infarct, early (≤ 14 h) and final (Z3-4) … */
   const mcaEarly: Record<Side, number> = { r: 0, l: 0 };
@@ -1975,23 +2059,24 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     reperfusion = {
       at: events.length,
       make: (avoided, treatedFatal) =>
-        reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome, avoided, treatedFatal, rightSided, savedSecondary),
+        reperfusionEvent(treatment, reperfusionH, savedVolume, delayH, input.reperfusionOutcome, avoided, treatedFatal, rightSided, savedSecondary, sliver()),
     };
     events.push(reperfusion.make([], false));
     pushTreatmentComplications(events, treatment, reperfusionH);
   } else if (reperfusionH !== null && brainStory && !earInfarct && reopenable) {
     const late = reperfusionH > 6;
     const make = (avoided: FatalRisk[], treatedFatal: boolean): CascadeEvent => {
-      const o = outcomeSentence(input.reperfusionOutcome, savedVolume, avoided, treatedFatal, rightSided);
+      const o = outcomeSentence(input.reperfusionOutcome, savedVolume, avoided, treatedFatal, rightSided, sliver());
+      const sp = savedPhrase(savedVolume);
       return {
         id: 'reperfusion',
         kind: 'treatment',
-        severity: reperfusionSeverity(input.reperfusionOutcome, savedVolume, avoided),
+        severity: reperfusionSeverity(input.reperfusionOutcome, savedVolume, avoided, sliver()),
         onsetH: reperfusionH,
         title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
         desc: {
-          zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了約 ${savedVolume.toFixed(0)} mL 的梗塞${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-          en: `Restored flow rescues penumbra that has not yet died — the model estimates ~${savedVolume.toFixed(0)} mL less infarct${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
+          zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了${sp.zh} 的梗塞${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
+          en: `Restored flow rescues penumbra that has not yet died — the model estimates ${sp.en} less infarct${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
         },
         regions: [],
       };
@@ -2872,11 +2957,31 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // show something else, timed from the lesion's own onset (X2-7, X2-10, X2-11, X2-15)
   if (input.listed?.brainstem) {
     const involved = (pairs: [string, string][]) => pairs.flat().filter((r) => acute(r) || infarcted(r, SIGNS_THR));
-    events.push(...brainstemEvents(input.listed.brainstem, LIS_CARE, {
-      coma: involved([...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN]),
-      doc: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => infarcted(r, SIGNS_THR)),
-      lis: involved(PONS_BASIS),
-    }));
+    // whether the reopening at `h` saved more than a sliver of the infarct (T3-11): the treatment's
+    // against the untreated course, an artery's own against the same case had it stayed closed
+    const sp = input.spontaneous;
+    const savedMore = (h: number) =>
+      reperfusionH !== null && Math.abs(h - reperfusionH) < 1e-6
+        ? !savedSliver(savedGross, untreatedTotal)
+        : sp && Math.abs(h - sp.atH) < 1e-6
+          ? !savedSliver(Math.max(0, sp.stayedClosed.total - vol.total), sp.stayedClosed.total)
+          : true;
+    // … and brought the movement back: without it the state would still be classical a day later
+    // (T3-11: a mid-basilar occlusion with good collaterals reopened at 2 days was credited with the
+    // limb movement that came back at 9 days, as it did, at the same hour, without the reopening)
+    const credit = (reopenH: number, atH: number) => savedMore(reopenH) && (input.lockedInWithout?.(reopenH, atH + LIS_SOONER_H) ?? true);
+    events.push(
+      ...brainstemEvents(
+        input.listed.brainstem,
+        LIS_CARE,
+        {
+          coma: involved([...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN]),
+          doc: [...PONS_BASIS, ...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => infarcted(r, SIGNS_THR)),
+          lis: involved(PONS_BASIS),
+        },
+        credit,
+      ),
+    );
   }
   // Central hyperthermia (S2, C3-F9): of 9 brainstem-coma patients, 4 developed hyperthermia and
   // died without infection, the lesions centred on the core of the pontine tegmentum (Parvizi J,

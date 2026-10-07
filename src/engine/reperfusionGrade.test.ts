@@ -102,10 +102,14 @@ describe('the recanalisation text never writes the same NIHSS as a difference (Z
           const where = `${vessel} ${collateral} ${h} h ${treatment?.method ?? 'default'}`;
           expect(ev.desc.en, where).not.toMatch(SAME_AS_DIFFERENCE_EN);
           expect(ev.desc.zh, where).not.toMatch(SAME_AS_DIFFERENCE_ZH);
-          // never 'info' when the treatment avoids a fatal course or spares 50 mL or more
+          // never 'info' when the treatment avoids a fatal course or spares 50 mL or more, or avoids
+          // 2 NIHSS points by saving more than a sliver of tissue: a sliver (under 0.5 mL and a tenth
+          // of the untreated infarct) that tips a grade is not a benefit (T3-11; a margin is left
+          // around the limits)
           const { t, u, saved } = outcome(input);
           const avoided = u.cascade.fatalRisk.some((k) => !t.cascade.fatalRisk.includes(k));
-          if (avoided || saved >= 50 || u.nihss.total - t.nihss.total >= 2) expect(ev.severity, where).toBe('good');
+          const sliver = saved < 0.55 && saved < 0.11 * u.cascade.volumes.total;
+          if (avoided || saved >= 50 || (u.nihss.total - t.nihss.total >= 2 && !sliver)) expect(ev.severity, where).toBe('good');
         }
   });
 });

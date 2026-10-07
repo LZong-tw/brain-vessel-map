@@ -183,13 +183,13 @@ const zh: RecoveryStrings = {
     aphasia: {
       label: '聽不懂話（失語），目前無法檢查',
       title:
-        '病灶仍會造成這些缺損，但病人聽不懂話（中度以上的全面性、接受性或混合型經皮質失語），而閱讀、書寫、計算、說出手指名稱、語文記憶、對自身缺損的覺察，以及只能靠病人自己說出來的症狀（眩暈、複視、聽力、味覺、位置感、疼痛等），都要透過語言才能檢查，和失語本身分不開；所以暫時不列在症狀清單裡，也不算改善。失用症可以請病人模仿檢查者的動作來檢查，不需要語言，所以仍會列出。理解力恢復時會再列出。',
+        '病灶仍會造成這些缺損，但病人聽不懂話（中度以上的全面性、接受性或混合型經皮質失語），而閱讀、書寫、計算、說出手指名稱、語文記憶、對自身缺損的覺察，以及只能靠病人自己說出來的症狀（眩暈、複視、聽力、味覺、位置感、疼痛等），都要透過語言才能檢查，和失語本身分不開；所以暫時不列在症狀清單裡，也不算改善。兩手的失用症可以請病人模仿檢查者的動作來檢查，不需要語言，所以仍會列出；但胼胝體斷聯造成的左手失用與失寫，要看左手做不出指令、寫不出字而右手可以，這要透過語言，也暫時不列。理解力恢復時會再列出。',
       tag: '失語',
     },
     paralysed: {
       label: '肢體癱瘓，目前無法檢查',
       title:
-        '病灶仍會造成這些缺損，但肢體運動失調（指鼻、跟膝脛測試）、手臂動作時的顫抖與手指的精細動作，都要病人能移動那一側的手腳才看得出來；這一側的手臂無法對抗重力抬起（或腿完全不能動），所以暫時不列在症狀清單裡，也不算改善（NIHSS 也不計分這一側的運動失調）。步態與軀幹不穩要看病人走路、站立與坐直：兩腿都無法對抗重力抬起時，病人站不起來，軀幹兩側也無力、無法自己坐穩，不穩分不出是失調還是無力，所以也暫時不列（只有一腿無力時仍可讓病人坐著檢查軀幹）。無力本身仍會列出並計分；手腳能動到可以檢查時會再列出。',
+        '病灶仍會造成這些缺損，但肢體運動失調（指鼻、跟膝脛測試）、手臂動作時的顫抖、手指的精細動作與異己手（手自己做出抓握、摸索等動作），都要病人能移動那一側的手腳才看得出來；胼胝體斷聯造成的左手症狀（左手和右手互相作對；左手的失用與失寫，也就是右手做得到的指令動作與寫字，左手做不到）要和右手比較，所以兩手都要能動。這裡需要的手臂無法對抗重力抬起（或腿完全不能動），所以暫時不列在症狀清單裡，也不算改善（NIHSS 也不計分癱瘓那一側的運動失調）。步態與軀幹不穩要看病人走路、站立與坐直：兩腿都無法對抗重力抬起時，病人站不起來，軀幹兩側也無力、無法自己坐穩，不穩分不出是失調還是無力，所以也暫時不列（只有一腿無力時仍可讓病人坐著檢查軀幹）。無力本身仍會列出並計分；手腳能動到可以檢查時會再列出。',
       tag: '肢體癱瘓',
     },
   },
@@ -299,13 +299,13 @@ const en: RecoveryStrings = {
     aphasia: {
       label: 'Cannot be examined: the patient does not understand speech (aphasia)',
       title:
-        'The lesion still causes these deficits, but the patient does not understand speech (a moderate or severe global, Wernicke or mixed transcortical aphasia), and reading, writing, calculation, naming the fingers, verbal memory, awareness of the deficit and what only the patient can report (vertigo, double vision, hearing, taste, position sense, pain …) are tested through language and cannot be told apart from the aphasia; they are left out of the symptom list for now and do not count as improved. Apraxia is tested by imitating the examiner’s gestures, which needs no language, so it is still listed. They are listed again as comprehension returns.',
+        'The lesion still causes these deficits, but the patient does not understand speech (a moderate or severe global, Wernicke or mixed transcortical aphasia), and reading, writing, calculation, naming the fingers, verbal memory, awareness of the deficit and what only the patient can report (vertigo, double vision, hearing, taste, position sense, pain …) are tested through language and cannot be told apart from the aphasia; they are left out of the symptom list for now and do not count as improved. The apraxia of both hands is tested by imitating the examiner’s gestures, which needs no language, so it is still listed; the apraxia and agraphia of the left hand from a callosal disconnection is told by the left hand failing commands and writing that the right hand performs, which needs language, so it is left out too. They are listed again as comprehension returns.',
       tag: 'aphasia',
     },
     paralysed: {
       label: 'Cannot be examined: the limb is paralysed',
       title:
-        'The lesion still causes these deficits, but limb ataxia (the finger–nose and heel–shin tests), a tremor of the moving arm and fine finger movements only show when the patient can move that arm or leg; on this side the arm cannot move against gravity (or the leg cannot move at all), so they are left out of the symptom list for now and do not count as improved (the NIHSS does not score the ataxia of this side either). Gait and truncal ataxia are seen walking, standing and sitting upright: with neither leg able to move against gravity the patient cannot stand and, the trunk being weak from both sides, cannot sit unsupported, so the unsteadiness cannot be told from the weakness and it is left out too (with one weak leg the trunk can still be tested sitting). The weakness itself is still listed and scored; they are listed again once the limb moves enough to test them.',
+        'The lesion still causes these deficits, but limb ataxia (the finger–nose and heel–shin tests), a tremor of the moving arm, fine finger movements and an alien hand (grasping and groping of its own) only show when the patient can move that arm or leg, and the signs of a callosal disconnection in the left hand (the left hand working against the right; its apraxia and agraphia, failing movements on command and writing that the right hand performs) are told against the right hand, so both hands must move. Here an arm they need cannot move against gravity (or the leg cannot move at all), so they are left out of the symptom list for now and do not count as improved (the NIHSS does not score the ataxia of a paralysed side either). Gait and truncal ataxia are seen walking, standing and sitting upright: with neither leg able to move against gravity the patient cannot stand and, the trunk being weak from both sides, cannot sit unsupported, so the unsteadiness cannot be told from the weakness and it is left out too (with one weak leg the trunk can still be tested sitting). The weakness itself is still listed and scored; they are listed again once the limb moves enough to test them.',
       tag: 'paralysed limb',
     },
   },

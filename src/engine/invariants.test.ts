@@ -881,7 +881,8 @@ describe('syndromes and events agree with the symptoms', () => {
         if (arm >= 3) expect(listed('tremor') || listed('holmes_tremor'), where).toBe(false);
         if (hand >= 3) expect(listed('hand_clumsy') || listed('jerky_dystonic_hand'), where).toBe(false);
         // and it is named, not lost
-        for (const u of r.unexaminable.filter((x) => x.why === 'paralysed' && x.side === side)) expect(['ataxia_limb', 'tremor', 'holmes_tremor', 'hand_clumsy', 'jerky_dystonic_hand'], where).toContain(u.id);
+        for (const u of r.unexaminable.filter((x) => x.why === 'paralysed' && x.side === side))
+          expect(['ataxia_limb', 'tremor', 'holmes_tremor', 'hand_clumsy', 'jerky_dystonic_hand', 'alien_hand', 'callosal_apraxia'], where).toContain(u.id);
       }
       // U3-12: nor a gait or truncal ataxia while neither leg can move against gravity (the patient
       // can neither stand nor sit unsupported); it is named apart, and only then
@@ -893,6 +894,32 @@ describe('syndromes and events agree with the symptoms', () => {
       for (const u of r.unexaminable.filter((x) => x.why === 'paralysed' && x.side === null)) {
         expect(u.id, where).toBe('ataxia_gait');
         expect(Math.min(...legs), where).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
+  // T3-5: the alien hand and the callosal apraxia and agraphia of the left hand are movements of a
+  // hand: neither is listed in a hand whose arm cannot move against gravity (NIHSS 5 ≥ 3); the
+  // callosal signs of the left hand (the left hand working against the right, failing commands and
+  // writing that the right hand performs) are told against the right hand, so not while the right
+  // arm cannot move against gravity either; and the apraxia, asked for in words and in writing, not
+  // beside an aphasia that leaves too little comprehension. Each is named apart then, with why
+  it.each(CASES)('%s: no alien hand or callosal apraxia listed in a hand too weak to show it, nor the apraxia beside an aphasia of comprehension (T3-5)', (name) => {
+    series(name).forEach((r, i) => {
+      const noComprehension = r.symptoms.some((s) => ['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'].includes(s.id) && s.sev >= 2 && !s.delayed);
+      const handOf = (side: 'r' | 'l') =>
+        r.symptoms.filter((s) => s.id === 'arm_weak' && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, [1, 3, 4][s.sev - 1]), 0);
+      for (const side of ['r', 'l'] as const) {
+        // the hand the sign needs that moves least: its own, and on the left the right one too
+        const hand = side === 'l' ? Math.max(handOf('l'), handOf('r')) : handOf('r');
+        const where = `${name} ${STOPS[i]} h ${side}`;
+        for (const id of ['alien_hand', 'callosal_apraxia']) {
+          const listed = r.symptoms.some((s) => s.id === id && s.side === side);
+          if (hand >= 3) expect(listed, `${where} ${id}`).toBe(false);
+          if (id === 'callosal_apraxia' && noComprehension) expect(listed, `${where} ${id}`).toBe(false);
+        }
+        for (const u of r.unexaminable.filter((x) => ['alien_hand', 'callosal_apraxia'].includes(x.id) && x.side === side))
+          expect(u.why === 'paralysed' ? hand >= 3 : u.why === 'aphasia' ? u.id === 'callosal_apraxia' && noComprehension : true, `${where} ${u.id} ${u.why}`).toBe(true);
       }
     });
   });
@@ -925,7 +952,9 @@ describe('syndromes and events agree with the symptoms', () => {
   it.each(CASES)('%s: nothing tested through language is listed beside a moderate or severe aphasia of comprehension (Z3-16)', (name) => {
     series(name).forEach((r, i) => {
       if (!r.symptoms.some((s) => ['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'].includes(s.id) && s.sev >= 2 && !s.delayed)) return;
-      const listed = r.symptoms.filter((s) => ['alexia', 'agraphia', 'acalculia', 'finger_agnosia', 'amnesia', 'diplopia', 'vertigo', 'taste_loss', 'proprio_loss'].includes(s.id)).map((s) => s.id);
+      const listed = r.symptoms
+        .filter((s) => ['alexia', 'agraphia', 'acalculia', 'finger_agnosia', 'amnesia', 'diplopia', 'vertigo', 'taste_loss', 'proprio_loss', 'callosal_apraxia'].includes(s.id))
+        .map((s) => s.id);
       expect(listed, `${name} ${STOPS[i]} h`).toEqual([]);
     });
   });
@@ -1094,6 +1123,33 @@ describe('syndromes and events agree with the symptoms', () => {
         expect(z.picture, `${name} ${STOPS[i]} h: ${side}, ${z.border.toFixed(1)} of ${z.total.toFixed(1)} mL in the border zones`).toBe(false);
       }
     });
+  });
+
+  // T3-9: the complete-MCA label names the picture of the whole territory, the face and arm weakness
+  // and sensory loss of the other side among it: it is not shown (other than as clinically silent)
+  // beside no weakness of the face, arm or leg and no hemisensory loss of that side, listed or not
+  // examinable. A thrombectomy whose clot fragment blocks a downstream branch leaves the striatum and
+  // that branch's cortex infarcted: four cortical areas and the striatum, with no weakness at all
+  const MOTOR_SENSORY = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'sens_face_arm', 'sens_hemibody'];
+  const completeMcaWithSigns = (r: SimResult, where: string) => {
+    for (const m of r.syndromes.filter((x) => x.def.id === 'mca_complete' && !x.silent)) {
+      const body = m.side === 'r' ? 'l' : 'r';
+      const signs = [...r.symptoms, ...r.unexaminable].some((s) => MOTOR_SENSORY.includes(s.id) && (s.side === body || s.side === 'both'));
+      expect(signs, `${where} ${m.side}`).toBe(true);
+    }
+  };
+  it.each(CASES)('%s: a complete-MCA label only beside a weakness or a hemisensory loss of the other side (T3-9)', (name) => {
+    series(name).forEach((r, i) => completeMcaWithSigns(r, `${name} ${STOPS[i]} h`));
+  });
+  const FRAGMENTS = (['l', 'r'] as const).flatMap((side) => downstreamBranches(`mca_m1_${side}`).map((d) => [`mca_m1_${side}`, d] as [string, string]));
+  it.each(FRAGMENTS)('%s reopened with a clot fragment in the %s: a complete-MCA label only beside a weakness or a hemisensory loss (T3-9)', (v, d) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as const)
+      for (const reperfusionH of [1, 2])
+        for (const tH of [6, 24, 336, 2160, 4320]) {
+          const treatment: TreatmentOptions = { method: 'evt', grade: '3', reocclusionAfterH: null, distalEmbolus: d, noReflow: 0 };
+          const r = simulate({ occlusions: [{ vessel: v, severity: 1 }], variants: [], collateral, map: 93, tH, reperfusionH, decompression: false, treatment });
+          completeMcaWithSigns(r, `${collateral}, reopened at ${reperfusionH} h, ${tH} h`);
+        }
   });
 
   // what each MCA division label names (its text): the superior division face and arm weakness and
@@ -1963,5 +2019,65 @@ describe('reperfusion, the circle of Willis and the treatment windows (T2)', () 
     expect(/standard when started within 4\.5 h/.test(w.desc.en), w.desc.en).toBe(!recent);
     expect(/previous 3 months/.test(w.desc.en)).toBe(recent);
     expect(w.desc.zh.includes('3 個月內')).toBe(recent);
+  });
+});
+
+describe('a reopening is credited only with what it saves (T3)', () => {
+  // T3-11: deficits are graded in whole steps, so a sliver of tissue at the edge between two grades
+  // can tip one (a known limitation). A reopening that saves a sliver (under half a millilitre and
+  // under a tenth of the infarct the course would leave without it) is graded a benefit only for a
+  // fatal course it avoids, is not credited with the 3-month NIHSS it tips ("about 20 instead of 24
+  // without treatment"), and no locked-in text says that it saved part of the ventral pons; the
+  // saving it quotes is "~0 mL" only when it is under 0.05 mL. Whether it is a sliver is judged
+  // on what it saved bed by bed (a clot fragment's infarct elsewhere does not make it one). Nor is a
+  // reopening credited with limb movement that comes back no sooner than it would have without it
+  const brain = (r: SimResult) => r.volumes.finalInfarct - r.volumes.cord.final;
+  const tx = (method: TreatmentOptions['method']): TreatmentOptions => ({ method, grade: '3', reocclusionAfterH: null, distalEmbolus: null, noReflow: 0 });
+  const REOPENED: [string, SimInput][] = [];
+  for (const s of SCENARIOS.filter((x) => x.occlusions.some((o) => o.severity >= 1 && !o.branch)))
+    for (const method of ['ivt', 'evt'] as const)
+      for (const h of [1, 4.5, 12]) REOPENED.push([`${s.id} ${method} at ${h} h`, inputOf(s.id, { tH: 4320, reperfusionH: h, treatment: tx(method) })]);
+  for (const v of ['basilar_mid', 'basilar_lower', 'basilar_upper', 'basilar_tip'])
+    for (const c of ['good', 'moderate', 'poor'] as const)
+      for (const h of [6, 8, 12, 24, 48]) {
+        const base: SimInput = { occlusions: [{ vessel: v, severity: 1 }], variants: [], collateral: c, map: 93, tH: 4320, reperfusionH: null, decompression: false };
+        REOPENED.push([`${v} ${c} evt at ${h} h`, { ...base, reperfusionH: h, treatment: tx('evt') }]);
+        REOPENED.push([`${v} ${c} reopening by itself at ${h} h`, { ...base, occlusions: [{ vessel: v, severity: 1, toH: h }] }]);
+      }
+  it.each(REOPENED)('%s: a sliver saved earns no grade it tips (T3-11)', (_name, input) => {
+    const r = simulate(input);
+    // (with a margin below the engine's limits: 0.5 mL and a tenth)
+    const sliver = (saved: number, without: number) => saved < 0.45 && saved < 0.09 * without;
+    const rep = r.cascade.events.find((e) => e.id === 'reperfusion');
+    let credit = true;
+    if (rep) {
+      if (r.volumes.saved >= 0.05) {
+        expect(rep.desc.en).not.toMatch(/~0 mL less infarct/);
+        expect(rep.desc.zh).not.toMatch(/少了約 0 mL/);
+      }
+      const untreated = simulate({ ...input, reperfusionH: null, treatment: undefined });
+      if (sliver(r.volumes.saved, brain(untreated))) {
+        credit = false;
+        expect(rep.desc.en).not.toMatch(/instead of/);
+        if (rep.severity === 'good') expect(rep.desc.en).toMatch(/Without treatment the [^;]*; with it/);
+      }
+    }
+    const sp = r.cascade.spontaneous;
+    if (sp) {
+      const closed = simulate({ ...input, occlusions: input.occlusions.map((o) => ({ ...o, toH: null })) });
+      if (sliver(sp.saved, brain(closed))) credit = false;
+    }
+    const credited = r.cascade.events.filter((x) => x.id.startsWith('locked_in_incomplete') && /saved part of the ventral pons/.test(x.desc.en));
+    for (const e of credited) expect(e.desc.zh).toMatch(/救回部分橋腦腹側/);
+    if (!credit) expect(credited.map((e) => e.id)).toEqual([]);
+    // nor is it credited with limb movement that would have come back by then without it: the same
+    // case untreated, or with the artery left closed, is still classically locked in a day later
+    if (input.occlusions.every((o) => !o.fromH))
+      for (const e of credited) {
+        const without: SimInput = input.treatment
+          ? { ...input, reperfusionH: null, treatment: undefined }
+          : { ...input, occlusions: input.occlusions.map((o) => ({ ...o, toH: null })) };
+        expect(simulate({ ...without, tH: e.onsetH + 24 }).syndromes.some((m) => m.def.id === 'locked_in'), `${e.id} at ${e.onsetH} h`).toBe(true);
+      }
   });
 });
