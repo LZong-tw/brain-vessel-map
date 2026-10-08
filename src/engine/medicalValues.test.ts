@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TREATMENT, GRADE_REPERFUSED, reperfusedFraction } from './treatment';
 import { DEFAULT_TISSUE, PERFORATOR_TISSUE, DEEP_WHITE_MATTER_TISSUE, BASILAR_BRAINSTEM_TISSUE, RETINA_TISSUE } from './tissueParams';
 import { COMA_SHIFT_MM, DROWSY_SHIFT_MM, STUPOR_SHIFT_MM, consciousnessFromShift } from './cascade';
-import { dwiCurve, decompressionAtH } from './edema';
+import { dwiCurve, dwiTraceCurve, decompressionAtH } from './edema';
+import { CORE_REL, finalInfarctProb } from './tissue';
 import { simulate, type SimInput } from './simulate';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 
@@ -12,7 +13,7 @@ const input: SimInput = {
   reperfusionH: null, decompression: false,
 };
 
-describe('medical values with independently cited bounds', () => {
+describe('medical definitions and illustrative model regressions', () => {
   // Liebeskind 2019, https://doi.org/10.1136/neurintsurg-2018-014127
   it.each([
     ['0', 0, 0], ['1', 0, 0], ['2a', 0.01, 0.49], ['2b50', 0.5, 0.66],
@@ -30,15 +31,25 @@ describe('medical values with independently cited bounds', () => {
     expect(attempted.volumes.core).toBe(untreated.volumes.core);
     expect(attempted.volumes.finalInfarct).toBe(untreated.volumes.finalInfarct);
     expect(attempted.volumes.saved).toBe(0);
+    const event = attempted.cascade.events.find((e) => e.id === 'reperfusion')!;
+    expect(event.title.en).toContain('eTICI 1');
+    expect(event.title.zh).toContain('eTICI 1');
+    expect(event.desc.en).toContain('thrombus reduction');
+    expect(event.desc.zh).toContain('血栓減少');
+    expect(event.desc.en).not.toContain('eTICI 0');
+    expect(event.desc.zh).not.toContain('eTICI 0');
     expect(TREATMENT_UI.en.grades['1']).toContain('no distal reperfusion');
     expect(TREATMENT_UI['zh-TW'].grades['1']).toContain('沒有遠端再灌流');
   });
 
   // SELECT2 protocol: https://pubmed.ncbi.nlm.nih.gov/34282987/
-  // This pins the operational rCBF cutoff, NOT irreversible cell death or Tmax > 6 s.
+  // Borrowed CTP cutoff; applying it to modeled flow in every region is a calibration.
   it.each([DEFAULT_TISSUE, PERFORATOR_TISSUE, DEEP_WHITE_MATTER_TISSUE, BASILAR_BRAINSTEM_TISSUE, RETINA_TISSUE])(
     'retains the operational CTP core cutoff of 30 percent', (params) => {
       expect(params.coreRel).toBe(0.3);
+      expect(CORE_REL).toBe(0.3);
+      expect(finalInfarctProb(0.299, params)).toBe(1);
+      expect(finalInfarctProb(0.301, params)).toBeLessThan(1);
     },
   );
 
@@ -56,11 +67,15 @@ describe('medical values with independently cited bounds', () => {
   });
 
   // Lansberg 2001: https://pmc.ncbi.nlm.nih.gov/articles/PMC7976036/
-  it('loses half of peak diffusion restriction during the reported 5–14 day interval', () => {
+  // ADC pseudonormalizes in week 2; this half-brightness time is only an illustrative
+  // regression bound. Lansberg did not measure a 50% restriction threshold.
+  it('fades modeled restriction in week two while retaining DWI shine-through', () => {
     const peak = Math.max(...Array.from({ length: 97 }, (_, h) => dwiCurve(h)));
     const half = Array.from({ length: 14 * 24 }, (_, h) => h + 24).find((h) => dwiCurve(h) <= peak / 2)!;
-    expect(half).toBeGreaterThanOrEqual(5 * 24);
+    expect(half).toBeDefined();
+    expect(half).toBeGreaterThanOrEqual(7 * 24);
     expect(half).toBeLessThanOrEqual(14 * 24);
+    expect(dwiTraceCurve(14 * 24)).toBeGreaterThan(dwiCurve(14 * 24));
   });
 
   // Vahedi pooled DECIMAL/DESTINY/HAMLET: https://pubmed.ncbi.nlm.nih.gov/17303527/
@@ -77,6 +92,10 @@ describe('medical values with independently cited bounds', () => {
     const text = r.cascade.events.find((e) => e.id === 'treatment_window')!.desc;
     expect(text.en).toContain('SELECT2 also had no upper core-volume limit');
     expect(text.zh).toContain('SELECT2 也沒有核心體積上限');
+    expect(text.en).toContain('numerically higher');
+    expect(text.zh).toContain('數值較高');
+    expect(text.en).toContain('neither difference was statistically conclusive');
+    expect(text.zh).toContain('未達統計顯著');
   });
 
   // AAN 2018: https://doi.org/10.1212/WNL.0000000000005926

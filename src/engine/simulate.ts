@@ -55,8 +55,8 @@
  *     the final and early infarcts, the flow shown and the flow the cascade and the oedema model
  *     see are all x·treated + (1 − x)·untreated. Units the treatment does not touch have the
  *     same history in both, so they are unchanged. "Salvaged" is untreated − mixed per unit;
- *   • eTICI 0 is an attempt that reopens nothing: the tissue follows the untreated course exactly,
- *     the occlusions stay in effect, and the cascade says the attempt failed;
+ *   • eTICI 0/1 has no distal reperfusion: the tissue follows the untreated course exactly,
+ *     the occlusions stay in effect in the model; grade 1 may reduce thrombus clinically;
  *   • the phases the treatment causes do not start new episodes: the index onset and the final
  *     horizon come from the input schedule only;
  *   • after a lasting reocclusion the flow ends where it would have been untreated, and the
@@ -291,10 +291,10 @@ export interface TreatmentInfo {
    * vessel ids of the occlusions this treatment reopens (complete, not lacunar, in effect at
    * reperfusionH), in input order. The options act on them: the grade is the reperfusion of their
    * territory, a reocclusion closes them again, and a distal embolus comes from their clot (offer
-   * downstreamBranches(id)). With eTICI 0 they stay closed (`failed`).
+   * downstreamBranches(id)). With eTICI 0/1 the model keeps them closed (`failed`).
    */
   reopened: string[];
-  /** eTICI 0: the attempt reopened nothing; the tissue follows the untreated course */
+  /** eTICI 0/1: no distal reperfusion; the tissue follows the untreated course */
   failed: boolean;
   /** when the reopened artery closes again (h, simulation clock), or null (it stays open, or nothing was reopened) */
   reocclusionH: number | null;
@@ -937,7 +937,7 @@ interface TreatmentPlan {
   options: TreatmentOptions;
   /** share of each unit that follows the treated course (0 when the attempt fails) */
   x: number;
-  /** eTICI 0: nothing is reopened */
+  /** eTICI 0/1: no distal reperfusion; modeled occlusions remain in effect */
   failed: boolean;
   /** when the treatment reopens occlusions: reperfusionH, or null if it fails */
   opensH: number | null;
@@ -1549,7 +1549,7 @@ const BASILAR_TRUNK = ['basilar_lower', 'basilar_mid', 'basilar_upper', 'basilar
 
 /**
  * a complete basilar occlusion of the case is never reopened lastingly (Y3-11): it lasts (no
- * reopening by itself) and no treatment reopens it, or the treatment failed (eTICI 0) or the
+ * reopening by itself) and no treatment reopens it, or the treatment failed (eTICI 0/1) or the
  * artery closed again
  */
 function basilarNotReopened(input: SimInput, plan: TreatmentPlan | null): boolean {
