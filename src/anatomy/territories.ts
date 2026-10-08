@@ -98,7 +98,6 @@ const MAP: Partial<Record<TerritoryCode, Rule>> = {
     precuneus: 'pca_parietooccipital',
     superior_parietal: 'pca_parietooccipital',
     angular: 'pca_parietooccipital',
-    cuneus: 'pca_parietooccipital',
     lateral_occipital: 'pca_parietooccipital',
     cingulate: 'pca_splenial',
     splenium: 'pca_splenial',
@@ -118,6 +117,15 @@ export function territorySupply(regionBase: string, terr: TerritoryCode): Supply
     return [
       { v: 'mca_m2_sup_{s}', share: 0.5, at: 'mid' },
       { v: 'mca_m2_inf_{s}', share: 0.5, at: 'mid' },
+    ];
+  }
+  if (regionBase === 'cuneus' && terr === 'PCAO') {
+    // the upper bank of the calcarine fissure is fed by both the calcarine and the
+    // parieto-occipital artery; their cortical territories vary between brains (Marinković SV et
+    // al. Stroke 1987;18:728-732, PMID 3603599), so the split is illustrative (C1-F3)
+    return [
+      { v: 'pca_calcarine_{s}', share: 0.6 },
+      { v: 'pca_parietooccipital_{s}', share: 0.4 },
     ];
   }
   if (regionBase === 'occipital_pole' && terr === 'PCAO') {

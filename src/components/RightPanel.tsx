@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
-import { canBeLacunar } from '../anatomy/lacunes';
+import { canBeLacunar, lacuneSiteOf, lacuneSitesOf } from '../anatomy/lacunes';
 import type { SymptomSystem } from '../anatomy/types';
 import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
 import { REGION_DEFS } from '../anatomy/regions';
-import type { CascadeEvent } from '../engine/cascade';
+import { DROWSY_SHIFT_MM, type CascadeEvent } from '../engine/cascade';
 import { simulateHemodynamics, type Occlusion } from '../engine/hemodynamics';
 import { progressed } from '../engine/schedule';
 import { isOccludable, simulate, type SimResult } from '../engine/simulate';
@@ -43,7 +43,8 @@ import { OccludeToggle } from './OccludeToggle';
 import { STACK_UI } from '../i18n/uiStack';
 import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { OUTCOME_UI } from '../i18n/uiOutcome';
-import { treatmentSummary } from '../ui/treatment';
+import { reopenedVesselIds, treatmentSummary } from '../ui/treatment';
+import { unexaminableHeading, unexaminableNow } from '../ui/recoveryFormat';
 
 export function RightPanel({ sim }: { sim: SimResult }) {
   const lang = useApp((s) => s.lang);
@@ -248,6 +249,23 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
                 {t.lacuneOption}
               </button>
               <p className="muted small">{t.lacuneHint}</p>
+              {occ?.branch && lacuneSitesOf(v.baseId).length > 1 && (
+                <div className="lacune-site small">
+                  <span aria-hidden="true">{t.lacuneSite}</span>
+                  <select
+                    aria-label={t.lacuneSite}
+                    value={lacuneSiteOf(v.baseId, occ.lacuneSite)!.id}
+                    onChange={(e) => st.updateOcclusion(st.occlusions.indexOf(occ), { lacuneSite: e.target.value })}
+                  >
+                    {lacuneSitesOf(v.baseId).map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {tr(x.name, lang)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="muted">{t.lacuneSiteHint}</span>
+                </div>
+              )}
             </>
           )}
           {occ && <ScheduleEditor vessel={id} sim={sim} />}
@@ -293,6 +311,11 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
               {preview.syndromes.slice(0, 3).map((s) => (
                 <div key={s.def.id + s.side} className="syndrome-mini">
                   {tr(s.def.name, lang)}
+                  {s.silent && (
+                    <span className="tag" title={t.syndromeSilentHint}>
+                      {t.syndromeSilent}
+                    </span>
+                  )}
                 </div>
               ))}
               <ul className="bullets">
@@ -383,6 +406,7 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
     .map((eid) => sim.cascade.events.find((e) => e.id === eid))
     .filter((e): e is CascadeEvent => !!e);
   const deficits = def.deficits.filter((d) => !d.only || d.only === r.side);
+  const borderDeficits = (def.borderDeficits ?? []).filter((d) => !d.only || d.only === r.side);
   return (
     <div className="details">
       <div className="kicker">{t.region}</div>
@@ -440,13 +464,15 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
         <section>
           <h3>{t.ifDamaged}</h3>
           <ul className="bullets">
-            {deficits.map((d, i) => {
+            {[...deficits.map((d) => ({ d, border: false })), ...borderDeficits.map((d) => ({ d, border: true }))].map(({ d, border }, i) => {
               const sym = SYMPTOM_BY_ID[d.s];
               const side = d.lat === 'none' || r.side === 'm' ? null : d.lat === 'contra' ? (r.side === 'r' ? 'l' : 'r') : r.side;
               return (
                 <li key={d.s + i}>
                   {symptomLabel({ id: d.s, side, sev: d.sev ?? 2, sources: [], delayed: !!sym?.delayed }, lang, t)}
                   {d.bilateralOnly && <span className="muted"> {lang === 'en' ? '(if both sides)' : '（雙側受損時）'}</span>}
+                  {d.minLevel && <span className="muted"> {lang === 'en' ? '(if extensive)' : '（大範圍受損時）'}</span>}
+                  {border && <span className="muted"> {lang === 'en' ? '(border zone alone)' : '（只有分水嶺區受損時）'}</span>}
                   {sym?.delayed && <span className="tag">{t.delayedTag}</span>}
                 </li>
               );
@@ -489,11 +515,15 @@ function Results({ sim }: { sim: SimResult }) {
   const sched = SCHEDULE_UI[lang];
   const series = useSimSeries();
   const tH = TIME_STOPS[tIndex].h;
-  const txSummary = reperfusionH !== null ? treatmentSummary(treatment, lang) : null;
+  // (the grade the final angiogram shows, and nothing when the treatment reopens nothing: U2-9, U2-8)
+  const txSummary = reperfusionH !== null ? treatmentSummary(treatment, lang, reopenedVesselIds(occlusions, reperfusionH)) : null;
   if (!occlusions.length && map >= 70) return <p className="muted">{t.noOcclusion}</p>;
   // the oedema model's shift when it reports one, else the cascade's estimate
   const shift = midlineShiftOf(sim);
   const nihssItems = NIHSS_ORDER.filter((k) => (sim.nihss.items[k] ?? 0) > 0);
+  // (not a finding that only describes another deficit, macular sparing: V2-9)
+  const hiddenNow = unexaminableNow(sim);
+  const unexaminableHead = unexaminableHeading(hiddenNow, lang);
 
   const bySystem = new Map<SymptomSystem, typeof sim.symptoms>();
   for (const s of sim.symptoms) {
@@ -549,7 +579,8 @@ function Results({ sim }: { sim: SimResult }) {
           {txSummary}
         </p>
       )}
-      {sim.schedule.onsetH > 0 && <p className="muted small">{sched.indexOnset(formatClock(sim.schedule.onsetH, lang))}</p>}
+      {/* (only for an infarct: a run of attacks that has left none has no oedema to time) */}
+      {sim.schedule.onsetH > 0 && sim.volumes.finalInfarct >= 0.05 && <p className="muted small">{sched.indexOnset(formatClock(sim.schedule.onsetH, lang))}</p>}
       <NowSummary sim={sim} series={series} />
       <div className="stat-row">
         <div className="stat">
@@ -567,9 +598,13 @@ function Results({ sim }: { sim: SimResult }) {
           </div>
         </div>
       </div>
+      {/* the upper cervical cord's part of these volumes, named apart (W3-8) */}
+      {sim.volumes.cord.core + sim.volumes.cord.penumbra >= 0.05 && (
+        <p className="muted small">{t.cordInVolumes({ core: fmtMl(sim.volumes.cord.core), pen: fmtMl(sim.volumes.cord.penumbra) })}</p>
+      )}
       <div className="stat-row">
         <div className="stat">
-          <div className="stat-label">{t.neuronsLost}</div>
+          <div className="stat-label">{sim.volumes.cord.core >= 0.05 ? t.neuronsLostBrain : t.neuronsLost}</div>
           <div className="stat-value small">{fmtNeurons(sim.neuronsLost, lang)}</div>
         </div>
         <div className="stat">
@@ -581,15 +616,16 @@ function Results({ sim }: { sim: SimResult }) {
         {shift >= 0.5 && (
           <div className="stat" title={t.midlineShiftNote}>
             <div className="stat-label">{t.midlineShift}</div>
-            <div className="stat-value small" style={{ color: shift >= 5 ? STATE_COLORS.core : undefined }}>
+            <div className="stat-value small" style={{ color: shift >= DROWSY_SHIFT_MM ? STATE_COLORS.core : undefined }}>
               {shift.toFixed(1)} mm{sim.input.decompression && tH >= 36 ? ` · ${t.decompressed}` : ''}
             </div>
           </div>
         )}
       </div>
-      {/* the end of the course lives on its own tab; one line leads there */}
+      {/* the end of the course lives on its own tab; one line leads there, with the tab's own
+          figure: the whole schedule's, also before a later occlusion begins (W2-3) */}
       <button className="outcome-link" onClick={() => setRightTab('final')}>
-        {OUTCOME_UI[lang].finalLink(fmtMl(sim.volumes.finalInfarct))}
+        {OUTCOME_UI[lang].finalLink(fmtMl((series[series.length - 1] ?? sim).volumes.finalInfarct))}
       </button>
 
       <FunctionTimeline series={series} />
@@ -624,6 +660,11 @@ function Results({ sim }: { sim: SimResult }) {
               <summary>
                 {s.side && <span className="side-tag">{s.side === 'r' ? (lang === 'en' ? 'R' : '右') : lang === 'en' ? 'L' : '左'}</span>}
                 {tr(s.def.name, lang)}
+                {s.silent && (
+                  <span className="tag" title={t.syndromeSilentHint}>
+                    {t.syndromeSilent}
+                  </span>
+                )}
               </summary>
               <p>{tr(s.def.desc, lang)}</p>
             </details>
@@ -651,13 +692,29 @@ function Results({ sim }: { sim: SimResult }) {
             </ul>
           </div>
         ))}
+        {/* what the lesion gives but cannot be examined at this level of consciousness has not gone (X1-2) */}
+        {hiddenNow.length > 0 && (
+          <div className="sym-group unexaminable">
+            <h4 title={unexaminableHead.title}>{unexaminableHead.label}</h4>
+            <p className="muted small">{unexaminableHead.title}</p>
+            <ul className="bullets">
+              {hiddenNow.map((s) => (
+                <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
+                  <span className={`sev sev${s.sev}`} aria-hidden="true" />
+                  {symptomLabel(s, lang, t)}
+                  {unexaminableHead.tag(s) && <span className="muted small"> · {unexaminableHead.tag(s)}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       <section>
         <h3>{t.timeline}</h3>
         <ol className="events">
           {visibleEvents.map((e) => (
-            <EventItem key={e.id} e={e} tH={tH} onJump={() => setTIndex(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
+            <EventItem key={`${e.id}@${e.onsetH}`} e={e} tH={tH} onJump={() => setTIndex(stopIndexAtOrAfter(e.onsetH))} onRegion={(id) => select({ kind: 'region', id })} />
           ))}
         </ol>
         {events.length > visibleEvents.length || showAllEvents ? (

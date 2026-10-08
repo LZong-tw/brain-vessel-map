@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { REGIONS, VESSELS } from '../anatomy';
+import { lacuneSitesOf } from '../anatomy/lacunes';
 import { SYMPTOMS } from '../anatomy/symptoms';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { VARIANTS } from '../anatomy/variants';
@@ -17,8 +18,22 @@ function runs(): Run[] {
   const out: Run[] = [];
   for (const v of VESSELS.filter((x) => isOccludable(x.id)))
     for (const c of ['good', 'moderate', 'poor'] as const) out.push({ o: [{ vessel: v.id, severity: 1 }], c, v: [], map: 93 });
-  for (const v of VESSELS.filter((x) => x.kind === 'perforator' && (x.n ?? 1) > 1))
+  for (const v of VESSELS.filter((x) => x.kind === 'perforator' && (x.n ?? 1) > 1)) {
     out.push({ o: [{ vessel: v.id, severity: 1, branch: true }], c: 'good', v: [], map: 93 });
+    // every lacune site of the bundle (ataxic hemiparesis, dysarthria–clumsy hand, capsular genu)
+    for (const site of lacuneSitesOf(v.baseId).slice(1))
+      out.push({ o: [{ vessel: v.id, severity: 1, branch: true, lacuneSite: site.id }], c: 'good', v: [], map: 93 });
+  }
+  // two 5-minute attacks of one branch within a day: the capsular warning syndrome
+  out.push({
+    o: [
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, toH: 1 / 12 },
+      { vessel: 'lenticulostriate_l', severity: 1, branch: true, fromH: 1, toH: 1 + 1 / 12 },
+    ],
+    c: 'good',
+    v: [],
+    map: 93,
+  });
   out.push({
     o: [
       { vessel: 'thalamogeniculate_l', severity: 1, branch: true },
@@ -32,12 +47,26 @@ function runs(): Run[] {
     for (const v of ['ica_cervical_r', 'basilar_mid', 'pca_p1_r', 'aca_a1_r', 'va_v4_dist_r', 'va_v4_dist_l', 'subclavian_prox_l'])
       out.push({ o: [{ vessel: v, severity: 1 }], c: 'moderate', v: [va.id], map: 93 });
   for (const map of [45, 60]) out.push({ o: [{ vessel: 'ica_cervical_r', severity: 0.85 }], c: 'good', v: [], map });
+  // global hypotension alone: both anterior border zones (man-in-the-barrel)
+  out.push({ o: [], c: 'good', v: [], map: 50 });
   for (const pair of [
     ['pca_p2_r', 'pca_p2_l'],
     ['thalamoperforator_r', 'thalamoperforator_l'],
     ['va_v4_dist_r', 'va_v4_dist_l'],
+    // a vertebral occlusion that takes its own ASA root: the lateral and medial medulla of one side
+    // (hemimedullary); with a unilateral ASA both medial medullae go, a bilateral picture (R2-7)
+    ['va_v4_dist_r', 'asa_root_r'],
+    // left medial frontal + angular gyrus: transcortical motor + sensory = mixed transcortical aphasia
+    ['aca_a2_l', 'mca_angular_l'],
   ])
     out.push({ o: pair.map((vessel) => ({ vessel, severity: 1 })), c: 'moderate', v: [], map: 93 });
+  // both ventral occipitotemporal (colour) areas without cortical blindness: achromatopsia, which
+  // is not listed inside a blind field (R1-5)
+  out.push({ o: [{ vessel: 'pca_temporal_r', severity: 1 }, { vessel: 'pca_temporal_l', severity: 1 }], c: 'poor', v: [], map: 93 });
+  // both parieto-occipital arteries, sight left: Balint syndrome, named for its signs, which a blind
+  // patient cannot be tested for (Y2-14); both M1 arteries: both frontal eye fields (Y2-13)
+  out.push({ o: [{ vessel: 'pca_parietooccipital_r', severity: 1 }, { vessel: 'pca_parietooccipital_l', severity: 1 }], c: 'poor', v: [], map: 93 });
+  out.push({ o: [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m1_l', severity: 1 }], c: 'good', v: [], map: 93 });
   return out;
 }
 
@@ -58,6 +87,9 @@ describe('reachability', () => {
         for (const [id, st] of Object.entries(s.regions)) if (st.dys >= 0.25 || st.infarct >= 0.25) reg.add(id);
       }
     }
+    // a swollen cerebellum compressing the brainstem (C4-F3): PICA + SCA, day 3, untreated
+    const cb = simulate({ occlusions: [{ vessel: 'pica_r', severity: 1 }, { vessel: 'sca_r', severity: 1 }], variants: [], collateral: 'poor', map: 93, reperfusionH: null, decompression: false, tH: 72 });
+    cb.symptoms.forEach((x) => sym.add(x.id));
     expect(SYNDROMES.map((s) => s.id).filter((id) => !syn.has(id))).toEqual([]);
     expect(SYMPTOMS.map((s) => s.id).filter((id) => !sym.has(id))).toEqual([]);
     expect(REGIONS.map((r) => r.id).filter((id) => !reg.has(id))).toEqual([]);

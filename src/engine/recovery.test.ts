@@ -17,12 +17,18 @@ const BASILAR = { occlusions: occl('basilar_mid') };
 const FOVILLE = { occlusions: occl('pontine_paramedian_caudal_l') };
 
 describe('compensation of lost function', () => {
-  it('an untreated left M1 infarct improves by 3 months, arm more than fine finger control', () => {
+  // Y1-1: the arm's weakness comes from half of the posterior limb of the internal capsule, where the
+  // corticospinal tract converges: plegic in the first week, it recovers to a moderate weakness, not
+  // to a drift (Shelton & Reding 2001), while the leg recovers further
+  it('an untreated left M1 infarct improves by 3 months, the leg more than the arm, the arm more than fine finger control', () => {
     const d1 = sim({ ...L_M1, tH: 24 });
+    const d3 = sim({ ...L_M1, tH: 72 });
     const m3 = sim({ ...L_M1, tH: 2160 });
     expect(m3.nihss.total).toBeLessThan(d1.nihss.total);
-    expect(sev(m3, 'arm_weak', 'r')).toBeLessThan(sev(d1, 'arm_weak', 'r'));
+    expect(sev(m3, 'arm_weak', 'r')).toBeLessThan(sev(d3, 'arm_weak', 'r'));
+    expect(sev(m3, 'arm_weak', 'r')).toBe(2);
     expect(sev(m3, 'leg_weak', 'r')).toBeLessThan(sev(d1, 'leg_weak', 'r'));
+    expect(sev(m3, 'leg_weak', 'r')).toBeLessThan(sev(m3, 'arm_weak', 'r'));
     const arm = find(m3, 'arm_weak', 'r')?.recovery;
     expect(arm?.kind).toBe('parallel');
     expect(arm?.bilateral).toBe(false);
@@ -31,7 +37,7 @@ describe('compensation of lost function', () => {
       const hand = find(m3, 'hand_clumsy', 'r');
       expect(hand, 'the clumsy hand is still there').toBeDefined();
       expect(hand!.recovery?.kind).toBe('fine');
-      expect(arm!.compensated).toBeGreaterThan(2 * hand!.recovery!.compensated);
+      expect(arm!.compensated).toBeGreaterThan(hand!.recovery!.compensated);
     }
   });
 
@@ -117,12 +123,14 @@ describe('temporary dysfunction (oedema, diaschisis)', () => {
   it('silences surviving tissue while the oedema lasts, and is gone by 1 month', () => {
     const d3 = sim({ ...L_M1, tH: 72 });
     expect(maxOf(d3.recovery.extraDys)).toBeGreaterThan(0.05);
-    // it is dysfunction on top of the core and penumbra, of tissue that is alive
+    // it is dysfunction on top of the core, the penumbra and the stabilised penumbra still
+    // regaining function (R6-11) or still silent past the time it is at risk (W2-10), of tissue
+    // that is alive
     for (const b of BEDS) {
       const bs = d3.beds[b.id];
       const x = d3.recovery.extraDys[b.id] ?? 0;
-      expect(bs.dys, b.id).toBeCloseTo(Math.min(1, bs.frac.core + bs.frac.penumbra + x), 9);
-      expect(x, b.id).toBeLessThanOrEqual(Math.max(0, 1 - bs.infarct - bs.frac.penumbra) + 1e-9);
+      expect(bs.dys, b.id).toBeCloseTo(Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining + bs.holding + x), 9);
+      expect(x, b.id).toBeLessThanOrEqual(Math.max(0, 1 - bs.infarct - bs.frac.penumbra - bs.regaining - bs.holding) + 1e-9);
     }
     const m1 = sim({ ...L_M1, tH: 720 });
     expect(maxOf(m1.recovery.extraDys)).toBeLessThan(0.02);
@@ -148,8 +156,7 @@ describe('temporary dysfunction (oedema, diaschisis)', () => {
       inf[r.id] = d3.regions[r.id].infarct;
     }
     const without = aggregateSymptoms(dysWithout, inf, 72);
-    const affected = REGIONS.filter((r) => dysWithout[r.id] >= 0.2 || inf[r.id] >= 0.2).map((r) => r.id);
-    expect(d3.nihss.total).toBeGreaterThan(estimateNihss(without, affected).total);
+    expect(d3.nihss.total).toBeGreaterThan(estimateNihss(without).total);
     // … and it is gone once the oedema has settled
     const w4 = sim({ ...L_M1, tH: 720 });
     for (const r of REGIONS) expect(w4.regions[r.id].dys, r.id).toBeLessThan(w4.regions[r.id].infarct + 0.02);
@@ -184,10 +191,11 @@ describe('the hyperacute phase is unchanged', () => {
       expect(r.recovery.extraDys).toEqual({});
       expect(r.recovery.compensated).toEqual({});
       expect(r.recovery.progress).toBe(0);
-      // dysfunction is exactly core + penumbra, as before the recovery model
+      // dysfunction is exactly core + penumbra (with the stabilised penumbra still regaining its
+      // function, R6-11), as before the recovery model
       for (const b of BEDS) {
         const bs = r.beds[b.id];
-        expect(bs.dys).toBe(Math.min(1, bs.frac.core + bs.frac.penumbra));
+        expect(bs.dys).toBe(Math.min(1, bs.frac.core + bs.frac.penumbra + bs.regaining));
       }
       for (const s of r.symptoms) expect(s.recovery?.compensated ?? 0).toBe(0);
     }

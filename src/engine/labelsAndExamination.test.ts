@@ -1,0 +1,770 @@
+/**
+ * Labels, NIHSS items and what can be examined (Y2): the label of the deep infarct an early M1
+ * reopening leaves, the superior-division TIA template, item 7 by the number of ataxic limbs,
+ * bilateral frontal eye fields, recognition signs in a blind patient, akinetic mutism, the Foville
+ * template text, a deficit of both sides listed once per side, and the cortical-blindness label.
+ */
+import { describe, expect, it } from 'vitest';
+import { REGION_BY_ID } from '../anatomy';
+import { SCENARIOS } from '../anatomy/scenarios';
+import { SYNDROMES } from '../anatomy/syndromes';
+import { TIME_STOPS } from '../anatomy/timeline';
+import { NEEDS_SIGHT, aggregateSymptoms, estimateNihss, examinability, isBlind, type SymptomItem } from './clinical';
+import type { CollateralGrade, Occlusion } from './hemodynamics';
+import { simulate, type SimInput, type SimResult } from './simulate';
+
+const STOPS = TIME_STOPS.map((s) => s.h);
+const inputOf = (id: string, over: Partial<SimInput> = {}): SimInput => {
+  const sc = SCENARIOS.find((s) => s.id === id)!;
+  return {
+    occlusions: sc.occlusions,
+    variants: sc.variants ?? [],
+    collateral: sc.collateral ?? 'good',
+    map: sc.map ?? 93,
+    tH: sc.tH ?? 24,
+    reperfusionH: sc.reperfusionH ?? null,
+    decompression: sc.decompression ?? false,
+    ...over,
+  };
+};
+const scenario = (id: string, tH: number) => simulate(inputOf(id, { tH }));
+const occl = (...ids: string[]): Occlusion[] => ids.map((vessel) => ({ vessel, severity: 1 }));
+const run = (occlusions: Occlusion[], tH: number, collateral: CollateralGrade = 'good', over: Partial<SimInput> = {}) =>
+  simulate({ occlusions, variants: [], collateral, map: 93, tH, reperfusionH: null, decompression: false, ...over });
+const labels = (r: SimResult) => r.syndromes.map((s) => s.def.id + (s.side ? `_${s.side}` : ''));
+const sev = (r: SimResult, id: string, side: SymptomItem['side'] = null) =>
+  r.symptoms.filter((s) => s.id === id && (side === null || s.side === side)).reduce((m, s) => Math.max(m, s.sev), 0);
+const item = (r: SimResult, k: string) => r.nihss.items[k] ?? 0;
+const sym = (id: string, side: SymptomItem['side'], s: 1 | 2 | 3, sources: string[] = []): SymptomItem => ({ id, side, sev: s, sources, delayed: false });
+
+describe('Y2-2: the deep infarct an early M1 reopening leaves is named for it', () => {
+  // after an M1 occlusion reopened at 2 h the residual infarct is mainly striatocapsular (putamen,
+  // caudate, posterior limb), with the temporal pole, insula and part of the superior temporal gyrus
+  const cases: [string, () => (tH: number) => SimResult, 'r' | 'l'][] = [
+    ['l_m1_thrombectomy', () => (tH) => scenario('l_m1_thrombectomy', tH), 'l'],
+    ['left M1 reopened at 6 h', () => (tH) => run(occl('mca_m1_l'), tH, 'good', { reperfusionH: 6 }), 'l'],
+    ['right M1 reopened at 2 h', () => (tH) => run(occl('mca_m1_r'), tH, 'good', { reperfusionH: 2 }), 'r'],
+    ['left M1 reopened at 1 h (no label before)', () => (tH) => run(occl('mca_m1_l'), tH, 'good', { reperfusionH: 1 }), 'l'],
+    [
+      'left M1 reopened at 2 h, a fragment in the A2',
+      () => (tH) =>
+        run(occl('mca_m1_l'), tH, 'good', {
+          reperfusionH: 2,
+          treatment: { method: 'evt', grade: '3', reocclusionAfterH: null, distalEmbolus: 'aca_a2_l', noReflow: 0 },
+        }),
+      'l',
+    ],
+  ];
+  // Y1-12: the rescued cortex regains its function over the first day or two after the reopening
+  // (later the later it is), so the complete-MCA picture lasts until then; the deep infarct is
+  // named once it is what is left
+  it.each(cases)('%s: the striatocapsular label is shown with the hemiparesis once the rescued cortex works again, to 6 months', (_, make, side) => {
+    const at = make();
+    const body = side === 'l' ? 'r' : 'l';
+    for (const tH of STOPS.filter((h) => h >= 72)) {
+      const r = at(tH);
+      if (sev(r, 'arm_weak', body) === 0) continue;
+      expect(labels(r), `${tH} h`).toContain(`striatocapsular_${side}`);
+    }
+    // until then, the whole territory's picture
+    expect(labels(at(2))).toContain(`mca_complete_${side}`);
+  });
+
+  it('the inferior-division label, shown with it, says where a hemiparesis comes from', () => {
+    // (Y1-0: after a reopening at 2 h the cortical infarct is now too small for the inferior-division
+    // label; reopened at 6 h it is not)
+    // (Z1-7: reopened at 6 h the capsule has lost most, not all, of its lenticulostriate part, so
+    // the arm is moderately weak at a week: 2, was 3)
+    const r = run(occl('mca_m1_l'), 168, 'good', { reperfusionH: 6 });
+    expect(sev(r, 'arm_weak', 'r')).toBeGreaterThanOrEqual(2);
+    expect(labels(r)).toEqual(expect.arrayContaining(['mca_inferior_l', 'striatocapsular_l']));
+    const inferior = SYNDROMES.find((d) => d.id === 'mca_inferior')!;
+    expect(inferior.desc.en).toMatch(/hemiparesis means the deep \(lenticulostriate\) territory/);
+    expect(inferior.desc.zh).toMatch(/豆紋動脈區/);
+  });
+
+  it('a lenticulostriate group occlusion is still a striatocapsular infarct, and a complete MCA infarct is not one', () => {
+    expect(labels(scenario('l_lsa', 24))).toContain('striatocapsular_l');
+    for (const tH of [24, 2160]) expect(labels(scenario('l_m1', tH)), `${tH} h`).not.toContain('striatocapsular_l');
+  });
+});
+
+describe('Y2-4: the superior-division TIA shows the classic picture during the attack', () => {
+  it('face and arm weakness with the Broca aphasia and the superior-division label; nothing left after it', () => {
+    const attack = scenario('tia_l_mca', 0);
+    expect(sev(attack, 'face_weak', 'r')).toBeGreaterThanOrEqual(2);
+    expect(sev(attack, 'arm_weak', 'r')).toBeGreaterThanOrEqual(2);
+    expect(attack.symptoms.some((s) => s.id === 'aphasia_broca')).toBe(true);
+    expect(labels(attack)).toContain('mca_superior_l');
+    for (const tH of [24, 2160]) {
+      const r = scenario('tia_l_mca', tH);
+      expect(r.nihss.total, `${tH} h`).toBe(0);
+      expect(r.volumes.finalInfarct, `${tH} h`).toBeLessThan(0.05);
+    }
+  });
+
+  it('the summary names the weakness, in both languages', () => {
+    const sc = SCENARIOS.find((s) => s.id === 'tia_l_mca')!;
+    expect(sc.collateral).toBe('moderate');
+    expect(sc.summary.en).toMatch(/right face and arm go weak and numb/);
+    expect(sc.summary.zh).toMatch(/右臉與右手無力/);
+  });
+});
+
+describe('Y2-8: NIHSS item 7 counts ataxic limbs', () => {
+  const only = (...s: SymptomItem[]) => estimateNihss(s).items['7'] ?? 0;
+  it('a mild ataxia of one side is one limb (1), a moderate or marked one the arm and the leg (2)', () => {
+    expect(only(sym('ataxia_limb', 'l', 1))).toBe(1);
+    expect(only(sym('ataxia_limb', 'l', 2))).toBe(2);
+    expect(only(sym('ataxia_limb', 'l', 3))).toBe(2);
+    // two sides add up, to at most 2
+    expect(only(sym('ataxia_limb', 'l', 1), sym('ataxia_limb', 'r', 1))).toBe(2);
+    expect(only(sym('ataxia_limb', 'l', 2), sym('ataxia_limb', 'r', 2))).toBe(2);
+    // not out of proportion to a paralysed arm: not scored on that side
+    expect(only(sym('ataxia_limb', 'l', 2), sym('arm_weak', 'l', 3))).toBe(0);
+  });
+
+  it('the templates that describe ataxia of the arm and the leg score 2', () => {
+    // "marked ataxia of the same limbs", "clumsy, uncoordinated right limbs"
+    for (const id of ['r_pontine_lacune', 'l_cr_lacune', 'r_pica', 'r_wallenberg']) expect(item(scenario(id, 24), '7'), id).toBe(2);
+  });
+});
+
+describe('Y2-13: both frontal eye fields', () => {
+  it('both M1 arteries: no opposite gaze deviations at once, but a voluntary gaze paresis to both sides (item 2 = 1)', () => {
+    for (const tH of STOPS) {
+      const r = run(occl('mca_m1_r', 'mca_m1_l'), tH);
+      const dev = r.symptoms.filter((s) => s.id === 'gaze_deviation').map((s) => s.side);
+      expect(dev.length, `${tH} h: ${dev.join('+')}`).toBeLessThan(2);
+      if (tH === 24) {
+        expect(r.symptoms.some((s) => s.id === 'gaze_paresis_bilateral')).toBe(true);
+        expect(item(r, '2')).toBe(1);
+      }
+    }
+  });
+
+  it('the merge itself: one side deviates the eyes, equal pulls cancel, a much stronger one still deviates them, less', () => {
+    // the frontal eye field lies in the dorsolateral prefrontal region (gaze_deviation, severity 2)
+    const gaze = (dys: Record<string, number>) =>
+      aggregateSymptoms(dys, {}, 24)
+        .filter((s) => s.id.startsWith('gaze_'))
+        .map((s) => `${s.id}${s.side ? `/${s.side}` : ''}:${s.sev}`);
+    expect(gaze({ prefrontal_dorsolateral_l: 1 })).toEqual(['gaze_deviation/l:2']);
+    expect(gaze({ prefrontal_dorsolateral_l: 1, prefrontal_dorsolateral_r: 1 })).toEqual(['gaze_paresis_bilateral:2']);
+    // a moderate left against a mild right one: towards the left, mildly
+    expect(gaze({ prefrontal_dorsolateral_l: 1, prefrontal_dorsolateral_r: 0.26 })).toEqual(['gaze_deviation/l:1']);
+  });
+});
+
+describe('Y2-13: both hemispheres and the level of consciousness', () => {
+  const bothM1 = (tH: number, collateral: CollateralGrade = 'good', over: Partial<SimInput> = {}) => run(occl('mca_m1_r', 'mca_m1_l'), tH, collateral, over);
+  it('both MCA territories out of action: at least drowsy from the start, without any swelling, and the event says why', () => {
+    const r = bothM1(0);
+    expect(r.edema.massEffectMm).toBe(0);
+    expect(item(r, '1a')).toBeGreaterThanOrEqual(1);
+    expect(r.cascade.events.some((e) => e.id === 'bilateral_hemispheres')).toBe(true);
+  });
+
+  it('the swelling of both hemispheres counts together: stupor and then coma and a herniation although the midline does not move', () => {
+    const at = (tH: number) => bothM1(tH);
+    expect(at(48).edema.midlineShiftMm).toBe(0);
+    expect(item(at(48), '1a')).toBeGreaterThanOrEqual(2);
+    const r = at(72);
+    expect(r.edema.midlineShiftMm).toBe(0);
+    expect(r.edema.massEffectMm).toBeGreaterThanOrEqual(8);
+    expect(item(r, '1a')).toBe(3);
+    // (they swell alike, so the brain herniates downward, centrally: V1-4)
+    expect(r.cascade.events.some((e) => e.id === 'central_herniation')).toBe(true);
+    expect(r.cascade.events.some((e) => /^(uncal|subfalcine)_/.test(e.id))).toBe(false);
+    expect(r.cascade.fatalRisk).toContain('herniation');
+    // one fatal row, not one per hemisphere
+    expect(r.cascade.events.filter((e) => e.id.startsWith('herniation_fatal_'))).toHaveLength(1);
+    // the malignant-oedema text says why the midline does not move
+    const mal = r.cascade.events.find((e) => e.id === 'malignant_edema_r')!;
+    expect(mal.desc.en).toMatch(/push the brain down rather than across/);
+    expect(mal.desc.zh).toMatch(/把腦往下擠而不是推向對側/);
+  });
+
+  // (Y1-12: the rescued cortex works again within hours, not at the instant of the reopening)
+  it('reopened at 1 h: no lasting drowsiness once both hemispheres work again', () => {
+    expect(item(bothM1(0.5, 'good', { reperfusionH: 1 }), '1a')).toBe(1);
+    for (const tH of [12, 24, 168]) expect(item(bothM1(tH, 'good', { reperfusionH: 1 }), '1a'), `${tH} h`).toBe(0);
+  });
+
+  it('one hemisphere: the mass effect is the midline shift, as before', () => {
+    for (const id of ['r_m1_malignant', 'l_m1', 'r_ica_t', 'ica_isolated'])
+      for (const tH of [24, 72, 168]) {
+        const r = scenario(id, tH);
+        expect(r.edema.massEffectMm, `${id} ${tH} h`).toBeCloseTo(r.edema.midlineShiftMm, 9);
+      }
+  });
+
+  it('both A2 arteries: the akinetic mutism is not listed while the swelling of both makes the patient stuporous', () => {
+    const r = run(occl('aca_a2_r', 'aca_a2_l'), 72, 'poor');
+    expect(item(r, '1a')).toBe(2);
+    expect(r.symptoms.some((s) => s.id === 'akinetic_mutism')).toBe(false);
+    expect(r.unexaminable.find((s) => s.id === 'akinetic_mutism')?.why).toBe('consciousness');
+  });
+});
+
+describe('Y2-14: recognition by sight is not examined in a blind patient', () => {
+  // [case, the lesion gives some of them]
+  const blindCases: [string, (tH: number) => SimResult, boolean][] = [
+    ['both P2, moderate collaterals', (tH) => run(occl('pca_p2_r', 'pca_p2_l'), tH, 'moderate'), true],
+    ['both P2, good collaterals', (tH) => run(occl('pca_p2_r', 'pca_p2_l'), tH, 'good'), false],
+    ['both P2, poor collaterals', (tH) => run(occl('pca_p2_r', 'pca_p2_l'), tH, 'poor'), true],
+    ['both M1 (both half-fields lost)', (tH) => run(occl('mca_m1_r', 'mca_m1_l'), tH, 'good'), true],
+  ];
+  it.each(blindCases)('%s: none of them listed while blind, each named apart as not examinable for blindness; no Balint label', (_, at, gives) => {
+    let named = 0;
+    for (const tH of STOPS) {
+      const r = at(tH);
+      if (!isBlind(r.symptoms)) continue;
+      for (const id of NEEDS_SIGHT) expect(r.symptoms.some((s) => s.id === id), `${tH} h: ${id}`).toBe(false);
+      expect(labels(r), `${tH} h`).not.toContain('balint');
+      expect(labels(r), `${tH} h`).not.toContain('alexia_without_agraphia_l');
+      for (const s of r.unexaminable.filter((x) => NEEDS_SIGHT.includes(x.id))) {
+        // a stuporous patient's are not examinable for that reason first
+        expect(['blind', 'consciousness'], `${tH} h: ${s.id}`).toContain(s.why);
+        if (s.why === 'blind') named++;
+      }
+    }
+    expect(named > 0).toBe(gives);
+  });
+
+  it('both P2 (moderate collaterals): prosopagnosia and visual agnosia are there but cannot be tested', () => {
+    const r = run(occl('pca_p2_r', 'pca_p2_l'), 24, 'moderate');
+    expect(r.symptoms.some((s) => s.id === 'cortical_blindness')).toBe(true);
+    expect(r.unexaminable.filter((s) => s.why === 'blind').map((s) => s.id)).toEqual(expect.arrayContaining(['prosopagnosia', 'visual_agnosia']));
+    // the release hallucinations of the blind field stay listed
+    expect(run(occl('pca_p2_r', 'pca_p2_l'), 336, 'moderate').symptoms.some((s) => s.id === 'visual_release_hallucinations')).toBe(true);
+  });
+
+  it('with central vision spared the same signs can be tested', () => {
+    const list = [sym('hemianopia', 'r', 2), sym('hemianopia', 'l', 2), sym('macular_sparing', null, 1), sym('prosopagnosia', null, 2)];
+    expect(isBlind(list)).toBe(false);
+    expect(isBlind(list.filter((s) => s.id !== 'macular_sparing'))).toBe(true);
+  });
+});
+
+describe('Y2-15: akinetic mutism is scored as what the patient does', () => {
+  const both = (tH: number) => run(occl('aca_a2_r', 'aca_a2_l'), tH, 'moderate');
+  it('severe: awake, mute and following no command (9 = 3, 10 = 2, 1c = 2), unable to answer for a reason other than aphasia (1b = 1)', () => {
+    const r = both(24);
+    expect(sev(r, 'akinetic_mutism')).toBe(3);
+    expect(item(r, '1a')).toBe(0);
+    expect([item(r, '9'), item(r, '10'), item(r, '1c'), item(r, '1b')]).toEqual([3, 2, 2, 1]);
+    expect(labels(r)).toContain('aca_bilateral');
+  });
+
+  it('severe: praxis, the alien hand, reaching, visuospatial tasks and the aphasia type are named apart as not examinable', () => {
+    const r = both(24);
+    for (const id of ['alien_hand', 'callosal_apraxia', 'optic_ataxia', 'visuospatial', 'aphasia_tc_motor']) {
+      expect(r.symptoms.some((s) => s.id === id), id).toBe(false);
+      expect(r.unexaminable.find((s) => s.id === id)?.why, id).toBe('akinetic');
+    }
+    // what the examiner sees stays listed
+    expect(r.symptoms.some((s) => s.id === 'abulia')).toBe(true);
+  });
+
+  it('moderate, months later: little speech (9 = 2) and one command (1c = 1)', () => {
+    const r = both(2160);
+    expect(sev(r, 'akinetic_mutism')).toBe(2);
+    expect([item(r, '9'), item(r, '1c')]).toEqual([2, 1]);
+  });
+
+  it('the scale is not lowered by what cannot be examined', () => {
+    for (const tH of STOPS) {
+      const r = both(tH);
+      expect(estimateNihss([...r.symptoms, ...r.unexaminable]).items, `${tH} h`).toEqual(r.nihss.items);
+    }
+  });
+});
+
+describe('Y2-16: the Foville template says what the output shows', () => {
+  it('the left face is weak, of the peripheral type, milder than the limbs at first', () => {
+    const sc = SCENARIOS.find((s) => s.id === 'l_pontine')!;
+    expect(sc.summary.en).not.toMatch(/whole left face paralysed/);
+    expect(sc.summary.zh).not.toMatch(/左臉整側麻痺/);
+    expect(sc.summary.en).toMatch(/peripheral type/);
+    expect(sc.summary.zh).toMatch(/周邊型/);
+    const r = scenario('l_pontine', 24);
+    expect(sev(r, 'face_weak_peripheral', 'l')).toBeGreaterThanOrEqual(1);
+    expect(sev(r, 'face_weak', 'r')).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('Y2-17: a deficit of both sides is listed once per side', () => {
+  it('both vertebral arteries: arm and leg weakness and pain/temperature loss once per side, at the worse severity', () => {
+    for (const tH of STOPS) {
+      const r = run(occl('va_v4_dist_r', 'va_v4_dist_l'), tH);
+      expect(r.symptoms.filter((s) => s.side === 'both').map((s) => s.id), `${tH} h`).toEqual([]);
+      for (const id of ['arm_weak', 'leg_weak', 'pain_temp_body'])
+        for (const side of ['r', 'l'] as const) expect(r.symptoms.filter((s) => s.id === id && s.side === side), `${tH} h ${id} ${side}`).toHaveLength(1);
+      if (tH === 24) {
+        expect(sev(r, 'arm_weak', 'r')).toBe(3);
+        // the cord's loss of both sides joins each side's loss from the medulla: still a bilateral
+        // brainstem sensory loss (item 8 = 2)
+        expect(item(r, '8')).toBe(2);
+      }
+    }
+  });
+
+  it('the cord at risk is the upper cervical cord', () => {
+    expect(REGION_BY_ID.cervical_cord.name.en).toMatch(/Upper anterior cervical cord \(C1–C3\)/);
+    expect(REGION_BY_ID.cervical_cord.name.zh).toMatch(/上段頸髓/);
+  });
+});
+
+describe('Y2-18: the cortical-blindness label follows the blindness', () => {
+  it.each(['good', 'moderate', 'poor'] as const)('both P2, %s collaterals: the label exactly when the blindness is listed, never two one-sided PCA labels with it', (c) => {
+    for (const tH of STOPS) {
+      const r = run(occl('pca_p2_r', 'pca_p2_l'), tH, c);
+      const blind = r.symptoms.some((s) => s.id === 'cortical_blindness');
+      expect(labels(r).includes('cortical_blindness'), `${tH} h`).toBe(blind);
+      if (blind) expect(labels(r).filter((l) => l.startsWith('pca_')), `${tH} h`).toEqual([]);
+    }
+  });
+});
+
+describe('W3-9: the MCA territory labels agree with the signs listed beside them', () => {
+  // a superior-division infarct with good collaterals keeps its Broca aphasia and its face and arm
+  // weakness (from Broca's area and the prefrontal cortex about 28 % infarcted, the motor strip 37 %):
+  // its label stays as long as they do, as the symptoms' own threshold (25 %) has them
+  it.each([
+    ['l', 'aphasia_broca'],
+    ['r', 'arm_weak'],
+  ] as const)('the %s superior division with good collaterals keeps its label while its deficits last', (side, sign) => {
+    const body = side === 'l' ? 'r' : 'l';
+    for (const tH of STOPS.filter((h) => h >= 72)) {
+      const r = run(occl(`mca_m2_sup_${side}`), tH);
+      if (sev(r, 'arm_weak', body) === 0 || (sign === 'aphasia_broca' && sev(r, sign) === 0)) continue;
+      expect(labels(r), `${tH} h`).toContain(`mca_superior_${side}`);
+    }
+    expect(labels(run(occl(`mca_m2_sup_${side}`), 2160))).toContain(`mca_superior_${side}`);
+  });
+
+  // 12 h after a thrombectomy of the left M1 the whole territory is still regaining its function: an
+  // expressive aphasia with face and arm weakness is not the receptive picture of the inferior division
+  it('the left M1 reopened by thrombectomy is not named an inferior-division infarct beside a Broca aphasia', () => {
+    for (const tH of STOPS) {
+      const r = scenario('l_m1_thrombectomy', tH);
+      if (r.symptoms.some((s) => s.id === 'aphasia_broca')) expect(labels(r), `${tH} h`).not.toContain('mca_inferior_l');
+    }
+  });
+
+  // the complete-MCA label names the picture, not a segment, and a tight carotid stenosis at a low
+  // blood pressure that leaves border-zone infarcts is named by the watershed label from day 5, not
+  // by the territory's
+  it('names no M1 segment, and gives way to the watershed label in a haemodynamic border-zone picture', () => {
+    const def = SYNDROMES.find((d) => d.id === 'mca_complete')!;
+    expect(def.name.en).not.toMatch(/M1/);
+    expect(def.name.zh).not.toMatch(/M1/);
+    expect(def.desc.en).toMatch(/M1/);
+    expect(def.desc.zh).toMatch(/M1/);
+    for (const tH of STOPS.filter((h) => h >= 120)) {
+      const r = run([{ vessel: 'ica_cervical_l', severity: 0.9 }], tH, 'good', { map: 60 });
+      expect(labels(r), `${tH} h`).toContain('watershed_l');
+      expect(labels(r), `${tH} h`).not.toContain('mca_complete_l');
+    }
+    // an M1 occlusion keeps its territory's label
+    expect(labels(run(occl('mca_m1_l'), 2160))).toContain('mca_complete_l');
+  });
+});
+
+/**
+ * V3-2: a tight carotid stenosis at a low blood pressure leaves, from about day 5, partial infarcts
+ * of 20–45 % across the MCA territory, densest in its border zones. The left one was named watershed
+ * and the right one a complete MCA syndrome, whose text calls it the whole territory: the share of
+ * the hemisphere's damage in the border zones was 36 % on the left and 33 % on the right, because
+ * the circle of Willis (not mirrored) leaves more of the right ACA territory itself underperfused
+ * (16 mL of it against 5 mL). Within the MCA territory and its borders the two sides are the same
+ * picture (37–38 % in the border zones).
+ */
+describe('V3-2: a haemodynamic border-zone picture of the MCA territory is named watershed on either side', () => {
+  it.each([
+    ['ica_cervical', 'l'],
+    ['ica_cervical', 'r'],
+    ['cca', 'l'],
+    ['cca', 'r'],
+  ] as const)('%s_%s 90 %% at MAP 60, good collaterals: watershed from day 5, never the complete MCA syndrome', (vessel, side) => {
+    for (const tH of STOPS.filter((h) => h >= 120)) {
+      const r = run([{ vessel: `${vessel}_${side}`, severity: 0.9 }], tH, 'good', { map: 60 });
+      expect(labels(r), `${tH} h`).toContain(`watershed_${side}`);
+      expect(labels(r), `${tH} h`).not.toContain(`mca_complete_${side}`);
+    }
+  });
+
+  it('an M1 occlusion, and a carotid occlusion with poor collaterals, keep their territory labels', () => {
+    for (const side of ['l', 'r'] as const) {
+      expect(labels(run(occl(`mca_m1_${side}`), 2160)), side).toContain(`mca_complete_${side}`);
+      expect(labels(run(occl(`mca_m1_${side}`), 2160)), side).not.toContain(`watershed_${side}`);
+      const ica = labels(run([{ vessel: `ica_cervical_${side}`, severity: 0.9 }], 2160, 'poor', { map: 60 }));
+      expect(ica, side).toContain(`ica_territory_${side}`);
+    }
+    // both carotids occluded: the ACA territories themselves are infarcted almost as densely as the
+    // border zones, a territorial infarct of both carotids, not a watershed one
+    for (const tH of [168, 2160]) {
+      const both = labels(run(occl('ica_cervical_r', 'ica_cervical_l'), tH));
+      expect(both, `${tH} h`).toEqual(expect.arrayContaining(['ica_territory_r', 'ica_territory_l']));
+      expect(both.filter((l) => l.startsWith('watershed')), `${tH} h`).toEqual([]);
+    }
+  });
+});
+
+/**
+ * V3-14: the inferior-division label names its signs (on the right left neglect, visuospatial
+ * problems and often a field defect; on the left a receptive aphasia and often a field defect). A
+ * right M1 thrombectomy at 4.5 h with good collaterals keeps 32 % of the posterior superior temporal
+ * gyrus infarcted, and its neglect is compensated by 3 months: the label stayed at 3 and 6 months
+ * with none of its signs listed.
+ */
+describe('V3-14: the MCA inferior-division label is shown only with one of the signs it names', () => {
+  const RIGHT_SIGNS = ['neglect', 'visuospatial', 'hemianopia', 'quadrant_sup', 'quadrant_inf'];
+  const TX = { method: 'evt' as const, grade: '3' as const, reocclusionAfterH: null, distalEmbolus: null, noReflow: 0 };
+  /** one of the signs the right label names, listed or not examinable, from the right hemisphere */
+  const rightSign = (r: SimResult) =>
+    [...r.symptoms, ...r.unexaminable].some((s) => RIGHT_SIGNS.includes(s.id) && !s.delayed && s.sources.some((src) => REGION_BY_ID[src]?.side === 'r'));
+  it.each(['evt', 'ivt'] as const)('the right M1 reopened by %s at 4.5 h with good collaterals: no label once the neglect is compensated', (method) => {
+    for (const tH of STOPS) {
+      const r = run(occl('mca_m1_r'), tH, 'good', { reperfusionH: 4.5, treatment: { ...TX, method } });
+      if (labels(r).includes('mca_inferior_r')) expect(rightSign(r), `${tH} h`).toBe(true);
+    }
+    const m3 = run(occl('mca_m1_r'), 2160, 'good', { reperfusionH: 4.5, treatment: { ...TX, method } });
+    expect(rightSign(m3)).toBe(false);
+    expect(labels(m3)).not.toContain('mca_inferior_r');
+    // the deep infarct keeps its own label
+    expect(labels(m3)).toContain('striatocapsular_r');
+  });
+
+  it('the right inferior division keeps its label with its neglect and field defect', () => {
+    for (const tH of [24, 2160, 4320]) {
+      const r = run(occl('mca_m2_inf_r'), tH);
+      expect(rightSign(r), `${tH} h`).toBe(true);
+      expect(labels(r), `${tH} h`).toContain('mca_inferior_r');
+    }
+  });
+});
+
+describe('V2-10: limb ataxia and the clumsy hand are not examined in a paralysed limb', () => {
+  // NIHSS: ataxia is absent in a patient who is paralysed, and the scale's item 7 already leaves it
+  // out on a side whose arm cannot move against gravity or whose leg cannot move at all; the list
+  // names it apart, as the signs that cannot be examined at other levels of consciousness
+  /** NIHSS points of the arm (item 5: arm_weak, and the proximal weakness of a border-zone infarct), of the hand's own weakness and of the leg (item 6) */
+  const paralysedSide = (r: SimResult, sd: 'r' | 'l') => {
+    const pts = (id: string, scale: number[]) =>
+      r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, scale[s.sev - 1]), 0);
+    const hand = pts('arm_weak', [1, 3, 4]);
+    return { arm: Math.max(hand, pts('arm_weak_proximal', [1, 2, 3])), hand, leg: pts('leg_weak', [1, 3, 4]) };
+  };
+  it.each([
+    ['basilar_mid', 0],
+    ['basilar_mid', 4320],
+    ['basilar_stuttering', 0],
+    ['basilar_stuttering', 4320],
+  ] as [string, number][])('%s at %s h: the dysmetria of the paralysed limbs is named as not examinable', (id, tH) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[]) {
+      const r = simulate(inputOf(id, { tH, collateral }));
+      for (const sd of ['r', 'l'] as const) {
+        expect(r.symptoms.some((s) => s.id === 'ataxia_limb' && s.side === sd), `${collateral} ${sd}`).toBe(false);
+        const hidden = r.unexaminable.find((s) => s.id === 'ataxia_limb' && s.side === sd);
+        expect(hidden?.why, `${collateral} ${sd}`).toBe('paralysed');
+      }
+      expect(item(r, '7')).toBe(0);
+    }
+  });
+
+  it('an ataxic hemiparesis with a mild weakness keeps its ataxia, scored', () => {
+    for (const id of ['r_pontine_lacune', 'l_cr_lacune']) {
+      const r = scenario(id, 24);
+      expect(r.symptoms.some((s) => s.id === 'ataxia_limb'), id).toBe(true);
+      expect(item(r, '7'), id).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: no limb ataxia, clumsy hand or intention tremor listed on a side too weak to test it', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const tH of STOPS) {
+        const r = simulate(inputOf(id, { tH, collateral }));
+        for (const sd of ['r', 'l'] as const) {
+          const p = paralysedSide(r, sd);
+          const listed = (sid: string) => r.symptoms.some((s) => s.id === sid && s.side === sd);
+          if (p.arm >= 3 || p.leg >= 4) expect(listed('ataxia_limb'), `${collateral} ${tH} h ${sd}`).toBe(false);
+          if (p.arm >= 3) for (const sid of ['tremor', 'holmes_tremor']) expect(listed(sid), `${sid} ${collateral} ${tH} h ${sd}`).toBe(false);
+          if (p.hand >= 3) for (const sid of ['hand_clumsy', 'jerky_dystonic_hand']) expect(listed(sid), `${sid} ${collateral} ${tH} h ${sd}`).toBe(false);
+        }
+      }
+  });
+});
+
+/**
+ * U3-7: one deficit of one side is listed once. A part of a broader deficit of the same side that is
+ * no more severe than it — the shoulder of a weak arm, one modality or one part of the body of an
+ * all-modality hemisensory loss, the lower face of a whole-face (peripheral) palsy — is that deficit,
+ * as a quadrantanopia is part of a hemianopia; a part more severe than the whole is listed beside it,
+ * as what is worse there.
+ */
+describe('U3-7: a part of a broader deficit of the same side is not listed beside it', () => {
+  /** [part, the broader deficit that takes it in] */
+  const PARTS: [string, string][] = [
+    ['arm_weak_proximal', 'arm_weak'],
+    ['sens_face_arm', 'sens_hemibody'],
+    ['sens_leg', 'sens_hemibody'],
+    ['pain_temp_body', 'sens_hemibody'],
+    ['pain_temp_face', 'sens_hemibody'],
+    ['proprio_loss', 'sens_hemibody'],
+    ['sens_face_all', 'sens_hemibody'],
+    ['face_weak', 'face_weak_peripheral'],
+  ];
+  const given = (r: SimResult) => [...r.symptoms, ...r.unexaminable];
+  const find = (r: SimResult, id: string, side: 'r' | 'l') => given(r).find((s) => s.id === id && s.side === side);
+  const noPartBesideWhole = (r: SimResult, where: string) => {
+    for (const [part, whole] of PARTS)
+      for (const sd of ['r', 'l'] as const) {
+        const p = find(r, part, sd);
+        const w = find(r, whole, sd);
+        if (p && w) expect(p.sev, `${where}: ${part}/${sd} beside ${whole}/${sd}`).toBeGreaterThan(w.sev);
+      }
+  };
+
+  it.each(['r_m1_malignant', 'r_ica_t', 'ica_isolated'])('%s: the plegic arm is not also a mildly weak shoulder', (id) => {
+    for (const tH of STOPS) noPartBesideWhole(scenario(id, tH), `${id} ${tH} h`);
+    const end = scenario(id, 4320);
+    const arm = end.symptoms.find((s) => s.id === 'arm_weak' && s.side === 'l');
+    expect(arm?.sev).toBe(3);
+    expect(end.symptoms.some((s) => s.id === 'arm_weak_proximal')).toBe(false);
+    // the shoulder's own source (the medial frontal cortex) is a source of the arm weakness now
+    expect(arm?.sources).toContain('medial_frontal_r');
+    expect(item(end, '5l')).toBe(4);
+  });
+
+  it.each([
+    ['l_pca', 'r', 'thalamus_ventrolateral_l', 'midbrain_lateral_l'],
+    ['fetal_pca', 'l', 'thalamus_ventrolateral_r', 'midbrain_lateral_r'],
+  ] as const)('%s: the all-modality hemisensory loss takes in its milder parts, and the NIHSS stays', (id, sd, thalamus, midbrain) => {
+    for (const tH of STOPS) noPartBesideWhole(scenario(id, tH), `${id} ${tH} h`);
+    for (const tH of [1, 24, 4320]) {
+      const r = scenario(id, tH);
+      const all = r.symptoms.find((s) => s.id === 'sens_hemibody' && s.side === sd);
+      expect(all?.sources, `${tH} h`).toEqual(expect.arrayContaining([thalamus, midbrain]));
+      for (const part of ['pain_temp_body', 'pain_temp_face', 'proprio_loss']) expect(find(r, part, sd), `${part} at ${tH} h`).toBeUndefined();
+      expect(item(r, '8'), `${tH} h`).toBe(2);
+    }
+  });
+
+  it('a part more severe than the whole is listed beside it, as what is worse there', () => {
+    // the face and arm lose more sensation than the whole side after an M1 occlusion
+    const r = scenario('r_m1_malignant', 1);
+    expect(sev(r, 'sens_face_arm', 'l')).toBe(3);
+    expect(sev(r, 'sens_hemibody', 'l')).toBe(1);
+  });
+
+  it('the peripheral facial palsy of a locked-in patient is not also a central one that spares the forehead', () => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const tH of STOPS) noPartBesideWhole(simulate(inputOf('basilar_mid', { tH, collateral })), `basilar_mid ${collateral} ${tH} h`);
+  });
+
+  it('a hemisensory loss of all modalities still shows the crossed sensory sign of a lateral medullary infarct', () => {
+    // left M1 + left PICA: the right body's pain loss of the medulla is part of the right
+    // hemisensory loss of the capsule; the lateral medullary label stays
+    const r = run(occl('mca_m1_l', 'pica_l'), 24);
+    expect(find(r, 'pain_temp_body', 'r')).toBeUndefined();
+    expect(labels(r)).toContain('wallenberg_l');
+  });
+});
+
+/**
+ * U3-11: the retinal-ischaemia label is named for its sign, monocular vision loss: it is shown
+ * only while that sign is listed, as the neglect label is not shown in coma; while the sign cannot
+ * be examined (aphasia, stupor, coma) it is named apart, with why, and the label comes back with it.
+ */
+describe('U3-11: the retinal-ischaemia label is shown only beside its sign', () => {
+  const C13: SimInput = { occlusions: occl('ica_cervical_l'), variants: ['acomm_absent'], collateral: 'good', map: 60, tH: 0, reperfusionH: null, decompression: false };
+  const cases: [string, SimInput, 'r' | 'l'][] = [
+    ['left cervical ICA without AComm at MAP 60 (global aphasia, then coma)', C13, 'l'],
+    ...(['good', 'moderate', 'poor'] as CollateralGrade[]).map((c) => [`ica_isolated, ${c} collaterals (coma on days 2–7)`, inputOf('ica_isolated', { collateral: c }), 'r'] as [string, SimInput, 'r' | 'l']),
+    ['amaurosis', inputOf('amaurosis'), 'r'],
+  ];
+  it.each(cases)('%s', (_name, input, side) => {
+    for (const tH of STOPS) {
+      const r = simulate({ ...input, tH });
+      const listed = r.symptoms.some((s) => s.id === 'monocular_blind' && s.side === side);
+      expect(labels(r).includes(`amaurosis_${side}`), `${tH} h`).toBe(listed);
+    }
+  });
+  it('the label comes back with its sign once the patient can tell again', () => {
+    const r = (tH: number) => simulate({ ...inputOf('ica_isolated', { collateral: 'moderate' }), tH });
+    expect(labels(r(1))).toContain('amaurosis_r');
+    expect(labels(r(72))).not.toContain('amaurosis_r');
+    expect(r(72).unexaminable.some((s) => s.id === 'monocular_blind' && s.why === 'consciousness')).toBe(true);
+    expect(labels(r(720))).toContain('amaurosis_r');
+  });
+});
+
+/**
+ * U3-12: gait and truncal ataxia are seen walking, standing and sitting upright (truncal ataxia is
+ * graded by imbalance when walking, when standing and when sitting: Carmona S et al. Front Neurol
+ * 2016;7:125, PMID 27551274). With one leg too weak to walk the trunk can still be tested sitting
+ * (the lateropulsion of a lateral medullary infarct beside a hemiparesis of the other side); with
+ * neither leg able to move against gravity the patient can neither stand nor, the trunk weak from
+ * both sides, sit unsupported, and the ataxia cannot be told from the weakness, as the NIHSS scores
+ * no ataxia in a paralysed limb. It is named apart then, as limb ataxia in a paralysed limb (V2-10).
+ */
+describe('U3-12: gait and truncal ataxia are not examined while neither leg can be lifted against gravity', () => {
+  const legPts = (r: SimResult, sd: 'r' | 'l') =>
+    r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, [1, 3, 4][s.sev - 1]), 0);
+  it('both distal vertebral arteries (all four limbs plegic): named apart as not examinable, the NIHSS unchanged', () => {
+    for (const tH of [24, 720, 4320]) {
+      const r = run(occl('va_v4_dist_r', 'va_v4_dist_l'), tH);
+      expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), `${tH} h`).toBe(false);
+      expect(r.unexaminable.find((s) => s.id === 'ataxia_gait')?.why, `${tH} h`).toBe('paralysed');
+      expect([legPts(r, 'r'), legPts(r, 'l')], `${tH} h`).toEqual([4, 4]);
+    }
+    expect(run(occl('va_v4_dist_r', 'va_v4_dist_l'), 24).nihss.total).toBe(20);
+  });
+  it('one leg plegic: the trunk can still be tested sitting, and the ataxia stays listed', () => {
+    const r = run(occl('pica_l', 'pontine_paramedian_rostral_l'), 24, 'moderate');
+    expect(legPts(r, 'r')).toBe(4);
+    expect(r.symptoms.some((s) => s.id === 'ataxia_gait')).toBe(true);
+    expect(scenario('r_wallenberg', 24).symptoms.some((s) => s.id === 'ataxia_gait')).toBe(true);
+  });
+  it.each(SCENARIOS.map((s) => [s.id]))('%s: no gait ataxia listed with both legs unable to move against gravity', (id) => {
+    for (const collateral of ['good', 'moderate', 'poor'] as CollateralGrade[])
+      for (const tH of STOPS) {
+        const r = simulate(inputOf(id, { tH, collateral }));
+        if (legPts(r, 'r') >= 3 && legPts(r, 'l') >= 3) expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), `${collateral} ${tH} h`).toBe(false);
+      }
+  });
+});
+
+/**
+ * T3-5: the alien hand makes purposeful-looking movements the patient does not intend (grasping,
+ * groping, the left hand working against the right), and the callosal apraxia and agraphia of the
+ * left hand is its failure to perform movements on command or to write, while the right hand can.
+ * Both need a hand that moves: in a hand whose arm cannot move against gravity (NIHSS item 5 ≥ 3)
+ * neither can be seen, as the clumsy hand cannot (V2-10). The callosal signs of the left hand are
+ * told against the right hand (the left hand works against the right; it fails what the right hand
+ * performs), so they need the right hand to move too. The callosal apraxia is also asked for in
+ * words and in writing: beside a moderate or severe aphasia of comprehension the left hand's failure
+ * on command cannot be told from the aphasia, as agraphia cannot (Z3-16). Each is named apart then,
+ * not listed as a lasting deficit; the left hand that works against the right is seen, not asked
+ * for, and stays listed beside an aphasia while both hands move.
+ */
+describe('T3-5: the alien hand and the callosal apraxia are examined only in hands that move, the apraxia only in a patient who understands', () => {
+  it.each([['r_m1_malignant'], ['r_ica_t'], ['ica_isolated']])('%s: neither is listed in the plegic left hand; both are named apart', (id) => {
+    for (const tH of [336, 4320]) {
+      const r = scenario(id, tH);
+      expect(item(r, '5l'), `${tH} h`).toBeGreaterThanOrEqual(3);
+      for (const sid of ['alien_hand', 'callosal_apraxia']) {
+        expect(r.symptoms.some((s) => s.id === sid && s.side === 'l'), `${sid} ${tH} h`).toBe(false);
+        expect(r.unexaminable.find((s) => s.id === sid && s.side === 'l')?.why, `${sid} ${tH} h`).toBe('paralysed');
+      }
+    }
+  });
+
+  it('a left M1 infarct with poor collaterals: no alien hand on either side with the right arm plegic, no apraxia of the left hand beside the global aphasia', () => {
+    for (const tH of [336, 4320]) {
+      const r = run(occl('mca_m1_l'), tH, 'poor');
+      expect(item(r, '5r'), `${tH} h`).toBe(4);
+      expect(sev(r, 'aphasia_global'), `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(r.unexaminable.find((s) => s.id === 'alien_hand' && s.side === 'r')?.why, `${tH} h`).toBe('paralysed');
+      // the left hand cannot be seen working against a right hand that does not move
+      expect(r.unexaminable.find((s) => s.id === 'alien_hand' && s.side === 'l')?.why, `${tH} h`).toBe('paralysed');
+      expect(r.unexaminable.find((s) => s.id === 'callosal_apraxia' && s.side === 'l')?.why, `${tH} h`).toBe('aphasia');
+      expect(r.symptoms.some((s) => s.id === 'callosal_apraxia' || s.id === 'alien_hand'), `${tH} h`).toBe(false);
+    }
+  });
+
+  it('the left M1 template with moderate collaterals does not list the left hand working against a plegic right one', () => {
+    for (const tH of [336, 4320]) {
+      const r = simulate(inputOf('l_m1', { tH, collateral: 'moderate' }));
+      expect(item(r, '5r'), `${tH} h`).toBeGreaterThanOrEqual(3);
+      expect(r.symptoms.some((s) => s.id === 'alien_hand'), `${tH} h`).toBe(false);
+      expect(r.unexaminable.find((s) => s.id === 'alien_hand' && s.side === 'l')?.why, `${tH} h`).toBe('paralysed');
+    }
+  });
+
+  it('a left pericallosal and inferior-division infarct: the left hand working against the right is seen beside the aphasia, its apraxia is not examined', () => {
+    for (const tH of [24, 336, 4320]) {
+      const r = run(occl('aca_pericallosal_l', 'mca_m2_inf_l'), tH);
+      expect(item(r, '5r'), `${tH} h`).toBeLessThan(3);
+      expect(sev(r, 'aphasia_wernicke') + sev(r, 'aphasia_global'), `${tH} h`).toBeGreaterThanOrEqual(2);
+      expect(r.symptoms.some((s) => s.id === 'alien_hand' && s.side === 'l'), `${tH} h`).toBe(true);
+      expect(r.unexaminable.find((s) => s.id === 'callosal_apraxia' && s.side === 'l')?.why, `${tH} h`).toBe('aphasia');
+    }
+  });
+
+  it('an A2 infarct with a mild weakness keeps both listed', () => {
+    for (const side of ['r', 'l'] as const)
+      for (const tH of [24, 4320]) {
+        const r = run(occl(`aca_a2_${side}`), tH);
+        expect(r.symptoms.some((s) => s.id === 'callosal_apraxia' && s.side === 'l'), `${side} ${tH} h`).toBe(true);
+        expect(r.symptoms.some((s) => s.id === 'alien_hand' && s.side === 'l'), `${side} ${tH} h`).toBe(true);
+        expect(r.unexaminable.filter((s) => ['alien_hand', 'callosal_apraxia'].includes(s.id)), `${side} ${tH} h`).toEqual([]);
+      }
+  });
+
+  it('examinability: the right alien hand needs only its own hand, the callosal signs of the left hand need the right one too, and the alien hand needs no language', () => {
+    const plegicRight = [sym('arm_weak', 'r', 2)];
+    const plegicLeft = [sym('arm_weak', 'l', 2)];
+    expect(examinability('alien_hand', plegicRight, 'r')).toBe('paralysed');
+    expect(examinability('alien_hand', plegicRight, 'l')).toBe('paralysed');
+    expect(examinability('callosal_apraxia', plegicRight, 'l')).toBe('paralysed');
+    expect(examinability('alien_hand', plegicLeft, 'r')).toBeNull();
+    expect(examinability('alien_hand', plegicLeft, 'l')).toBe('paralysed');
+    // a weak arm that still lifts against gravity (NIHSS 5 = 1) shows them
+    expect(examinability('alien_hand', [sym('arm_weak', 'r', 1)], 'l')).toBeNull();
+    const global = [sym('aphasia_global', null, 2)];
+    expect(examinability('alien_hand', global, 'l')).toBeNull();
+    expect(examinability('callosal_apraxia', global, 'l')).toBe('aphasia');
+  });
+});
+
+/**
+ * T3-9: the complete-MCA label names the picture of the whole territory, contralateral face and arm
+ * weakness and sensory loss among it. Four of its nine cortical areas and the striatum were enough:
+ * an M1 thrombectomy whose clot fragment blocked the inferior division (or the prefrontal or the
+ * posterior temporal branch) leaves the striatum infarcted (it has no collaterals and dies in the
+ * first hour), the capsule spared by the early reopening, and the cortex of that branch, the insula
+ * among it, infarcted: four areas, and the label beside no weakness and no sensory loss at all, from
+ * 6 h to 6 months. The label now needs the weakness or the sensory loss it names, listed or not
+ * examinable, or the internal capsule infarcted; the inferior-division label it supersedes is shown
+ * instead.
+ */
+describe('T3-9: the complete-MCA label needs the part of the territory that gives its weakness and sensory loss', () => {
+  const evt = (v: string, d: string, c: CollateralGrade, at: number) => (tH: number) =>
+    run(occl(v), tH, c, { reperfusionH: at, treatment: { method: 'evt', grade: '3', reocclusionAfterH: null, distalEmbolus: d, noReflow: 0 } });
+  /** a weakness of the face, arm or leg or a hemisensory loss of this body side, listed or not examinable */
+  const motorOrSensory = (r: SimResult, body: 'r' | 'l') =>
+    [...r.symptoms, ...r.unexaminable].some((s) => ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'sens_face_arm', 'sens_hemibody'].includes(s.id) && (s.side === body || s.side === 'both'));
+  it.each([
+    ['mca_m1_l', 'mca_m2_inf_l', 'moderate', 1],
+    ['mca_m1_l', 'mca_m2_inf_l', 'good', 2],
+    ['mca_m1_r', 'mca_m2_inf_r', 'poor', 1],
+    ['mca_m1_l', 'mca_prefrontal_l', 'moderate', 1],
+    ['mca_m1_r', 'mca_prefrontal_r', 'poor', 1],
+    ['mca_m1_r', 'mca_temporal_posterior_r', 'moderate', 1],
+  ] as [string, string, CollateralGrade, number][])('%s reopened, a fragment in the %s (%s, at %s h): no complete-MCA label beside no weakness or sensory loss', (v, d, c, at) => {
+    const side = v.slice(-1) as 'r' | 'l';
+    const body = side === 'r' ? 'l' : 'r';
+    for (const tH of STOPS.filter((h) => h >= at)) {
+      const r = evt(v, d, c, at)(tH);
+      if (!motorOrSensory(r, body)) expect(labels(r), `${tH} h`).not.toContain(`mca_complete_${side}`);
+    }
+    // the case of the report: a Wernicke aphasia and a hemianopia, and the inferior division named
+    if (d === 'mca_m2_inf_l' && c === 'moderate') {
+      const r = evt(v, d, c, at)(4320);
+      expect(sev(r, 'aphasia_wernicke')).toBeGreaterThanOrEqual(1);
+      expect(motorOrSensory(r, 'r')).toBe(false);
+      expect(labels(r)).not.toContain('mca_complete_l');
+      expect(labels(r)).toContain('mca_inferior_l');
+    }
+  });
+
+  it('an M1 or carotid-T occlusion left closed keeps the complete-MCA label', () => {
+    for (const side of ['r', 'l'] as const)
+      for (const v of [`mca_m1_${side}`, `ica_terminal_${side}`])
+        for (const collateral of ['good', 'poor'] as CollateralGrade[])
+          for (const tH of [24, 2160]) expect(labels(run(occl(v), tH, collateral)), `${v} ${collateral} ${tH} h`).toContain(`mca_complete_${side}`);
+  });
+});

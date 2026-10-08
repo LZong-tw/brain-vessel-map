@@ -141,7 +141,7 @@ export function BrainstemSections({ sim }: { sim: SimResult }) {
         : colorMode === 'anatomy'
           ? regionColor(rid)
           : colorMode === 'edema'
-            ? edemaColor(bed, sim.edema.cytotoxic[bed.id], sim.edema.vasogenic[bed.id], sim.edema.swelling[bed.id])
+            ? edemaColor(bed, sim.edema.dwi[bed.id], sim.edema.flair[bed.id], sim.edema.swelling[bed.id])
             : stateColor(bed, sim.beds[bed.id], tH);
     return toHex(c);
   };

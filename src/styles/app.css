@@ -710,6 +710,16 @@ input[type='range'] {
   border: 1px solid rgba(240, 161, 50, 0.4);
   color: #ffdca8;
 }
+.callout.note {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  color: var(--text-2);
+}
+.callout.danger {
+  background: rgba(229, 72, 77, 0.13);
+  border: 1px solid rgba(229, 72, 77, 0.45);
+  color: #ffc9cb;
+}
 details.syndrome {
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -1751,6 +1761,29 @@ svg .flow-num {
   width: 4px;
   height: 4px;
 }
+/* present, but not examinable at the patient's level of consciousness (X1-2) */
+.now-symptoms.unexaminable .now-event::before {
+  background: transparent;
+  border: 1.5px dashed var(--text-2);
+  width: 4px;
+  height: 4px;
+}
+.func-group.unexaminable {
+  border-left-style: dashed;
+}
+.func-group.unexaminable .func-title {
+  color: var(--text-2);
+}
+/* the symptom lists (Now, Outcome): the same deficits, named apart in a muted, dashed group */
+.sym-group.unexaminable,
+.sym-group.outcome-unexaminable {
+  border-left: 2px dashed var(--text-2);
+  padding-left: 8px;
+}
+.sym-group.unexaminable h4,
+.sym-group.outcome-unexaminable h4 {
+  color: var(--text-2);
+}
 .rec-status li.little .rec-dot {
   background: transparent;
   border: 2px solid var(--warn);
@@ -1861,6 +1894,18 @@ select.sched-sev {
   padding: 4px 6px;
   font-size: 12.5px;
 }
+.lacune-site {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  min-width: 0;
+}
+.lacune-site select {
+  max-width: 100%;
+  padding: 4px 6px;
+  font-size: 12.5px;
+}
 .sched-add {
   display: flex;
   align-items: flex-end;
@@ -1950,6 +1995,9 @@ select.sched-sev {
 }
 .badge.cd-better {
   color: #a8e6b4;
+}
+.badge.cd-again {
+  color: var(--text-2);
 }
 
 /* treatment details (Settings) and the treatment summary (Results) */
@@ -2496,6 +2544,77 @@ select.sched-sev {
   background: var(--bg-3);
   border: 1px solid var(--line-2);
   color: var(--text-2);
+}
+
+/* 最終: common problems after stroke (population figures, not the case's symptoms) */
+.outcome-risks > p {
+  margin: 0 0 6px;
+}
+.risk-group {
+  margin: 8px 0;
+}
+.risk-group h4 {
+  margin: 6px 0 2px;
+}
+.risk-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.risk-item {
+  padding: 6px 0 6px 8px;
+  border-left: 3px solid var(--line-2);
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.risk-item:first-child {
+  border-top: 0;
+}
+.risk-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.risk-prev {
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.risk-prev strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.risk-desc,
+.risk-note,
+.risk-factors p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.risk-desc {
+  color: var(--text-2);
+}
+.risk-note {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(240, 161, 50, 0.1);
+  color: var(--text);
+}
+.risk-factors {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.risk-factors summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.risk-source {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-style: normal;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
 }
 
 /* (end of outcome panel section) */

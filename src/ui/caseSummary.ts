@@ -4,17 +4,20 @@
  * Pure: takes the relevant state, returns strings.
  */
 
-import { VESSEL_BY_ID, vesselName } from '../anatomy';
+import { VESSEL_BY_ID, tr, vesselName } from '../anatomy';
+import { lacuneSitesOf } from '../anatomy/lacunes';
+import { LOW_MAP } from '../anatomy/syndromes';
 import { REPERFUSION_STOPS, formatHours } from '../anatomy/timeline';
 import type { Lang } from '../anatomy/types';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
-import { endOf, phasesOf, startOf } from '../engine/schedule';
-import type { TreatmentOptions } from '../engine/treatment';
+import { endOf, inWindow, phasesOf, startOf } from '../engine/schedule';
+import { GRADE_REPERFUSED, type TreatmentOptions } from '../engine/treatment';
 import { UI } from '../i18n/ui';
 import { CASE_UI } from '../i18n/uiCase';
 import { STACK_UI } from '../i18n/uiStack';
+import { TREATMENT_UI } from '../i18n/uiTreatment';
 import { formatClock } from './scheduleFormat';
-import { treatmentSummary } from './treatment';
+import { reopenedVesselIds, treatmentSummary } from './treatment';
 
 /** the parts of the app state that make up a case */
 export interface CaseState {
@@ -27,8 +30,8 @@ export interface CaseState {
   decompression: boolean;
 }
 
-/** below this mean arterial pressure the whole brain is underperfused: a case even without an occlusion */
-export const LOW_MAP = 70;
+/** below this mean arterial pressure the whole brain is underperfused: a case even without an occlusion (the watershed label's setting too) */
+export { LOW_MAP };
 
 const SEP = ' · ';
 /** English summaries that start a header begin with a capital */
@@ -51,7 +54,13 @@ const nameOf = (id: string, lang: Lang) => (VESSEL_BY_ID[id] ? vesselName(VESSEL
 
 /** how a single occlusion narrows its vessel, or '' for a complete occlusion */
 function degree(o: Occlusion, lang: Lang): string {
-  if (o.branch) return UI[lang].lacuneTag;
+  if (o.branch) {
+    // a lacune at a site other than the bundle's classic one says where (C6-F5)
+    const v = VESSEL_BY_ID[o.vessel];
+    const sites = v ? lacuneSitesOf(v.baseId) : [];
+    const site = sites.find((x) => x.id === o.lacuneSite);
+    return site && site !== sites[0] ? `${UI[lang].lacuneTag}${SEP}${tr(site.name, lang)}` : UI[lang].lacuneTag;
+  }
   return o.severity < 1 ? STACK_UI[lang].partial(Math.round(o.severity * 100)) : '';
 }
 
@@ -100,15 +109,27 @@ const treatmentTime = (h: number, lang: Lang) => (REPERFUSION_STOPS.includes(h) 
 
 /**
  * "未治療", "24 小時再通 · 取栓 · eTICI 2b67", plus decompression when chosen. `compact` puts the
- * treatment details in brackets after the time, for the summary line.
+ * treatment details in brackets after the time, for the summary line. An attempt that reopens
+ * nothing (eTICI 0) is an attempt at that time, not a reopening (V1-12): the recanalisation event
+ * of the same case says it failed. A treatment that finds nothing it can reopen is no reopening
+ * either and has no eTICI grade (U2-8): IV thrombolysis for a lacunar occlusion, which the model
+ * does not reopen, is named as given then; a time when nothing complete is occluded (a stenosis,
+ * an occlusion not begun or already reopened) has nothing to reopen. With a downstream distal
+ * embolus the grade is the one the final angiogram shows (U2-9).
  */
-export function treatmentLine(s: Pick<CaseState, 'reperfusionH' | 'treatment' | 'decompression'>, lang: Lang, compact = false): string {
+export function treatmentLine(s: Pick<CaseState, 'occlusions' | 'reperfusionH' | 'treatment' | 'decompression'>, lang: Lang, compact = false): string {
   const c = CASE_UI[lang];
   const parts: string[] = [];
+  const reopened = s.reperfusionH === null ? [] : reopenedVesselIds(s.occlusions, s.reperfusionH);
   if (s.reperfusionH === null) parts.push(s.decompression ? c.noReperfusion : c.untreated);
-  else {
-    const when = c.reopenedAt(treatmentTime(s.reperfusionH, lang));
-    const details = treatmentSummary(s.treatment, lang);
+  else if (!reopened.length) {
+    const at = treatmentTime(s.reperfusionH, lang);
+    const lacunar = s.occlusions.some((o) => o.branch && o.severity >= 1 && inWindow(o, s.reperfusionH!));
+    parts.push(lacunar ? c.lacunarTreatedAt(TREATMENT_UI[lang].methodShort[s.treatment.method], at) : c.nothingToReopenAt(at));
+  } else {
+    const failed = !!s.treatment && GRADE_REPERFUSED[s.treatment.grade] === 0;
+    const when = (failed ? c.attemptedAt : c.reopenedAt)(treatmentTime(s.reperfusionH, lang));
+    const details = treatmentSummary(s.treatment, lang, reopened);
     if (!details) parts.push(when);
     else if (compact) parts.push(c.withDetails(when, details));
     else parts.push(when, details);

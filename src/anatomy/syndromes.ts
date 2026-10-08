@@ -1,8 +1,21 @@
 /**
  * Named stroke syndromes, detected from which regions are dysfunctional (not merely from
  * which vessel is blocked — the same vessel can produce different syndromes depending on
- * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Fiester et al.,
- * RadioGraphics 2019 (brainstem syndromes); Schmahmann, Stroke 2003 (thalamus).
+ * collaterals and anatomy). Sources: Caplan's Stroke (5th ed.); Tatu et al., Neurology 1996
+ * (brainstem territories); Sciacca et al., Radiographics 2019 (general review of brainstem
+ * anatomy and syndromes; its full text was not checked rule by rule); Schmahmann, Stroke 2003
+ * and Bogousslavsky, Regli & Uske, Neurology 1988 (thalamus: four arterial territories, four
+ * syndromes); Lazzaro et al., AJNR 2010 and Arauz et al., J Stroke Cerebrovasc Dis 2014 (artery of
+ * Percheron with and without the midbrain). Pontine patterns: Kumral et al., J Neurol 2002 (150 isolated pontine infarcts) and
+ * Bassetti et al., Neurology 1996 (36); locked-in varieties: Bauer et al., J Neurol 1979.
+ *
+ * Two kinds of label. One named for its signs (neglect, Wallenberg, pure sensory stroke,
+ * locked-in …) also needs those signs in the symptom list shown at the same time (`requires`):
+ * the regions alone do not decide it, because weeks later spared pathways may have taken a sign
+ * over while the region stays damaged, and the region rules use their own thresholds. One named
+ * for the vascular pattern of the damaged tissue (a territory, a watershed infarct: `pattern`)
+ * stays while the tissue is damaged, and is marked clinically silent when no symptom from that
+ * side is left.
  * TODO(medical-review)
  */
 
@@ -11,16 +24,67 @@ import type { L, Side } from './types';
 export interface SyndromeCtx {
   /** dysfunctional fraction (0–1) of region `base` on `side` */
   f(base: string, side: Side): number;
+  /**
+   * dysfunctional fraction of region `base` on `side` at the onset of the ischaemic event (core and
+   * penumbra in its first hour; 0 before it): what the vascular pattern was at its widest
+   */
+  acute(base: string, side: Side): number;
   has(base: string, side: Side, thr?: number): boolean;
   hasAny(bases: string[], side: Side, thr?: number): boolean;
   both(base: string, thr?: number): boolean;
   occluded(base: string, side?: Side | 'm'): boolean;
   reversed(base: string, side?: Side | 'm'): boolean;
-  /** affected mL in border-zone beds of a hemisphere and in total */
-  border(side: Side): { border: number; total: number; kinds: string[] };
+  /** affected mL in border-zone beds of a hemisphere and in total (see BorderPicture) */
+  border(side: Side): BorderPicture;
+  /**
+   * a haemodynamic setting for a border-zone infarct on this side (haemodynamicSetting, Z4-14): a
+   * low blood pressure, or a tight stenosis or occlusion of the carotid or M1 on this side begun by
+   * the displayed time
+   */
+  haemodynamic(side: Side): boolean;
   /** number of dysfunctional cortical regions on a side */
   cortexCount(side: Side, thr?: number): number;
   map: number;
+  /** region `base` on `side` is damaged by a lacune (one branch of a perforator bundle) alone */
+  lacune(base: string, side: Side): boolean;
+  /**
+   * the single-branch (lacunar) occlusions of perforator bundle `base` on `side` that have begun
+   * by the displayed time, in time order: when each began, when it reopened by itself (null: it
+   * lasts), and whether it reopened before any of its tissue had died (a TIA)
+   */
+  branchEpisodes(base: string, side: Side): BranchEpisode[];
+  /** the displayed time (h, on the timeline clock) */
+  tH: number;
+  /**
+   * severity (0 when absent) of a current, non-delayed symptom: on body side `side` (a symptom
+   * listed for both sides counts for each), or its highest severity anywhere when `side` is left out
+   */
+  sym(id: string, side?: Side): number;
+  /**
+   * a current, non-delayed symptom `id` produced by a region on side `lesionSide` of the brain,
+   * listed or there but not examinable at the patient's level of consciousness (which has not gone:
+   * X1-2): a sign a label names (V3-14)
+   */
+  signFrom(id: string, lesionSide: Side): boolean;
+}
+
+/** one single-branch (lacunar) occlusion of a perforator bundle (SyndromeCtx.branchEpisodes) */
+export interface BranchEpisode {
+  fromH: number;
+  /** when it reopened by itself; null: it lasts */
+  toH: number | null;
+  /** it reopened before any of its tissue had died: a TIA, not an infarcting attack */
+  transient: boolean;
+}
+
+/** What the symptom list shown at the same time contains (for the signs a label needs). */
+export interface SymptomQuery {
+  /** present at all */
+  has(id: string): boolean;
+  /** present on this body side (a symptom of both sides counts for each), at least `minSev` severe */
+  on(id: string, bodySide: Side, minSev?: 1 | 2 | 3): boolean;
+  /** produced by a region on this side of the brain (for symptoms without a body side), of base `base` when given */
+  from(id: string, lesionSide: Side, base?: string): boolean;
 }
 
 export type SyndromeGroup = 'anterior' | 'posterior' | 'brainstem' | 'cerebellar' | 'lacunar' | 'watershed' | 'other';
@@ -33,11 +97,28 @@ export interface SyndromeDef {
   /** evaluated per side (lesion side) */
   lateral: boolean;
   test: (c: SyndromeCtx, side: Side) => boolean;
+  /**
+   * a label named for its signs: those signs must be in the symptom list shown at the same time
+   * (`side` is the lesion side; 'r' for labels that are not lateral)
+   */
+  requires?: (q: SymptomQuery, side: Side) => boolean;
+  /**
+   * a label named for the vascular pattern of the damaged tissue (territory, watershed): it stays
+   * while the tissue is damaged and is marked clinically silent when no symptom from that side
+   * (from any region, for a bilateral label) is left
+   */
+  pattern?: boolean;
   /** hides these syndromes when this one matches on the same side */
   supersedes?: string[];
 }
 
-const MCA_CORTEX = [
+const other = (s: Side): Side => (s === 'r' ? 'l' : 'r');
+/** any weakness or incoordination of a body side: what a "pure sensory" stroke does not have */
+const MOTOR_OR_ATAXIC = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'hand_clumsy', 'ataxia_limb'];
+const weakOn = (q: SymptomQuery, bodySide: Side) => ['arm_weak', 'leg_weak'].some((id) => q.on(id, bodySide));
+
+/** the cortical areas of the MCA territory (also the large-hemispheric-infarction rule, clinical.ts) */
+export const MCA_CORTEX = [
   'precentral_face_arm',
   'postcentral_face_arm',
   'broca',
@@ -50,11 +131,192 @@ const MCA_CORTEX = [
 ];
 
 const mcaCount = (c: SyndromeCtx, s: Side) => MCA_CORTEX.filter((b) => c.has(b, s, 0.3)).length;
+/**
+ * the weakness and sensory loss of the other side that the complete-MCA label names (T3-9): a
+ * weakness of the face, arm or leg, or a sensory loss of the face and arm or of the whole side
+ */
+const MCA_MOTOR_SENSORY = ['face_weak', 'arm_weak', 'arm_weak_proximal', 'leg_weak', 'sens_face_arm', 'sens_hemibody'];
+
+/**
+ * The aphasia of each MCA division (W3-9): the superior division (Broca's area and the frontal
+ * operculum) gives a non-fluent, expressive aphasia, the inferior division (the posterior temporal
+ * and inferior parietal cortex) a fluent one with poor comprehension or repetition; a global or
+ * mixed transcortical aphasia is the picture of neither. A division label is not shown beside an
+ * aphasia that belongs to the other division (or to neither): its text names the aphasia it gives.
+ */
+const DIVISION_APHASIA = {
+  superior: ['aphasia_broca', 'aphasia_tc_motor'],
+  inferior: ['aphasia_wernicke', 'aphasia_conduction', 'aphasia_tc_sensory'],
+  neither: ['aphasia_global', 'aphasia_mixed_tc'],
+};
+
+/** a field defect of the opposite half-field */
+const FIELD_DEFECTS = ['hemianopia', 'quadrant_sup', 'quadrant_inf'];
+/**
+ * The signs the inferior-division label names (V3-14), by lesion side: on the left a fluent aphasia
+ * with poor comprehension or repetition (DIVISION_APHASIA), on the right left neglect and
+ * visuospatial problems, on either side often a field defect (Meyer's loop, the deep parietal
+ * radiation). The label is shown only beside one of them (SyndromeCtx.signFrom), listed or not
+ * examinable, as the superior division's lasts as long as its deficits do (W3-9): a right M1
+ * reopened at 4.5 h with good collaterals keeps 32 % of the posterior superior temporal gyrus
+ * infarcted, its neglect compensated by 3 months, and was still named an inferior-division
+ * syndrome at 3 and 6 months beside a hemiparesis, abulia and memory loss alone.
+ */
+const INFERIOR_SIGNS: Record<Side, string[]> = {
+  l: [...DIVISION_APHASIA.inferior, ...FIELD_DEFECTS],
+  r: ['neglect', 'visuospatial', ...FIELD_DEFECTS],
+};
+
+/** perforator bundles whose single-branch attacks make up a capsular or pontine warning syndrome */
+const WARNING_BUNDLES = ['lenticulostriate', 'acha', 'pontine_paramedian_rostral', 'pontine_paramedian_caudal', 'pontine_paramedian_inferior'];
+/** a second attack within this many hours of one that cleared (Paul 2012: all within 24 h) */
+const WARNING_WITHIN_H = 24;
+/** the label stays this long after the latest attack or occlusion of that branch (7-day stroke risk, Paul 2012) */
+const WARNING_SHOWN_H = 168;
+/**
+ * A crescendo of stereotyped lacunar TIAs: from the start of a second TIA of the same branch
+ * within a day of a first one, for a week after its latest attack (or the lasting occlusion that
+ * followed). Only attacks that cleared before any tissue died count as TIAs (R2-2): every stroke
+ * after a capsular warning syndrome followed a recurrent TIA within 24 h of the first (Paul NL et
+ * al. Neurology 2012;79:1356-1362, PMID 22972645), so one TIA followed by a stroke, or attacks
+ * that each leave an infarct, are not the syndrome.
+ */
+function crescendo(episodes: BranchEpisode[], tH: number): boolean {
+  const tias = episodes.filter((e) => e.transient);
+  for (let j = 1; j < tias.length; j++) {
+    const a = tias[j - 1];
+    const b = tias[j];
+    if (a.toH !== null && a.toH <= b.fromH && b.fromH - a.fromH <= WARNING_WITHIN_H) {
+      const last = episodes[episodes.length - 1].fromH;
+      return tH >= b.fromH && tH < last + WARNING_SHOWN_H;
+    }
+  }
+  return false;
+}
+
+/**
+ * The affected volume (mL, primary vascular pattern) of a hemisphere: in its border-zone beds
+ * (`border`, of the kinds `kinds`) and in all (`total`); the same within the MCA territory and its
+ * borders (`mca`: the beds of an MCA division or of the lateral lenticulostriate arteries, and the
+ * border-zone beds between them and a neighbouring territory); and the affected share of the
+ * border-zone beds' volume and of the ACA's or the PCA's own beds, the higher of the two
+ * (`density`).
+ */
+export interface BorderPicture {
+  border: number;
+  total: number;
+  kinds: string[];
+  mca: { border: number; total: number };
+  density: { border: number; neighbourCore: number };
+}
+
+/** a territory code of the MCA (its divisions, the insula, the lateral lenticulostriate arteries) */
+export const isMcaTerritory = (t: string) => t.startsWith('MCA') || t === 'LLS';
+
+/**
+ * A hemisphere whose dysfunction is a border-zone (watershed) picture: at least 4 mL in border-zone
+ * beds, and at least 35 % of all its dysfunctional tissue. The watershed label uses it, and so does
+ * the border-zone motor pattern of the motor strip (simulate → clinical.aggregateSymptoms).
+ */
+export const isWatershedPicture = (b: { border: number; total: number }) => b.border >= 4 && b.border / Math.max(b.total, 1e-6) >= 0.35;
+
+/**
+ * The haemodynamic picture of the MCA territory (V3-2): its damage reaches across the territory
+ * (four of its cortical areas, as the complete-MCA label needs); within the territory and its
+ * borders it lies as a border-zone picture (isWatershedPicture of BorderPicture.mca); and the cores
+ * of the neighbouring territories are spared, as a watershed infarct spares the cores of the
+ * territories that meet there: the ACA's and the PCA's own beds affected at most half as densely
+ * as the border zones (NEIGHBOUR_CORE_SHARE). The share of the whole hemisphere alone let the circle
+ * of Willis decide: a tight right carotid stenosis at a low blood pressure left more of the right
+ * ACA territory itself underperfused (16 mL, 15 % of it, against 5 mL on the left; the circle is
+ * not mirrored), so 33 % of the hemisphere's damage lay in the border zones against 36 % on the
+ * left, and the same picture of the MCA territory (37–38 % in its border zones, which are half
+ * affected) was named a complete MCA syndrome on the right and watershed on the left. Not for the
+ * border-zone motor pattern, nor without the reach across the MCA territory or the spared
+ * neighbouring cores: within the MCA territory and its borders an ACA infarct, or the residue of an
+ * M1 reopened early (the striatum and the internal border zone beside it), lies mostly in
+ * border-zone beds, and behind both carotids occluded the ACA territories themselves are infarcted
+ * almost as densely as the border zones (45 % against 53 %), a territorial infarct of both
+ * carotids that the ICA-territory label names.
+ */
+const mcaBorderZonePicture = (c: SyndromeCtx, s: Side) => {
+  const b = c.border(s);
+  return isWatershedPicture(b.mca) && mcaCount(c, s) >= 4 && b.density.neighbourCore <= NEIGHBOUR_CORE_SHARE * b.density.border;
+};
+/** the cores of the ACA and PCA territories at most this share as densely affected as the border zones (V3-2). TODO(medical-review): 0.5 */
+const NEIGHBOUR_CORE_SHARE = 0.5;
+
+/** below this mean arterial pressure (mmHg) the whole brain is underperfused (also the case summary's "hypoperfusion") */
+export const LOW_MAP = 70;
+/** a stenosis from this severity is tight (NASCET severe: 70 % or more) */
+const TIGHT_STENOSIS = 0.7;
+
+/**
+ * Whether the setting of a border-zone (watershed) infarct of hemisphere `side` is haemodynamic
+ * (Z4-14): a mean arterial pressure below LOW_MAP, or a tight stenosis or an occlusion, begun by the
+ * displayed time, of an artery that feeds the whole hemisphere's border zones — the common or
+ * internal carotid on that side (any segment), the brachiocephalic trunk for the right, the aortic
+ * arch for both — or of its M1 segment. One-sided watershed infarcts mostly come with carotid
+ * occlusion or tight stenosis plus a haemodynamic factor (Bogousslavsky J, Regli F. Neurology
+ * 1986;36:373–377); with an MCA stenosis, chains of deep border-zone infarcts were the commonest
+ * pattern of multiple infarcts (11 of 15: Wong KS et al. Ann Neurol 2002;52:74–81). A single
+ * distal branch occluded by an embolus leaves a branch-territory infarct even where it lies in
+ * border-zone beds (an A2 or pericallosal occlusion was labelled watershed).
+ */
+export function haemodynamicSetting(map: number, occlusions: readonly { vessel: string; severity: number }[], side: Side): boolean {
+  if (map < LOW_MAP) return true;
+  const feeds = [`cca_${side}`, `ica_cervical_${side}`, `ica_petrous_cavernous_${side}`, `ica_ophthalmic_seg_${side}`, `ica_terminal_${side}`, `mca_m1_${side}`, 'aortic_arch'];
+  if (side === 'r') feeds.push('brachiocephalic');
+  return occlusions.some((o) => o.severity >= TIGHT_STENOSIS && feeds.includes(o.vessel));
+}
+
+/** both sides of the ventral pons (upper or lower) involved, at least `thr` */
+const bothBases = (c: SyndromeCtx, thr: number) => c.both('pons_rostral_basis', thr) || c.both('pons_caudal_basis', thr);
+/** the coma comes from the arousal network of the upper pontine or paramedian midbrain tegmentum */
+const arousalComa = (q: SymptomQuery) =>
+  (['r', 'l'] as Side[]).some((sd) => q.from('coma', sd, 'pons_rostral_tegmentum') || q.from('coma', sd, 'midbrain_paramedian'));
+/** not awake: coma, or a disorder of consciousness after it (C3-F1, C3-F2) */
+const unaware = (c: SyndromeCtx) => c.sym('coma') > 0 || c.sym('disorder_of_consciousness') > 0;
+/** nothing moves in any limb (Bauer's classical locked-in syndrome) */
+const limbsParalysed = (c: SyndromeCtx) =>
+  (['r', 'l'] as Side[]).every((sd) => c.sym('arm_weak', sd) >= 3 && c.sym('leg_weak', sd) >= 3);
+/**
+ * the share of both ventral pontine halves infarcted from which the model names the classical
+ * locked-in syndrome (with every limb paralysed); the bottleneck of the recovery model acts in full
+ * from here (redundancy.BOTTLENECK_FULL, W1-7). TODO(medical-review): 0.4
+ */
+export const LOCKED_IN_CLASSICAL_BASES = 0.4;
+/**
+ * classical locked-in: both ventral pons, awake, every limb paralysed (the label also needs the
+ * anarthria, `requires`)
+ */
+const classicalLockedIn = (c: SyndromeCtx) => bothBases(c, LOCKED_IN_CLASSICAL_BASES) && !unaware(c) && limbsParalysed(c);
+/** the other side of the ventral pons is spared (below the symptom threshold) */
+const otherBasesSpared = (c: SyndromeCtx, s: Side) => {
+  const o: Side = s === 'r' ? 'l' : 'r';
+  return !c.has('pons_rostral_basis', o, 0.25) && !c.has('pons_caudal_basis', o, 0.25);
+};
+/**
+ * the region floor of the incomplete locked-in label, below the symptom threshold (0.25): the
+ * swelling around smaller infarcts of both ventral pontine halves can keep their bilateral signs
+ * for days to weeks (after a reopening only signs still present when blood returned: it does not
+ * bring back signs that had cleared, X2-9), and the label follows those signs (`requires`),
+ * whatever the infarct (R5-3)
+ */
+export const LOCKED_IN_BASES_FLOOR = 0.15;
+/**
+ * the other paramedian midbrain half is spared (below the symptom threshold): a crossed midbrain
+ * syndrome is one-sided; both halves are one bilateral picture (R5-1, as `otherBasesSpared` for the pons)
+ */
+const otherMidbrainSpared = (c: SyndromeCtx, s: Side) => !c.has('midbrain_paramedian', other(s), 0.25);
+/** what a bilateral ventral pontine label hides: the one-sided pontine and lateral syndromes */
+const PONTINE_ONE_SIDED = ['pontine_ventral', 'pontine_anteromedial', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'];
 
 export const SYNDROMES: SyndromeDef[] = [
   // ─────────────── anterior circulation ───────────────
   {
     id: 'ica_territory',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '內頸動脈供應區梗塞（前＋中大腦動脈區）', en: 'ICA-territory infarction (ACA + MCA territories)' },
@@ -67,18 +329,33 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'mca_complete',
+    pattern: true,
     group: 'anterior',
     lateral: true,
-    name: { zh: '完全性中大腦動脈症候群（M1）', en: 'Complete MCA syndrome (M1)' },
+    // W3-9: named for the picture of the whole territory, not for the M1 segment: the carotid T, a
+    // carotid occlusion whose collaterals fail, or the whole hemisphere underperfused at first give it
+    // too (a border-zone picture is named by the watershed label, which supersedes this one)
+    name: { zh: '完全性中大腦動脈症候群', en: 'Complete MCA syndrome' },
     desc: {
-      zh: '對側臉與手臂重於腿的偏癱與感覺喪失、對側同側偏盲、雙眼偏向病灶側。左側（優勢半球）：全面性失語；右側：左側忽略、病覺缺失。豆紋動脈區（基底核、內囊）因沒有側枝，常最先壞死。',
-      en: 'Contralateral face/arm > leg weakness and sensory loss, homonymous hemianopia, gaze deviation towards the lesion. Left (dominant): global aphasia; right: left neglect and anosognosia. The lenticulostriate territory (basal ganglia, capsule) has no collaterals and usually dies first.',
+      zh: '整個中大腦動脈區受損，通常是中大腦動脈主幹（M1）阻塞，或內頸動脈阻塞而側枝補不上：對側臉與手臂重於腿的偏癱與感覺喪失、對側同側偏盲、雙眼偏向病灶側。左側（優勢半球）：全面性失語；右側：左側忽略、病覺缺失。豆紋動脈區（基底核、內囊）因沒有側枝，常最先壞死。',
+      en: 'The whole MCA territory, usually from an occlusion of the MCA trunk (M1), or of the internal carotid when collaterals cannot make up for it: contralateral face/arm > leg weakness and sensory loss, homonymous hemianopia, gaze deviation towards the lesion. Left (dominant): global aphasia; right: left neglect and anosognosia. The lenticulostriate territory (basal ganglia, capsule) has no collaterals and usually dies first.',
     },
-    test: (c, s) => mcaCount(c, s) >= 4 && c.hasAny(['putamen', 'ic_posterior_limb', 'ic_genu'], s, 0.3),
+    // T3-9: and beside the weakness or sensory loss it names, listed or not examinable, or with the
+    // internal capsule infarcted: four of its cortical areas and the striatum were enough, and an M1
+    // thrombectomy whose clot fragment blocked the inferior division (or the prefrontal or posterior
+    // temporal branch) left the striatum (dead within the first hour), that branch's cortex with the
+    // insula, the capsule spared by the early reopening, and the label beside a Wernicke aphasia, a
+    // hemianopia and no weakness or sensory loss at all, from 6 h to 6 months; the division label it
+    // superseded is shown then, as by the sign rule of that label (V3-14)
+    test: (c, s) =>
+      mcaCount(c, s) >= 4 &&
+      c.hasAny(['putamen', 'ic_posterior_limb', 'ic_genu'], s, 0.3) &&
+      (c.hasAny(['ic_posterior_limb', 'ic_genu'], s, 0.3) || MCA_MOTOR_SENSORY.some((id) => c.signFrom(id, s))),
     supersedes: ['mca_superior', 'mca_inferior'],
   },
   {
     id: 'mca_superior',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '中大腦動脈上分支症候群', en: 'MCA superior-division syndrome' },
@@ -86,36 +363,54 @@ export const SYNDROMES: SyndromeDef[] = [
       zh: '對側臉與手臂無力及感覺喪失（腿較輕），雙眼偏向病灶側；左側受損時為表達性（布洛卡）失語——聽得懂但說不出來。',
       en: "Contralateral face and arm weakness and sensory loss (leg spared), gaze deviation; on the left, expressive (Broca's) aphasia — understands but cannot speak fluently.",
     },
+    // W3-9: at the symptoms' own threshold (0.25), so the label lasts as long as the deficits it names
+    // (a superior-division infarct with good collaterals, Broca's area and the prefrontal cortex 28 %
+    // infarcted, kept its Broca aphasia and lost the label); on the left, not beside an aphasia of
+    // the posterior kind (DIVISION_APHASIA)
     test: (c, s) =>
-      c.has('precentral_face_arm', s, 0.3) &&
-      c.hasAny(['broca', 'prefrontal_dorsolateral'], s, 0.3) &&
-      !c.has('superior_temporal_posterior', s, 0.3),
+      c.has('precentral_face_arm', s) &&
+      c.hasAny(['broca', 'prefrontal_dorsolateral'], s) &&
+      !c.has('superior_temporal_posterior', s) &&
+      !(s === 'l' && DIVISION_APHASIA.inferior.concat(DIVISION_APHASIA.neither).some((id) => c.sym(id) > 0)),
   },
   {
     id: 'mca_inferior',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '中大腦動脈下分支症候群', en: 'MCA inferior-division syndrome' },
     desc: {
-      zh: '通常沒有明顯無力。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併對側上象限偏盲。',
-      en: "Usually little weakness. Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often an upper quadrantanopia.",
+      zh: '通常沒有明顯無力；若有偏癱，表示深部的豆紋動脈區（殼核、內囊）也梗塞了，例如 M1 阻塞過了兩、三個小時才打通之後（見「紋狀體內囊梗塞」）。左側：接受性（韋尼克）失語——說話流利卻聽不懂、答非所問，常被誤以為精神錯亂；右側：左側忽略、空間障礙。常合併視野缺損：顳葉的視放射（Meyer 環）造成對側上象限偏盲，頂葉深部的視放射也受損時則為同側偏盲。',
+      en: "Usually little weakness; a hemiparesis means the deep (lenticulostriate) territory — putamen, internal capsule — is infarcted too, as after an M1 occlusion reopened only after the first two or three hours (see the striatocapsular label). Left: receptive (Wernicke's) aphasia — fluent but meaningless speech, often mistaken for confusion; right: left neglect and visuospatial problems. Often a field defect: an upper quadrantanopia from the temporal optic radiation (Meyer's loop), or a hemianopia when the deep parietal radiation is hit too.",
     },
+    // W3-9: at the symptoms' own threshold, as the superior division; on the left, not beside an
+    // aphasia of the anterior kind (12 h after an M1 thrombectomy the whole territory regaining its
+    // function, with an expressive aphasia, was named for the receptive one). V3-14: and only beside
+    // one of the signs it names (INFERIOR_SIGNS)
     test: (c, s) =>
-      c.hasAny(['superior_temporal_posterior', 'angular'], s, 0.3) && !c.has('precentral_face_arm', s, 0.3),
+      c.hasAny(['superior_temporal_posterior', 'angular'], s) &&
+      !c.has('precentral_face_arm', s) &&
+      !(s === 'l' && DIVISION_APHASIA.superior.concat(DIVISION_APHASIA.neither).some((id) => c.sym(id) > 0)) &&
+      INFERIOR_SIGNS[s].some((id) => c.signFrom(id, s)),
   },
   {
     id: 'aca',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '前大腦動脈症候群', en: 'ACA syndrome' },
     desc: {
-      zh: '對側腿明顯無力與感覺喪失（手臂較輕、臉通常正常）、尿失禁、意志缺失；可能出現異己手、左側受損時經皮質運動性失語。',
-      en: 'Contralateral leg weakness and sensory loss (arm milder, face spared), urinary incontinence, abulia; possibly alien hand and, on the left, transcortical motor aphasia.',
+      zh: '對側腿明顯無力與感覺喪失（手臂較輕、臉通常正常）、尿失禁、意志缺失；可能出現異己手（胼胝體）、左側受損時經皮質運動性失語。側枝保住旁中央小葉時，腿只輕微無力或不無力，內側額葉、扣帶迴與胼胝體的梗塞主要表現為意志缺失、尿失禁與這些徵象。',
+      en: 'Contralateral leg weakness and sensory loss (arm milder, face spared), urinary incontinence, abulia; possibly alien hand (corpus callosum) and, on the left, transcortical motor aphasia. When collaterals save the paracentral lobule the leg is weak only mildly or not at all, and the infarct of the medial frontal and cingulate cortex and the corpus callosum shows mainly as abulia, incontinence and these signs.',
     },
-    test: (c, s) => c.has('paracentral', s, 0.3) && c.hasAny(['medial_frontal', 'cingulate'], s, 0.3),
+    // Z4-14: the territory, with or without its paracentral lobule (which collaterals often save):
+    // the medial frontal or cingulate cortex together with another region of the ACA territory
+    test: (c, s) =>
+      c.hasAny(['medial_frontal', 'cingulate'], s, 0.3) && ['paracentral', 'medial_frontal', 'cingulate', 'corpus_callosum'].filter((b) => c.has(b, s, 0.3)).length >= 2,
   },
   {
     id: 'aca_bilateral',
+    pattern: true,
     group: 'anterior',
     lateral: false,
     name: { zh: '雙側前大腦動脈梗塞', en: 'Bilateral ACA infarction' },
@@ -127,14 +422,22 @@ export const SYNDROMES: SyndromeDef[] = [
   },
   {
     id: 'acha',
+    pattern: true,
     group: 'anterior',
     lateral: true,
     name: { zh: '前脈絡叢動脈症候群', en: 'Anterior choroidal artery syndrome' },
+    // Palomeras E et al. Acta Neurol Scand 2008;118:42-47 (PMID 18205882): of 42 consecutive
+    // AChA infarcts 83.3 % presented with a lacunar syndrome, though often not a lacunar infarct;
+    // 10 had an NIHSS > 7; involvement of the superficial territory meant a more severe stroke and
+    // a worse outcome. Hupperts RM et al. Brain 1994;117:825-834 (PMID 7922468): lacunar or
+    // cortical syndromes as often as with other small deep infarcts (C6-F4).
     desc: {
-      zh: '三「偏」：對側偏癱（內囊後肢）、偏身感覺減退、同側偏盲（視徑／外側膝狀體）。梗塞雖小，失能可以很大。',
-      en: 'The triad of contralateral hemiplegia (posterior limb of the internal capsule), hemisensory loss and homonymous hemianopia (optic tract / LGB). Small infarct, large disability.',
+      zh: '完整的三「偏」——對側偏癱（內囊後肢）、偏身感覺減退、同側偏盲（視徑／外側膝狀體）——是整條動脈阻塞的典型，但並不常見：大多數前脈絡叢動脈梗塞以腔隙症候群表現（83%，常是單純無力或感覺運動型），即使梗塞範圍比腔隙大。梗塞延伸到表淺區域（顳葉內側、視徑）時較嚴重、失能較多。',
+      en: 'The full triad — contralateral hemiplegia (posterior limb of the internal capsule), hemisensory loss and homonymous hemianopia (optic tract / LGB) — is the classic picture of the whole artery blocked, but uncommon: most AChA infarcts present with a lacunar syndrome (83 %, often pure motor or sensorimotor), even when the infarct is larger than a lacune. Infarcts that reach the superficial territory (medial temporal lobe, optic tract) are more severe and more disabling.',
     },
     test: (c, s) => c.has('ic_posterior_limb', s, 0.3) && c.has('optic_tract', s, 0.3) && mcaCount(c, s) < 3,
+    // the AChA also feeds part of the lateral geniculate body
+    supersedes: ['thalamic_posterior_choroidal'],
   },
   {
     id: 'gerstmann',
@@ -146,22 +449,36 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Left angular gyrus tetrad: agraphia, acalculia, finger agnosia and left–right confusion, often with alexia.',
     },
     test: (c, s) => s === 'l' && c.has('angular', 'l', 0.4),
+    // the modelled parts of the tetrad (left–right confusion is not a separate symptom); the
+    // tetrad cannot be tested in a patient whose aphasia leaves too little comprehension (global,
+    // Wernicke or mixed transcortical aphasia), so the label is not given then (C1-F1)
+    requires: (q) =>
+      ['agraphia', 'acalculia', 'finger_agnosia'].every((id) => q.from(id, 'l')) &&
+      !['aphasia_global', 'aphasia_wernicke', 'aphasia_mixed_tc'].some((id) => q.has(id)),
   },
   {
+    // the critical sites: the angular gyrus in MCA strokes and the parahippocampal region in PCA
+    // strokes (Mort DJ et al. Brain 2003;126:1986-1997, PMID 12821519), the superior temporal
+    // cortex (Karnath HO et al. Nature 2001;411:950-953, PMID 11418859; disputed by Mort), the
+    // inferior frontal gyrus (Husain M, Kennard C. J Neurol 1996;243:652-657, PMID 8892067) and
+    // the basal ganglia (Karnath HO et al. Brain 2002;125:350-360, PMID 11844735). A superior
+    // parietal lesion alone is not one (C1-F5).
     id: 'neglect',
     group: 'anterior',
     lateral: true,
-    name: { zh: '右頂葉症候群：左側忽略', en: 'Right parietal syndrome: left neglect' },
+    name: { zh: '右半球症候群：左側忽略', en: 'Right-hemisphere syndrome: left neglect' },
     desc: {
-      zh: '忽略左半邊的空間與身體、否認自己癱瘓（病覺缺失）、穿衣與建構失用。患者常不覺得自己有問題，是跌倒與復健困難的主要原因。',
-      en: 'Ignores the left side of space and body, denies the paralysis (anosognosia), dressing and constructional apraxia. Patients often feel nothing is wrong — a major cause of falls and poor rehabilitation.',
+      zh: '忽略左半邊的空間與身體、否認自己癱瘓（病覺缺失）、穿衣與建構失用。常見於右頂下小葉（角迴、緣上迴）、顳上迴、額下迴或基底核受損，後大腦動脈中風則與海馬旁迴有關。患者常不覺得自己有問題，是跌倒與復健困難的主要原因。',
+      en: 'Ignores the left side of space and body, denies the paralysis (anosognosia), dressing and constructional apraxia. Typical of right inferior parietal (angular, supramarginal), superior temporal, inferior frontal or basal ganglia lesions, and of the parahippocampal region in PCA strokes. Patients often feel nothing is wrong — a major cause of falls and poor rehabilitation.',
     },
-    test: (c, s) => s === 'r' && c.hasAny(['angular', 'supramarginal', 'superior_parietal'], 'r', 0.35),
+    test: (c, s) => s === 'r' && c.hasAny(['angular', 'supramarginal', 'superior_temporal_posterior', 'parahippocampal'], 'r', 0.35),
+    requires: (q) => q.from('neglect', 'r'),
   },
 
   // ─────────────── posterior cerebral ───────────────
   {
     id: 'pca',
+    pattern: true,
     group: 'posterior',
     lateral: true,
     name: { zh: '後大腦動脈皮質症候群', en: 'PCA cortical syndrome' },
@@ -170,6 +487,7 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Contralateral homonymous hemianopia (often macular-sparing), sometimes with memory loss (hippocampus) and colour or face recognition problems. Patients may only say "vision feels odd" — easy to miss.',
     },
     test: (c, s) => c.hasAny(['cuneus', 'lingual'], s, 0.3),
+    supersedes: ['thalamic_posterior_choroidal'],
   },
   {
     id: 'alexia_without_agraphia',
@@ -181,17 +499,30 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Left occipital lobe + splenium: right hemianopia, and words seen in the left field cannot cross the splenium to the language areas. The patient can write but cannot read what they just wrote.',
     },
     test: (c, s) => s === 'l' && c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'l', 0.3) && c.has('splenium', 'l', 0.3),
+    // named for its signs: the alexia, and writing spared — an agraphia (e.g. when the left
+    // angular gyrus is infarcted too) makes it alexia with agraphia (R1-9)
+    requires: (q) => q.from('alexia', 'l') && !q.has('agraphia'),
   },
   {
+    // both banks of the calcarine fissure on both sides (one bank on each side leaves bilateral
+    // quadrantic defects; spared poles leave central vision); named for the blindness itself
+    // (C1-F7). Anton syndrome: 3 of 25 in Aldrich MS et al. Ann Neurol 1987;21:149-158 (PMID 3827223).
+    // The blindness decides it (Y2-18): the symptom rule (clinical.ts) reads both banks on both
+    // sides and the poles at the symptom threshold, on the region dysfunction as listed (a
+    // secondary occipital infarct included). A second region rule here, at 30 % of the primary
+    // pattern, was stricter: once the oedema had gone, 27–29 % of each cuneus stayed infarcted
+    // after both P2 arteries closed, and the patient was listed as blind under the labels of two
+    // one-sided PCA syndromes, each describing a hemianopia.
     id: 'cortical_blindness',
     group: 'posterior',
     lateral: false,
     name: { zh: '皮質盲（可合併 Anton 症候群）', en: 'Cortical blindness (± Anton syndrome)' },
     desc: {
-      zh: '雙側枕葉受損：完全看不見但瞳孔反射正常；部分病人堅稱自己看得到並編造所見（Anton 症候群）。常見於基底動脈頂端栓塞。',
-      en: 'Both occipital lobes: complete blindness with normal pupillary reflexes; some patients insist they can see and confabulate (Anton syndrome). Typical of basilar-tip emboli.',
+      zh: '雙側枕葉受損：完全看不見但瞳孔反射正常。少數病人（25 人中約 3 人）堅稱自己看得到並編造所見（Anton 症候群）。常見於基底動脈頂端栓塞；中風造成的皮質盲恢復通常很差。',
+      en: 'Both occipital lobes: complete blindness with normal pupillary reflexes. A few patients (about 3 in 25) insist they can see and confabulate (Anton syndrome). Typical of basilar-tip emboli; cortical blindness from stroke usually recovers poorly.',
     },
-    test: (c) => c.hasAny(['cuneus', 'lingual'], 'r', 0.3) && c.hasAny(['cuneus', 'lingual'], 'l', 0.3),
+    test: () => true,
+    requires: (q) => q.has('cortical_blindness'),
     supersedes: ['pca'],
   },
   {
@@ -206,46 +537,148 @@ export const SYNDROMES: SyndromeDef[] = [
     test: (c) =>
       c.hasAny(['superior_parietal', 'lateral_occipital', 'angular'], 'r', 0.35) &&
       c.hasAny(['superior_parietal', 'lateral_occipital', 'angular'], 'l', 0.35),
+    // named for its signs (Y2-14): the simultanagnosia or the optic ataxia must be listed. Balint
+    // syndrome is a disorder of the higher visual system (Heutink J et al. Neuropsychol Rehabil
+    // 2019;29:1489-1508, PMID 29366371) and presupposes sight: in a blind patient its signs cannot
+    // be examined (clinical.NEEDS_SIGHT), and the label is not given then
+    requires: (q) => q.has('simultanagnosia') || q.has('optic_ataxia'),
   },
   {
     id: 'thalamic_sensory',
     group: 'posterior',
     lateral: true,
     name: { zh: '視丘感覺症候群（Dejerine–Roussy）', en: 'Thalamic sensory syndrome (Dejerine–Roussy)' },
+    // pain after thalamic stroke: 14 % after any, 24 % after a geniculothalamic one, onset in the
+    // first week in 36 % (Nasreddine ZS, Saver JL. Neurology 1997;48:1196-1199, PMID 9153442); the
+    // central_pain symptom is listed as possible from 2 weeks (C10-F1, F2)
     desc: {
-      zh: '對側半身（臉、手、腳）所有感覺減退；數週到數月後，約 1/4–1/3 的人會出現頑固的燒灼痛（視丘痛）。',
-      en: 'Loss of all sensation over the opposite half of the body (face, arm, leg); weeks to months later a quarter to a third develop intractable burning pain (thalamic pain).',
+      zh: '視丘下外側（視丘膝狀體動脈）區：對側半身（臉、手、腳）所有感覺減退，加上運動失調，起初常有輕微、數週內消失的無力。之後可能出現頑固的燒灼痛（視丘痛）：任何視丘中風後約七分之一，視丘膝狀體動脈區中風後約四分之一，已發表的病例中右側病灶較多（可能有報告偏差）；約三分之一在第一週就開始，其他在幾週到幾個月後。',
+      en: 'Inferolateral (thalamogeniculate) territory: loss of all sensation over the opposite half of the body (face, arm, leg) with ataxia, and at first often a mild weakness that passes within weeks. Intractable burning pain (thalamic pain) may follow: about 1 in 7 after any thalamic stroke, about 1 in 4 after a stroke in the geniculothalamic territory, and among published cases right-sided lesions are more frequent (possibly reporting bias); about a third start in the first week, the rest weeks to months later.',
     },
-    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3),
+    // the inferolateral (thalamogeniculate) territory: hemisensory loss, hemiparesis, hemiataxia
+    // and pain (Schmahmann JD. Stroke 2003;34:2264-2278, PMID 12933968); one branch alone is a
+    // pure sensory lacune, named as such (C6-F7)
+    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && !c.lacune('thalamus_ventrolateral', s),
+    supersedes: ['lacunar_pure_sensory'],
+  },
+  {
+    id: 'thalamic_tuberothalamic',
+    pattern: true,
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '視丘前部（結節視丘動脈）梗塞', en: 'Anterior (tuberothalamic) thalamic infarction' },
+    desc: {
+      zh: '意識清醒但淡漠、缺乏主動，思考與動作一再重複（固著），新事物記不住（左側偏語言、右側偏視覺空間），個性改變；左側另有找字困難、說話小聲，理解與複誦保留。照指示做表情正常，自然地笑時對側臉卻動得少（情緒性臉部無力）。數月內多明顯改善，記憶障礙與淡漠最常留下。',
+      en: 'Awake but apathetic and lacking initiative, with perseveration in thinking and action, poor new learning (verbal after left, visuospatial after right lesions) and personality change; on the left also word-finding difficulty and soft speech with comprehension and repetition preserved. The face moves on command but less on the opposite side in a spontaneous smile (emotional facial paresis). Most improves within months; memory loss and apathy are what most often remain.',
+    },
+    test: (c, s) => c.has('thalamus_anterior', s, 0.3),
+  },
+  {
+    id: 'thalamic_paramedian_unilateral',
+    pattern: true,
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '單側視丘旁正中梗塞', en: 'Unilateral paramedian thalamic infarction' },
+    desc: {
+      zh: '起初嗜睡，記憶、注意力與執行功能變差，去抑制或個性改變、主動性降低，常有垂直眼動障礙與輕微步態不穩。左側另有語言障礙，右側可能有左側忽略。右側病灶的預後很好；左側病灶常留下額葉型認知障礙（一項 46 人研究：左側 90%、右側 33%、雙側 100%）。',
+      en: 'Drowsy at first, with impaired memory, attention and executive function, disinhibition or personality change, loss of initiative, often vertical gaze palsy and mild gait ataxia. Language problems on the left, possible left neglect on the right. Outcome is excellent after right-sided lesions; left-sided ones often leave frontal-type cognitive deficits (in a study of 46 patients: 90% of left, 33% of right and 100% of bilateral strokes).',
+    },
+    test: (c, s) => {
+      const o: Side = s === 'r' ? 'l' : 'r';
+      return c.has('thalamus_paramedian', s, 0.3) && !c.has('thalamus_paramedian', o, 0.3) && !c.has('midbrain_paramedian', s, 0.3);
+    },
+  },
+  {
+    id: 'thalamomesencephalic',
+    pattern: true,
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '旁正中視丘中腦梗塞', en: 'Paramedian thalamomesencephalic infarction' },
+    desc: {
+      zh: '同一條旁正中動脈也供應中腦上部時，視丘與中腦一起梗塞：嗜睡、記憶障礙、垂直眼動障礙，加上同側動眼神經麻痺與對側運動失調（中腦）。對側手臂的顫抖可能在數週到數月後才出現。',
+      en: 'When the same paramedian artery also feeds the upper midbrain, thalamus and midbrain infarct together: drowsiness, amnesia and vertical gaze palsy plus a same-side oculomotor palsy and opposite-side ataxia (midbrain). A tremor of the opposite arm may follow weeks to months later.',
+    },
+    test: (c, s) => c.has('thalamus_paramedian', s, 0.3) && c.has('midbrain_paramedian', s, 0.3),
+    // the one-sided midbrain pieces of the same infarct (R5-10)
+    supersedes: ['claude', 'weber_benedikt'],
+  },
+  {
+    id: 'thalamic_posterior_choroidal',
+    pattern: true,
+    group: 'posterior',
+    lateral: true,
+    name: { zh: '視丘後部（後脈絡叢動脈）梗塞', en: 'Posterior (posterior choroidal) thalamic infarction' },
+    desc: {
+      zh: '外側膝狀體與視丘枕：對側的象限偏盲（水平扇形偏盲很少見，但提示外側膝狀體受損），有時合併半身感覺減退；左側可能有經皮質失語，也可能有記憶障礙。數週後少數人出現對側手的抽動、扭轉與不穩，或疼痛。這種梗塞少見，多由小血管疾病造成，長期失能通常輕微。',
+      en: 'Lateral geniculate body and pulvinar: a quadrantanopia on the opposite side (a horizontal sectoranopia is rare but points to the lateral geniculate body), sometimes with hemisensory loss; on the left possibly a transcortical aphasia, and memory problems. Weeks later a few develop a jerky, dystonic, unsteady opposite hand, or pain. These infarcts are rare, mostly from small-vessel disease, and late disability is usually slight.',
+    },
+    test: (c, s) => c.has('thalamus_posterior', s, 0.3) && !c.hasAny(['cuneus', 'lingual', 'occipital_pole'], s, 0.3),
   },
   {
     id: 'thalamic_paramedian_bilateral',
+    pattern: true,
     group: 'posterior',
     lateral: false,
     name: { zh: '雙側視丘旁正中梗塞（Percheron 動脈）', en: 'Bilateral paramedian thalamic infarction (artery of Percheron)' },
     desc: {
-      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。',
-      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides.',
+      zh: '嗜睡甚至昏迷、嚴重記憶障礙、垂直凝視麻痺，執行功能與行為改變常持續；昏迷之後留下的是長期嗜睡（睡眠需求增加），而不是昏迷。當雙側視丘穿通動脈來自同一條 Percheron 動脈時，一個小栓子就能造成雙側梗塞。不含中腦時長期預後通常不錯（一個 15 人的系列中，不含中腦者 6 人中 4 人、含中腦者 8 人中 2 人在約 4.5 年後達 mRS ≤ 2）；中腦也梗塞時另列為「雙側旁正中視丘中腦梗塞」。視丘前部也梗塞時，記憶與執行功能受損更廣。',
+      en: 'Hypersomnolence up to coma, severe amnesia and vertical gaze palsy, with executive and behavioural changes that often persist; what remains after the coma is persistent hypersomnia (a raised need for sleep), not coma. When both thalamoperforators come from a single artery of Percheron, one small embolus infarcts both sides. Without the midbrain the long-term outcome is usually good (in one series of 15 patients, 4 of 6 without and 2 of 8 with midbrain involvement reached mRS ≤ 2 after about 4.5 years); with the midbrain infarcted too it is listed as bilateral paramedian thalamomesencephalic infarction. When the anterior thalami are infarcted as well, memory and executive function suffer more widely.',
     },
     test: (c) => c.both('thalamus_paramedian', 0.3),
-    supersedes: ['claude', 'weber_benedikt'],
+    supersedes: ['claude', 'weber_benedikt', 'thalamic_paramedian_unilateral', 'thalamomesencephalic', 'thalamic_tuberothalamic'],
+  },
+  {
+    id: 'thalamomesencephalic_bilateral',
+    pattern: true,
+    group: 'posterior',
+    lateral: false,
+    name: {
+      zh: '雙側旁正中視丘中腦梗塞（Percheron 動脈含中腦）',
+      en: 'Bilateral paramedian thalamomesencephalic infarction (artery of Percheron with midbrain)',
+    },
+    desc: {
+      zh: '雙側視丘旁正中加上中腦上部，是 Percheron 動脈梗塞最常見的型態（43%，連同視丘前部再 14%）。以眼球運動障礙（兩側動眼神經麻痺、垂直凝視麻痺）與意識障礙為主，加上記憶障礙。在一個小系列中預後比不含中腦時差：15 人中，含中腦者 8 人中 2 人（25%）、不含中腦者 6 人中 4 人（67%）在約 4.5 年後達 mRS ≤ 2。',
+      en: 'Both paramedian thalami plus the upper midbrain, the commonest pattern of Percheron infarction (43%, another 14% with the anterior thalami). Eye-movement disorders (bilateral oculomotor palsies, vertical gaze palsy) and impaired consciousness dominate, with amnesia. The outlook was worse than without the midbrain in one small series: of 15 patients, 2 of 8 (25%) with midbrain involvement and 4 of 6 (67%) without reached mRS ≤ 2 after about 4.5 years.',
+    },
+    test: (c) => c.both('thalamus_paramedian', 0.3) && c.both('midbrain_paramedian', 0.3),
+    supersedes: [
+      'thalamic_paramedian_bilateral',
+      'thalamic_paramedian_unilateral',
+      'thalamomesencephalic',
+      'thalamic_tuberothalamic',
+      'claude',
+      'weber_benedikt',
+    ],
   },
   {
     id: 'top_of_basilar',
+    pattern: true,
     group: 'posterior',
     lateral: false,
     name: { zh: '基底動脈頂端症候群', en: 'Top-of-the-basilar syndrome' },
     desc: {
-      zh: '中腦與視丘旁正中（意識改變、垂直眼動障礙、瞳孔異常、記憶障礙）加上枕葉（視野缺損、皮質盲）。常由心因性或椎動脈來源的栓子卡在基底動脈分叉處造成。',
-      en: 'Midbrain and paramedian thalami (altered consciousness, vertical gaze and pupil abnormalities, amnesia) plus occipital lobes (field loss, cortical blindness). Usually an embolus lodged at the basilar bifurcation.',
+      zh: '中腦與視丘旁正中（意識改變、垂直眼動障礙、瞳孔異常、記憶障礙）加上枕葉（視野缺損、皮質盲）。可能出現鮮明的幻覺與夢境般的行為（大腦腳幻覺症，Caplan 1980）。意識障礙通常要兩側都受損，單側病灶偶爾也會造成昏迷。常由心因性或椎動脈來源的栓子卡在基底動脈分叉處造成。',
+      en: 'Midbrain and paramedian thalami (altered consciousness, vertical gaze and pupil abnormalities, amnesia) plus occipital lobes (field loss, cortical blindness). Vivid hallucinations and dreamlike behaviour can occur (peduncular hallucinosis; Caplan 1980). Reduced consciousness usually needs damage on both sides, though a one-sided lesion occasionally causes coma. Usually an embolus lodged at the basilar bifurcation.',
     },
-    test: (c) =>
-      (c.both('midbrain_paramedian', 0.3) || c.both('thalamus_paramedian', 0.3)) &&
-      (c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'r', 0.2) ||
-        c.hasAny(['cuneus', 'lingual', 'occipital_pole'], 'l', 0.2) ||
-        c.both('midbrain_peduncle', 0.3)),
+    // the paramedian midbrain or thalami of both sides, in an event that also reached the occipital
+    // lobes or both cerebral peduncles; that second part is read at the event's widest (onset), so the
+    // label stays while the paramedian infarcts do, rather than turning into one-sided pieces when the
+    // peduncles recover (R5-10)
+    test: (c) => {
+      const wide = (base: string, side: Side, thr: number) => Math.max(c.f(base, side), c.acute(base, side)) >= thr;
+      const occipital = (side: Side) => ['cuneus', 'lingual', 'occipital_pole'].some((b) => wide(b, side, 0.2));
+      return (
+        (c.both('midbrain_paramedian', 0.3) || c.both('thalamus_paramedian', 0.3)) &&
+        (occipital('r') || occipital('l') || (wide('midbrain_peduncle', 'r', 0.3) && wide('midbrain_peduncle', 'l', 0.3)))
+      );
+    },
     supersedes: [
       'thalamic_paramedian_bilateral',
+      'thalamomesencephalic_bilateral',
+      'thalamomesencephalic',
+      'thalamic_paramedian_unilateral',
+      'thalamic_tuberothalamic',
+      'thalamic_posterior_choroidal',
       'weber_benedikt',
       'claude',
       'parinaud',
@@ -263,10 +696,12 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'Weber／Benedikt 症候群（中腦腹側＋旁正中）', en: 'Weber / Benedikt syndrome (ventral + paramedian midbrain)' },
     desc: {
-      zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱：典型的「交叉性」腦幹中風。只傷到大腦腳與動眼神經束是 Weber；紅核也受損時對側再加上顫抖、不自主運動與運動失調，稱為 Benedikt。本模型的中腦分區無法把紅核和動眼神經束完全分開。',
-      en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral tremor, involuntary movements and ataxia are added (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
+      zh: '同側動眼神經麻痺（眼瞼下垂、瞳孔放大、眼球外下斜）＋對側偏癱：典型的「交叉性」腦幹中風。只傷到大腦腳與動眼神經束是 Weber；紅核也受損時對側再加上運動失調，以及在數週到數月後才出現的顫抖與不自主運動（霍姆斯顫抖），稱為 Benedikt。本模型的中腦分區無法把紅核和動眼神經束完全分開。',
+      en: 'Ipsilateral oculomotor palsy (ptosis, dilated pupil, eye down-and-out) + contralateral hemiparesis — the classic "crossed" brainstem stroke. Peduncle and CN III fascicles alone is Weber; when the red nucleus is also hit, contralateral ataxia is added, and tremor and involuntary movements (Holmes tremor) follow weeks to months later (Benedikt). The model\'s midbrain sectors cannot fully separate the red nucleus from the CN III fascicles.',
     },
-    test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25),
+    // one-sided: with the other paramedian midbrain half involved the lesion is bilateral (R5-1)
+    test: (c, s) => c.has('midbrain_peduncle', s, 0.3) && c.has('midbrain_paramedian', s, 0.25) && otherMidbrainSpared(c, s),
+    requires: (q, s) => q.on('cn3_palsy', s) && ['face_weak', 'arm_weak', 'leg_weak'].some((id) => q.on(id, other(s))),
     supersedes: ['claude'],
   },
   {
@@ -275,10 +710,13 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'Claude 症候群（中腦被蓋）', en: 'Claude syndrome (midbrain tegmentum)' },
     desc: {
-      zh: '同側動眼神經麻痺＋對側運動失調（紅核與上小腦腳傳出纖維），沒有偏癱。',
-      en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis.',
+      zh: '同側動眼神經麻痺＋對側運動失調（紅核與上小腦腳傳出纖維），沒有偏癱。對側手臂的顫抖（霍姆斯顫抖）可能在數週到數月後才出現。',
+      en: 'Ipsilateral oculomotor palsy + contralateral ataxia (red nucleus and superior cerebellar peduncle outflow), without hemiparesis. A tremor of the opposite arm (Holmes tremor) may follow weeks to months later.',
     },
-    test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3),
+    // one-sided: with the other paramedian midbrain half involved the lesion is bilateral (R5-1)
+    test: (c, s) => c.has('midbrain_paramedian', s, 0.3) && !c.has('midbrain_peduncle', s, 0.3) && otherMidbrainSpared(c, s),
+    // the rubral tremor of a midbrain lesion is the delayed Holmes tremor (C3-F7)
+    requires: (q, s) => q.on('cn3_palsy', s) && ['ataxia_limb', 'tremor', 'holmes_tremor'].some((id) => q.on(id, other(s))),
   },
   {
     id: 'parinaud',
@@ -293,29 +731,105 @@ export const SYNDROMES: SyndromeDef[] = [
   },
 
   // ─────────────── pons ───────────────
+  // Locked-in syndrome and its relatives (C3-F1): Bauer G et al. J Neurol 1979;221:77–91
+  // (classical: nothing moves but the eyes vertically and the lids; incomplete: other movement
+  // remains; total: not even the eyes, with both cerebral peduncles); Laureys S et al. Prog Brain
+  // Res 2005;150:495–511 (comatose for days to weeks before waking up locked-in); Kumral E et al.
+  // J Neurol 2002;249:1659–1670 (bilateral pontine infarcts 11 %: transient loss of consciousness,
+  // tetraparesis, pseudobulbar palsy). Prognosis and care (C3-F6): Patterson JR, Grabois M. Stroke
+  // 1986;17:758–764 (139 cases: mortality 60 %; lung care and a communication system essential);
+  // Casanova E et al. Arch Phys Med Rehabil 2003;84:862–867 (14 selected patients after early
+  // intensive rehabilitation).
   {
     id: 'locked_in',
     group: 'brainstem',
     lateral: false,
     name: { zh: '閉鎖症候群', en: 'Locked-in syndrome' },
     desc: {
-      zh: '雙側橋腦腹側受損：四肢癱瘓、不能說話與吞嚥，但意識清楚，只能用垂直眼動和眨眼溝通（由中腦控制）。水平眼動常一起喪失，因為外展神經核與 PPRF 就在旁邊的橋腦被蓋。感覺通常保留；病灶延伸到被蓋時可能有部分感覺異常。常見於基底動脈中段阻塞，常被誤認為昏迷。',
-      en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking (controlled by the midbrain). Horizontal gaze is usually lost too, because the abducens nuclei and PPRF lie in the adjacent pontine tegmentum. Sensation is usually preserved; it can be partly affected when the lesion extends into the tegmentum. Typical of mid-basilar occlusion; easily mistaken for coma.',
+      zh: '雙側橋腦腹側受損：四肢癱瘓、不能說話與吞嚥，但意識清楚，只能用垂直眼動和眨眼溝通（由中腦控制）。水平眼動常一起喪失，因為外展神經核與 PPRF 就在旁邊的橋腦被蓋。感覺通常保留；病灶延伸到被蓋時可能有部分感覺異常。常見於基底動脈中段阻塞，常被誤認為昏迷。除眼睛以外完全不能動是「典型」；還有其他動作是「不完全」；連眼睛都不能動（兩側大腦腳／中腦也受損）是「完全型」（Bauer 1979）。早年文獻回顧的死亡率約 60%（139 例）：要積極照護呼吸與肺部（吸入、肺炎），並及早建立溝通方式（眨眼或眼動字母表、眼控電腦）。恢復差異很大：一個早期密集復健的小型選擇性系列（14 人）中，42% 恢復吞嚥、28% 恢復說話；病情穩定後可存活數十年。',
+      en: 'Bilateral ventral pons: quadriplegia, no speech or swallowing, yet awake and aware, communicating only by vertical eye movements and blinking (controlled by the midbrain). Horizontal gaze is usually lost too, because the abducens nuclei and PPRF lie in the adjacent pontine tegmentum. Sensation is usually preserved; it can be partly affected when the lesion extends into the tegmentum. Typical of mid-basilar occlusion; easily mistaken for coma. Nothing moving but the eyes is the classical form; with other movement left it is incomplete; with not even the eyes moving (both cerebral peduncles / the midbrain also damaged) it is total (Bauer 1979). Mortality was about 60% in an early review of 139 cases: breathing and lung care (aspiration, pneumonia) and an early communication system (an eye-coded or blink alphabet, eye-controlled computers) are essential. Recovery varies widely: in a small selected series of 14 patients after early intensive rehabilitation 42% regained swallowing and 28% speech; once medically stable, people can live for decades.',
     },
-    test: (c) => c.both('pons_rostral_basis', 0.4) || c.both('pons_caudal_basis', 0.4),
-    supersedes: ['pontine_ventral', 'pontine_lacunar', 'foville', 'one_and_half', 'aica', 'sca'],
+    test: (c) => classicalLockedIn(c),
+    requires: (q) => q.has('anarthria') && weakOn(q, 'r') && weakOn(q, 'l'),
+    supersedes: ['locked_in_incomplete', ...PONTINE_ONE_SIDED],
+  },
+  {
+    // Bauer G, Gerstenbrand F, Rumpl E. Varieties of the locked-in syndrome. J Neurol
+    // 1979;221:77-91 (PMID 92545): classical locked-in is total immobility except vertical eye
+    // movements and blinking; any other movement left makes it incomplete. Both ventral pontine
+    // halves damaged, with their bilateral signs (anarthria, weakness on both sides): one bilateral
+    // picture, not two crossed syndromes (C5-F2, C3-F1), nor two one-and-a-half syndromes (R5-3).
+    id: 'locked_in_incomplete',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '不完全閉鎖症候群（雙側橋腦症候群）', en: 'Incomplete locked-in syndrome (bilateral pontine syndrome)' },
+    desc: {
+      zh: '兩側橋腦腹側都受損，但還有一些動作：四肢無力仍能稍微動、幾乎不能說話、吞嚥嚴重困難，意識清楚。Bauer（1979）把除了垂直眼動與眨眼以外還能動的閉鎖症候群稱為「不完全」；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成這樣。孤立橋腦梗塞中約 11% 是雙側，可在發作時短暫失去意識，留下四肢無力與假性延髓麻痺（Kumral 2002）。照護重點與閉鎖症候群相同：呼吸與肺部照護、及早建立溝通方式。這是一個雙側的表現，不是兩個單側的交叉性症候群。',
+      en: 'Both sides of the ventral pons are damaged, but some movement is left: weak limbs that still move a little, little or no speech and severe swallowing difficulty, with consciousness preserved. Bauer (1979) calls locked-in syndrome incomplete when anything besides vertical eye movements and blinking remains; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months. About 11% of isolated pontine infarcts are bilateral; they can begin with a transient loss of consciousness and leave tetraparesis and pseudobulbar palsy (Kumral 2002). Care is as for locked-in syndrome: breathing and lung care and an early communication system. It is one bilateral picture, not two one-sided crossed syndromes.',
+    },
+    test: (c) => bothBases(c, LOCKED_IN_BASES_FLOOR) && !unaware(c) && !classicalLockedIn(c),
+    requires: (q) => q.has('anarthria') && weakOn(q, 'r') && weakOn(q, 'l'),
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    id: 'basilar_coma',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '基底動脈（橋腦）昏迷合併四肢癱瘓', en: 'Basilar (pontine) coma with quadriplegia' },
+    desc: {
+      zh: '橋腦腹側兩側受損（四肢癱瘓）再加上上橋腦或中腦被蓋兩側受損（維持清醒的網狀結構）：病人昏迷，不是閉鎖症候群。腹側橋腦病灶的病人常昏迷數天到數週、需要呼吸器，之後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。',
+      en: 'Both sides of the ventral pons (quadriplegia) plus both sides of the upper pontine or midbrain tegmentum (the arousal network): the person is comatose, not locked-in. With ventral pontine lesions people often stay comatose for days to weeks, needing ventilation, and then gradually wake: some wake up locked-in (aware but unable to move), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.',
+    },
+    test: (c) => bothBases(c, 0.25) && c.sym('coma') > 0,
+    // named for its signs: coma with weakness of all four limbs, the coma from the arousal network
+    // of the tegmentum (not, say, the swelling of a later hemispheric infarct: X2-11)
+    requires: (q) => arousalComa(q) && weakOn(q, 'r') && weakOn(q, 'l'),
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    id: 'pontine_doc',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '基底動脈昏迷之後：意識障礙或閉鎖', en: 'After basilar coma: disorder of consciousness or locked-in' },
+    desc: {
+      zh: '昏迷很少超過約兩週。兩側橋腦（或中腦）被蓋大範圍梗塞、又有四肢癱瘓的病人醒來後，眼睛會睜開、有睡醒週期，但可能沒有覺察（無反應覺醒症候群）、時有時無（最小意識狀態），也可能其實完全清醒、只是被閉鎖。閉鎖症候群的診斷平均要 2.5 個月以上，常是家屬先發現病人是清醒的：要反覆請病人用上下看或眨眼回答問題。',
+      en: 'Coma rarely lasts more than about two weeks. After extensive infarction of the pontine (or midbrain) tegmentum on both sides with quadriplegia, the eyes open and sleep–wake cycles return, but awareness may be absent (unresponsive wakefulness syndrome), fluctuating (minimally conscious state) — or fully present in a locked-in state. Locked-in syndrome takes over 2.5 months to diagnose on average, and it is often the family who first notices that the person is aware: ask repeatedly for answers by looking up or blinking.',
+    },
+    test: (c) => bothBases(c, 0.25) && c.sym('disorder_of_consciousness') > 0 && c.sym('coma') === 0,
+    requires: (q) => q.has('disorder_of_consciousness') && weakOn(q, 'r') && weakOn(q, 'l'),
+    supersedes: PONTINE_ONE_SIDED,
+  },
+  {
+    // Kumral E et al. J Neurol 2002;249:1659–1670 (anteromedial pontine syndrome 58 % of 150:
+    // motor deficit with dysarthria and ataxia, mild tegmental signs in a third); Bassetti C et al.
+    // Neurology 1996;46:165–175 (21 of 36 ventral: from mild hemiparesis to severe hemiparesis with
+    // bilateral ataxia and dysarthria)
+    id: 'pontine_anteromedial',
+    group: 'brainstem',
+    lateral: true,
+    name: { zh: '橋腦前內側（旁正中）症候群', en: 'Anteromedial (paramedian) pontine syndrome' },
+    desc: {
+      zh: '最常見的橋腦梗塞型態（150 例孤立橋腦梗塞中占 58%）：旁正中穿通支區域的對側偏癱，合併構音障礙與運動失調，約三分之一有輕微的被蓋徵象（例如核間性眼肌麻痺）。常見原因是基底動脈分支病變（穿通支開口被基底動脈的斑塊堵住；兩個系列的孤立橋腦梗塞中占 39–44%，與大的腹側梗塞特別相關），可能逐步惡化。',
+      en: 'The commonest pattern of pontine infarction (58% of 150 isolated pontine infarcts): contralateral hemiparesis from the territory of the paramedian perforators, with dysarthria and ataxia, and mild tegmental signs (such as an internuclear ophthalmoplegia) in about a third. Often from basilar artery branch disease (plaque in the basilar artery blocking a perforator\'s origin; 39–44% of isolated pontine infarcts in these series, linked especially to large ventral infarcts), and it can worsen stepwise.',
+    },
+    test: (c, s) => (c.has('pons_rostral_basis', s, 0.3) || c.has('pons_caudal_basis', s, 0.3)) && otherBasesSpared(c, s),
+    // named for its signs: the opposite-side weakness of the paramedian territory
+    requires: (q, s) => weakOn(q, other(s)),
   },
   {
     id: 'pontine_ventral',
     group: 'brainstem',
     lateral: true,
-    name: { zh: 'Millard–Gubler／Raymond 症候群（橋腦下部腹側）', en: 'Millard–Gubler / Raymond syndrome (ventral caudal pons)' },
+    name: { zh: 'Raymond 症候群（橋腦下部腹側）', en: 'Raymond syndrome (ventral caudal pons)' },
     desc: {
-      zh: '同側外展神經麻痺（眼睛無法向外轉）±同側周邊型顏面麻痺＋對側偏癱。',
-      en: 'Ipsilateral abducens palsy (eye cannot turn out) ± ipsilateral peripheral facial palsy + contralateral hemiplegia.',
+      zh: '同側外展神經麻痺（眼睛無法向外轉）＋對側偏癱。顏面神經纖維也受損、多了同側周邊型顏面麻痺時稱為 Millard–Gubler；本模型的橋腦下部腹側不含顏面神經纖維。這些「經典」交叉症候群在 MRI 時代並不常見：孤立橋腦梗塞的病人 36 位中只有 4 位有交叉性缺損，而且沒有一位符合經典症候群（Bassetti 1996）。',
+      en: 'Ipsilateral abducens palsy (the eye cannot turn out) + contralateral hemiplegia. With the facial fascicle also involved (an ipsilateral peripheral facial palsy) it is Millard–Gubler syndrome; the model\'s ventral caudal pons does not include the facial fascicle. Such classic crossed syndromes are uncommon on MRI: only 4 of 36 patients with isolated pontine infarcts had crossed deficits, and none matched a classic syndrome (Bassetti 1996).',
     },
-    test: (c, s) => c.has('pons_caudal_basis', s, 0.3) && !c.has('pons_caudal_basis', s === 'r' ? 'l' : 'r', 0.4),
-    supersedes: ['pontine_lacunar'],
+    // one-sided: the other half counts as involved from the threshold at which the bilateral
+    // signs appear (then the lesion is bilateral: locked_in_incomplete)
+    test: (c, s) => c.has('pons_caudal_basis', s, 0.3) && otherBasesSpared(c, s),
+    requires: (q, s) => weakOn(q, other(s)),
+    supersedes: ['pontine_lacunar', 'pontine_anteromedial'],
   },
   {
     id: 'foville',
@@ -323,11 +837,11 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: 'Foville 症候群（橋腦下部）', en: 'Foville syndrome (caudal pons)' },
     desc: {
-      zh: '同側水平凝視麻痺（雙眼無法轉向病灶側）＋同側周邊型顏面麻痺＋對側偏癱：旁正中被蓋與腹側基底部同時受損。',
-      en: 'Ipsilateral horizontal gaze palsy (neither eye turns towards the lesion) + ipsilateral peripheral facial palsy + contralateral hemiparesis: paramedian tegmentum and ventral basis both involved.',
+      zh: '同側水平凝視麻痺（雙眼無法轉向病灶側）＋同側周邊型顏面麻痺＋對側偏癱：旁正中被蓋與腹側基底部同時受損。這些「經典」交叉症候群在 MRI 時代並不常見：孤立橋腦梗塞的病人 36 位中只有 4 位有交叉性缺損，而且沒有一位符合經典症候群（Bassetti 1996）。',
+      en: 'Ipsilateral horizontal gaze palsy (neither eye turns towards the lesion) + ipsilateral peripheral facial palsy + contralateral hemiparesis: paramedian tegmentum and ventral basis both involved. Such classic crossed syndromes are uncommon on MRI: only 4 of 36 patients with isolated pontine infarcts had crossed deficits, and none matched a classic syndrome (Bassetti 1996).',
     },
     test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && c.has('pons_caudal_basis', s, 0.3),
-    supersedes: ['pontine_ventral', 'one_and_half', 'pontine_lacunar'],
+    supersedes: ['pontine_ventral', 'pontine_anteromedial', 'one_and_half', 'pontine_lacunar'],
   },
   {
     id: 'one_and_half',
@@ -339,29 +853,40 @@ export const SYNDROMES: SyndromeDef[] = [
       en: 'Abducens nucleus/PPRF plus MLF: neither eye looks towards the lesion, and looking away only the opposite eye abducts ("one-and-a-half"); add the ipsilateral facial genu and it becomes "eight-and-a-half" (1½ + 7). No limb weakness.',
     },
     test: (c, s) => c.has('pons_caudal_tegmentum', s, 0.3) && !c.has('pons_caudal_basis', s, 0.3),
+    // named for its signs: a gaze palsy towards the lesion only (the other eye still abducts; palsies
+    // to both sides are a bilateral horizontal gaze palsy) and no limb weakness on either side (R5-3)
+    requires: (q, s) => q.on('gaze_palsy_horizontal', s) && !q.on('gaze_palsy_horizontal', other(s)) && !weakOn(q, 'r') && !weakOn(q, 'l'),
+    supersedes: ['pontine_anteromedial'],
   },
   {
     id: 'pontine_lacunar',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '橋腦腔隙性中風（純運動／運動失調性偏癱／構音障礙—笨拙手）', en: 'Pontine lacune (pure motor / ataxic hemiparesis / dysarthria–clumsy hand)' },
+    // named as a clinical syndrome: the same picture is a lacunar TIA when it clears within
+    // minutes and leaves no infarct (R2-5)
+    name: { zh: '橋腦腔隙症候群（純運動／運動失調性偏癱／構音障礙—笨拙手）', en: 'Pontine lacunar syndrome (pure motor / ataxic hemiparesis / dysarthria–clumsy hand)' },
     desc: {
-      zh: '單一穿通動脈阻塞造成的小梗塞：對側無力合併同側肢體不協調，或只有口齒不清與手笨拙。與高血壓小血管病變有關。',
-      en: 'A small infarct from one perforator: contralateral weakness with incoordination, or just slurred speech and a clumsy hand. Linked to hypertensive small-vessel disease.',
+      zh: '通常是單一穿通動脈阻塞造成的小梗塞（腔隙），依切斷哪些纖維而有不同表現：對側輕到中度無力（純運動性，最常見）；無力加上同一側肢體不協調（運動失調性偏癱）；或只有口齒不清與手笨拙（構音障礙—笨拙手）。與高血壓小血管病變有關。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct (lacune) from one perforator, whose picture depends on which fibres it cuts: mild-to-moderate weakness of the opposite side (pure motor, the commonest); weakness with incoordination of the same limbs (ataxic hemiparesis); or just slurred speech and a clumsy hand (dysarthria–clumsy hand). Linked to hypertensive small-vessel disease. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     test: (c, s) =>
       c.has('pons_rostral_basis', s, 0.3) &&
       !c.has('pons_rostral_tegmentum', s, 0.3) &&
       !c.has('pons_rostral_basis', s === 'r' ? 'l' : 'r', 0.3),
+    supersedes: ['pontine_anteromedial'],
   },
   {
     id: 'aica',
     group: 'brainstem',
     lateral: true,
     name: { zh: '小腦前下動脈症候群（外側橋腦下部）', en: 'AICA syndrome (lateral inferior pons)' },
+    // standing and gait impaired in all of 7 AICA infarcts (Ogawa K et al. J Stroke Cerebrovasc
+    // Dis 2017;26:574–581, PMID 27989483); an abnormal head-impulse test can wrongly point to a
+    // peripheral cause in a lateral pontine stroke (Kattah JC et al. Stroke 2009;40:3504–3510,
+    // PMID 19762709). C7-F4
     desc: {
-      zh: '眩暈、嘔吐、同側突發耳聾與耳鳴（迷路動脈）、同側周邊型顏面麻痺、同側臉部痛溫覺喪失、霍納氏症候群與肢體運動失調，對側身體痛溫覺喪失。突發單耳聽力喪失合併眩暈要想到它。',
-      en: 'Vertigo, vomiting, sudden ipsilateral deafness and tinnitus (labyrinthine artery), ipsilateral peripheral facial palsy, facial pain/temperature loss, Horner and limb ataxia, with contralateral body pain/temperature loss. Think of it with sudden one-sided deafness plus vertigo.',
+      zh: '眩暈、嘔吐、同側突發耳聾與耳鳴（迷路動脈）、同側周邊型顏面麻痺、同側臉部痛溫覺喪失、霍納氏症候群與肢體運動失調，對側身體痛溫覺喪失；站立與走路不穩（一系列 7 人全都有）。突發單耳聽力喪失合併眩暈要想到它。內耳也缺血時，床邊的甩頭測試可能像內耳炎一樣異常，讓人誤以為只是內耳的問題；這時 HINTS 的「S」——眼球垂直偏斜——可能是指向中風的線索（Kattah 2009 這樣的 3 例中有 2 例）。',
+      en: 'Vertigo, vomiting, sudden ipsilateral deafness and tinnitus (labyrinthine artery), ipsilateral peripheral facial palsy, facial pain/temperature loss, Horner and limb ataxia, with contralateral body pain/temperature loss; standing and gait are unsteady (in all of 7 patients in one series). Think of it with sudden one-sided deafness plus vertigo. With the inner ear ischaemic too, the bedside head-impulse test can look peripheral and wrongly suggest a purely inner-ear cause; the "S" of HINTS, a skew deviation, can then be the clue to a stroke (2 of 3 such cases in Kattah 2009).',
     },
     test: (c, s) => c.has('pons_caudal_lateral', s, 0.3),
   },
@@ -370,9 +895,12 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'cerebellar',
     lateral: true,
     name: { zh: '小腦上動脈症候群', en: 'Superior cerebellar artery syndrome' },
+    // Schmahmann JD, Sherman JC. Brain 1998;121:561–579 (PMID 9577385): the cerebellar cognitive
+    // affective syndrome after posterior-lobe and vermis lesions, only minor changes after
+    // anterior-lobe ones (C7-F10)
     desc: {
-      zh: '同側肢體運動失調與意向性顫抖、構音障礙、走路不穩；累及橋腦上部外側時再加上同側霍納氏症候群與對側痛溫覺喪失。',
-      en: 'Ipsilateral limb ataxia with intention tremor, dysarthria and gait ataxia; with lateral upper-pons involvement, ipsilateral Horner and contralateral pain/temperature loss.',
+      zh: '同側肢體運動失調與意向性顫抖、構音障礙、走路不穩；累及橋腦上部外側時再加上同側霍納氏症候群與對側痛溫覺喪失。小腦認知情感症候群（計畫、視覺空間與情緒的改變）主要來自小腦後葉與蚓部；小腦上表面的前葉受損只造成輕微的變化（資料來自各種小腦疾病，不只是中風）。',
+      en: 'Ipsilateral limb ataxia with intention tremor, dysarthria and gait ataxia; with lateral upper-pons involvement, ipsilateral Horner and contralateral pain/temperature loss. The cerebellar cognitive affective syndrome (planning, visuospatial and emotional changes) comes mainly from the posterior lobe and vermis; damage to the anterior lobe, on the upper surface, gives only minor changes (series of mixed cerebellar disease, not stroke alone).',
     },
     test: (c, s) => c.hasAny(['cerebellum_superior', 'dentate'], s, 0.3) || c.has('pons_rostral_lateral', s, 0.3),
   },
@@ -383,22 +911,76 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'brainstem',
     lateral: true,
     name: { zh: '華倫堡氏症候群（延髓外側）', en: 'Wallenberg (lateral medullary) syndrome' },
+    // the triad of Horner, ipsilateral ataxia and contralateral hypalgesia; facial weakness in 42 %
+    // (Sacco RL et al. Arch Neurol 1993;50:609–614, PMID 8503798); ipsiversive lateropulsion
+    // (Cnyrim CD et al. J Neurol Neurosurg Psychiatry 2007;78:527–528, PMID 17435189); the
+    // hemiparesis reported with it is ipsilateral, in 50 % of fatal respiratory failures against
+    // 5.3 % of the others (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384), from the
+    // crossed pyramidal tract in the lower medulla (Uemura M et al. J Neurol Sci 2016;365:40–45,
+    // PMID 27206871); vertebral disease in 67 %, PICA disease in 10 % (Kim JS. Brain
+    // 2003;126:1864–1872, PMID 12805095); the classic crossed sensory pattern in 13 of 50, a
+    // bilateral trigeminal one with large, ventrally extending lesions in 12 (Kim JS et al. Neurology
+    // 1997;49:1557–1563, PMID 9409346). C7-F3, C7-F4, C7-F11, R2-6
     desc: {
-      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群、同側肢體運動失調、「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺），通常沒有明顯無力。最常見原因是椎動脈（而非單純 PICA）阻塞或剝離。',
-      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, and "crossed" sensory loss (pain/temperature on the same-side face and opposite body), usually without weakness. Most often due to vertebral (not isolated PICA) occlusion or dissection.',
+      zh: '眩暈、嘔吐、眼振、吞嚥困難與聲音沙啞、同側霍納氏症候群與肢體運動失調、走路不穩且身體被拉向病灶側（同側側傾），以及「交叉性」感覺喪失（同側臉＋對側身體的痛溫覺）；常有輕度臉部無力與構音障礙。不過典型的交叉型只占約四分之一（50 人中 13 人）：梗塞大、往腹側延伸時，對側臉的痛溫覺也常減退（50 人中 12 人，兩側臉都受影響）。霍納氏症候群、同側運動失調與對側痛覺減退三者並存即可辨認。病灶側眼睛可能較低（眼球垂直偏斜，HINTS 的「S」）：33 位病人中有 11 位有複視或視力模糊，這不一定代表梗塞超出延髓外側（Sacco 1993）。手腳通常不會無力：對側手腳無力表示梗塞延伸到延髓內側（半側延髓，Babinski–Nageotte 症候群）；延髓外側梗塞報告中的偏癱在病灶同側（Opalski 變異型，延髓最下段已交叉的錐體徑受損）；一個系列中存活者約 5% 有，死於呼吸衰竭者則有一半，代表呼吸衰竭的風險較高——本模型沒有重現這一型。最常見原因是椎動脈（約 67%，而非單純 PICA，約 10%）阻塞或剝離。',
+      en: 'Vertigo, vomiting, nystagmus, dysphagia and hoarseness, ipsilateral Horner and limb ataxia, gait ataxia with the body pulled towards the lesion (ipsiversive lateropulsion), and "crossed" sensory loss (pain/temperature on the same-side face and opposite body); a mild facial weakness and dysarthria are common. The classic crossed pattern is seen in only about a quarter, though (13 of 50): a large infarct that reaches ventrally often dulls the opposite side of the face as well (12 of 50, both sides of the face). The triad of Horner, ipsilateral ataxia and contralateral loss of pain sensation identifies it. The eye on the lesion side may sit lower (skew deviation, the "S" of HINTS): 11 of 33 patients had double or blurred vision, which does not necessarily mean the infarct extends beyond the lateral medulla (Sacco 1993). Usually no weakness of the limbs: weakness of the opposite limbs means the infarct reaches the medial medulla (hemimedullary, Babinski–Nageotte syndrome); the hemiparesis reported with lateral medullary infarcts is on the same side (Opalski variant, from the crossed pyramidal tract in the lowest medulla); in one series 5 % of the survivors had it against half of those who died of respiratory failure, so it marks a higher risk — that variant is not reproduced by this model. Most often due to vertebral (about 67 %; not isolated PICA, about 10 %) occlusion or dissection.',
     },
-    test: (c, s) => c.has('medulla_lateral', s, 0.3),
+    // the region threshold is the one the symptoms use (0.25), so that a lateral medulla whose
+    // signs are listed (e.g. behind a PICA occlusion) is also named; the label needs the crossed
+    // sensory loss with an ipsilateral Horner or facial pain/temperature loss
+    test: (c, s) => c.has('medulla_lateral', s, 0.25),
+    // (the medulla's loss of pain sensation on a side with a hemisensory loss of all modalities no
+    // milder is listed as that loss, which takes in its source: U3-7)
+    requires: (q, s) => {
+      const painOn = (id: string, side: Side) => q.on(id, side) || (q.on('sens_hemibody', side) && q.from('sens_hemibody', s, 'medulla_lateral'));
+      return painOn('pain_temp_body', other(s)) && (q.on('horner', s) || painOn('pain_temp_face', s));
+    },
   },
   {
     id: 'dejerine',
     group: 'brainstem',
     lateral: true,
     name: { zh: 'Dejerine 症候群（延髓內側）', en: 'Dejerine (medial medullary) syndrome' },
+    // Kim JS, Han YS. Stroke 2009;40:3221–3225 (PMID 19628797): 86 consecutive patients (C7-F9)
     desc: {
-      zh: '對側手腳無力（臉部通常不受影響）、對側本體覺喪失、伸舌偏向病灶側。',
-      en: 'Contralateral arm and leg weakness (face spared), contralateral loss of position sense, and tongue deviation towards the lesion.',
+      zh: '對側手腳無力（臉部通常不受影響）、對側本體覺喪失、伸舌偏向病灶側。59% 有眩暈或頭暈（梗塞延伸到延髓背側時）；之後約四分之一（86 人中 21 人）出現中樞性中風後疼痛，與較差的預後有關。',
+      en: 'Contralateral arm and leg weakness (face spared), contralateral loss of position sense, and tongue deviation towards the lesion. Vertigo or dizziness in 59 % (when the infarct reaches the dorsal medulla); central post-stroke pain later in about a quarter (21 of 86), linked to a poorer outcome.',
     },
     test: (c, s) => c.has('medulla_medial', s, 0.3) && !c.has('medulla_lateral', s, 0.3),
+  },
+  {
+    // Pongmoragot J et al. J Stroke Cerebrovasc Dis 2013;22:775–780 (PMID 22541608): systematic
+    // review of 38 cases; Kobayashi S et al. Brain Nerve 2020;72:901–905 (PMID 32741771): a case
+    // mimicking Guillain–Barré syndrome with a normal first MRI and respiratory failure. One
+    // bilateral picture, not two one-sided Dejerine syndromes (C7-F6).
+    id: 'bilateral_medial_medullary',
+    group: 'brainstem',
+    lateral: false,
+    name: { zh: '雙側延髓內側梗塞', en: 'Bilateral medial medullary infarction' },
+    desc: {
+      zh: '兩側延髓內側都受損：四肢無力（臉部常不受影響）、兩側舌頭無力與構音障礙，常合併本體覺喪失。一篇 38 例的系統性回顧：肢體無力 78.4%、構音障礙 48.6%、舌下神經麻痺 40.5%；病灶多在延髓上段；預後差，住院死亡率 23.8%、需要他人照顧 61.9%。可能在幾天內逐漸惡化、看起來像格林–巴利症候群，第一次 MRI 可能正常；部分個案出現延髓麻痺與呼吸衰竭（呼吸的風險另列為併發症）。延髓外側也梗塞時（例如兩側椎動脈都阻塞），再加上延髓外側的徵象（霍納氏症候群、痛溫覺喪失、吞嚥困難與聲音沙啞、運動失調）：仍是一個兩側延髓的病灶，不是兩個單側的華倫堡或半側延髓症候群。',
+      en: 'Both medial medullae: weakness of all four limbs (the face often spared), weak tongue on both sides and dysarthria, often with loss of position sense. In a systematic review of 38 cases: limb weakness 78.4 %, dysarthria 48.6 %, hypoglossal palsy 40.5 %; mostly rostral lesions; a poor outcome, with inpatient mortality 23.8 % and dependency 61.9 %. It can worsen over days and mimic Guillain–Barré syndrome, with a first MRI that is normal; bulbar palsy and respiratory failure occur in some cases (the breathing risk is listed as a complication). When the lateral medulla is infarcted too (both vertebral arteries blocked, for example), the lateral medullary signs add (Horner, loss of pain and temperature, dysphagia and hoarseness, ataxia): still one lesion of both sides of the medulla, not two one-sided Wallenberg or hemimedullary syndromes.',
+    },
+    // both sides from the threshold at which the bilateral sign (dysarthria) appears; with the
+    // lateral medulla too it is still one bilateral picture (R2-7)
+    test: (c) => c.both('medulla_medial', 0.25),
+    supersedes: ['dejerine', 'hemimedullary', 'wallenberg'],
+  },
+  {
+    // W3-8: the anterior spinal artery's territory of the upper cervical cord (regions.ts
+    // cervical_cord), named for that vascular pattern beside any medullary label; features and
+    // course: Robertson CE et al. Neurology 2012;78:114–121 (PMID 22205760); Zalewski NL et al. JAMA
+    // Neurol 2019;76:56–63 (PMID 30264146)
+    id: 'anterior_spinal',
+    pattern: true,
+    group: 'posterior',
+    lateral: false,
+    name: { zh: '前脊髓動脈症候群（上段頸髓）', en: 'Anterior spinal artery syndrome (upper cervical cord)' },
+    desc: {
+      zh: '突然四肢無力（一開始軟癱，之後變成痙攣），病灶以下痛覺與溫度覺喪失，而位置覺與振動覺保留（脊髓後方有自己的後脊髓動脈供應）；膀胱功能也常受影響。多數人在數小時內就到最嚴重。原因是前脊髓動脈本身，或它起始處的兩側椎動脈阻塞（例如椎動脈剝離）。模型裡是上段頸髓（C1–C3）；腦部影像看不到，需要脊椎 MRI。',
+      en: 'Sudden weakness of all four limbs (flaccid at first, spastic later) and loss of pain and temperature sense below the lesion, while position and vibration sense are spared (the back of the cord has its own posterior spinal arteries); the bladder is often affected too. Most patients are at their worst within hours. The cause is an occlusion of the anterior spinal artery itself or of both vertebral arteries at its origin (a vertebral dissection, for example). In the model the upper cervical cord (C1–C3); brain imaging does not show it, MRI of the spine does.',
+    },
+    test: (c) => c.has('cervical_cord', 'r'),
   },
   {
     id: 'hemimedullary',
@@ -419,9 +1001,20 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'cerebellar',
     lateral: true,
     name: { zh: 'PICA 小腦梗塞', en: 'PICA cerebellar infarction' },
+    // pseudo-vestibular neuritis: 25 of 240 isolated cerebellar infarcts, 24 of them in the medial
+    // PICA territory (Lee H et al. Neurology 2006;67:1178–1183, PMID 17030749); HINTS 100 %
+    // sensitive, first DWI falsely negative in 12 %, all within 48 h (Kattah JC et al. Stroke
+    // 2009;40:3504–3510, PMID 19762709); medial-branch infarcts reach the lateral and dorsal medulla
+    // when the branch supplies it (Amarenco P et al. J Neurol Neurosurg Psychiatry 1990;53:731–735,
+    // PMID 2246654; 5 of 9 at autopsy, 4 presenting as Wallenberg syndrome: Amarenco P et al. Rev
+    // Neurol (Paris) 1989;145:277–286, PMID 2660219); vertebral disease in 67 % and PICA disease in
+    // 10 % of lateral medullary infarcts (Kim JS. Brain 2003;126:1864–1872, PMID 12805095); the
+    // cerebellar cognitive affective syndrome (Schmahmann JD, Sherman JC. Brain 1998;121:561–579,
+    // PMID 9577385; MMSE and MoCA normal: Hoche F et al. Brain 2018;141:248–270, PMID 29206893).
+    // C7-F2, C7-F5, C7-F10
     desc: {
-      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。大範圍梗塞 1–3 天後可能腫脹壓迫腦幹。',
-      en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. Large infarcts can swell and compress the brainstem after 1–3 days.',
+      zh: '眩暈、嘔吐、走不穩、眼振，可能沒有任何肢體無力——很容易被當成內耳眩暈或腸胃炎。「頭暈合併無法站立或行走」要高度警覺。只有內側（蚓部）分支梗塞時，可以和前庭神經炎一模一樣（這類小腦中風 25 例中 24 例在此），NIHSS 為 0：床邊的 HINTS 檢查（甩頭測試、眼振型態、眼球偏斜測試）對中風的敏感度達 100%，而 48 小時內的第一次 DWI 有 12% 看不到梗塞。PICA 主幹阻塞常同時波及延髓外側（解剖研究中 9 例內側分支梗塞有 5 例，其中 4 例表現為華倫堡氏症候群）；不過延髓外側梗塞大多來自椎動脈（67%），單純 PICA 只占 10%。小腦後葉與蚓部受損可能出現小腦認知情感症候群（計畫、視覺空間與情緒的改變），因為 MMSE、MoCA 可能正常而容易被忽略（資料來自各種小腦疾病，不只是中風）。大範圍梗塞可能腫脹壓迫第四腦室與腦幹，最常在第 3 天，但約 40% 在第 3 天之後，所以要觀察數天。',
+      en: 'Vertigo, vomiting, unsteadiness and nystagmus, possibly with no limb weakness — easily mistaken for inner-ear vertigo or gastroenteritis. Dizziness with inability to stand or walk is a red flag. An infarct of the medial (vermian) branch alone can look exactly like vestibular neuritis (24 of 25 such cerebellar strokes) with an NIHSS of 0: the bedside HINTS examination (head impulse, nystagmus, test of skew) was 100 % sensitive for stroke, while the first DWI within 48 h missed 12 %. A PICA trunk occlusion often reaches the lateral medulla too (5 of 9 medial-branch infarcts at autopsy, 4 of them presenting as Wallenberg syndrome), although most lateral medullary infarcts come from the vertebral artery (67 %) rather than the PICA (10 %). Damage to the posterior lobe and vermis can bring the cerebellar cognitive affective syndrome (planning, visuospatial and emotional changes), easily missed because MMSE and MoCA can be normal (series of mixed cerebellar disease, not stroke alone). Large infarcts can swell and compress the 4th ventricle and brainstem, most often on day 3 but in about 40% after day 3, so monitoring has to continue for days.',
     },
     test: (c, s) => c.hasAny(['cerebellum_posterior_inferior', 'vermis_inferior'], s, 0.3),
   },
@@ -430,94 +1023,242 @@ export const SYNDROMES: SyndromeDef[] = [
     group: 'cerebellar',
     lateral: true,
     name: { zh: '迷路動脈梗塞（內耳中風）', en: 'Labyrinthine artery infarction (inner-ear stroke)' },
+    // Lee H et al. Stroke 2009;40:3745–3751 (PMID 19797177): combined audiovestibular loss in 60 %
+    // of 82 AICA infarcts, 13 with transient episodes within the month before (C7-F7)
     desc: {
-      zh: '突發單側耳聾合併嚴重眩暈。可能是小腦前下動脈中風的前兆，數天內接著出現更大範圍梗塞。',
-      en: 'Sudden one-sided deafness with severe vertigo. It can herald a larger AICA infarct within days.',
+      zh: '突發單側耳聾合併嚴重眩暈；血管性的原因通常聽覺與前庭一起受損，和病毒性的不同。內耳是終末器官，腦部 DWI 看不到它的梗塞。可能是小腦前下動脈中風的前兆，數天到數週內接著出現更大範圍梗塞（82 例 AICA 梗塞中有 13 例在之前一個月內有過短暫發作）。',
+      en: 'Sudden one-sided deafness with severe vertigo; a vascular cause usually takes hearing and the vestibule together, unlike a viral one. The inner ear is an end organ whose infarct brain DWI does not show. It can herald a larger AICA infarct within days to weeks (13 of 82 AICA infarcts had transient episodes within the month before).',
     },
     test: (c, s) => c.has('inner_ear', s, 0.3),
+    // U3-11: named for its sign, the deafness of that ear, which only the patient can tell (as the
+    // retinal label)
+    requires: (q, s) => q.on('hearing_loss', s),
   },
 
   // ─────────────── lacunar (supratentorial) ───────────────
   {
     id: 'striatocapsular',
+    pattern: true,
     group: 'lacunar',
     lateral: true,
     name: { zh: '紋狀體內囊梗塞', en: 'Striatocapsular infarction' },
     desc: {
-      zh: '整群豆紋動脈（或 M1 起始處阻塞、皮質靠側枝撐住）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）。對側偏癱為主，常合併輕微的皮質徵象（左側失語、右側忽略）。',
-      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm). Mainly contralateral hemiparesis, often with subtle cortical signs (aphasia on the left, neglect on the right) — Donnan et al., Brain 1991.',
+      zh: '整群豆紋動脈（或 M1 阻塞而皮質靠側枝撐住，或 M1 打通時深部核團已經壞死、皮質大多救回）造成殼核、尾狀核與內囊的逗點狀梗塞，比腔隙大（> 1.5 cm）；旁邊內囊的白質能撐幾個小時，所以 M1 在兩小時左右內打通時，通常只有紋狀體梗塞、內囊保住，也就沒有偏癱；部分皮質（如腦島、顳葉）也可能梗塞，另以它自己的標籤標示。最常見的是以手臂為主的對側偏癱，合併皮質徵象（左側失語、右側忽略、失用）：急性期來自皮質灌流不足，之後則歸因於遠隔效應（diaschisis）。只有手臂或手臂加臉無力、沒有皮質徵象時，通常恢復得很好。',
+      en: 'Several lenticulostriate arteries at once (or an M1-origin occlusion with the cortex rescued by collaterals, or an M1 occlusion reopened after the deep nuclei have died but while most of the cortex could be saved) give a comma-shaped infarct of putamen, caudate and internal capsule, larger than a lacune (> 1.5 cm); the white matter of the capsule beside them holds out for a few hours, so an M1 reopened within about two hours usually leaves the striatum infarcted but the capsule, and the arm, spared; part of the cortex (insula, temporal lobe) may be infarcted too, named by its own label. Most often an arm-predominant contralateral hemiparesis with cortical signs (aphasia on the left, neglect on the right, dyspraxia): acutely from cortical hypoperfusion, later attributed to diaschisis. With arm or arm-and-face weakness alone and no cortical signs, recovery is usually excellent — Donnan et al., Brain 1991.',
     },
+    // the deep (comma-shaped) pattern with the cortex not infarcted to the extent of a complete
+    // MCA syndrome (fewer than four of its cortical areas, which mca_complete needs). Some cortex
+    // may be involved: an M1 occlusion reopened early (thrombectomy) leaves the deep nuclei, which
+    // have no collaterals, infarcted, and often the insula or part of the temporal lobe; Donnan's
+    // patients had cortical signs too. Requiring no cortex at all (as before) left that infarct,
+    // and its dense hemiparesis, named only by the inferior-division label, which describes
+    // little weakness (Y2-2); the cortical part keeps its own label next to this one.
     test: (c, s) =>
       c.has('putamen', s, 0.4) &&
       c.hasAny(['caudate_body', 'caudate_head'], s, 0.3) &&
       c.hasAny(['ic_posterior_limb', 'ic_genu', 'ic_anterior_limb'], s, 0.3) &&
-      c.cortexCount(s, 0.3) === 0,
+      mcaCount(c, s) < 4,
     supersedes: ['lacunar_pure_motor', 'lacunar_sensorimotor'],
   },
   {
     id: 'lacunar_pure_motor',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '純運動性腔隙中風', en: 'Pure motor lacunar stroke' },
+    name: { zh: '純運動性腔隙症候群', en: 'Pure motor lacunar syndrome' },
+    // the commonest lacunar syndrome (57 %); severity follows the infarct volume, except in the
+    // lowest part of the internal capsule (Chamorro A et al. Stroke 1991;22:175-181, PMID 2003281);
+    // lacunar strokes have a median NIHSS of 3-4 (Barow 2020; Vynckier 2021). C6-F1. Named as a
+    // clinical syndrome, as are the other lacunar ones: shown during a capsular TIA too (R2-5).
     desc: {
-      zh: '內囊後肢小梗塞：對側臉、手、腳「同等程度」無力，沒有感覺、視野或語言障礙。',
-      en: 'Small infarct in the posterior limb of the internal capsule: equal weakness of the opposite face, arm and leg with no sensory, visual or language deficit.',
+      zh: '通常是內囊後肢的小梗塞（腔隙）：對側臉、手、腳無力程度相近，多為輕到中度，沒有感覺、視野或語言障礙。位在內囊最下方的小梗塞也可能造成嚴重偏癱。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct (lacune) in the posterior limb of the internal capsule: weakness of the opposite face, arm and leg to a similar degree, usually mild to moderate, with no sensory, visual or language deficit. A small infarct in the lowest part of the internal capsule can still cause a dense hemiplegia. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     test: (c, s) =>
       c.hasAny(['ic_posterior_limb', 'ic_genu'], s, 0.3) &&
       !c.has('thalamus_ventrolateral', s, 0.3) &&
       !c.has('optic_tract', s, 0.3) &&
       c.cortexCount(s) === 0,
+    // named for its signs: a weak arm or leg on the opposite side
+    requires: (q, s) => weakOn(q, other(s)),
   },
   {
     id: 'lacunar_pure_sensory',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '純感覺性腔隙中風', en: 'Pure sensory lacunar stroke' },
+    name: { zh: '純感覺性腔隙症候群', en: 'Pure sensory lacunar syndrome' },
     desc: {
-      zh: '視丘腹後核小梗塞：對側半身麻木，沒有無力。',
-      en: 'Small infarct in the ventral posterior thalamus: numbness of the opposite half of the body without weakness.',
+      zh: '通常是視丘腹後核的小梗塞（腔隙）：對側半身麻木，沒有無力。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct (lacune) in the ventral posterior thalamus: numbness of the opposite half of the body without weakness. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
-    test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
+    // a lacune: the whole inferolateral territory is the thalamic sensory syndrome (C6-F7)
+    test: (c, s) =>
+      c.has('thalamus_ventrolateral', s, 0.3) && c.lacune('thalamus_ventrolateral', s) && !c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
+    // "pure": no weakness or ataxia on that body side (with them, the thalamic sensory syndrome
+    // describes it)
+    requires: (q, s) => !MOTOR_OR_ATAXIC.some((id) => q.on(id, other(s))),
   },
   {
     id: 'lacunar_sensorimotor',
     group: 'lacunar',
     lateral: true,
-    name: { zh: '感覺運動性腔隙中風', en: 'Sensorimotor lacunar stroke' },
+    name: { zh: '感覺運動性腔隙症候群', en: 'Sensorimotor lacunar syndrome' },
     desc: {
-      zh: '視丘與鄰近內囊同時受損：對側無力加上麻木。',
-      en: 'Thalamus and adjacent internal capsule: contralateral weakness plus numbness.',
+      zh: '視丘與鄰近內囊同時受損：對側無力加上麻木。同樣的表現若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Thalamus and adjacent internal capsule: contralateral weakness plus numbness. The same picture clearing within minutes and leaving no infarct is a lacunar TIA.',
     },
     test: (c, s) => c.has('thalamus_ventrolateral', s, 0.3) && c.has('ic_posterior_limb', s, 0.3) && c.cortexCount(s) === 0,
     supersedes: ['lacunar_pure_motor', 'lacunar_pure_sensory'],
+  },
+  {
+    // Moulin T et al. J Neurol Neurosurg Psychiatry 1995;58:422-427 (PMID 7738547): 100 patients
+    // with hemiparesis and ipsilateral incoordination without sensory loss — internal capsule
+    // 39 %, pons 19 %, thalamus 13 %, corona radiata 13 %, lentiform nucleus 8 %, with almost
+    // identical features; Hiraga A et al. J Neurol Neurosurg Psychiatry 2007;78:1260-1262 (PMID
+    // 17550988): on DWI mainly pontine or internal capsule / corona radiata; Gorman MJ et al.
+    // Stroke 1998;29:2549-2555 (PMID 9836766): sensory loss points to the capsule. 10 % of
+    // lacunar syndromes (Chamorro 1991). The pontine form is the pontine lacune (C6-F5).
+    id: 'lacunar_ataxic_hemiparesis',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '運動失調性偏癱（腔隙性）', en: 'Ataxic hemiparesis (lacunar)' },
+    desc: {
+      zh: '一側輕度無力，同一側手腳又笨拙、不協調（比無力本身更明顯），沒有感覺障礙。同樣的表現可以來自內囊（39%）、橋腦（19%）、視丘與放射冠（各 13%）或豆狀核（8%），各處幾乎無法從症狀區分。若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Mild weakness of one side with clumsy, uncoordinated movements of the same limbs, out of proportion to the weakness, and no sensory loss. The same picture comes from the internal capsule (39 %), pons (19 %), thalamus and corona radiata (13 % each) or lentiform nucleus (8 %), and the sites can hardly be told apart by the signs. Clearing within minutes and leaving no infarct, it is a lacunar TIA.',
+    },
+    test: (c, s) =>
+      c.hasAny(['ic_posterior_limb', 'corona_radiata'], s, 0.3) &&
+      !c.has('thalamus_ventrolateral', s, 0.3) &&
+      !c.has('optic_tract', s, 0.3) &&
+      c.cortexCount(s) === 0,
+    requires: (q, s) => weakOn(q, other(s)) && q.on('ataxia_limb', other(s)),
+    supersedes: ['lacunar_pure_motor'],
+  },
+  {
+    // Arboix A et al. J Neurol Neurosurg Psychiatry 2004;75:231-234 (PMID 14742595): 35 of 570
+    // lacunar syndromes (6.1 %); internal capsule 40 %, pons 17 %, corona radiata 8.6 %; limb
+    // weakness but not cerebellar-type ataxia; 45.7 % symptom-free at discharge (C6-F5)
+    id: 'lacunar_dysarthria_clumsy_hand',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '構音障礙—笨拙手症候群（腔隙性）', en: 'Dysarthria–clumsy hand syndrome (lacunar)' },
+    desc: {
+      zh: '口齒不清加上一隻手笨拙、略無力（寫字、扣釦子困難），常有輕微的臉部無力，沒有感覺障礙。約占腔隙症候群的 6%；病灶多在內囊（40%）、橋腦（17%）或放射冠（9%）。預後通常很好，近半數出院時已無症狀；模型中手的笨拙在幾週內消失。若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Slurred speech with a clumsy, slightly weak hand (writing, buttoning), often a mild facial weakness, and no sensory loss. About 6 % of lacunar syndromes; mostly in the internal capsule (40 %), pons (17 %) or corona radiata (9 %). The outlook is usually good: nearly half are symptom-free at discharge; in the model the hand recovers within weeks. Clearing within minutes and leaving no infarct, it is a lacunar TIA.',
+    },
+    test: (c, s) =>
+      c.hasAny(['ic_genu', 'ic_posterior_limb', 'corona_radiata'], s, 0.3) &&
+      !c.has('thalamus_ventrolateral', s, 0.3) &&
+      !c.has('optic_tract', s, 0.3) &&
+      c.cortexCount(s) === 0,
+    requires: (q, s) => q.from('dysarthria', s) && q.on('hand_clumsy', other(s)) && !weakOn(q, other(s)),
+    supersedes: ['lacunar_pure_motor'],
+  },
+  {
+    // Tatemichi TK et al. Neurology 1992;42:1966-1979 (PMID 1407580): six patients with inferior
+    // genu infarcts — fluctuating alertness, inattention, memory loss, apathy, abulia and
+    // psychomotor slowing with mild hemiparesis and dysarthria; severe verbal memory loss after
+    // left-sided infarcts, dementia in four; thalamocortical disconnection (C6-F8)
+    id: 'capsular_genu',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '內囊膝部症候群（視丘—皮質連結中斷）', en: 'Capsular genu syndrome (thalamocortical disconnection)' },
+    desc: {
+      zh: '通常是內囊膝部下方的小梗塞，切斷視丘通往額葉的纖維，使同側額葉功能下降：突然的意識混亂、清醒程度起伏、注意力差、冷漠與意志缺失、反應變慢與失憶；左側梗塞造成嚴重的語言記憶障礙，有時達到失智（「策略性梗塞失智」），右側則只有短暫的空間記憶障礙（模型中幾週內消失）。無力與口齒不清通常輕微。根據小型病例系列。若在幾分鐘內消失、沒有留下梗塞，就是腔隙性 TIA。',
+      en: 'Usually a small infarct in the lower genu of the internal capsule, which cuts the thalamic fibres to the frontal lobe and depresses that frontal lobe: sudden confusion with fluctuating alertness, inattention, apathy and abulia, slowness and memory loss — severe verbal memory loss after a left-sided infarct, sometimes amounting to dementia ("strategic-infarct dementia"), only a transient visuospatial memory problem after a right-sided one (gone within weeks in the model). Weakness and dysarthria are usually mild. From a small case series. Clearing within minutes and leaving no infarct, it is a lacunar TIA.',
+    },
+    test: (c, s) => c.has('ic_genu', s, 0.3) && !c.has('ic_posterior_limb', s, 0.3) && !c.has('putamen', s, 0.4) && c.cortexCount(s) === 0,
+    // the memory loss or the apathy of the lower-genu lacune itself (the genu's own list has
+    // neither): after a right-sided lacune the memory problem passes within weeks (R2-3), the
+    // apathy stays, and the label with it rather than a "pure" motor label
+    requires: (q, s) => q.from('amnesia', s, 'ic_genu') || q.from('abulia', s, 'ic_genu'),
+    supersedes: ['lacunar_pure_motor', 'lacunar_dysarthria_clumsy_hand'],
+  },
+  {
+    // Donnan GA et al. Neurology 1993;43:957-962 (PMID 8492952): crescendo capsular TIAs in 50
+    // patients, 4.5 % of TIAs, mostly face, arm and leg, from one small penetrating vessel; 42 %
+    // had an early capsular stroke; resistant to treatment. Paul NL et al. Neurology
+    // 2012;79:1356-1362 (PMID 22972645): 1.5 % of TIAs in a population, 7-day stroke risk 60 %,
+    // the recurrent TIA always within 24 h of the first. Vynckier 2021: early neurological
+    // deterioration in lacunar stroke, adjusted odds ratio 7.0. Saposnik G et al. Arch Neurol
+    // 2008;65:1375-1377 (PMID 18852355): the pontine warning syndrome (C6-F2).
+    id: 'capsular_warning',
+    group: 'lacunar',
+    lateral: true,
+    name: { zh: '內囊／橋腦警訊症候群（反覆發作的腔隙性 TIA）', en: 'Capsular / pontine warning syndrome (crescendo lacunar TIAs)' },
+    desc: {
+      zh: '同一條小穿通動脈反覆、刻板地發作：對側臉、手、腳無力，每次幾分鐘內就恢復，一天內再發。約占 TIA 的 4.5%（人口研究中 1.5%）；42% 很快就變成內囊（腔隙性）中風，人口研究中 7 天內中風風險 60%。橋腦旁正中穿通支也會這樣發作（橋腦警訊症候群）。即使發作停了也要當急症處理；它也預示腔隙性中風早期惡化。',
+      en: 'Repeated, stereotyped attacks from one small penetrating artery: weakness of the opposite face, arm and leg, clearing within minutes each time, and recurring within a day. About 4.5 % of TIAs (1.5 % in a population study); 42 % soon went on to a capsular (lacunar) stroke, and the 7-day stroke risk was 60 % in the population study. A paramedian pontine branch can do the same (pontine warning syndrome). An emergency even when the attacks have stopped; it also predicts early worsening of a lacunar stroke.',
+    },
+    test: (c, s) => WARNING_BUNDLES.some((b) => crescendo(c.branchEpisodes(b, s), c.tH)),
   },
 
   // ─────────────── watershed & haemodynamic ───────────────
   {
     id: 'watershed',
+    pattern: true,
     group: 'watershed',
     lateral: true,
     name: { zh: '分水嶺（邊界區）缺血', en: 'Watershed (border-zone) ischaemia' },
     desc: {
-      zh: '兩條動脈末梢交界處血壓最低，當血壓下降或頸動脈嚴重狹窄時最先缺血。前分水嶺（前／中大腦動脈之間）造成對側肩膀與上臂近端無力、臉與手指相對保留，雙側時雙臂無力而雙腿正常（「桶中人」）；後分水嶺（中／後大腦動脈之間）影響視覺與語言理解；內分水嶺在深部白質呈串珠狀。',
-      en: 'Where two arterial trees meet, pressure is lowest, so these zones fail first when blood pressure drops or the carotid is severely narrowed. The anterior watershed (ACA–MCA) gives contralateral proximal arm/shoulder weakness with face and hand relatively spared; bilateral lesions weaken both arms with normal legs ("man in a barrel"); the posterior (MCA–PCA) affects vision and comprehension; the internal watershed forms a string of deep white-matter lesions.',
+      zh: '兩條動脈末梢交界處血壓最低，當血壓下降或頸動脈嚴重狹窄時最先缺血。前分水嶺（前／中大腦動脈之間）位在運動區管肩膀與上臂的上段，可造成對側近端手臂無力、臉與手相對保留；雙側時為雙臂無力而雙腿能動的「桶中人」；後分水嶺（中／後大腦動脈之間）影響視覺與語言理解；內分水嶺在深部白質呈串珠狀。單側分水嶺梗塞多半發生在頸動脈阻塞或嚴重狹窄再加上血壓下降等血流因素時，發作時常有昏厥（37%）或局部肢體抖動（12%）。',
+      en: 'Where two arterial trees meet, pressure is lowest, so these zones fail first when blood pressure drops or the carotid is severely narrowed. The anterior watershed (ACA–MCA) lies over the shoulder and upper-arm part of the motor strip and can weaken the opposite proximal arm with face and hand relatively spared; on both sides it gives the "man in a barrel" (both arms weak, legs moving); the posterior (MCA–PCA) affects vision and comprehension; the internal watershed forms a string of deep white-matter lesions. One-sided watershed infarcts mostly come with carotid occlusion or tight stenosis plus a haemodynamic factor such as low blood pressure; syncope (37 %) or focal limb shaking (12 %) at onset are frequent.',
     },
-    test: (c, s) => {
-      const b = c.border(s);
-      return b.border >= 4 && b.border / Math.max(b.total, 1e-6) >= 0.35;
-    },
+    // Bogousslavsky J, Regli F. Unilateral watershed cerebral infarcts. Neurology 1986;36:373-377
+    // (PMID 3951705): 51 patients, a characteristic picture per type, syncope 37 %, limb shaking
+    // 12 %, 75 % with ICA occlusion or tight stenosis plus a haemodynamic factor
+    // Z4-14: only in a haemodynamic setting (haemodynamicSetting): a distal branch occluded by an
+    // embolus is a branch-territory infarct, also where it lies in border-zone beds
+    // V3-2: or a border-zone picture of the MCA territory across it, whatever the ACA territory of
+    // that side does (mcaBorderZonePicture)
+    test: (c, s) => (isWatershedPicture(c.border(s)) || mcaBorderZonePicture(c, s)) && c.haemodynamic(s),
+    // a border-zone picture is not the whole territory's (W3-9: a tight carotid stenosis at a low
+    // blood pressure, whose infarcts lie in the border zones from day 5, was named a complete MCA
+    // syndrome beside it)
+    supersedes: ['mca_complete'],
   },
   {
+    // bilateral anterior border-zone infarcts: bilateral brachial paralysis, worst proximally
+    // (Martí-Vilalta JL, Arboix A, Garcia JH. J Stroke Cerebrovasc Dis 1994;4:114-120, PMID
+    // 26487612); after hypotension, 11 of 34 comatose patients moved their legs but not their
+    // arms, and 1 of those 11 survived to leave hospital, against 8 of the 23 others (Sage JI, Van
+    // Uitert RL. Neurology 1986;36:1102-1103, PMID 3736874). Named for its signs: at least
+    // moderate proximal arm weakness on both sides (a drift is not a "barrel"), with the leg area
+    // of both paracentral lobules spared (C1-F6). The poor outcome belongs to that comatose
+    // series, not to every patient the model shows (R1-3).
+    id: 'man_in_barrel',
+    group: 'watershed',
+    lateral: false,
+    name: { zh: '雙側前分水嶺梗塞（桶中人症候群）', en: 'Bilateral anterior watershed infarction (man-in-the-barrel)' },
+    desc: {
+      zh: '全身血壓嚴重下降（例如心跳停止、休克）時，兩側前／中大腦動脈交界區可能同時缺血：兩側肩膀與上臂無力（嚴重時癱瘓），雙腿卻能動，好像被套在桶子裡。經典的病例系列是低血壓後昏迷的病人：有這個表現的 11 人中只有 1 人存活出院（沒有的 23 人中 8 人）。手臂無力本身能恢復多少，要看交界區有多少組織壞死。',
+      en: 'When blood pressure falls profoundly (cardiac arrest, shock), both ACA–MCA border zones can fail together: both shoulders and upper arms are weak (paralysed when severe) while the legs still move, as if the person were standing in a barrel. The classic series was of comatose patients after a fall in blood pressure: only 1 of 11 with this picture survived to leave hospital (8 of 23 without it). How far the arm weakness itself recovers depends on how much border-zone tissue has died.',
+    },
+    test: (c) =>
+      (['r', 'l'] as Side[]).every((s) => {
+        const b = c.border(s);
+        return isWatershedPicture(b) && b.kinds.some((k) => k.startsWith('ACA|MCA')) && !c.has('paracentral', s, 0.3) && c.haemodynamic(s);
+      }),
+    requires: (q) => q.on('arm_weak_proximal', 'r', 2) && q.on('arm_weak_proximal', 'l', 2),
+    supersedes: ['watershed'],
+  },
+  {
+    // Named for the flow reversal, a vascular pattern (Y3-10): the haemodynamic steal phenomenon is
+    // the reversed vertebral flow; only with vertebrobasilar or arm symptoms is it the subclavian
+    // steal syndrome (Osiro S et al. Med Sci Monit 2012;18:RA57-63, PMID 22534720). Of 514 patients
+    // with an arm pressure difference above 20 mmHg (the screening threshold), 38 had symptoms — 32
+    // of the posterior circulation, 4 of arm and 2 of cardiac ischaemia — and differences above
+    // 40–50 mmHg went with symptoms (Labropoulos N et al. Ann Surg 2010;252:166-170, PMID 20531004).
+    // So it is marked clinically silent while no symptom is listed.
     id: 'subclavian_steal',
     group: 'other',
     lateral: true,
-    name: { zh: '鎖骨下動脈竊血症候群', en: 'Subclavian steal syndrome' },
+    name: { zh: '鎖骨下動脈竊血（血流反轉）', en: 'Subclavian steal (flow reversal)' },
     desc: {
-      zh: '鎖骨下動脈近端阻塞，同側椎動脈血流反轉去供應手臂。手臂用力時可能頭暈、視力模糊、走不穩；兩手血壓差超過 15–20 mmHg 是重要線索。',
-      en: 'The proximal subclavian is blocked, so the same-side vertebral artery flows backwards to feed the arm. Arm exercise can trigger dizziness, blurred vision or unsteadiness; a > 15–20 mmHg difference in arm blood pressures is a key clue.',
+      zh: '鎖骨下動脈近端狹窄或阻塞，同側椎動脈血流反轉去供應手臂：這是竊血「現象」，超音波上常見，多半沒有症狀。有症狀時才稱為鎖骨下動脈竊血「症候群」：手臂用力時頭暈、視力模糊、走不穩（後循環缺血），或手臂痠痛無力。兩手收縮壓差是線索：一個大型超音波系列以相差超過 20 mmHg 來篩檢鎖骨下動脈的阻塞（514 人中只有 38 人有症狀），相差超過 40–50 mmHg 時較常出現症狀。',
+      en: 'The proximal subclavian artery is narrowed or blocked, so the same-side vertebral artery flows backwards to feed the arm: this is the steal phenomenon, common on ultrasound and usually silent. Only with symptoms is it called subclavian steal syndrome: dizziness, blurred vision or unsteadiness when the arm is exercised (posterior-circulation ischaemia), or a tired, aching arm. The arm blood pressures are a clue: a large ultrasound series screened for subclavian obstruction with a difference of more than 20 mmHg (38 of 514 such patients had symptoms), and symptoms were more frequent with a difference of more than 40–50 mmHg.',
     },
     test: (c, s) => c.occluded('subclavian_prox', s) && (c.reversed('va_extracranial', s) || c.reversed('va_v4_prox', s)),
+    pattern: true,
   },
   {
     id: 'amaurosis',
@@ -525,10 +1266,14 @@ export const SYNDROMES: SyndromeDef[] = [
     lateral: true,
     name: { zh: '視網膜缺血（一過性黑矇／視網膜中央動脈阻塞）', en: 'Retinal ischaemia (amaurosis fugax / CRAO)' },
     desc: {
-      zh: '單眼視力突然變暗或全黑，是「眼睛的中風」，同時也是同側頸動脈疾病的警訊，需要與腦中風同等緊急處理。',
-      en: 'Sudden darkening or loss of vision in one eye — a "stroke of the eye" and a warning sign of same-side carotid disease; as urgent as a brain stroke.',
+      zh: '單眼視力突然變暗或全黑，是「眼睛的中風」，同時也是同側頸動脈疾病的警訊，需要與腦中風同等緊急處理。幾分鐘內恢復的是一過性黑矇；持續不退、視網膜梗塞的是視網膜中央動脈阻塞。',
+      en: 'Sudden darkening or loss of vision in one eye — a "stroke of the eye" and a warning sign of same-side carotid disease; as urgent as a brain stroke. Clearing within minutes it is amaurosis fugax; lasting, with the retina infarcted, it is a central retinal artery occlusion.',
     },
     test: (c, s) => c.has('retina', s, 0.3),
+    // U3-11: named for its sign, the loss of sight in one eye, which only the patient can tell: shown
+    // beside it while it is listed, not while aphasia or a lowered consciousness leaves it unexaminable
+    // (it is named apart then, with why), as the neglect label is not shown in coma
+    requires: (q, s) => q.on('monocular_blind', s),
   },
   {
     id: 'carotid_compensated',

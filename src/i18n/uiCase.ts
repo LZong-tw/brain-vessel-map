@@ -38,6 +38,12 @@ export interface CaseStrings {
   untreated: string;
   noReperfusion: string;
   reopenedAt: (at: string) => string;
+  /** an attempt that reopened nothing (eTICI 0) */
+  attemptedAt: (at: string) => string;
+  /** a treatment given for a lacunar occlusion, which the model does not reopen (U2-8) */
+  lacunarTreatedAt: (method: string, at: string) => string;
+  /** a treatment time when nothing complete is occluded (U2-8) */
+  nothingToReopenAt: (at: string) => string;
   /** reperfusion time with its details in brackets (summary line) */
   withDetails: (when: string, details: string) => string;
   decompressionShort: string;
@@ -80,6 +86,9 @@ const zh: CaseStrings = {
   untreated: '未治療',
   noReperfusion: '未再通',
   reopenedAt: (at) => `${at}再通`,
+  attemptedAt: (at) => `${at}嘗試、未再通`,
+  lacunarTreatedAt: (method, at) => `${at}${method}（模型不模擬它對腔隙性阻塞的效果）`,
+  nothingToReopenAt: (at) => `${at}治療：沒有可打通的阻塞`,
   withDetails: (when, details) => `${when}（${details}）`,
   decompressionShort: '必要時減壓手術',
   occludedLine: (events) => `${events} 阻塞`,
@@ -118,6 +127,9 @@ const en: CaseStrings = {
   untreated: 'untreated',
   noReperfusion: 'no recanalisation',
   reopenedAt: (at) => `reopened at ${at}`,
+  attemptedAt: (at) => `attempted at ${at}, not reopened`,
+  lacunarTreatedAt: (method, at) => `${method} at ${at} (not simulated for a lacunar occlusion)`,
+  nothingToReopenAt: (at) => `treatment at ${at}: nothing to reopen`,
   withDetails: (when, details) => `${when} (${details})`,
   decompressionShort: 'decompression if needed',
   occludedLine: (events) => `Occluded: ${events}`,

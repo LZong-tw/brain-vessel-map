@@ -9,7 +9,7 @@ import { SCENARIOS } from '../anatomy/scenarios';
 import type { CollateralGrade } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
 import { infarctFraction } from './tissue';
-import { DEFAULT_TISSUE, tissueParamsForBed } from './tissueParams';
+import { DEFAULT_TISSUE, PERFORATOR_TISSUE, tissueParamsForBed } from './tissueParams';
 
 const GRADES: CollateralGrade[] = ['good', 'moderate', 'poor'];
 const sim = (over: Partial<SimInput>) =>
@@ -72,7 +72,9 @@ describe('reperfusion of a mid-basilar occlusion (goal 2)', () => {
     const poor = savedShare('poor');
     expect(good(12)).toBeGreaterThan(0.4);
     expect(good(24)).toBeGreaterThan(0.25);
-    expect(poor(12)).toBeLessThan(0.05);
+    // poor collaterals leave the pons in the low penumbra (C8-F2), so reopening at 12 h still
+    // saves a few per cent; the benefit is gone by 24 h
+    expect(poor(12)).toBeLessThan(0.08);
     expect(poor(24)).toBeLessThan(0.05);
   });
 
@@ -94,7 +96,8 @@ describe('untreated mid-basilar occlusion still ends in locked-in syndrome (goal
   it.each(GRADES)('the ventral pons is infarcted on both sides in the end (%s collaterals)', (c) => {
     for (const tH of [96, 720]) {
       const r = basilar('basilar_mid', c, { tH });
-      expect(syndromeIds(r)).toContain('locked_in');
+      // classical, or incomplete once some limb movement returns (C3-F1)
+      expect(syndromeIds(r).some((id) => id === 'locked_in' || id === 'locked_in_incomplete')).toBe(true);
       for (const s of ['r', 'l']) expect(r.regions[`pons_caudal_basis_${s}`].infarct).toBeGreaterThanOrEqual(0.4);
     }
   });
@@ -122,9 +125,13 @@ describe('collateral grade matters in basilar occlusion (goal 4)', () => {
 });
 
 describe('the anterior circulation is unchanged (goal 5)', () => {
-  it('only brainstem beds fed entirely by the basilar artery have their own tissue parameters', () => {
+  // (per bed; within any other bed, the part an end-artery perforator feeds keeps the former fast
+  // course, except in the deep white matter, which is lost over hours: tissueParamsForUnit, Y1-0,
+  // Z1-7)
+  it('only brainstem beds fed entirely by the basilar artery (and the retina, C8-F1) have their own tissue parameters', () => {
     for (const b of BEDS) {
       if (tissueParamsForBed(b.id) === DEFAULT_TISSUE) continue;
+      if (REGION_BY_ID[b.region].category === 'eye') continue;
       expect(REGION_BY_ID[b.region].category, b.id).toBe('brainstem');
       expect(b.region, b.id).toMatch(/^(pons|midbrain)_/);
       expect(b.region, b.id).not.toMatch(/^midbrain_peduncle/);
@@ -134,27 +141,47 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
   // final infarct (mL) of every scenario outside the posterior group before the posterior
   // calibration; the small shifts allowed come from the ischaemic lag (goal 7)
   const BEFORE: Record<string, number> = {
-    l_m1: 148.916,
-    l_m1_thrombectomy: 60.198,
+    // Z1-15: the motor strip no longer gets more collateral blood per mL/min of its territory than
+    // its neighbours, so more of it is lost (was 148.916)
+    l_m1: 165.518,
+    // X3-0: the pial arteries of the hemispheres are mirrored in the flow model (was 60.198). Y1-0:
+    // tissue that collaterals reach is lost over hours, not minutes, so the reopening at 2 h leaves
+    // the end-artery (striatocapsular) territory and little cortex (was 58.046; the untreated final
+    // volumes do not change). Z1-7: the internal capsule and the corona radiata beside the striatum
+    // are lost only over hours, so the reopening at 2 h spares them (−6.3 mL); Z1-15: a little more
+    // motor strip (+2.1 mL; was 33.65)
+    l_m1_thrombectomy: 29.517,
     r_m1_malignant: 485.138,
     r_m1_decompression: 296.726,
     r_ica_t: 493.241,
-    l_m2_sup: 124.637,
+    // Z1-15: as l_m1, more of the motor strip (was 124.637)
+    l_m2_sup: 135.689,
     l_m2_inf: 58.628,
     r_aca: 135.779,
     l_acha: 8.621,
     l_lsa: 16.581,
     l_lacune: 0.8,
     l_thalamic: 3.431,
-    percheron: 2.91,
+    // C9-F1: the default Percheron trunk no longer infarcts 30% of each paramedian midbrain (was 2.91)
+    percheron: 2.736,
+    // C9-F1: added with the scenario (the Percheron trunk that also feeds the midbrain)
+    percheron_midbrain: 3.026,
     ica_silent: 0,
     ica_isolated: 428.8,
     fetal_pca: 76.199,
-    watershed: 17.861,
+    // C1-F3: the calcarine artery now feeds 60 % of the cuneus, so the parieto-occipital artery
+    // carries less, its end pressure is higher, and its border-zone beds (precuneus, superior
+    // parietal, lateral occipital) lose less at low blood pressure (was 17.861). X3-0: with the pial
+    // arteries of the hemispheres mirrored in the flow model, the right posterior border zone loses
+    // more again (was 16.331)
+    watershed: 17.791,
     subclavian_steal: 0,
     amaurosis: 0,
     // added with the occlusion schedules: a 5-minute event within the ischaemic lag leaves no infarct
     tia_l_mca: 0,
+    // added with C6: one lacune each (the capsular warning attacks of 5 minutes leave nothing)
+    l_cr_lacune: 0.8,
+    capsular_warning: 0.8,
   };
   it.each(SCENARIOS.filter((s) => s.group !== 'posterior').map((s) => [s.id, s] as const))('%s', (id, sc) => {
     const r = sim({
@@ -174,7 +201,11 @@ describe('the anterior circulation is unchanged (goal 5)', () => {
 describe('a brief complete occlusion is a TIA (goal 7)', () => {
   it('no tissue is lost during the ischaemic lag', () => {
     expect(infarctFraction(0, DEFAULT_TISSUE.lagH, null)).toBe(0);
-    expect(infarctFraction(0, 1, null)).toBeGreaterThan(0.99);
+    expect(infarctFraction(0, PERFORATOR_TISSUE.lagH, null, 1, PERFORATOR_TISSUE)).toBe(0);
+    // Y1-0: an end-artery territory without flow is lost within the hour; tissue that collaterals
+    // reach takes hours (the former check, more than 99 % lost at 1 h, held for every bed)
+    expect(infarctFraction(0, 1, null, 1, PERFORATOR_TISSUE)).toBeGreaterThan(0.99);
+    expect(infarctFraction(0, 1, null)).toBeLessThan(0.5);
   });
 
   it.each([

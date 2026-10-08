@@ -38,6 +38,12 @@ export interface Occlusion {
    */
   branch?: boolean;
   /**
+   * with `branch`: where in that bundle's territory the lacune lies and so which presentation it
+   * gives (a site id of anatomy/lacunes.ts LACUNE_SITES); absent or unknown: the bundle's first,
+   * classic site
+   */
+  lacuneSite?: string;
+  /**
    * hours after the start of the timeline at which this occlusion begins (default 0). The same
    * vessel may be listed more than once with non-overlapping windows (e.g. a stenosis that later
    * occludes). simulateHemodynamics ignores the timing: it treats every occlusion it is given as
@@ -156,10 +162,54 @@ const BRAINSTEM_PIAL: { perforator: string; from: string; share: number }[] = [
   { perforator: 'mesencephalic_perf_{s}', from: 'quad_end_{s}', share: 0.5 },
 ];
 /** TODO(medical-review): anastomotic conductance per mL/min of territory flow at grade factor 1
- * (tuned so that a mid-basilar occlusion leaves the paramedian pons at about 50 % / 40 % / 15 %
+ * (tuned so that a mid-basilar occlusion leaves the paramedian pons at about 50 % / 40 % / 33 %
  * of normal flow with good / moderate / poor collaterals, i.e. slowly dying penumbra, faster
- * dying penumbra and core — a qualitative target, not a measurement) */
+ * dying penumbra and penumbra close to the core threshold that is lost within hours — a
+ * qualitative target, not a measurement; see PIAL_GRADE) */
 const PIAL_ANAST = 0.02;
+/**
+ * Grade factor of the brainstem pial collaterals: as for the other collaterals, except 'poor'.
+ *
+ * TODO(medical-review): with the leptomeningeal factor (0.15) a mid-basilar occlusion with poor
+ * collaterals left the paramedian pons at about 15 % of normal flow, i.e. core within minutes,
+ * so reopening the artery even after 1 h changed nothing. The evidence describes a graded
+ * disadvantage, not futility: in the BASILAR registry (n = 828) thrombectomy was associated with
+ * better outcomes in every BATMAN stratum (interaction p = 0.52), and the ESO/ESMINT guideline
+ * suggests reperfusion therapy irrespective of the collateral score (Strbian D et al. Eur Stroke J
+ * 2024;9:835–884); with unfavourable BATMAN or PC-CS, revascularisation within 6 h, but not
+ * later, was associated with good outcome, whereas favourable collaterals benefited even after
+ * 6 h (Alemseged F et al. Response to late-window endovascular revascularization is associated
+ * with collateral status in basilar artery occlusion. Stroke 2019;50:1415–1422). BATMAN combines
+ * thrombus burden with collaterals, so it is not a pure collateral grade. The target applies to
+ * every basilar segment (the evidence concerns basilar artery occlusion in general): the
+ * paramedian pons cut off by a lower, mid or upper basilar occlusion sits at about a third of
+ * normal flow (low penumbra), so reopening within a few hours saves part of it, the benefit
+ * fades towards 12 h and is gone at 24 h. 0.5 meets it for the caudal group (mid basilar); see
+ * PIAL_POOR_BY_GROUP for the others. Good and moderate keep the common factors, so their
+ * calibration is unchanged.
+ */
+const PIAL_GRADE: Record<CollateralGrade, number> = { ...COLL_GRADE, poor: 0.5 };
+/**
+ * TODO(medical-review): the poor-grade factor of the perforator groups for which 0.5 misses the
+ * PIAL_GRADE target. In this network the inferior paramedian perforators (cut off by a lower
+ * basilar occlusion) and the rostral ones (upper basilar) receive less through their donors at
+ * the same factor than the caudal group: with 0.5 they sat at about 28 % of normal flow, below
+ * the core threshold, so reopening a lower or upper basilar occlusion with poor collaterals saved
+ * nothing even at 15 min. With these factors they sit at about a third of normal flow, like the
+ * caudal group. A calibration, not a measurement; good and moderate are unchanged.
+ * Known limitation (X2-17, in both READMEs): the targets are for one basilar segment. When the
+ * lower basilar is occluded together with another segment (a long clot that also covers the AICA
+ * origins, the donors of most of these links), moderate or poor collaterals leave the paramedian
+ * groups of the occluded segments at about 6–23 % of normal flow, below the core threshold, so
+ * reopening even at 30 min saves almost nothing — against the evidence of a graded disadvantage
+ * above. Recalibrating it would move every single-segment, AICA and PICA calibration with it.
+ */
+const PIAL_POOR_BY_GROUP: Record<string, number> = {
+  'pontine_paramedian_inferior_{s}': 0.75,
+  'pontine_paramedian_rostral_{s}': 0.75,
+};
+const pialGrade = (perforator: string, collateral: CollateralGrade) =>
+  collateral === 'poor' ? PIAL_POOR_BY_GROUP[perforator] ?? PIAL_GRADE.poor : PIAL_GRADE[collateral];
 /** TODO(medical-review): fixed series limit of the surface-to-perforator entry (same units) */
 const PIAL_ENTRY = 0.015;
 /**
@@ -174,6 +224,48 @@ const PIAL_ENTRY = 0.015;
  */
 const PIAL_PRESSURE_EXP = 1.4;
 export const pialPressureFactor = (map: number) => (map <= MAP_REF ? 1 : Math.pow(MAP_REF / map, PIAL_PRESSURE_EXP));
+
+/**
+ * Chest-wall and neck collaterals of the subclavian artery (not drawn as vessels).
+ *
+ * When the subclavian artery is blocked proximal to the vertebral origin, the arm is fed not
+ * only by the reversed vertebral artery but also through the branches of the first part of the
+ * subclavian artery, which reverse too: the internal thoracic artery from the intercostal
+ * arteries of the descending aorta, and the thyrocervical trunk from the superior thyroid branch
+ * of the external carotid artery. Each link joins a donor (the aorta, here the arch node, or the
+ * carotid bifurcation) to the vertebral origin of the subclavian artery, with a fixed
+ * conductance (mL/min/mmHg) that does not depend on the leptomeningeal collateral grade. At
+ * baseline the pressures at both ends are almost equal and they carry next to nothing.
+ *
+ * TODO(medical-review): the conductances are a qualitative calibration, not measurements.
+ * Without them the whole arm was fed by the reversed vertebral artery, which drained the
+ * vertebrobasilar junction so much that the basilar tip and both P1 segments reversed and the
+ * carotids fed the upper basilar artery through the PComms in every steal. In patients with
+ * retrograde vertebral flow, 76 % (19/25) had antegrade basilar flow at rest, unchanged by arm
+ * ischaemia, and fewer than 25 % reversed (Harper C et al. Transcranial Doppler ultrasonography of
+ * the basilar artery in patients with retrograde vertebral artery flow. J Vasc Surg
+ * 2008;48:859–864). Tuned so that with a normal opposite vertebral artery the basilar artery and
+ * the P1 segments stay antegrade at rest and the arm's mean pressure is about 25 mmHg below the
+ * other arm (steal is found with arm pressure differences above 20 mmHg and is mostly silent;
+ * symptoms are more frequent above 40–50 mmHg: Labropoulos N et al. Prevalence and impact of the
+ * subclavian steal syndrome. Ann Surg 2010;252:166–170). With a hypoplastic or occluded opposite
+ * vertebral artery the carotids still have to feed the basilar artery, which then reverses.
+ *
+ * The same links are also the collateral supply of a common carotid or brachiocephalic occlusion
+ * (R4-6). After a common carotid occlusion the cervical ICA is often patent, fed through a
+ * reversed external carotid artery from the thyrocervical or costocervical trunk and the superior
+ * thyroid artery (16 of 16 patients: Wang J et al. Four collateral circulation pathways were
+ * observed after common carotid artery occlusion. BMC Neurol 2019;19:201): here the cca_bif link.
+ * Around a brachiocephalic occlusion the aortic link feeds the reversed right subclavian artery,
+ * which feeds the right common carotid. With them these occlusions are much better compensated
+ * than without (with poor collaterals, 24 h: NIHSS 0 and about 5 mL instead of 9 points and
+ * 34 mL for a right CCA occlusion; pinned in haemodynamicCalibration.test.ts). The model still
+ * shows a slightly reversed cervical ICA where the patients had it antegrade.
+ */
+const ARM_COLLATERALS: { from: string; g: number }[] = [
+  { from: 'arch', g: 1.8 },
+  { from: 'cca_bif_{s}', g: 1.2 },
+];
 
 const BRAIN_CATEGORIES = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
 
@@ -190,6 +282,76 @@ const pathLength = (v: Vessel): number => {
 const nodeOf = (s: SupplyDef): string => (s.at === 'mid' ? `${s.v}@mid` : VESSEL_BY_ID[s.v].to);
 
 const FLOW_VESSELS = VESSELS.filter((v) => !v.visualOnly);
+
+/**
+ * Left and right in the flow model (R1-8, X3-0, X3-13).
+ *
+ * The template brain (MNI ICBM152 2009c asymmetric) and the territory atlas drawn on it are not
+ * mirror images, and the flow model took both as they are: each artery's resistance from the
+ * length of its course traced on the template, and each artery's demand from the atlas volume it
+ * feeds. The same artery therefore had a different resistance and demand on the two sides — the
+ * left temporo-occipital artery, for example, is traced 115 mm long against 98 mm on the right and
+ * feeds 14.6 against 11.6 mL — and where collaterals decide the outcome, a left and a right
+ * occlusion of the same artery ended differently: with good collaterals the left calcarine
+ * territory, which draws its collateral blood through that artery, lost a hemianopia's worth of
+ * cortex while the right one recovered with no lasting field defect.
+ *
+ * For the pial arteries of the cerebral hemispheres — A2, M2 and P2 with their cortical branches —
+ * and the leptomeningeal anastomoses between them the flow model now takes the mean of the two
+ * sides: an artery and its mirror image have the same length, and the same baseline flow leaves
+ * each of their branch points (the beds keep their shares of it). The measured bed volumes, and so
+ * the infarct volumes, stay as the atlas gives them. The circle of Willis, the perforators and the
+ * vertebrobasilar and cerebellar arteries keep their traced values, because the calibrations of
+ * the posterior circulation (BRAINSTEM_PIAL and the cerebellar anastomoses) and of the circle were
+ * made on them; left and right can still differ a little there (README, limitations).
+ */
+const MIRRORED_TRUNKS = new Set(['aca_a2', 'mca_m2_sup', 'mca_m2_inf', 'pca_p2']);
+const CEREBRAL_FAMILIES = new Set(['ACA', 'MCA', 'PCA']);
+const isPialCerebral = (v: Vessel) =>
+  v.side !== 'm' && CEREBRAL_FAMILIES.has(v.family) && (v.kind === 'branch' || MIRRORED_TRUNKS.has(v.baseId));
+/** the nodes where the pial cerebral arteries end (their anastomoses join them there) */
+const PIAL_CEREBRAL_ENDS = new Set(VESSELS.filter(isPialCerebral).map((v) => v.to));
+/** a pial cerebral artery, or a leptomeningeal anastomosis between two of them: mirrored in the flow model */
+export const isMirroredInFlow = (v: Vessel): boolean =>
+  isPialCerebral(v) || (v.kind === 'collateral' && v.side !== 'm' && PIAL_CEREBRAL_ENDS.has(v.from) && PIAL_CEREBRAL_ENDS.has(v.to));
+const mirrorOf = (v: Vessel): Vessel | undefined => VESSEL_BY_ID[`${v.baseId}_${v.side === 'r' ? 'l' : 'r'}`];
+/** the length the flow model uses: an explicit `len`, the traced course, or for a mirrored artery the mean of both sides' */
+const flowLength = (v: Vessel): number => {
+  if (v.len != null) return v.len;
+  const m = isMirroredInFlow(v) ? mirrorOf(v) : undefined;
+  return m && m.len == null ? (pathLength(v) + pathLength(m)) / 2 : pathLength(v);
+};
+/**
+ * The factor on each unit's baseline flow at the branch points of the mirrored arteries: the mean
+ * of the two sides' demand there over this side's (the default anatomy's supply; a variant's
+ * supply override keeps the factor of the branch point it feeds from). 1 everywhere else.
+ */
+const DEMAND_FACTOR: Map<string, number> = (() => {
+  const nodeVessel = new Map<string, Vessel>();
+  for (const v of VESSELS.filter(isPialCerebral)) {
+    nodeVessel.set(v.to, v);
+    nodeVessel.set(`${v.id}@mid`, v);
+  }
+  const demand = new Map<string, number>();
+  for (const bed of BEDS) {
+    if (bed.baseFlow <= 0) continue;
+    const total = bed.supply.reduce((a, s) => a + s.share, 0) || 1;
+    for (const s of bed.supply) {
+      const node = nodeOf(s);
+      if (nodeVessel.has(node)) demand.set(node, (demand.get(node) ?? 0) + (s.share / total) * bed.baseFlow);
+    }
+  }
+  const factor = new Map<string, number>();
+  for (const [node, q] of demand) {
+    const v = nodeVessel.get(node)!;
+    const m = mirrorOf(v);
+    if (!m) continue;
+    const mirrorNode = node.endsWith('@mid') ? `${m.id}@mid` : m.to;
+    const qm = demand.get(mirrorNode);
+    if (qm && qm > 0 && q > 0) factor.set(node, (q + qm) / 2 / q);
+  }
+  return factor;
+})();
 
 interface CollateralLink {
   id: string;
@@ -228,7 +390,8 @@ function buildUnits(overrides: Map<string, SupplyDef[]>): Unit[] {
         prev.baseFlow += frac * bed.baseFlow;
       } else {
         merged.set(node, {
-          id: `${bed.id}#${s.v}`,
+          // one artery can feed a bed at two points (its middle and its end): one unit for each
+          id: `${bed.id}#${s.v}${s.at === 'mid' && supply.some((x) => x.v === s.v && x.at !== 'mid') ? '@mid' : ''}`,
           bed: bed.id,
           node,
           vessel: s.v,
@@ -238,6 +401,7 @@ function buildUnits(overrides: Map<string, SupplyDef[]>): Unit[] {
         });
       }
     }
+    for (const u of merged.values()) u.baseFlow *= DEMAND_FACTOR.get(u.node) ?? 1;
     units.push(...merged.values());
   }
   return units;
@@ -270,15 +434,23 @@ function ownerFlow(node: string, sub: Map<string, number>): number {
 // ── configuration (variants + collateral grade) ───────────────────
 const configCache = new Map<string, Config>();
 
-export function variantOverrides(variants: string[]): { scale: Map<string, number>; overrides: Map<string, SupplyDef[]> } {
+/** vessels only some people have (absent unless a chosen variant adds them) */
+const VARIANT_ONLY = VESSELS.filter((v) => v.variantOnly).map((v) => v.id);
+
+export function variantOverrides(variants: readonly string[]): { scale: Map<string, number>; overrides: Map<string, SupplyDef[]> } {
   const scale = new Map<string, number>();
   const overrides = new Map<string, SupplyDef[]>();
   for (const id of variants) {
     const v = VARIANT_BY_ID[id];
     if (!v) continue;
-    for (const [vid, f] of Object.entries(v.vesselScale ?? {})) scale.set(vid, (scale.get(vid) ?? 1) * f);
+    for (const [vid, f] of Object.entries(v.vesselScale ?? {})) {
+      // a vessel a variant adds starts from 0, so its scale is set rather than multiplied
+      if (VESSEL_BY_ID[vid]?.variantOnly) scale.set(vid, Math.max(scale.get(vid) ?? 0, f));
+      else scale.set(vid, (scale.get(vid) ?? 1) * f);
+    }
     for (const [rid, sup] of Object.entries(v.supplyOverride ?? {})) overrides.set(rid, sup);
   }
+  for (const vid of VARIANT_ONLY) if (!scale.has(vid)) scale.set(vid, 0);
   // absent PComm: the polar (tuberothalamic) artery then arises from the P1 perforators
   for (const s of ['r', 'l']) {
     if ((scale.get(`pcomm_${s}`) ?? 1) === 0 && !overrides.has(`thalamus_anterior_${s}`)) {
@@ -286,6 +458,16 @@ export function variantOverrides(variants: string[]): { scale: Map<string, numbe
     }
   }
   return { scale, overrides };
+}
+
+/**
+ * Vessels that do not exist in this anatomy: removed by a chosen variant (scale 0, e.g. an
+ * absent AComm) or only present with a variant that is not chosen (e.g. a persistent trigeminal
+ * artery). They carry no flow, and the views do not draw or list them.
+ */
+export function absentVessels(variants: readonly string[]): Set<string> {
+  const { scale } = variantOverrides(variants);
+  return new Set([...scale].filter(([, f]) => f === 0).map(([id]) => id));
 }
 
 function buildConfig(variants: string[], collateral: CollateralGrade): Config {
@@ -298,6 +480,8 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
 
   const midNeeded = new Set<string>();
   for (const v of FLOW_VESSELS) {
+    // a vessel only some people have does not split its parent when it is absent
+    if (v.variantOnly && scale.get(v.id) === 0) continue;
     for (const end of [v.from, v.to]) if (end.endsWith('@mid')) midNeeded.add(end.slice(0, -4));
   }
   for (const u of units) if (u.node.endsWith('@mid')) midNeeded.add(u.node.slice(0, -4));
@@ -315,11 +499,11 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
       vesselG.set(v.id, (v.collStrength ?? 1) * COLL_GRADE[collateral] * Math.max(fref, 5) * COLL_SCALE);
     } else {
       const r = v.r * f;
-      vesselG.set(v.id, (K_POISEUILLE * (KIND_FACTOR[v.kind] ?? 1) * (v.n ?? 1) * r ** 4) / (v.len ?? pathLength(v)));
+      vesselG.set(v.id, (K_POISEUILLE * (KIND_FACTOR[v.kind] ?? 1) * (v.n ?? 1) * r ** 4) / flowLength(v));
     }
   }
 
-  const hiddenLinks = brainstemPialLinks(units, vesselG, midNeeded, collateral);
+  const hiddenLinks = [...brainstemPialLinks(units, vesselG, midNeeded, collateral), ...armCollateralLinks()];
   const cfg: Config = {
     key,
     vesselG,
@@ -334,6 +518,18 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
   calibrate(cfg);
   configCache.set(key, cfg);
   return cfg;
+}
+
+/** the undrawn chest-wall and neck collaterals of each subclavian artery (see ARM_COLLATERALS) */
+function armCollateralLinks(): CollateralLink[] {
+  const links: CollateralLink[] = [];
+  for (const s of ['r', 'l']) {
+    for (const l of ARM_COLLATERALS) {
+      const a = l.from.replace('{s}', s);
+      links.push({ id: `arm:${a}>sub_va_${s}`, a, b: `sub_va_${s}`, g: l.g });
+    }
+  }
+  return links;
 }
 
 /**
@@ -359,7 +555,7 @@ function brainstemPialLinks(
       // both arteries must exist in this anatomy, and a donor's mid-course node must be in the network
       if (!perf || !(q > 0) || !((vesselG.get(perf.id) ?? 0) > 0)) continue;
       if (!donor || (mid && !midNeeded.has(donor)) || !((vesselG.get(donor) ?? 0) > 0)) continue;
-      const gAnast = COLL_GRADE[collateral] * PIAL_ANAST * q;
+      const gAnast = pialGrade(l.perforator, collateral) * PIAL_ANAST * q;
       const gEntry = PIAL_ENTRY * q;
       const g = (l.share * gAnast * gEntry) / (gAnast + gEntry);
       links.push({ id: `pial:${a}>${perf.id}`, a, b: `${perf.id}@mid`, g });
@@ -636,4 +832,95 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   if (resultCache.size > 300) resultCache.clear();
   resultCache.set(key, result);
   return result;
+}
+
+/** the circle of Willis routes that can carry blood into the territory beyond an occlusion */
+export type CircleRoute = 'acomm' | 'pcomm' | 'ophthalmic';
+const CIRCLE_SEGMENTS: { id: string; route: CircleRoute }[] = [
+  { id: 'acomm', route: 'acomm' },
+  { id: 'pcomm_r', route: 'pcomm' },
+  { id: 'pcomm_l', route: 'pcomm' },
+  { id: 'ophthalmic_r', route: 'ophthalmic' },
+  { id: 'ophthalmic_l', route: 'ophthalmic' },
+];
+/**
+ * the rise in flow (mL/min) through a circle segment into the territory beyond an occlusion from
+ * which it counts as a route switched on: well above the normal small flows of the communicating
+ * arteries, which change a little with any occlusion (the anterior communicating artery carries
+ * about 3.5 mL/min at rest in this network, the posterior ones 17–19 mL/min)
+ */
+const ROUTE_MIN_RISE = 5;
+
+export interface CircleRoutes {
+  /** the routes carrying blood into the territory beyond the occlusions, each counted once */
+  routes: CircleRoute[];
+  /** how many posterior communicating arteries do (one or both) */
+  pcommCount: number;
+  /** the arteries of that territory: the occluded ones and every artery fed only through them */
+  beyond: Set<string>;
+}
+
+/**
+ * Whether the circle of Willis carries blood into the territory beyond an occlusion (U2-5). A
+ * junction is beyond the occlusions when every artery that feeds it at rest (communicating arteries
+ * and anastomoses aside) is occluded, narrowed or fed from a junction beyond them; a route is on when
+ * its flow into such a junction rises by more than ROUTE_MIN_RISE. So the anterior communicating
+ * artery bridges a blocked A1 or the carotid T to the ACA, the posterior communicating arteries a
+ * blocked carotid, P1 or basilar artery, and the ophthalmic artery, reversed, a carotid blocked
+ * below it; none reaches the territory of an occluded MCA, A2 or P2, which lies beyond the circle.
+ * The direction of a communicating artery's flow at rest is arbitrary in a symmetric network (here
+ * the anterior one runs from right to left), so a reversal of it says nothing on its own: on the
+ * right its flow reversed whenever the right carotid's runoff fell, an M1, M2 or A2 occlusion
+ * included, and on the left it never did (U2-5).
+ */
+export function circleRoutes(hemo: HemoResult, occlusions: readonly Occlusion[]): CircleRoutes {
+  const closed = new Set(occlusions.filter((o) => !o.branch).map((o) => o.vessel));
+  /** per junction, the arteries that feed it at rest: [artery, the junction it comes from] */
+  const inflows = new Map<string, [string, string][]>();
+  const add = (node: string, v: string, from: string) => {
+    const list = inflows.get(node);
+    if (list) list.push([v, from]);
+    else inflows.set(node, [[v, from]]);
+  };
+  const sourceOf = new Map<string, string>();
+  for (const v of FLOW_VESSELS) {
+    if (v.kind === 'communicating' || v.kind === 'collateral') continue;
+    const b = hemo.baselineFlow[v.id] ?? 0;
+    if (Math.abs(b) < 0.5) continue;
+    const [src, dst] = b >= 0 ? [v.from, v.to] : [v.to, v.from];
+    sourceOf.set(v.id, src);
+    add(dst, v.id, src);
+    add(`${v.id}@mid`, v.id, src);
+  }
+  const cut = new Set<string>();
+  for (let changed = true; changed; ) {
+    changed = false;
+    for (const [node, list] of inflows) {
+      if (cut.has(node)) continue;
+      if (list.every(([v, from]) => closed.has(v) || cut.has(from))) {
+        cut.add(node);
+        changed = true;
+      }
+    }
+  }
+  const routes = new Set<CircleRoute>();
+  let pcommCount = 0;
+  for (const seg of CIRCLE_SEGMENTS) {
+    const v = VESSEL_BY_ID[seg.id];
+    if (!v || !(seg.id in hemo.vesselFlow) || closed.has(seg.id)) continue;
+    const f = hemo.vesselFlow[seg.id];
+    const b = hemo.baselineFlow[seg.id] ?? 0;
+    // into the junction at either end, when it lies beyond the occlusions
+    const ends: [string, number][] = [
+      [v.to, 1],
+      [v.from, -1],
+    ];
+    const on = ends.some(([node, sign]) => cut.has(node) && f * sign - Math.max(0, b * sign) > ROUTE_MIN_RISE);
+    if (!on) continue;
+    routes.add(seg.route);
+    if (seg.route === 'pcomm') pcommCount++;
+  }
+  const beyond = new Set<string>([...closed].filter((id) => VESSEL_BY_ID[id]));
+  for (const [id, src] of sourceOf) if (cut.has(src)) beyond.add(id);
+  return { routes: (['acomm', 'pcomm', 'ophthalmic'] as CircleRoute[]).filter((r) => routes.has(r)), pcommCount, beyond };
 }

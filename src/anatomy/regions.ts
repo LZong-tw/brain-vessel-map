@@ -5,7 +5,7 @@
  * functional subdivisions (e.g. the leg area of the motor strip). Their arterial supply is
  * derived voxel-by-voxel from the Liu et al. (2023) arterial territory atlas — see
  * `territories.ts`. Deep, brainstem and cerebellar regions carry hand-authored supply based
- * on Tatu et al. (1996, 1998), Schmahmann (2003) and Fiester et al. (2019).
+ * on Tatu et al. (1996, 1998), Schmahmann (2003) and the brainstem review of Sciacca et al. (2019).
  *
  * Deficit laterality: 'contra' = body side opposite the lesion, 'ipsi' = same side.
  * TODO(medical-review): simplified for lay education.
@@ -66,6 +66,13 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'gaze_deviation', lat: 'ipsi', sev: 2 },
       { s: 'aphasia_tc_motor', lat: 'none', only: 'l', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
+      // right frontal and central lesions (Kertesz A et al., Neurology 1985;35:662-666, PMID 3990966)
+      { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
+      // pathological crying after frontal lesions of the MCA territory: 40 % (Kim JS, Choi-Kwon S.
+      // Neurology 2000;54:1805-1810, PMID 10802788); House A et al. (BMJ 1989;298:991-994, PMID
+      // 2499390) also link it to left frontal and temporal lesions, while Kim found none after
+      // temporal ones, so the temporal cortex is not mapped. C10-F8. TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -86,6 +93,16 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'aphasia_broca', lat: 'none', only: 'l', sev: 2 },
       { s: 'apraxia_of_speech', lat: 'none', only: 'l', sev: 1 },
       { s: 'aprosodia', lat: 'none', only: 'r', sev: 1 },
+      // the frontal operculum: sweating on the opposite side (Labar et al., Neurology 1988) and
+      // the taste cortex next to the insula, without a fixed side (Onoda et al., J Neurol 2012).
+      // TODO(medical-review): sev
+      { s: 'hyperhidrosis', lat: 'contra', sev: 1 },
+      { s: 'taste_loss', lat: 'none', sev: 1 },
+      // the frontal operculum: swallowing (see the precentral gyrus)
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
+      // right inferior frontal gyrus (BA 44): Husain M, Kennard C, J Neurol 1996;243:652-657 (PMID 8892067)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -102,10 +119,14 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'abulia', lat: 'none', sev: 1 },
       { s: 'leg_weak', lat: 'contra', sev: 1 },
       { s: 'arm_weak_proximal', lat: 'contra', sev: 1 },
-      { s: 'alien_hand', lat: 'contra', sev: 1 },
+      // frontal alien hand: the dominant (right) hand, after dominant medial frontal damage
+      // (Feinberg TE et al., Neurology 1992;42:19-24, PMID 1734302)
+      { s: 'alien_hand', lat: 'contra', only: 'l', sev: 1 },
       { s: 'aphasia_tc_motor', lat: 'none', only: 'l', sev: 1 },
       { s: 'incontinence', lat: 'none', sev: 1 },
       { s: 'akinetic_mutism', lat: 'none', sev: 3, bilateralOnly: true },
+      // frontal ACA-territory lesions (Kim & Choi-Kwon, Neurology 2000). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -129,8 +150,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'precentral_face_arm',
     name: { zh: '中央前迴（臉、手、手臂運動區）', en: 'Precentral gyrus (face, hand & arm motor area)' },
     func: {
-      zh: '初級運動皮質：控制對側下半臉、舌頭、手與手臂的自主運動。',
-      en: 'Primary motor cortex for the opposite lower face, tongue, hand and arm.',
+      zh: '初級運動皮質：控制對側下半臉、舌頭、手與手臂的自主運動。靠近頭頂、前與中大腦動脈交界（前分水嶺）的上段管肩膀與上臂。',
+      en: 'Primary motor cortex for the opposite lower face, tongue, hand and arm. Its upper part near the vertex, in the ACA–MCA border zone (anterior watershed), serves the shoulder and upper arm.',
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
@@ -140,7 +161,26 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hand_clumsy', lat: 'contra', sev: 2 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // vasomotor asymmetry with pyramidal signs (Korpelainen et al., Stroke 1995).
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
+      // frontal operculum, insula, motor cortex and the corticobulbar white matter: swallowing
+      // after a one-sided hemispheric stroke (anterior insula: Daniels SK, Foundas AL, Dysphagia
+      // 1997;12:146-156, PMID 9190100; pre/postcentral, opercular and subcortical white matter:
+      // Suntrup S et al., Eur J Neurol 2015;22:832-838, PMID 25677582). Only a large lesion
+      // (minLevel), so that it tracks the facial weakness and speech problems it comes with
+      // (Barer 1989), and it mostly settles within one to two weeks (fast; Gordon et al. 1987).
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
+      // right central lesions (Kertesz et al. 1985)
+      { s: 'motor_impersistence', lat: 'none', only: 'r', sev: 1 },
     ],
+    // anterior border zone (ACA–MCA) only: proximal arm and shoulder weakness with the face and
+    // hand relatively spared; on both sides the bilateral brachial paralysis of the
+    // "man-in-the-barrel" (Martí-Vilalta JL, Arboix A, Garcia JH. J Stroke Cerebrovasc Dis
+    // 1994;4:114-120, PMID 26487612; Sage JI, Van Uitert RL. Neurology 1986;36:1102-1103,
+    // PMID 3736874). TODO(medical-review): the one-sided pattern follows the same anatomy; no
+    // series of one-sided cases was verified.
+    borderDeficits: [{ s: 'arm_weak_proximal', lat: 'contra', sev: 2 }],
     compartment: 'supra',
   }),
   bi({
@@ -155,6 +195,8 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'sens_face_arm', lat: 'contra', sev: 3 },
       { s: 'cortical_sensory', lat: 'contra', sev: 2 },
+      // swallowing: see the precentral gyrus (Suntrup et al. 2015)
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
     ],
     compartment: 'supra',
   }),
@@ -172,6 +214,8 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'sens_leg', lat: 'contra', sev: 2 },
       { s: 'incontinence', lat: 'none', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -189,7 +233,9 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'cortical_sensory', lat: 'contra', sev: 1 },
       { s: 'optic_ataxia', lat: 'none', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      // no neglect from here: the critical sites lie in the inferior parietal lobule, superior
+      // temporal and inferior frontal cortex and basal ganglia (Mort DJ et al., Brain
+      // 2003;126:1986-1997, PMID 12821519; Karnath HO et al., Nature 2001;411:950-953, PMID 11418859)
       { s: 'visuospatial', lat: 'none', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
@@ -206,7 +252,11 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'aphasia_conduction', lat: 'none', only: 'l', sev: 2 },
       { s: 'apraxia', lat: 'none', only: 'l', sev: 2 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 2 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 2 },
+      // after a left-hemisphere stroke neglect of the right side is rarer, milder and clears
+      // sooner (20 % acutely, 5 % at 3 months vs 43 % and 17 % on the right: Ringman et al. 2004;
+      // its higher plateau of compensation is redundancy.ts LEFT_NEGLECT, R1-7)
+      { s: 'neglect', lat: 'contra', only: 'l', sev: 1, fast: true },
       { s: 'anosognosia', lat: 'none', only: 'r', sev: 1 },
       { s: 'cortical_sensory', lat: 'contra', sev: 1 },
     ],
@@ -216,8 +266,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'angular',
     name: { zh: '角迴（頂下小葉）', en: 'Angular gyrus (inferior parietal lobule)' },
     func: {
-      zh: '左側：閱讀、書寫、計算、手指與左右辨識；右側：空間注意力。',
-      en: 'Left: reading, writing, calculation, finger and left–right knowledge. Right: spatial attention.',
+      zh: '左側：閱讀、書寫、計算、手指與左右辨識；右側：空間注意力。深部白質有視放射的頂葉部分（對側下方視野）。',
+      en: "Left: reading, writing, calculation, finger and left–right knowledge. Right: spatial attention. The parietal part of the optic radiation (opposite lower visual field) runs deep to it.",
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
@@ -227,8 +277,17 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'acalculia', lat: 'none', only: 'l', sev: 2 },
       { s: 'finger_agnosia', lat: 'none', only: 'l', sev: 2 },
       { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 2 },
+      // the critical site of neglect in MCA strokes (Mort et al. 2003)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 2 },
+      { s: 'neglect', lat: 'contra', only: 'l', sev: 1, fast: true },
       { s: 'visuospatial', lat: 'none', only: 'r', sev: 2 },
+      // the optic radiation, the second commonest lesion site of homonymous hemianopia after the
+      // occipital lobe (32 % of 904: Zhang X et al., Neurology 2006;66:906-910, PMID 16567710),
+      // runs deep to the parietal cortex; reached only by a large (deep) lesion, not by cortical
+      // spill-over. With Meyer's loop (temporal) it makes the hemianopia of a large MCA infarct.
+      // A field cut caused by the infarct does not end when the penumbral cortex above the tract
+      // recovers its function (R1-6): `deepTract`.
+      { s: 'quadrant_inf', lat: 'contra', sev: 2, minLevel: 0.5, deepTract: true },
     ],
     compartment: 'supra',
   }),
@@ -265,6 +324,9 @@ export const REGION_DEFS: RegionDef[] = [
     deficits: [
       { s: 'aphasia_wernicke', lat: 'none', only: 'l', sev: 2 },
       { s: 'aprosodia', lat: 'none', only: 'r', sev: 1 },
+      // right superior temporal cortex (Karnath et al. 2001; disputed as the critical site by
+      // Mort et al. 2003, so milder than the inferior parietal sources)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -305,11 +367,21 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'cortex',
     cbf: CORTEX_CBF,
     deficits: [
-      { s: 'autonomic_cardiac', lat: 'none', only: 'r', sev: 2 },
-      { s: 'autonomic_cardiac', lat: 'none', only: 'l', sev: 1 },
+      // the evidence on the side is mixed: the right dorsal anterior insula is linked to a troponin
+      // rise (Krause T et al. Ann Neurol 2017;81:502-511, PMID 28253544), the left insula to later
+      // adverse cardiac events (Laowattana S et al. Neurology 2006;66:477-483, PMID 16505298), so
+      // both sides carry the same weight. C10-F5
+      { s: 'autonomic_cardiac', lat: 'none', sev: 1 },
       { s: 'apraxia_of_speech', lat: 'none', only: 'l', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'anosognosia', lat: 'none', only: 'r', sev: 1 },
+      // insular–opercular cortex: sweating on the opposite side (Labar et al. 1988; Kim et al.,
+      // Stroke 1995) and primary taste cortex, without a fixed side (Onoda et al. 2012).
+      // TODO(medical-review): sev
+      { s: 'hyperhidrosis', lat: 'contra', sev: 1 },
+      { s: 'taste_loss', lat: 'none', sev: 1 },
+      // the anterior insula (Daniels & Foundas 1997): see the precentral gyrus
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
     ],
     compartment: 'supra',
   }),
@@ -326,7 +398,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'prosopagnosia', lat: 'none', only: 'r', sev: 1 },
       { s: 'prosopagnosia', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'visual_agnosia', lat: 'none', sev: 2, bilateralOnly: true },
-      { s: 'achromatopsia', lat: 'none', sev: 1 },
+      // colour: full achromatopsia needs both sides; one side loses colour in the opposite
+      // field, and only from a large (posterior) lesion, not MCA spill-over into the gyrus
+      { s: 'achromatopsia', lat: 'none', sev: 1, bilateralOnly: true },
+      { s: 'hemiachromatopsia', lat: 'contra', sev: 1, minLevel: 0.5 },
       { s: 'alexia', lat: 'none', only: 'l', sev: 1 },
     ],
     compartment: 'supra',
@@ -344,6 +419,9 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'amnesia', lat: 'none', sev: 1 },
       { s: 'amnesia', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'topographic', lat: 'none', only: 'r', sev: 1 },
+      // damaged in every patient with neglect after a PCA stroke (Mort et al. 2003); visual
+      // neglect in 9 of 117 superficial PCA infarcts on the right, 2 on the left (Cals et al. 2002)
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -353,12 +431,15 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'cuneus',
     name: { zh: '楔葉（距狀溝上唇）', en: 'Cuneus (upper bank of the calcarine fissure)' },
     func: {
-      zh: '初級視覺皮質的上半：看見對側「下方」的視野。',
-      en: 'Upper half of primary visual cortex: sees the opposite LOWER visual quadrant.',
+      zh: '初級視覺皮質的上半：看見對側「下方」的視野。由距狀動脈與頂枕動脈共同供應。',
+      en: 'Upper half of primary visual cortex: sees the opposite LOWER visual quadrant. Fed by both the calcarine and the parieto-occipital artery.',
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
-    deficits: [{ s: 'quadrant_inf', lat: 'contra', sev: 2 }],
+    deficits: [
+      { s: 'quadrant_inf', lat: 'contra', sev: 2 },
+      { s: 'visual_release_hallucinations', lat: 'contra', sev: 1 },
+    ],
     compartment: 'supra',
   }),
   bi({
@@ -372,7 +453,10 @@ export const REGION_DEFS: RegionDef[] = [
     cbf: CORTEX_CBF,
     deficits: [
       { s: 'quadrant_sup', lat: 'contra', sev: 2 },
-      { s: 'achromatopsia', lat: 'none', sev: 1 },
+      // see the fusiform gyrus
+      { s: 'achromatopsia', lat: 'none', sev: 1, bilateralOnly: true },
+      { s: 'hemiachromatopsia', lat: 'contra', sev: 1 },
+      { s: 'visual_release_hallucinations', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -385,7 +469,10 @@ export const REGION_DEFS: RegionDef[] = [
     },
     category: 'cortex',
     cbf: CORTEX_CBF,
-    deficits: [{ s: 'central_scotoma', lat: 'contra', sev: 2 }],
+    deficits: [
+      { s: 'central_scotoma', lat: 'contra', sev: 2 },
+      { s: 'visual_release_hallucinations', lat: 'contra', sev: 1 },
+    ],
     compartment: 'supra',
   }),
   bi({
@@ -416,9 +503,14 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'deep',
     cbf: WM_CBF,
     supply: [{ v: 'aca_pericallosal_{s}', share: 1 }],
+    // callosal disconnection affects the left hand, whichever side the lesion is on: the
+    // intermanual conflict of the callosal alien hand (Feinberg et al. 1992) and apraxia with
+    // apraxic agraphia (Watson RT, Heilman KM, Brain 1983;106:391-403, PMID 6850274)
     deficits: [
-      { s: 'apraxia', lat: 'none', sev: 1 },
-      { s: 'alien_hand', lat: 'none', sev: 1 },
+      { s: 'callosal_apraxia', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'callosal_apraxia', lat: 'ipsi', only: 'l', sev: 1 },
+      { s: 'alien_hand', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'alien_hand', lat: 'ipsi', only: 'l', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -456,6 +548,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hand_clumsy', lat: 'contra', sev: 1 },
       { s: 'sens_hemibody', lat: 'contra', sev: 1 },
       { s: 'spasticity', lat: 'contra', sev: 1 },
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
+      // corticobulbar fibres to the swallowing muscles (subcortical white matter: Suntrup et al.
+      // 2015); see the precentral gyrus
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
     ],
     compartment: 'supra',
   }),
@@ -465,8 +562,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'caudate_head',
     name: { zh: '尾狀核頭（含依核）', en: 'Caudate head (incl. nucleus accumbens)' },
     func: {
-      zh: '額葉—基底核迴路的一環：動機、學習、認知控制。',
-      en: 'Part of frontal–basal ganglia loops: motivation, learning and cognitive control.',
+      zh: '額葉—基底核迴路的一環：動機、學習、認知控制。尾狀核梗塞主要造成行為改變（意志缺失、躁動），常有構音障礙；不自主運動很少見。同時出現的輕微、短暫偏癱多半來自延伸到鄰近的內囊。',
+      en: 'Part of frontal–basal ganglia loops: motivation, learning and cognitive control. Caudate infarcts mainly change behaviour (abulia, agitation), often with dysarthria; involuntary movements are rare. The slight, transient hemiparesis that often comes with them is mostly from extension into the adjacent internal capsule.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
@@ -474,10 +571,25 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'heubner_{s}', share: 0.7 },
       { v: 'lenticulostriate_{s}', share: 0.3 },
     ],
+    // Caplan LR et al. Caudate infarcts. Arch Neurol 1990;47:133-143 (PMID 2405818): of 18,
+    // dysarthria in 11, abulia in 10, agitation and hyperactivity in 7, motor signs (mostly a
+    // slight transient hemiparesis) in 13 — half extended into the anterior limb of the capsule;
+    // neglect in 3 (all right caudate), language abnormalities in 2 (both left). Bhatia KP,
+    // Marsden CD. Brain 1994;117:859-876 (PMID 7922471; published cases): caudate lesions rarely
+    // caused movement disorders (chorea 6 %, dystonia 9 %) but often abulia (28 %), sometimes
+    // alternating with disinhibition (11 %); aphasia was extremely rare with lesions confined to
+    // the basal ganglia, so none is listed here (C6-F9). Movement disorders: postStrokeRisks.ts.
+    // No neglect of its own (R2-4): the right caudate is part of the network whose damage goes with
+    // neglect (Karnath HO, Himmelbach M, Rorden C, Brain 2002;125:350-360, PMID 11844735), but only 3
+    // of Caplan's 8 right caudate infarcts had it, and among 44 acute strokes with only subcortical
+    // lesions every patient with aphasia or neglect had concurrent cortical hypoperfusion (Hillis AE
+    // et al. Brain 2002;125:1094-1104, PMID 11960898). It is shown with the cortical signs of a
+    // striatocapsular infarct (cascade.ts) instead.
     deficits: [
       { s: 'abulia', lat: 'none', sev: 2 },
       { s: 'executive', lat: 'none', sev: 1 },
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
+      { s: 'dysarthria', lat: 'none', sev: 1 },
+      { s: 'disinhibition', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -501,8 +613,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'putamen',
     name: { zh: '殼核', en: 'Putamen' },
     func: {
-      zh: '基底核的運動入口：動作的選擇與流暢度。',
-      en: 'Motor input nucleus of the basal ganglia: selection and fluency of movement.',
+      zh: '基底核的運動入口：動作的選擇與流暢度。少數中風（約 1%）之後會出現不自主運動（偏側舞蹈—投擲症、肌張力異常），多半在基底核與鄰近白質梗塞之後，通常會自行消退。',
+      en: 'Motor input nucleus of the basal ganglia: selection and fluency of movement. In a few strokes (about 1 %) involuntary movements follow (hemichorea–hemiballism, dystonia), mostly after infarcts of the basal ganglia and the adjacent white matter; they usually subside.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
@@ -510,9 +622,19 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'lenticulostriate_{s}', share: 0.9 },
       { v: 'heubner_{s}', share: 0.1 },
     ],
+    // involuntary movements are not a symptom of every putaminal infarct: 29 of 2500 first strokes,
+    // mostly hemichorea–hemiballism and hemidystonia, usually regressing (Ghika-Schmid F et al.
+    // J Neurol Sci 1997;146:109-116, PMID 9077506); listed with the problems after stroke
+    // (postStrokeRisks.ts, C6-F3)
+    // the right putamen is a critical subcortical site of neglect (Karnath et al. 2002), but the
+    // neglect of an acute subcortical infarct comes with cortical hypoperfusion (Hillis et al. 2002):
+    // it is shown with the cortical signs of a striatocapsular infarct (cascade.ts), not as a
+    // deficit of the putamen itself (R2-4)
     deficits: [
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
+      // lenticulocapsular strokes (Kim & Choi-Kwon, Neurology 2000; Kim, J Neurol 2002).
+      // TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -526,9 +648,11 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'lenticulostriate_{s}', share: 0.5 },
       { v: 'acha_{s}', share: 0.5 },
     ],
+    // involuntary movements: postStrokeRisks.ts (C6-F3)
     deficits: [
-      { s: 'movement_disorder', lat: 'contra', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
+      // the dorsal pallidum especially (Kim, J Neurol 2002). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -555,8 +679,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'ic_genu',
     name: { zh: '內囊膝部', en: 'Internal capsule, genu' },
     func: {
-      zh: '皮質延髓徑通過處：控制對側臉部、舌頭與吞嚥的運動指令。',
-      en: 'Corticobulbar fibres: motor commands for the opposite face, tongue and swallowing.',
+      zh: '皮質延髓徑通過處：控制對側臉部、舌頭與吞嚥的運動指令。膝部下方還有視丘通往額葉的纖維（視丘下腳與前腳）：這裡的小梗塞可造成突然的意識混亂、冷漠與失憶（「策略性梗塞」），無力反而輕微。',
+      en: 'Corticobulbar fibres: motor commands for the opposite face, tongue and swallowing. Below them run thalamic fibres to the frontal lobe (inferior and anterior thalamic peduncles): a small infarct here can cause sudden confusion, apathy and memory loss (a "strategic infarct") with only mild weakness.',
     },
     category: 'deep',
     cbf: WM_CBF,
@@ -564,9 +688,18 @@ export const REGION_DEFS: RegionDef[] = [
       { v: 'lenticulostriate_{s}', share: 0.6 },
       { v: 'acha_{s}', share: 0.4 },
     ],
+    // facial weakness from the genu alone is mild to moderate (Tatemichi TK et al. Neurology
+    // 1992;42:1966-1979, PMID 1407580: mild unless the infarct reaches the posterior limb; C6-F8),
+    // so the face is no weaker than the arm in a striatocapsular infarct (C6-F6). The cognitive
+    // syndrome of a lower-genu lacune: lacunes.ts
     deficits: [
-      { s: 'face_weak', lat: 'contra', sev: 3 },
+      { s: 'face_weak', lat: 'contra', sev: 2 },
       { s: 'dysarthria', lat: 'none', sev: 2 },
+      // corticobulbar fibres to the swallowing muscles (Suntrup et al. 2015); see the precentral gyrus
+      { s: 'dysphagia', lat: 'none', sev: 1, minLevel: 0.5, fast: true },
+      // corticobulbar fibres, part of the lenticulocapsular group (Kim & Choi-Kwon 2000).
+      // TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -574,8 +707,8 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'ic_posterior_limb',
     name: { zh: '內囊後肢', en: 'Internal capsule, posterior limb' },
     func: {
-      zh: '皮質脊髓徑高度集中處：很小的梗塞就能造成對側臉、手、腳同等程度的癱瘓（純運動性中風）。',
-      en: 'The corticospinal tract is tightly packed here: a tiny infarct can paralyse the opposite face, arm and leg equally (pure motor stroke).',
+      zh: '皮質脊髓徑高度集中處：很小的梗塞就能讓對側臉、手、腳無力，程度相近（純運動性中風），多為輕到中度；位在內囊最下方的小梗塞也可能造成嚴重偏癱。',
+      en: 'The corticospinal tract is tightly packed here: a tiny infarct can weaken the opposite face, arm and leg to a similar degree (pure motor stroke), usually mildly to moderately; a small infarct in the lowest part of the capsule can still cause a dense hemiplegia.',
     },
     category: 'deep',
     cbf: WM_CBF,
@@ -590,6 +723,8 @@ export const REGION_DEFS: RegionDef[] = [
       // thalamocortical fibres run in the posterior third; the classic lacune spares them
       { s: 'sens_hemibody', lat: 'contra', sev: 1, spareInLacune: true },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // TODO(medical-review): sev
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -603,11 +738,25 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'deep',
     cbf: DEEP_CBF,
     supply: [{ v: 'tuberothalamic_{s}', share: 1 }],
+    // Tuberothalamic syndrome (Bogousslavsky et al., Neurology 1988; Schmahmann, Stroke 2003):
+    // arousal and orientation, memory, personality and executive deficits, emotional facial
+    // paresis. In 12 anterior thalamic infarcts (Ghika-Schmid & Bogousslavsky, Ann Neurol 2000):
+    // perseveration and dysexecutive features in all, apathy usual, word-finding difficulty in all,
+    // dysarthria in 8 and hypophonia in 5, with comprehension and repetition preserved; memory loss
+    // verbal after left and visuospatial after right infarcts; within months only the memory loss
+    // and apathy were left (see redundancy.ts). Perseveration and apathy, not disinhibition, are the
+    // anterior pattern (Carrera & Bogousslavsky, Neurology 2006).
     deficits: [
       { s: 'amnesia', lat: 'none', sev: 2 },
       { s: 'abulia', lat: 'none', sev: 1 },
-      { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      { s: 'executive', lat: 'none', sev: 1 },
+      { s: 'aphasia_thalamic', lat: 'none', only: 'l', sev: 1 },
+      { s: 'dysarthria', lat: 'none', sev: 1 },
+      { s: 'emotional_facial_paresis', lat: 'contra', sev: 1 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
+      // extensive bilateral thalamic infarcts (e.g. a Percheron trunk that also feeds both anterior
+      // thalami): thalamic "dementia" (Carrera & Bogousslavsky 2006). TODO(medical-review): sev
+      { s: 'executive', lat: 'none', sev: 3, bilateralOnly: true },
     ],
     compartment: 'supra',
   }),
@@ -621,12 +770,33 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'deep',
     cbf: DEEP_CBF,
     supply: [{ v: 'thalamoperforator_{s}', share: 1 }],
+    // Acute picture of 46 paramedian thalamic strokes (Hermann et al., Stroke 2008): oculomotor
+    // (mostly vertical gaze) palsy 76%, mild gait ataxia 67%, attention 63%, fluency and error
+    // control 59%, learning and memory 67%, behaviour 67%. Persistent frontal and cognitive deficits
+    // in 100% of bilateral, 90% of left- and 33% of right-sided strokes; the right-sided recovery is
+    // in redundancy.ts. Disinhibition, personality change and loss of self-activation are the
+    // paramedian behavioural pattern (Carrera & Bogousslavsky, Neurology 2006). Language deficits
+    // follow left and neglect right paramedian lesions (Schmahmann, Stroke 2003).
     deficits: [
       { s: 'somnolence', lat: 'none', sev: 2 },
       { s: 'amnesia', lat: 'none', sev: 2 },
       { s: 'vertical_gaze_palsy', lat: 'none', sev: 1 },
       { s: 'abulia', lat: 'none', sev: 1 },
+      { s: 'executive', lat: 'none', only: 'l', sev: 2 },
+      { s: 'executive', lat: 'none', only: 'r', sev: 1 },
+      { s: 'disinhibition', lat: 'none', sev: 1 },
+      { s: 'ataxia_gait', lat: 'none', sev: 1 },
+      { s: 'aphasia_thalamic', lat: 'none', only: 'l', sev: 1 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
       { s: 'coma', lat: 'none', sev: 2, bilateralOnly: true },
+      // sleep needs stay raised for months, more after bilateral lesions (Bassetti et al., Ann
+      // Neurol 1996; Hermann et al., Stroke 2008). TODO(medical-review): sev
+      { s: 'hypersomnia', lat: 'none', sev: 1 },
+      { s: 'hypersomnia', lat: 'none', sev: 2, bilateralOnly: true },
+      // vivid hallucinations after rostral brainstem / paramedian thalamic damage (Caplan,
+      // Neurology 1980; Benke, J Neurol 2006): uncommon, so only when both sides are hit.
+      // TODO(medical-review): sev
+      { s: 'peduncular_hallucinosis', lat: 'none', sev: 1, bilateralOnly: true },
     ],
     compartment: 'supra',
   }),
@@ -634,18 +804,32 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'thalamus_ventrolateral',
     name: { zh: '視丘腹外側（感覺轉運核 VPL/VPM 與 VL）', en: 'Ventrolateral thalamus (VPL/VPM sensory relay & VL)' },
     func: {
-      zh: '全身感覺傳到大腦皮質的轉運站；VL 核轉送小腦的協調訊號。',
-      en: 'Relays all body sensation to the cortex; the VL nucleus relays cerebellar coordination signals.',
+      zh: '全身感覺傳到大腦皮質的轉運站（VPM 也轉送味覺）；VL 核轉送小腦的協調訊號。',
+      en: 'Relays all body sensation (and, in VPM, taste) to the cortex; the VL nucleus relays cerebellar coordination signals.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
     supply: [{ v: 'thalamogeniculate_{s}', share: 1 }],
     deficits: [
       { s: 'sens_hemibody', lat: 'contra', sev: 3 },
+      // inferolateral territory: hemisensory loss, hemiparesis and hemiataxia (Schmahmann, Stroke
+      // 2003); the weakness is mild and passes within weeks (it settles fast in redundancy.ts), and
+      // a sensory lacune has none
+      { s: 'face_weak', lat: 'contra', sev: 1, spareInLacune: true },
+      { s: 'arm_weak', lat: 'contra', sev: 1, spareInLacune: true },
       // a sensory lacune sits in VPL/VPM; the motor thalamus (VL) is usually spared
       { s: 'ataxia_limb', lat: 'contra', sev: 1, spareInLacune: true },
-      { s: 'movement_disorder', lat: 'contra', sev: 1, spareInLacune: true },
-      { s: 'central_pain', lat: 'contra', sev: 2 },
+      // the delayed involuntary movements of lateral thalamic strokes (weeks to months, with severe
+      // position-sense loss and ataxia: Kim JS. Brain 2001;124:299-309, PMID 11157557) are listed
+      // with the problems after stroke (postStrokeRisks.ts, C6-F3)
+      // central pain is possible, not certain: 14 % after any thalamic stroke, 24 % after a
+      // geniculothalamic one (Nasreddine ZS, Saver JL. Neurology 1997;48:1196-1199, PMID 9153442;
+      // published cases, right > left, shown in the text only), 3 of 40 thalamic infarcts
+      // (Bogousslavsky 1988) — hence severity 1, labelled as possible. C10-F1
+      { s: 'central_pain', lat: 'contra', sev: 1 },
+      // VPM relays taste; side not fixed above the midbrain (Onoda et al., J Neurol 2012).
+      // TODO(medical-review): sev
+      { s: 'taste_loss', lat: 'none', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -653,18 +837,36 @@ export const REGION_DEFS: RegionDef[] = [
     id: 'thalamus_posterior',
     name: { zh: '視丘後部（視丘枕、外側膝狀體）', en: 'Posterior thalamus (pulvinar & lateral geniculate body)' },
     func: {
-      zh: '外側膝狀體是視覺轉運站；視丘枕參與視覺注意力。',
-      en: 'The lateral geniculate body relays vision; the pulvinar supports visual attention.',
+      zh: '外側膝狀體是視覺轉運站；視丘枕參與視覺注意力。這裡梗塞常造成同側象限偏盲；水平扇形偏盲很少見，但提示外側膝狀體受損。',
+      en: 'The lateral geniculate body relays vision; the pulvinar supports visual attention. An infarct here typically gives a homonymous quadrantanopia; a horizontal sectoranopia is rare but points to the lateral geniculate body.',
     },
     category: 'deep',
     cbf: DEEP_CBF,
+    // The thalamic branches of the lateral posterior choroidal artery leave it before it reaches the
+    // choroid plexus, where it meets the AChA, so the plexus anastomosis does not protect all of the
+    // territory: half of it hangs on the artery's proximal course (@mid). Isolated posterior
+    // choroidal infarcts are real, if rare: 10 of 2,925 stroke patients (Neau & Bogousslavsky, Ann
+    // Neurol 1996). TODO(medical-review): the shares
     supply: [
-      { v: 'posterior_choroidal_{s}', share: 0.8 },
+      { v: 'posterior_choroidal_{s}', share: 0.5, at: 'mid' },
+      { v: 'posterior_choroidal_{s}', share: 0.3 },
       { v: 'acha_{s}', share: 0.2 },
     ],
+    // Lateral posterior choroidal infarcts: homonymous quadrantanopia (the partial field defect
+    // below) with or without hemisensory loss and neuropsychological deficits (transcortical aphasia,
+    // memory); late disability from pain and delayed abnormal movements (Neau & Bogousslavsky 1996).
+    // The jerky dystonic unsteady hand is specific to small posterior choroidal infarcts (Ghika-Schmid
+    // et al., J Neurol Sci 1997). Field defects, variable sensory loss, weakness, dystonia, tremor,
+    // occasionally amnesia and language impairment (Schmahmann, Stroke 2003).
     deficits: [
       { s: 'hemianopia', lat: 'contra', sev: 1 },
-      { s: 'neglect', lat: 'none', only: 'r', sev: 1 },
+      { s: 'sens_hemibody', lat: 'contra', sev: 1 },
+      // "occasionally amnesia and language impairment" (Schmahmann): only when the posterior
+      // choroidal territory itself is infarcted, not from the AChA's share and the swelling around it
+      { s: 'aphasia_tc_sensory', lat: 'none', only: 'l', sev: 1, minLevel: 0.4 },
+      { s: 'amnesia', lat: 'none', sev: 1, minLevel: 0.4 },
+      { s: 'neglect', lat: 'contra', only: 'r', sev: 1 },
+      { s: 'jerky_dystonic_hand', lat: 'contra', sev: 1 },
     ],
     compartment: 'supra',
   }),
@@ -742,6 +944,14 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'arm_weak', lat: 'contra', sev: 3 },
       { s: 'leg_weak', lat: 'contra', sev: 3 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // The oculomotor fascicles leave the midbrain through the medial part of the peduncle, which
+      // the mesencephalic (interpeduncular) perforators supply (Weber syndrome: a third-nerve palsy
+      // with a crossed hemiparesis); a lesion of its lateral part, the anterior choroidal and
+      // posterior cerebral shares (0.6 of the region here), spares them. So only a lesion of most of
+      // the peduncle — three-quarters, more than its lateral part — cuts them: the whole peduncle
+      // that a transtentorial herniation infarcts keeps the third-nerve palsy after the compression
+      // of the nerve has ended (Z3-12). The paramedian tegmentum (the nucleus) gives it otherwise.
+      { s: 'cn3_palsy', lat: 'ipsi', sev: 3, minLevel: 0.75 },
     ],
     compartment: 'infra',
   }),
@@ -754,26 +964,44 @@ export const REGION_DEFS: RegionDef[] = [
     },
     category: 'brainstem',
     cbf: BS_CBF,
+    // The paramedian (thalamoperforating) arteries feed the rostral midbrain in some people and
+    // not in others: by default they give only a small share, below the symptom threshold, and the
+    // variants `thalamomesencephalic_{s}` and `percheron_mid_{s}` make the midbrain part of their
+    // territory (Lazzaro et al., AJNR 2010: Percheron infarcts with midbrain 57%, without 43%).
     supply: [
-      { v: 'mesencephalic_perf_{s}', share: 0.7 },
-      { v: 'thalamoperforator_{s}', share: 0.3 },
+      { v: 'mesencephalic_perf_{s}', share: 0.85 },
+      { v: 'thalamoperforator_{s}', share: 0.15 },
     ],
     structures: [
       { name: { zh: '動眼神經核', en: 'Oculomotor nucleus' }, role: { zh: '眼球上下內轉、提眼瞼、縮瞳', en: 'Up/down/in eye movement, lid, pupil' } },
-      { name: { zh: '紅核', en: 'Red nucleus' }, role: { zh: '小腦訊號中繼，受損造成對側顫抖', en: 'Cerebellar relay; lesions cause opposite-side tremor' } },
+      { name: { zh: '紅核', en: 'Red nucleus' }, role: { zh: '小腦訊號中繼；受損數週到數月後對側可能出現顫抖', en: 'Cerebellar relay; weeks to months after a lesion the opposite arm may develop a tremor' } },
       { name: { zh: '內側縱束嘴側間質核（riMLF）', en: 'rostral interstitial nucleus of MLF' }, role: { zh: '垂直眼動', en: 'Vertical gaze' } },
       { name: { zh: '中腦網狀結構', en: 'Mesencephalic reticular formation' }, role: { zh: '維持清醒', en: 'Arousal' } },
+      { name: { zh: 'Cajal 間質核', en: 'Interstitial nucleus of Cajal' }, role: { zh: '垂直與旋轉眼動、頭眼的重力定向', en: 'Vertical and torsional eye movement, head and eye orientation to gravity' } },
       { name: { zh: '滑車神經核（下丘高度）', en: 'Trochlear nucleus (inferior-colliculus level)' }, role: { zh: '對側眼向下內看', en: 'Opposite eye looking down & in' } },
     ],
     deficits: [
       { s: 'cn3_palsy', lat: 'ipsi', sev: 3 },
       { s: 'cn4_palsy', lat: 'contra', sev: 1 },
-      { s: 'tremor', lat: 'contra', sev: 2 },
+      // the ataxia is acute; the rubral (Holmes) tremor comes weeks to months later (Raina et al.,
+      // Neurology 2016; Castaigne et al., Ann Neurol 1981), in a minority: none of the 29 movement
+      // disorders after 2500 first strokes was described as a Holmes tremor (Ghika-Schmid et al.,
+      // J Neurol Sci 1997), so it is a mild possibility (R5-2). TODO(medical-review): sev
+      { s: 'holmes_tremor', lat: 'contra', sev: 1 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
+      // a rostral (pontomesencephalic) lesion lowers the opposite eye (Brandt & Dieterich, Ann
+      // Neurol 1993). TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'contra', sev: 1 },
       { s: 'vertical_gaze_palsy', lat: 'none', sev: 2 },
       { s: 'somnolence', lat: 'none', sev: 2 },
       { s: 'diplopia', lat: 'none', sev: 2 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
+      // upper brainstem damage can leave a lasting sleep–wake disorder (Bassetti, Semin Neurol
+      // 2005). TODO(medical-review): sev
+      { s: 'hypersomnia', lat: 'none', sev: 1 },
+      // vivid hallucinations after rostral brainstem damage (Caplan, Neurology 1980; Benke,
+      // J Neurol 2006): uncommon, so only when both sides are hit. TODO(medical-review): sev
+      { s: 'peduncular_hallucinosis', lat: 'none', sev: 1, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -800,8 +1028,22 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'pain_temp_face', lat: 'contra', sev: 1 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
-      { s: 'horner', lat: 'ipsi', sev: 1 },
+      // The descending sympathetic fibres take up a small part of the lateral tegmentum: one
+      // circumferential branch's share of the region (the P2 segment's, or the superior cerebellar
+      // artery's, 0.3) leaves them, and only a larger infarct (a proximal PCA, quadrigeminal or top-of-
+      // the-basilar pattern) reaches them (W1-11). A PCA occlusion usually gives a field defect, a
+      // hemisensory loss and neuropsychological deficits; a Horner syndrome with it was first
+      // reported after a proximal PCA occlusion that infarcted the anterolateral midbrain and the
+      // thalamus (Bassetti C, Staikov IN. Stroke 1995;26:702–704, PMID 7709421), and in 407 patients
+      // with posterior circulation ischaemia a Horner syndrome went with the proximal (medullary)
+      // territory, a field defect with the distal one (Searls DE et al. Arch Neurol 2012;69:346–351,
+      // PMID 22083796). TODO(medical-review): minLevel
+      { s: 'horner', lat: 'ipsi', sev: 1, minLevel: 0.35 },
       { s: 'ataxia_limb', lat: 'contra', sev: 1 },
+      // the same descending sympathetic fibres (Korpelainen et al., Stroke 1993 studied pontine and
+      // medullary infarcts; the midbrain is assumed), from the same share of the region.
+      // TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1, minLevel: 0.35 },
     ],
     compartment: 'infra',
   }),
@@ -825,7 +1067,11 @@ export const REGION_DEFS: RegionDef[] = [
       { name: { zh: '頂蓋前區', en: 'Pretectal area' }, role: { zh: '瞳孔對光反射、向上凝視', en: 'Pupillary light reflex, upgaze' } },
     ],
     deficits: [
-      { s: 'upgaze_palsy', lat: 'none', sev: 2 },
+      // upgaze comes from the pretectum and the posterior commissure at the rostral end of the
+      // tectum; the superior cerebellar artery's share of the region is the inferior colliculus at
+      // its caudal end, and an upgaze palsy is not part of the SCA syndrome: below the threshold
+      // the region's share does not stand for the pretectum (Z2-8)
+      { s: 'upgaze_palsy', lat: 'none', sev: 2, wholeRegion: true },
       { s: 'nystagmus', lat: 'none', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 1 },
     ],
@@ -861,6 +1107,10 @@ export const REGION_DEFS: RegionDef[] = [
       // Grabois 1986)
       { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
+      // pontine base: 53 % after one-sided lesions (Kim & Choi-Kwon, Neurology 2000); frequent in
+      // locked-in syndrome (Sacco et al., Arch Phys Med Rehabil 2008). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
+      { s: 'emotionalism', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -880,13 +1130,30 @@ export const REGION_DEFS: RegionDef[] = [
     structures: [
       { name: { zh: '內側縱束（MLF）', en: 'Medial longitudinal fasciculus' }, role: { zh: '雙眼水平同向運動', en: 'Yokes horizontal eye movements' } },
       { name: { zh: '橋腦嘴側網狀結構', en: 'Rostral pontine reticular formation' }, role: { zh: '維持清醒', en: 'Arousal' } },
+      { name: { zh: '藍斑核與藍斑下區', en: 'Locus coeruleus & subcoeruleus area' }, role: { zh: '做夢（REM）時讓肌肉放鬆', en: 'Switches the muscles off in dreaming (REM) sleep' } },
+      { name: { zh: '橋腦排尿中樞（Barrington 核）', en: "Pontine micturition centre (Barrington's nucleus)" }, role: { zh: '協調膀胱收縮與括約肌放鬆', en: 'Bladder contraction with sphincter relaxation' } },
       { name: { zh: '內側蹄系', en: 'Medial lemniscus' }, role: { zh: '對側本體覺', en: 'Opposite position sense' } },
     ],
     deficits: [
       { s: 'ino', lat: 'ipsi', sev: 2 },
+      // an upper pontine (MLF) lesion lowers the opposite eye (Brandt & Dieterich, Ann Neurol
+      // 1993). TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'contra', sev: 1 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 1 },
       { s: 'coma', lat: 'none', sev: 3, bilateralOnly: true },
+      // coma lesions were bilateral in 7 of 9 and one-sided in 2, while 9 patients with a very
+      // small one-sided tegmental lesion were not comatose (Parvizi & Damasio, Brain 2003); among
+      // 150 isolated pontine infarcts loss of consciousness was described only with bilateral ones
+      // (Kumral et al., J Neurol 2002). So one paramedian perforator (0.7 of the supply, the common
+      // basilar-branch infarct) leaves arousal intact, and only a nearly complete one-sided
+      // infarct (paramedian and SCA branches) is shown as drowsiness: a model assumption (R5-6).
+      // TODO(medical-review): sev and minLevel
+      { s: 'somnolence', lat: 'none', sev: 1, minLevel: 0.85 },
+      // the pontine micturition centre (Sakakibara et al., J Neurol Sci 1996). Severity 1: small
+      // series. TODO(medical-review): sev. (REM sleep behaviour disorder is a possible late problem
+      // of any pontine or medullary infarct, shown as a cascade event: C10-F7.)
+      { s: 'urinary_retention', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -921,6 +1188,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_face', lat: 'contra', sev: 1 },
       { s: 'horner', lat: 'ipsi', sev: 1 },
       { s: 'dysarthria', lat: 'none', sev: 1 },
+      // descending sympathetic fibres (Korpelainen et al., Stroke 1993); the dorsolateral
+      // tegmentum by the parabrachial nucleus (Sakakibara et al., J Neurol Sci 1996).
+      // TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      { s: 'urinary_retention', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -955,6 +1227,10 @@ export const REGION_DEFS: RegionDef[] = [
       // Grabois 1986)
       { s: 'anarthria', lat: 'none', sev: 3, bilateralOnly: true },
       { s: 'dysphagia', lat: 'none', sev: 3, bilateralOnly: true },
+      // pontine base: 53 % after one-sided lesions (Kim & Choi-Kwon, Neurology 2000); frequent in
+      // locked-in syndrome (Sacco et al., Arch Phys Med Rehabil 2008). TODO(medical-review): sev
+      { s: 'emotionalism', lat: 'none', sev: 1 },
+      { s: 'emotionalism', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -984,6 +1260,11 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'face_weak_peripheral', lat: 'ipsi', sev: 2 },
       { s: 'proprio_loss', lat: 'contra', sev: 1 },
       { s: 'diplopia', lat: 'none', sev: 2 },
+      // the medial vestibular nucleus and the MLF lie in the floor of the fourth ventricle next to
+      // the abducens nucleus: tegmental pontine infarcts present with vertigo and dizziness
+      // (Kumral et al., J Neurol 2002). TODO(medical-review): sev
+      { s: 'vertigo', lat: 'none', sev: 1 },
+      { s: 'nystagmus', lat: 'none', sev: 1 },
       // extending into the caudal pontine tegmentum on both sides can also disturb automatic
       // (non-volitional) breathing — apneustic or cluster patterns (Plum & Posner, The
       // Diagnosis of Stupor and Coma). TODO(medical-review): "moderate" (sev 2) is an
@@ -1021,11 +1302,23 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'hearing_loss', lat: 'ipsi', sev: 2 },
       { s: 'vertigo', lat: 'none', sev: 2 },
       { s: 'nystagmus', lat: 'none', sev: 2 },
+      // vestibular nuclei: a caudal pontomedullary lesion lowers the eye on its own side (Brandt &
+      // Dieterich, Ann Neurol 1993). TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'ipsi', sev: 1 },
       { s: 'nausea_vomiting', lat: 'none', sev: 1 },
       { s: 'pain_temp_face', lat: 'ipsi', sev: 2 },
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'horner', lat: 'ipsi', sev: 1 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
+      // the middle cerebellar peduncle: standing and walking were impaired in all of 7 AICA
+      // infarcts, 6 of them in the peduncle (Ogawa K et al. J Stroke Cerebrovasc Dis
+      // 2017;26:574–581, PMID 27989483). C7-F4. TODO(medical-review): sev
+      { s: 'ataxia_gait', lat: 'none', sev: 2 },
+      // descending sympathetic fibres (Korpelainen et al., Stroke 1993); the taste pathway still
+      // ascends on the same side (Landis et al., J Neurol Neurosurg Psychiatry 2006 — a case
+      // report). TODO(medical-review): sev
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      { s: 'taste_loss', lat: 'ipsi', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1041,8 +1334,15 @@ export const REGION_DEFS: RegionDef[] = [
     category: 'brainstem',
     cbf: BS_CBF,
     supply: [
-      { v: 'asa_root_{s}', share: 0.8, at: 'mid' },
-      { v: 'va_v4_dist_{s}', share: 0.2, at: 'mid' },
+      // the vertebral's own direct branches feed only a small part: kept below what, with the
+      // perilesional rim of oedema on days 2–7, would reach the symptom threshold (0.25), so a
+      // vertebral occlusion (Wallenberg) does not also give a transient contralateral hemiparesis —
+      // weakness is not part of the lateral medullary syndrome (Sacco RL et al. Arch Neurol
+      // 1993;50:609–614, PMID 8503798), and the hemiparesis reported with it is on the side of the
+      // infarct (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384). C7-F3.
+      // TODO(medical-review): share
+      { v: 'asa_root_{s}', share: 0.85, at: 'mid' },
+      { v: 'va_v4_dist_{s}', share: 0.15, at: 'mid' },
     ],
     structures: [
       { name: { zh: '錐體', en: 'Pyramid' }, role: { zh: '對側手腳運動（臉部已在上方分出）', en: 'Opposite arm & leg movement (face fibres already left)' } },
@@ -1056,6 +1356,18 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'proprio_loss', lat: 'contra', sev: 2 },
       { s: 'tongue_weak', lat: 'ipsi', sev: 2 },
       { s: 'spasticity', lat: 'contra', sev: 2 },
+      // 86 consecutive medial medullary infarcts: vertigo or dizziness in 59 %, with dorsal
+      // involvement; central post-stroke pain in 21, linked to a poor outcome (Kim JS, Han YS.
+      // Stroke 2009;40:3221–3225, PMID 19628797). C7-F9. TODO(medical-review): sev
+      { s: 'vertigo', lat: 'none', sev: 1 },
+      { s: 'central_pain', lat: 'contra', sev: 1 },
+      // both sides: weak tongue and dysarthria (dysarthria 48.6 %, hypoglossal palsy 40.5 % in 38
+      // bilateral cases: Pongmoragot J et al. J Stroke Cerebrovasc Dis 2013;22:775–780, PMID
+      // 22541608). No swallowing or breathing symptom: the review gives no figure for them, and
+      // case reports differ (respiratory failure in Kobayashi S et al. Brain Nerve 2020;72:901–905,
+      // PMID 32741771; none in Takano K, Takasugi K. No To Shinkei 2003;55:879–883, PMID 14635516),
+      // so breathing is left to the bilateral-medulla complication (cascade.ts). C7-F6
+      { s: 'dysarthria', lat: 'none', sev: 2, bilateralOnly: true },
     ],
     compartment: 'infra',
   }),
@@ -1078,7 +1390,9 @@ export const REGION_DEFS: RegionDef[] = [
       { name: { zh: '脊髓視丘徑', en: 'Spinothalamic tract' }, role: { zh: '對側身體痛溫覺', en: 'Opposite body pain & temperature' } },
       { name: { zh: '前庭神經核', en: 'Vestibular nuclei' }, role: { zh: '平衡、眼震、眩暈', en: 'Balance, nystagmus, vertigo' } },
       { name: { zh: '下小腦腳', en: 'Inferior cerebellar peduncle' }, role: { zh: '同側協調', en: 'Same-side coordination' } },
-      { name: { zh: '下行交感纖維', en: 'Descending sympathetic fibres' }, role: { zh: '同側霍納氏症候群', en: 'Same-side Horner' } },
+      { name: { zh: '下行交感纖維', en: 'Descending sympathetic fibres' }, role: { zh: '同側霍納氏症候群、同側半身少汗', en: 'Same-side Horner and reduced sweating' } },
+      { name: { zh: '孤束核', en: 'Solitary tract nucleus' }, role: { zh: '同側舌頭味覺；呼吸與心血管反射', en: 'Same-side taste; breathing and cardiovascular reflexes' } },
+      { name: { zh: '腹外側呼吸網路', en: 'Ventrolateral respiratory network' }, role: { zh: '自動呼吸（睡著時也要呼吸）', en: 'Automatic breathing (including during sleep)' } },
     ],
     deficits: [
       { s: 'dysphagia', lat: 'none', sev: 3 },
@@ -1087,12 +1401,58 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'pain_temp_body', lat: 'contra', sev: 2 },
       { s: 'vertigo', lat: 'none', sev: 2 },
       { s: 'nystagmus', lat: 'none', sev: 2 },
+      // vestibular nuclei: the eye on the lesion side is lower (Brandt & Dieterich, Ann Neurol
+      // 1993); diplopia or blurred vision in 11 of 33 (Sacco et al., Arch Neurol 1993).
+      // TODO(medical-review): sev
+      { s: 'skew_deviation', lat: 'ipsi', sev: 1 },
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
       { s: 'horner', lat: 'ipsi', sev: 2 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
+      // gait and truncal ataxia with the body pulled towards the lesion (ipsiversive
+      // lateropulsion: Cnyrim CD et al. J Neurol Neurosurg Psychiatry 2007;78:527–528, PMID
+      // 17435189); ataxia was the commonest onset symptom (70 %: Sacco RL et al. Arch Neurol
+      // 1993;50:609–614, PMID 8503798), and severe gait ataxia commoner with caudal lesions (Kim JS.
+      // Brain 2003;126:1864–1872, PMID 12805095). C7-F4
+      { s: 'ataxia_gait', lat: 'none', sev: 2 },
+      // facial weakness in 42 % (Sacco 1993), central and on the side of the infarct in 8 of 33
+      // (the corticobulbar fibres to the facial nucleus loop down into the medulla: Kanbayashi T,
+      // Sonoo M. BMC Neurol 2021;21:214, PMID 34058995); dysarthria in 56 % of those who did not
+      // die of respiratory failure (Saito T et al. J Neurol Sci 2022;434:120167, PMID 35091384);
+      // both commoner with rostral lesions (Kim 2003). C7-F4. TODO(medical-review): sev
+      { s: 'face_weak', lat: 'ipsi', sev: 1 },
+      { s: 'dysarthria', lat: 'none', sev: 1 },
       { s: 'hiccups', lat: 'none', sev: 1 },
+      // central pain after a lateral medullary infarct (25 %, all within 6 months) most often
+      // affects the face around the eye on the side of the infarct, alone or with the opposite
+      // limbs (MacGowan DJ et al. Neurology 1997;49:120-125, PMID 9222179): both are listed as
+      // possible. C10-F3
       { s: 'central_pain', lat: 'contra', sev: 1 },
+      { s: 'central_pain_face', lat: 'ipsi', sev: 1 },
+      // a large infarct also reaches the crossed trigeminothalamic tract, medial to the lateral
+      // medulla: pain and temperature dulled on the other side of the face too (a bilateral
+      // trigeminal pattern, frequent with the "large" type: Kim JS. Brain 2003;126:1864-1872, PMID
+      // 12805095; in 12 of 50, with large, ventrally extending lesions, against the classic crossed
+      // pattern in 13: Kim JS et al. Neurology 1997;49:1557-1563, PMID 9409346). Sensory loss, not
+      // pain; not from a single perforator lacune. C10-F3, R2-6
+      { s: 'pain_temp_face', lat: 'contra', sev: 1, minLevel: 0.6, spareInLacune: true },
+      // one side can be enough to lose automatic breathing (Bogousslavsky J et al. Ann Neurol
+      // 1990;28:668–673, PMID 2260854): shown as a complication warning for the first 10 days
+      // (cascade.ts, C7-F1); this symptom is for lesions of both sides
       { s: 'respiratory', lat: 'none', sev: 2, bilateralOnly: true },
+      // reduced cardiac vagal (parasympathetic) function on testing in 14 of 25, against 4 of 29
+      // controls, linked to ventral involvement (Hong JM et al. Neurol Sci 2013;34:1963–1969,
+      // PMID 23543393); the study gives no arrhythmia rate. C7-F1
+      { s: 'autonomic_cardiac', lat: 'none', sev: 1 },
+      // TODO(medical-review): every sev below
+      // whole-body ipsilateral hypohidrosis (Korpelainen et al., Stroke 1993)
+      { s: 'hypohidrosis', lat: 'ipsi', sev: 1 },
+      // central apnoea in sleep after a one-sided infarct, worst around day 7 (Pavšič et al., Sleep
+      // Breath 2020; symptoms.ts); two sides → `respiratory` above, which replaces it (clinical.ts)
+      { s: 'central_sleep_apnoea', lat: 'none', sev: 1 },
+      // the solitary tract nucleus: taste on the same side (Onoda et al., J Neurol 2012)
+      { s: 'taste_loss', lat: 'ipsi', sev: 1 },
+      // cooler limbs on the opposite side with Wallenberg syndrome (Korpelainen et al., Stroke 1995)
+      { s: 'cold_limb', lat: 'contra', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1162,6 +1522,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'nystagmus', lat: 'none', sev: 2 },
       { s: 'ataxia_limb', lat: 'ipsi', sev: 2 },
       { s: 'nausea_vomiting', lat: 'none', sev: 1 },
+      // standing and walking impaired in all of 7 AICA infarcts, 4 of them in the cerebellum
+      // (Ogawa K et al. J Stroke Cerebrovasc Dis 2017;26:574–581, PMID 27989483). C7-F4.
+      // TODO(medical-review): sev
+      { s: 'ataxia_gait', lat: 'none', sev: 2 },
     ],
     compartment: 'infra',
   }),
@@ -1178,6 +1542,14 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'vertigo', lat: 'none', sev: 2 },
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
       { s: 'nystagmus', lat: 'none', sev: 1 },
+      // the cerebellar cognitive affective syndrome: executive and visuospatial deficits with
+      // posterior-lobe lesions, only minor changes with anterior-lobe ones (20 patients with
+      // disease confined to the cerebellum: Schmahmann JD, Sherman JC. Brain 1998;121:561–579,
+      // PMID 9577385); MMSE and MoCA can be normal (Hoche F et al. Brain 2018;141:248–270, PMID
+      // 29206893). Series of mixed cerebellar disease, not stroke-specific frequencies: mild
+      // (sev 1). C7-F10. TODO(medical-review): sev
+      { s: 'executive', lat: 'none', sev: 1 },
+      { s: 'visuospatial', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1196,6 +1568,10 @@ export const REGION_DEFS: RegionDef[] = [
       { s: 'ataxia_gait', lat: 'none', sev: 3 },
       { s: 'nystagmus', lat: 'none', sev: 2 },
       { s: 'nausea_vomiting', lat: 'none', sev: 2 },
+      // the affective part of the cerebellar cognitive affective syndrome: blunted affect or
+      // disinhibited behaviour with vermis lesions (Schmahmann & Sherman 1998, as above). C7-F10.
+      // TODO(medical-review): sev
+      { s: 'emotional', lat: 'none', sev: 1 },
     ],
     compartment: 'infra',
   }),
@@ -1231,15 +1607,22 @@ export const REGION_DEFS: RegionDef[] = [
     compartment: 'none',
   }),
   mid({
+    // Only the top of the cervical cord (Y2-17): the anterior spinal artery comes from both vertebral
+    // arteries at the foramen magnum, and lower down radiculomedullary arteries join it (in the
+    // cervical region seen on MR angiography in 24 of 50 people: Sheehy NP et al. Radiology
+    // 2005;236:637-641, PMID 15972334), so an occlusion at its origin threatens the upper cervical
+    // cord, not the whole of it (the medulla and upper cervical cord after a vertebral dissection:
+    // Pryse-Phillips W. Stroke 1989;20:292-294, PMID 2919418). Volume: the anterior two-thirds of
+    // C1–C3, about 4 cm of a cord of about 0.8 cm² cross-section.
     id: 'cervical_cord',
-    name: { zh: '頸髓前部', en: 'Anterior cervical spinal cord' },
+    name: { zh: '上段頸髓前部（C1–C3）', en: 'Upper anterior cervical cord (C1–C3)' },
     func: {
-      zh: '上下肢運動纖維與痛溫覺路徑。前脊髓動脈只在頂端由椎動脈供血，下方另有根動脈補充（本模型未納入）。',
-      en: 'Motor fibres and pain/temperature pathways for all limbs. The ASA is fed from the vertebrals only at its top; radicular arteries join lower down (not modelled).',
+      zh: '四肢的運動纖維，以及以下身體的痛溫覺路徑。前脊髓動脈在頂端由兩側椎動脈供血，往下有根髓動脈陸續補充，所以起始處阻塞時受威脅的是上段頸髓（這裡模擬的部分），不是整條頸髓；下段的根髓動脈本模型未納入。',
+      en: 'Motor fibres for all four limbs, and the pain/temperature pathways from the body below. The ASA is fed by both vertebral arteries at its top and joined by radiculomedullary arteries lower down, so an occlusion at its origin threatens the upper cervical cord (the part modelled here), not the whole cervical cord; the radiculomedullary feeders below are not modelled.',
     },
     category: 'spinal',
     cbf: 20,
-    fixedVolume: 3,
+    fixedVolume: 2,
     supply: [{ v: 'asa', share: 1 }],
     deficits: [
       { s: 'arm_weak', lat: 'none', sev: 2 },

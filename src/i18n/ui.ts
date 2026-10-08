@@ -5,6 +5,10 @@
 
 import type { Lang } from '../anatomy/types';
 
+/** after a reopening, where blood did not come back: the tissue there is still dying, or has died since (T2-6) */
+const NOT_BACK_ZH = { none: '', dying: '，但血流沒有回來的地方，組織仍在壞死', died: '，但血流沒有回來的地方，組織之後仍壞死了' };
+const NOT_BACK_EN = { none: '', dying: ', but tissue is still dying where blood has not come back', died: ', but where blood did not come back the tissue has died since' };
+
 const zh = {
   appTitle: '腦血管互動地圖',
   appSubtitle: '3D 腦血管、腦幹與小腦 · 栓塞後果模擬',
@@ -59,8 +63,8 @@ const zh = {
   collateral: { good: '良好', moderate: '中等', poor: '不良' },
   collateralHint: '軟腦膜側枝的好壞因人而異，是決定梗塞大小最重要的因素之一。',
   bloodPressure: '平均動脈壓',
-  mapHint: '正常約 70–105 mmHg。低於自動調節下限時，分水嶺區最先缺血。',
-  variantsHint: '完整的 Willis 環只見於少數人；變異會改變阻塞後的結果。',
+  mapHint: '正常約 70–105 mmHg。模型裡血壓越低、側枝血流越少，低於自動調節下限時分水嶺區最先缺血；血壓越高梗塞越小——這是模型的假設，實際上急性中風時血壓過高與過低都與較差的預後相關。',
+  variantsHint: '預設是完整的 Willis 環，但 MRA 研究中只有約 12–42% 的成人如此，所以預設的側枝代償偏樂觀；變異會改變阻塞後的結果。',
   reperfusion: '血管再通（血栓溶解／取栓）',
   reperfusionNone: '未再通',
   reperfusionAt: '發作後',
@@ -124,8 +128,10 @@ const zh = {
   stenosis: '狹窄程度',
   stenosisOptions: { 0.5: '50%', 0.7: '70%', 0.9: '90%', 1: '完全阻塞' },
   lacuneOption: '只塞住其中一條小分支（腔隙性中風）',
-  lacuneHint: '穿通動脈是一束細小的終末動脈。只阻塞一條時梗塞很小（約 1 mL），但若落在內囊、橋腦等纖維密集處，仍會造成明顯無力或麻木。',
+  lacuneHint: '穿通動脈是一束細小的終末動脈。只阻塞一條時梗塞很小（約 1 mL），但若落在內囊、橋腦等纖維密集處，仍可能讓半邊身體無力或麻木（多為輕到中度）。幾分鐘內再通則不留下梗塞（內囊 TIA）。',
   lacuneTag: '單一分支',
+  lacuneSite: '這條小分支落在哪裡',
+  lacuneSiteHint: '同一束穿通動脈的小分支，落在不同位置會有不同的腔隙症候群：純運動性最常見，也可能是運動失調性偏癱、構音障礙—笨拙手，或內囊膝部的意識混亂與失憶。',
   whatIfAt: (time: string | null) => (time ? `如果這條血管完全阻塞（未治療，${time}後）` : '如果這條血管完全阻塞（阻塞當下）'),
   whatIfTimeNote: '單獨阻塞這條血管、在時間軸目前時間點的樣子；拖動時間軸會跟著改變。',
   whatIfNone: '這個模型中，此血管單獨阻塞時能被側枝完全代償。',
@@ -172,15 +178,39 @@ const zh = {
   nowTitle: '此刻發生什麼',
   nowPhase: (time: string | null, phase: string) => (time ? `發作後 ${time} · ${phase}` : `發作當下 · ${phase}`),
   nowOnset: (pen: string) => `血流剛中斷：神經元約 10 秒內停止放電，症狀立刻出現；組織還沒壞死，但約 ${pen} mL 已經缺血。`,
-  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string }) =>
-    `梗塞核心正在擴大：過去 ${a.since}內多了 ${a.grew} mL（目前約 ${a.core} mL），半影區還有約 ${a.pen} mL 可救。`,
+  // (the penumbra that the flow it has now still kills, and what survives on collaterals anyway: T2-7)
+  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string | null; survives: string | null; penNote: 'saved' | 'atRisk' | 'late' }) =>
+    `梗塞核心正在擴大：過去 ${a.since}內多了 ${a.grew} mL（目前約 ${a.core} mL），` +
+    (a.pen === null
+      ? `其餘缺血組織（約 ${a.survives} mL）會靠側枝存活。`
+      : (a.penNote === 'saved' ? `半影區還有約 ${a.pen} mL 可救` : `約 ${a.pen} mL 的半影區仍可能壞死${a.penNote === 'late' ? '（已過了再通治療的時間）' : ''}`) +
+        (a.survives === null ? '。' : a.penNote === 'saved' ? `；其餘約 ${a.survives} mL 缺血組織即使血管不通，也會靠側枝存活。` : `；其餘約 ${a.survives} mL 缺血組織會靠側枝存活。`)),
   nowHolding: (a: { core: string; pen: string }) => `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 的半影區靠側枝勉強維持。`,
-  nowRecanalized: (a: { at: string; saved: string }) => `血管已在發作後 ${a.at}再通：半影區停止惡化，模型估計救回約 ${a.saved} mL。`,
+  nowHoldingNoCore: (pen: string) => `幾乎還沒有組織壞死；約 ${pen} mL 缺血，暫時靠側枝血流撐著。`,
+  // the deep white matter behind a perforating end artery, alive with no flow at all (V2-8)
+  nowHoldingNoFlow: (a: { core: string; pen: string }) =>
+    `梗塞核心約 ${a.core} mL，暫時沒有再擴大；約 ${a.pen} mL 完全沒有血流卻還活著：深部穿通動脈是終末動脈，沒有側枝血流能到達，但其纖維束的白質要幾個小時才會壞死。`,
+  nowHoldingNoFlowNoCore: (pen: string) =>
+    `幾乎還沒有組織壞死；約 ${pen} mL 缺血。深部穿通動脈是終末動脈，沒有側枝血流能到達；這些組織還活著，是因為深部纖維束的白質在完全沒有血流時，要幾個小時才會壞死。`,
+  // (the part of what it saves that a herniation of the untreated swelling would have infarcted, V1-6)
+  // (`partial`: blood came back to part of the territory only, and the rest is still dying, or has
+  // died since: T2-6)
+  nowRecanalized: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `血管已在發作後 ${a.at}再通：${a.partial ? '' : '半影區停止惡化，'}模型估計救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}${NOT_BACK_ZH[a.partial ?? 'none']}。`,
+  // an artery that reopened by itself, against the same case had it stayed closed (U2-10)
+  nowRecanalizedSelf: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `血管在發作後 ${a.at}自行再通（沒有治療）：${a.partial ? '' : '半影區停止惡化，'}模型估計比血管一直阻塞救回約 ${a.saved} mL${a.secondary ? `（其中約 ${a.secondary} mL 是血管一直阻塞時腫脹造成疝脫、壓迫而梗塞的其他區域）` : ''}${NOT_BACK_ZH[a.partial ?? 'none']}。`,
   nowSettled: (core: string) => `梗塞範圍大致定型（約 ${core} mL）；接下來的變化主要來自水腫與對其他腦區的續發影響。`,
   nowChronic: (core: string) => `壞死組織（約 ${core} mL）正被清除、形成疤痕與腦軟化；其餘腦區透過可塑性慢慢代償。`,
   nowChronicLoss: (core: string) => `約 ${core} mL 的腦組織已經永久失去；其餘腦區透過可塑性慢慢代償。`,
   nowOligemia: '只有輕度低灌流：組織仍在運作，目前沒有壞死。',
   nowNothing: '此刻沒有腦組織缺血。',
+  // the upper cervical cord (anterior spinal artery), told apart from the brain (W3-8)
+  nowCordOnly: '此刻沒有腦組織缺血或壞死，受影響的是脊髓。',
+  nowCordIschaemic: (pen: string) => `上段頸髓（前脊髓動脈的供應區）約 ${pen} mL 缺血：兩側的運動與痛溫覺路徑立刻停止運作，組織還沒壞死。`,
+  nowCordDying: (a: { core: string; pen: string }) => `上段頸髓已有約 ${a.core} mL 壞死，另有約 ${a.pen} mL 仍在缺血。`,
+  nowCordDead: (core: string) => `上段頸髓約 ${core} mL 已經壞死（脊髓梗塞）。`,
+  cordInVolumes: (a: { core: string; pen: string }) => `其中上段頸髓：梗塞核心 ${a.core} mL、半影區 ${a.pen} mL。`,
   edemaNow: {
     none: '',
     cytotoxic: '細胞毒性水腫形成中：缺氧的細胞吸水腫脹，DWI 上已經看得到，但腦的整體體積還幾乎沒變。',
@@ -207,7 +237,10 @@ const zh = {
     cranial: '腦神經',
     balance: '平衡協調',
     cognition: '認知行為',
+    mood: '情緒',
+    sleep: '睡眠',
     autonomic: '自主神經',
+    thermo: '體溫出汗',
     limb: '肢體血流',
   },
   rowShift: '腫脹／中線',
@@ -224,10 +257,12 @@ const zh = {
   finalInfarct: '最終梗塞（預估）',
   saved: '治療救回',
   neuronsLost: '估計損失神經元',
+  /** when the spinal cord is part of the infarct: the estimate is the brain's (W3-8) */
+  neuronsLostBrain: '估計損失的腦神經元',
   cbf: '全腦血流',
   nihss: 'NIHSS 估計',
   midlineShift: '中線偏移',
-  midlineShiftNote: '腫脹的半球把中線推向對側；超過約 5 mm 通常伴隨意識變差。',
+  midlineShiftNote: '腫脹的半球把中線推向對側；模型中約 4 mm 起嗜睡、6 mm 起木僵、8 mm 起昏迷（Ropper 1986：3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷）。',
   decompressed: '已減壓',
   nihssItems: {
     '1a': '1a 意識程度',
@@ -263,6 +298,8 @@ const zh = {
   nihssUncaptured: 'NIHSS 未涵蓋這些症狀（例如單眼視力喪失）：分數 0 不代表沒有症狀。',
   nihssNotCaptured: '量表未涵蓋',
   syndromes: '可能的症候群',
+  syndromeSilent: '臨床無症狀',
+  syndromeSilentHint: '依血管分布命名的型態：這個區域的組織仍受損，但這一側已沒有可察覺的症狀（已被代償，或本來就不明顯）。',
   symptoms: '預期症狀',
   noSymptoms: '此時間點沒有明顯症狀。',
   flowChanges: '血流重新分配',
@@ -387,8 +424,8 @@ const en: Strings = {
   collateral: { good: 'Good', moderate: 'Moderate', poor: 'Poor' },
   collateralHint: 'Leptomeningeal collaterals vary widely between people and are among the strongest determinants of infarct size.',
   bloodPressure: 'Mean arterial pressure',
-  mapHint: 'Normal ≈ 70–105 mmHg. Below the autoregulatory limit, watershed zones fail first.',
-  variantsHint: 'A complete circle of Willis is found in a minority of people; variants change the outcome of an occlusion.',
+  mapHint: 'Normal ≈ 70–105 mmHg. In the model, lower pressure starves the collaterals (watershed zones fail first below the autoregulatory limit) and higher pressure shrinks the infarct — a model assumption: in acute stroke both high and low blood pressure are associated with worse outcome.',
+  variantsHint: 'The default is a complete circle of Willis, which MRA studies find in only about 12–42% of adults, so the default collateral capacity is optimistic; variants change the outcome of an occlusion.',
   reperfusion: 'Recanalisation (thrombolysis / thrombectomy)',
   reperfusionNone: 'None',
   reperfusionAt: 'at',
@@ -450,8 +487,10 @@ const en: Strings = {
   stenosis: 'Narrowing',
   stenosisOptions: { 0.5: '50%', 0.7: '70%', 0.9: '90%', 1: 'Occluded' },
   lacuneOption: 'Block just one small branch (lacunar stroke)',
-  lacuneHint: 'Perforators are bundles of tiny end arteries. Blocking one gives a small infarct (~1 mL), but in a compact tract such as the internal capsule or pons it still causes marked weakness or numbness.',
+  lacuneHint: 'Perforators are bundles of tiny end arteries. Blocking one gives a small infarct (~1 mL), but in a compact tract such as the internal capsule or pons it can still weaken or numb one side of the body (mostly mildly to moderately). If it reopens within minutes it leaves no infarct (a capsular TIA).',
   lacuneTag: 'one branch',
+  lacuneSite: 'Where the branch lies',
+  lacuneSiteHint: 'Branches of the same perforator bundle give different lacunar syndromes depending on where they land: pure motor is the commonest; others are ataxic hemiparesis, dysarthria–clumsy hand, or the confusion and memory loss of a capsular genu infarct.',
   whatIfAt: (time: string | null) => (time ? `If this vessel were blocked (untreated, after ${time})` : 'If this vessel were blocked (at the moment of occlusion)'),
   whatIfTimeNote: 'This vessel blocked on its own, shown at the time on the timeline; drag the timeline to see it change.',
   whatIfNone: 'In this model, blocking this vessel alone is fully compensated by collaterals.',
@@ -496,15 +535,43 @@ const en: Strings = {
   nowTitle: 'What is happening now',
   nowPhase: (time: string | null, phase: string) => (time ? `${time} after onset · ${phase}` : `At onset · ${phase}`),
   nowOnset: (pen: string) => `Flow has just stopped: neurons fall silent within ~10 s and symptoms start at once. Nothing has died yet, but about ${pen} mL is already ischaemic.`,
-  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string }) =>
-    `The infarct core is still growing: ${a.grew} mL more in the last ${a.since} (now about ${a.core} mL); about ${a.pen} mL of penumbra can still be saved.`,
+  nowCoreGrowing: (a: { grew: string; since: string; core: string; pen: string | null; survives: string | null; penNote: 'saved' | 'atRisk' | 'late' }) =>
+    `The infarct core is still growing: ${a.grew} mL more in the last ${a.since} (now about ${a.core} mL); ` +
+    (a.pen === null
+      ? `the ischaemic tissue left (about ${a.survives} mL) survives on its collaterals.`
+      : (a.penNote === 'saved'
+          ? `about ${a.pen} mL of penumbra can still be saved`
+          : `about ${a.pen} mL of penumbra may still be lost${a.penNote === 'late' ? ' (too late now to reopen the artery)' : ''}`) +
+        (a.survives === null
+          ? '.'
+          : a.penNote === 'saved'
+            ? `; the other ${a.survives} mL survives on collaterals even if the artery stays closed.`
+            : `; the other ${a.survives} mL of ischaemic tissue survives on its collaterals.`)),
   nowHolding: (a: { core: string; pen: string }) => `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL of penumbra is just holding on through collaterals.`,
-  nowRecanalized: (a: { at: string; saved: string }) => `The vessel was reopened ${a.at} after onset: the penumbra stopped dying — the model estimates about ${a.saved} mL saved.`,
+  nowHoldingNoCore: (pen: string) => `Almost nothing has died yet; about ${pen} mL is ischaemic and survives on collateral flow for now.`,
+  nowHoldingNoFlow: (a: { core: string; pen: string }) =>
+    `The core (about ${a.core} mL) is not growing for now; about ${a.pen} mL is still alive with no blood flow at all: no collateral reaches the territory of a deep perforating artery, an end artery, but the white matter of its fibre tracts takes a few hours to die.`,
+  nowHoldingNoFlowNoCore: (pen: string) =>
+    `Almost nothing has died yet; about ${pen} mL is ischaemic. No collateral flow reaches it, as a deep perforating artery is an end artery; it is still alive because the white matter of the deep fibre tracts takes a few hours to die with no blood flow at all.`,
+  nowRecanalized: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `The vessel was reopened ${a.at} after onset: ${a.partial ? '' : 'the penumbra stopped dying — '}the model estimates about ${a.saved} mL saved${
+      a.secondary ? `, about ${a.secondary} mL of it in territories that the herniation of the untreated swelling would have infarcted` : ''
+    }${NOT_BACK_EN[a.partial ?? 'none']}.`,
+  nowRecanalizedSelf: (a: { at: string; saved: string; secondary?: string; partial?: 'dying' | 'died' }) =>
+    `The artery reopened by itself ${a.at} after onset, without treatment: ${a.partial ? '' : 'the penumbra stopped dying — '}the model estimates about ${a.saved} mL saved compared with an artery that stayed closed${
+      a.secondary ? `, about ${a.secondary} mL of it in territories that the herniation of the swelling would have infarcted` : ''
+    }${NOT_BACK_EN[a.partial ?? 'none']}.`,
   nowSettled: (core: string) => `The infarct has largely settled (about ${core} mL); what changes next comes from swelling and knock-on effects on other regions.`,
   nowChronic: (core: string) => `The dead tissue (about ${core} mL) is being cleared into a scar (encephalomalacia); the rest of the brain slowly compensates through plasticity.`,
   nowChronicLoss: (core: string) => `About ${core} mL of brain tissue is permanently lost; the rest of the brain slowly compensates through plasticity.`,
   nowOligemia: 'Only mild hypoperfusion: the tissue still works and nothing has died.',
   nowNothing: 'No brain tissue is ischaemic right now.',
+  nowCordOnly: 'No brain tissue is ischaemic or dead; the spinal cord is affected.',
+  nowCordIschaemic: (pen: string) =>
+    `About ${pen} mL of the upper cervical cord (the anterior spinal artery's territory) is ischaemic: the motor and pain–temperature pathways of both sides stop working at once, and nothing has died yet.`,
+  nowCordDying: (a: { core: string; pen: string }) => `In the upper cervical cord about ${a.core} mL has died and about ${a.pen} mL is still ischaemic.`,
+  nowCordDead: (core: string) => `About ${core} mL of the upper cervical cord has died (a spinal cord infarct).`,
+  cordInVolumes: (a: { core: string; pen: string }) => `Of these, the upper cervical cord: ${a.core} mL core, ${a.pen} mL penumbra.`,
   edemaNow: {
     none: '',
     cytotoxic: 'Cytotoxic oedema is forming: starved cells take up water and swell — visible on DWI — while overall brain volume barely changes.',
@@ -530,7 +597,10 @@ const en: Strings = {
     cranial: 'Cranial n.',
     balance: 'Balance',
     cognition: 'Cognition',
+    mood: 'Mood',
+    sleep: 'Sleep',
     autonomic: 'Autonomic',
+    thermo: 'Temp./sweat',
     limb: 'Limb flow',
   },
   rowShift: 'Swelling',
@@ -546,10 +616,11 @@ const en: Strings = {
   finalInfarct: 'Final infarct (est.)',
   saved: 'Saved by treatment',
   neuronsLost: 'Neurons lost (est.)',
+  neuronsLostBrain: 'Brain neurons lost (est.)',
   cbf: 'Total CBF',
   nihss: 'NIHSS estimate',
   midlineShift: 'Midline shift',
-  midlineShiftNote: 'The swollen hemisphere pushes the midline across; beyond ~5 mm consciousness usually falls.',
+  midlineShiftNote: 'The swollen hemisphere pushes the midline across; in the model drowsiness starts at about 4 mm, stupor at 6 mm and coma at 8 mm (Ropper 1986: 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma).',
   decompressed: 'decompressed',
   nihssItems: {
     '1a': '1a Level of consciousness',
@@ -579,6 +650,8 @@ const en: Strings = {
   nihssUncaptured: 'The NIHSS does not capture these deficits (e.g. monocular vision loss): a score of 0 does not mean no symptoms.',
   nihssNotCaptured: 'Not captured',
   syndromes: 'Possible syndromes',
+  syndromeSilent: 'clinically silent',
+  syndromeSilentHint: 'A pattern named for its vascular territory: the tissue there is still damaged, but no noticeable symptom from this side is left (compensated, or never apparent).',
   symptoms: 'Expected symptoms',
   noSymptoms: 'No clear symptoms at this time point.',
   flowChanges: 'Flow redistribution',

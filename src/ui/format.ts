@@ -7,8 +7,8 @@ import type { SymptomItem } from '../engine/clinical';
 import type { EdemaState } from '../engine/edemaTypes';
 import { getUnits } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
-import { finalInfarctProb, penumbraResolveH, tauHours, type TissueState } from '../engine/tissue';
-import { tissueParamsForBed } from '../engine/tissueParams';
+import { finalInfarctProb, infarctFraction, penumbraDecidedH, type TissueState } from '../engine/tissue';
+import { tissueParamsForUnit } from '../engine/tissueParams';
 import type { Strings } from '../i18n/ui';
 import { STATE_COLORS } from './colors';
 
@@ -57,6 +57,8 @@ export function fmtNeurons(n: number, lang: Lang): string {
 }
 
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
+/** a share of a region: "<1%" for a small part that is there but rounds to 0 % (W3-5) */
+export const pctShare = (x: number) => (x > 0 && Math.round(x * 100) === 0 ? '<1%' : pct(x));
 
 /** Arterial supply of a region: vessel → share (volume-weighted over its beds). */
 export function regionSupply(r: Region): { vessel: string; share: number }[] {
@@ -115,7 +117,10 @@ export const SYSTEM_ORDER: SymptomSystem[] = [
   'cranial',
   'balance',
   'cognition',
+  'mood',
+  'sleep',
   'autonomic',
+  'thermo',
   'limb',
 ];
 
@@ -129,7 +134,10 @@ export const SYSTEM_LABEL: Record<SymptomSystem, L> = {
   cranial: { zh: '腦神經（臉、吞嚥、聽覺）', en: 'Cranial nerves (face, swallowing, hearing)' },
   balance: { zh: '平衡與協調', en: 'Balance & coordination' },
   cognition: { zh: '認知與行為', en: 'Cognition & behaviour' },
+  mood: { zh: '情緒與情感表達', en: 'Mood & emotional expression' },
+  sleep: { zh: '睡眠與睡眠中的呼吸', en: 'Sleep & breathing in sleep' },
   autonomic: { zh: '自主神經', en: 'Autonomic' },
+  thermo: { zh: '體溫調節與出汗', en: 'Temperature regulation & sweating' },
   limb: { zh: '肢體血流', en: 'Limb circulation' },
 };
 
@@ -287,12 +295,15 @@ export function penumbraEstimate(sim: SimResult, regionId: string): PenumbraEsti
   for (const u of getUnits(sim.input.variants, sim.input.collateral)) {
     if (!beds.has(u.bed)) continue;
     const rel = sim.hemo.unitRel[u.id] ?? 1;
-    const tp = tissueParamsForBed(u.bed);
-    if (rel < tp.coreRel || rel >= tp.penumbraRel) continue;
-    const resolve = penumbraResolveH(rel, tp);
+    const tp = tissueParamsForUnit(u);
+    // tissue below the core threshold that is still alive counts too: fed by collaterals, it can
+    // last for hours (Y1-0)
+    if (rel >= tp.penumbraRel) continue;
+    // (decided: dead, or past the time it is at risk and surviving: W2-10)
+    const resolve = penumbraDecidedH(rel, tp);
     if (resolve <= tH) continue;
     const p = finalInfarctProb(rel, tp);
-    const dead = p * (1 - Math.exp(-Math.max(tH - tp.lagH, 0) / tauHours(rel, tp)));
+    const dead = infarctFraction(rel, tH, null, 1, tp);
     const alive = (1 - dead) * u.frac * bedWeight(u.bed);
     if (alive <= 0) continue;
     parts.push({ resolve, alive });

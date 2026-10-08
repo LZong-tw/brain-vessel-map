@@ -6,7 +6,7 @@
  * options existed: complete reperfusion (eTICI 3) that stays open, with no complications.
  */
 
-import { VESSELS, VESSEL_BY_ID } from '../anatomy';
+import { BEDS, VESSELS, VESSEL_BY_ID } from '../anatomy';
 import type { Vessel } from '../anatomy';
 
 export type TreatmentMethod = 'evt' | 'ivt' | 'bridging';
@@ -37,12 +37,14 @@ export const DEFAULT_TREATMENT: TreatmentOptions = {
 
 /**
  * Share of the occluded artery's downstream territory that is reperfused, by eTICI grade (the
- * middle of each grade's range: 0; 1 = past the clot but hardly any distal filling; 2a = 1–49 %;
+ * representative values within each grade's range: 0; 1 = thrombus reduction without distal reperfusion; 2a = 1–49 %;
  * 2b50 = 50–66 %; 2b67 = 67–89 %; 2c = 90–99 %; 3 = complete).
+ * Liebeskind et al. 2019, https://doi.org/10.1136/neurintsurg-2018-014127.
+ * Grade 1 has zero distal reperfusion; the positive grade representatives are model choices.
  */
 export const GRADE_REPERFUSED: Record<ReperfusionGrade, number> = {
   '0': 0,
-  '1': 0.05,
+  '1': 0,
   '2a': 0.25,
   '2b50': 0.58,
   '2b67': 0.78,
@@ -69,7 +71,7 @@ export const isDefaultTreatment = (t: TreatmentOptions | undefined): boolean =>
  * mid-basilar clot can embolise to the SCA and PCA); the walk stops at communicating arteries
  * and collaterals so that it never crosses into another circulation.
  */
-export function downstreamBranches(vesselId: string, limit = 16): string[] {
+export function downstreamBranches(vesselId: string, limit = Infinity): string[] {
   const start = VESSEL_BY_ID[vesselId];
   if (!start) return [];
   const next = (v: Vessel) => [...v.children, ...(CONTINUATIONS.get(v.to) ?? [])];
@@ -88,6 +90,87 @@ export function downstreamBranches(vesselId: string, limit = 16): string[] {
   return out;
 }
 
+/**
+ * Ipsilateral ACA branches: the commonest new territory for emboli during thrombectomy of an
+ * MCA occlusion (ACA 27.8% of new-territory infarcts in ESCAPE-NA1: Singh N et al. Stroke
+ * 2023;54:1477–1483). An ICA-terminus clot reaches the ACA downstream anyway.
+ */
+const NEW_TERRITORY_BY_BASE: Record<string, string[]> = {
+  mca_m1: ['aca_a2', 'aca_frontopolar', 'aca_callosomarginal', 'aca_pericallosal', 'aca_paracentral'],
+  mca_m2_sup: ['aca_a2', 'aca_frontopolar', 'aca_callosomarginal', 'aca_pericallosal', 'aca_paracentral'],
+  mca_m2_inf: ['aca_a2', 'aca_frontopolar', 'aca_callosomarginal', 'aca_pericallosal', 'aca_paracentral'],
+};
+
+/**
+ * Branches of a previously unaffected territory that a clot fragment could reach while this
+ * artery is treated (outside its own downstream tree, which downstreamBranches does not leave).
+ */
+export function newTerritoryBranches(vesselId: string): string[] {
+  const v = VESSEL_BY_ID[vesselId];
+  if (!v || v.side === 'm') return [];
+  const down = new Set(downstreamBranches(vesselId));
+  return (NEW_TERRITORY_BY_BASE[v.baseId] ?? [])
+    .map((b) => `${b}_${v.side}`)
+    .filter((id) => VESSEL_BY_ID[id] && !VESSEL_BY_ID[id].visualOnly && !VESSEL_BY_ID[id].notOccludable && !down.has(id));
+}
+
+/** every branch a fragment of this clot could block: downstream, then a new territory */
+export const embolusTargets = (vesselId: string): string[] => [...downstreamBranches(vesselId), ...newTerritoryBranches(vesselId)];
+
 /** vessels by the node they start from (a segment's end node → the segments that continue it) */
 const CONTINUATIONS = new Map<string, string[]>();
 for (const v of VESSELS) CONTINUATIONS.set(v.from, [...(CONTINUATIONS.get(v.from) ?? []), v.id]);
+
+/**
+ * The arteries a vessel feeds: itself, its branches and the segments that continue it, perforators
+ * included (not across communicating arteries or collaterals into another circulation).
+ */
+function treeOf(vesselId: string): Set<string> {
+  const out = new Set<string>();
+  const queue = [vesselId];
+  while (queue.length) {
+    const id = queue.shift()!;
+    const v = VESSEL_BY_ID[id];
+    if (!v || out.has(id) || (id !== vesselId && (v.kind === 'communicating' || v.kind === 'collateral'))) continue;
+    out.add(id);
+    queue.push(...v.children, ...(CONTINUATIONS.get(v.to) ?? []));
+  }
+  return out;
+}
+
+/**
+ * The share of the reopened arteries' downstream territory (by its normal blood flow) that the
+ * branch blocked by a clot fragment supplies; 0 for a branch outside that territory (a new
+ * territory, reported apart from the eTICI grade: Singh N et al. Stroke 2023).
+ */
+export function embolusShare(reopened: readonly string[], embolus: string): number {
+  const territory = new Set(reopened.flatMap((id) => [...treeOf(id)]));
+  if (!territory.has(embolus)) return 0;
+  const branch = treeOf(embolus);
+  let all = 0;
+  let cut = 0;
+  for (const b of BEDS)
+    for (const s of b.supply) {
+      if (!territory.has(s.v)) continue;
+      all += b.baseFlow * s.share;
+      if (branch.has(s.v)) cut += b.baseFlow * s.share;
+    }
+  return all > 0 ? cut / all : 0;
+}
+
+/**
+ * The eTICI grade the final angiogram shows (U2-9). eTICI grades the share of the target
+ * occlusion's whole downstream territory that is reperfused (3 = 100 %, 2c = 90–99 %, 2b67 =
+ * 67–89 %, 2b50 = 50–66 %: Liebeskind DS et al. J Neurointerv Surg 2019;11:433–438, PMID 30194109), so a
+ * downstream branch that a clot fragment blocks counts as not reperfused: the grade chosen is that
+ * of the rest of the territory, and the angiogram shows it lowered by the branch's share (never 3
+ * beside a blocked branch). An embolus to a new territory leaves it as chosen.
+ */
+export function angiographicGrade(t: TreatmentOptions, reopened: readonly string[]): ReperfusionGrade {
+  if (!t.distalEmbolus || GRADE_REPERFUSED[t.grade] === 0) return t.grade;
+  const share = embolusShare(reopened, t.distalEmbolus);
+  if (share <= 0) return t.grade;
+  const r = GRADE_REPERFUSED[t.grade] * (1 - share);
+  const shown: ReperfusionGrade = r >= 0.9 ? '2c' : r >= 0.67 ? '2b67' : r >= 0.5 ? '2b50' : '2a';
+  return REPERFUSION_GRADES.indexOf(shown) < REPERFUSION_GRADES.indexOf(t.grade) ? shown : t.grade;
+}

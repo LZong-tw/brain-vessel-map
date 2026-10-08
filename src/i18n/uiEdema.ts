@@ -34,8 +34,8 @@ const zh: EdemaStrings = {
     normal: '正常組織',
     cytotoxic: '只有 DWI 亮（細胞毒性水腫，最初數小時）',
     both: 'DWI 與 T2／FLAIR 都亮（血管性水腫加入）',
-    vasogenic: '只有 T2／FLAIR 亮（血管性水腫，DWI 已消退）',
-    chronic: '萎縮、軟化（慢性，暗）',
+    vasogenic: '只有 T2／FLAIR 亮（血管性水腫；之後是一直亮著的膠質疤痕）',
+    chronic: '萎縮、軟化（慢性）：空腔在 FLAIR 上像腦脊髓液一樣暗（T2 上是亮的），疤痕邊緣仍亮',
   },
   legendNote: '依此時間點 MRI 會看到的表現著色',
 };
@@ -51,8 +51,8 @@ const en: EdemaStrings = {
     normal: 'Normal tissue',
     cytotoxic: 'DWI-bright only (cytotoxic oedema, first hours)',
     both: 'DWI and T2/FLAIR bright (vasogenic oedema joins)',
-    vasogenic: 'T2/FLAIR-bright only (vasogenic oedema, DWI faded)',
-    chronic: 'Shrunken / softened (chronic, dark)',
+    vasogenic: 'T2/FLAIR-bright only (vasogenic oedema; later the gliotic scar, which stays bright)',
+    chronic: 'Shrunken / softened (chronic): the cavity is dark like CSF on FLAIR (bright on T2), with a bright scar rim',
   },
   legendNote: 'Coloured by what MRI would show at this time',
 };

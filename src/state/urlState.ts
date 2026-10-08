@@ -6,7 +6,9 @@
  * An occlusion with a schedule carries its window in hours after the vessel id:
  *   basilar_mid:0.9@0-72,basilar_mid@72   (90 % stenosis over 0–72 h, then occluded from 72 h)
  *   mca_m2_sup_l@0-0.0833                 (reopens by itself after 5 min)
- * No "@" means from 0 and never reopening, so older links read exactly as before. Treatment
+ * No "@" means from 0 and never reopening, so older links read exactly as before. One branch of a
+ * perforator bundle (a lacune) is `<vessel>:b`, at a site other than the classic one
+ * `<vessel>:b:<site>` (anatomy/lacunes.ts), e.g. lenticulostriate_l:b:ataxic. Treatment
  * (`r`) may also be given relative to a later occlusion start (start + one of the usual delays).
  *
  * Treatment details go with a treatment time and are written only when they differ from the
@@ -16,13 +18,13 @@
  */
 
 import { VESSEL_BY_ID } from '../anatomy';
-import { canBeLacunar } from '../anatomy/lacunes';
+import { canBeLacunar, lacuneSitesOf } from '../anatomy/lacunes';
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { VARIANT_BY_ID } from '../anatomy/variants';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
 import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, isTreatable, overlap, startOf, tidy } from '../engine/schedule';
-import { DEFAULT_TREATMENT, REPERFUSION_GRADES, downstreamBranches, type ReperfusionGrade, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
+import { DEFAULT_TREATMENT, REPERFUSION_GRADES, embolusTargets, type ReperfusionGrade, type TreatmentMethod, type TreatmentOptions } from '../engine/treatment';
 import { isOccludable } from '../engine/simulate';
 import { NO_REFLOW_OPTIONS, REOCCLUSION_OPTIONS } from '../ui/treatment';
 import { useApp, type AppState } from './store';
@@ -38,7 +40,7 @@ function snapH(h: number): number {
 }
 
 function encodeOcclusion(o: Occlusion): string {
-  const head = o.branch ? `${o.vessel}:b` : o.severity >= 1 ? o.vessel : `${o.vessel}:${o.severity}`;
+  const head = o.branch ? `${o.vessel}:b${o.lacuneSite ? `:${o.lacuneSite}` : ''}` : o.severity >= 1 ? o.vessel : `${o.vessel}:${o.severity}`;
   const from = startOf(o);
   const to = endOf(o);
   if (from === 0 && to === null) return head;
@@ -103,9 +105,10 @@ function parseTreatment(q: URLSearchParams, occlusions: readonly Occlusion[]): T
   if (q.get('ro') !== null && REOCCLUSION_OPTIONS.includes(ro)) out.reocclusionAfterH = ro;
   const nr = Number(q.get('nr'));
   if (q.get('nr') !== null && nr > 0 && NO_REFLOW_OPTIONS.includes(nr)) out.noReflow = nr;
-  // a distal embolus only in a branch downstream of an occlusion that treatment can reopen
+  // a distal embolus only in a branch downstream of an occlusion that treatment can reopen, or
+  // in the new territory its clot can reach (engine/treatment.ts embolusTargets)
   const de = q.get('de');
-  if (de && isOccludable(de) && occlusions.some((o) => isTreatable(o) && downstreamBranches(o.vessel).includes(de))) out.distalEmbolus = de;
+  if (de && isOccludable(de) && occlusions.some((o) => isTreatable(o) && embolusTargets(o.vessel).includes(de))) out.distalEmbolus = de;
   return out;
 }
 
@@ -154,13 +157,15 @@ export function applyHash(hash: string) {
     for (const part of o.split(',')) {
       const at = part.indexOf('@');
       const head = at < 0 ? part : part.slice(0, at);
-      const [vessel, sevRaw] = head.split(':');
+      const [vessel, sevRaw, siteRaw] = head.split(':');
       if (!isOccludable(vessel)) continue;
       let occ: Occlusion;
       if (sevRaw === 'b') {
         const v = VESSEL_BY_ID[vessel];
         if (!canBeLacunar(v.baseId, v.n)) continue;
         occ = { vessel, severity: 1, branch: true };
+        // a lacune site of that bundle (an unknown one: the classic site)
+        if (siteRaw && lacuneSitesOf(v.baseId).some((x) => x.id === siteRaw)) occ.lacuneSite = siteRaw;
       } else {
         const sev = sevRaw === undefined ? 1 : Number(sevRaw);
         if (!Number.isFinite(sev)) continue;

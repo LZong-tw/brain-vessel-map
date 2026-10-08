@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { VESSEL_BY_ID, vesselName } from '../../anatomy';
+import { absentVessels } from '../../engine/hemodynamics';
 import type { SimResult } from '../../engine/simulate';
 import { useT } from '../../state/hooks';
 import { useApp } from '../../state/store';
@@ -40,6 +41,9 @@ const SEG: Record<string, string> = {
   acha_l: 'M280 134 L318 176',
   pcomm_r: 'M140 150 L168 250',
   pcomm_l: 'M280 150 L252 250',
+  // only with the persistent-trigeminal-artery variant
+  trigeminal_persistent_r: 'M140 200 L210 318',
+  trigeminal_persistent_l: 'M280 200 L210 318',
   // posterior
   pca_p1_r: 'M210 266 L168 250',
   pca_p1_l: 'M210 266 L252 250',
@@ -122,6 +126,9 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
   const toggle = useApp((s) => s.toggleOcclusion);
   const [clickToBlock, setClickToBlock] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
+  const variants = useApp((s) => s.variants);
+  // vessels this anatomy does not have are not drawn
+  const absent = useMemo(() => absentVessels(variants), [variants]);
 
   return (
     <div className="diagram">
@@ -148,7 +155,7 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
         </text>
         {Object.entries(SEG).map(([id, d]) => {
           const v = VESSEL_BY_ID[id];
-          if (!v) return null;
+          if (!v || absent.has(id)) return null;
           const vis = vesselVisual(id, sim);
           const w = Math.max(1.6, v.r * 3.2);
           const m = midAndAngle(d);

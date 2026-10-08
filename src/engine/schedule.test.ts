@@ -11,8 +11,8 @@ import { applyHash, encodeState } from '../state/urlState';
 import { getUnits, simulateHemodynamics, type Occlusion } from './hemodynamics';
 import { activeAt, breakpoints, fitSchedule, scheduleEvents, statusAt } from './schedule';
 import { simulate, type SimInput } from './simulate';
-import { finalInfarctProb, infarctFraction, lossSteps, penumbraResolveH, tauHours, tissueCourse, unitState, type TissueState } from './tissue';
-import { DEFAULT_TISSUE, tissueParamsForBed, type TissueParams } from './tissueParams';
+import { PENUMBRA_AT_RISK_H, finalInfarctProb, infarctFraction, lossSteps, penumbraResolveH, tauHours, tissueCourse, unitState, type TissueState } from './tissue';
+import { DEFAULT_TISSUE, PERFORATOR_TISSUE, tissueParamsForUnit, type TissueParams } from './tissueParams';
 
 const base: SimInput = { occlusions: [], variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: null, decompression: false };
 const sim = (over: Partial<SimInput>) => simulate({ ...base, ...over });
@@ -46,14 +46,19 @@ function legacyUnitState(rel: number, tH: number, reperfusionH: number | null, r
 }
 
 /**
- * The old model's state with the one intended change since: tissue whose current flow is below
+ * The old model's state with the two intended changes since: tissue whose current flow is below
  * the core threshold keeps its not-yet-dead remainder as dying penumbra instead of "stabilised"
- * oligaemia (the infarct fraction itself is unchanged).
+ * oligaemia, and penumbra no longer counts as at risk (as penumbra) more than PENUMBRA_AT_RISK_H
+ * after its ischaemia began (W2-10: what survives is then oligaemic, though still silent). The
+ * infarct fraction itself is unchanged.
  */
 function expectedUnitState(rel: number, tH: number, reperfusionH: number | null, relAfter: number, p: TissueParams) {
   const s = legacyUnitState(rel, tH, reperfusionH, relAfter, p);
-  const cur = reperfusionH !== null && tH >= reperfusionH ? relAfter : rel;
-  return cur < p.coreRel ? { ...s, rest: 'penumbra' as TissueState } : s;
+  const reperfused = reperfusionH !== null && tH >= reperfusionH;
+  const cur = reperfused ? relAfter : rel;
+  const since = reperfused ? tH - (reperfusionH as number) : tH;
+  if (cur < p.coreRel) return { ...s, rest: 'penumbra' as TissueState };
+  return s.rest === 'penumbra' && since >= PENUMBRA_AT_RISK_H ? { ...s, rest: 'oligemia' as TissueState } : s;
 }
 
 const RELS = [0, 0.05, 0.12, 0.2, 0.29, 0.3, 0.31, 0.35, 0.4, 0.45, 0.5, 0.549, 0.55, 0.6, 0.8, 0.85, 1, 1.3];
@@ -106,7 +111,7 @@ describe('tissue: the piecewise model reduces exactly to the two-phase model', (
       const expected: Record<string, Record<TissueState, number>> = {};
       for (const b of BEDS) expected[b.id] = { normal: 0, oligemia: 0, penumbra: 0, core: 0, salvaged: 0 };
       for (const u of units) {
-        const p = tissueParamsForBed(u.bed);
+        const p = tissueParamsForUnit(u);
         const rel = acute.unitRel[u.id] ?? 1;
         const relAfter = after.unitRel[u.id] ?? 1;
         const { f, rest } = expectedUnitState(rel, tH, 2, relAfter, p);
@@ -172,10 +177,14 @@ describe('tissue: piecewise flow histories', () => {
       { fromH: from, rel: 0.1 },
       { fromH: from + 1 / 6, rel: 1 },
     ];
-    const lag = { ...p, lagH: 0.25 };
-    // one 10-minute event inside a 15-minute budget: nothing dies; without a lag some does
+    // the fast course of an end-artery territory, whose lag is 6 min (Y1-0)
+    const fast = PERFORATOR_TISSUE;
+    const lag = { ...fast, lagH: 0.25 };
+    // one 10-minute event inside a 15-minute budget: nothing dies; with a 6-minute one some does
     expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, lag).f).toBe(0);
-    expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, p).f).toBeGreaterThan(0.5);
+    expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, fast).f).toBeGreaterThan(0.5);
+    // tissue that collaterals reach has a 20-minute budget: the same 10 minutes leave nothing
+    expect(tissueCourse([{ fromH: 0, rel: 1 }, ...tia(1)], 48, p).f).toBe(0);
     // a second 10-minute event a day later uses up the rest of the budget
     const twice = [{ fromH: 0, rel: 1 }, ...tia(1), ...tia(24)];
     expect(tissueCourse(twice, 20, lag).f).toBe(0);
@@ -260,7 +269,9 @@ describe('stenosis, then occlusion', () => {
     for (const tH of [0, 1, 24, 48]) {
       const r = sim({ occlusions: phases, tH });
       expect(r.volumes.core, `t=${tH}`).toBeLessThan(0.05);
-      expect(r.cascade.events.filter((e) => e.onsetH <= tH)).toEqual([]);
+      // (only the circle of Willis: the posterior communicating arteries carry blood beyond the
+      // narrowing, which is why it stays silent: U2-5)
+      expect(r.cascade.events.filter((e) => e.onsetH <= tH).map((e) => [e.id, e.severity])).toEqual([['willis_compensation', 'good']]);
     }
     const after = sim({ occlusions: phases, tH: 120 });
     expect(after.volumes.core).toBeGreaterThan(1);
@@ -288,7 +299,7 @@ describe('clocks: cascade and oedema run from the index onset', () => {
     expect(l.cascade.events.map((e) => [e.id, e.onsetH, e.peakH, e.endH])).toEqual(
       p.cascade.events.map((e) => [e.id, e.onsetH + 24, e.peakH === undefined ? undefined : e.peakH + 24, e.endH === undefined ? undefined : e.endH + 24]),
     );
-    expect(l.cascade.midlineShift?.onsetH).toBe((p.cascade.midlineShift?.onsetH ?? NaN) + 24);
+    expect(l.cascade.fatalRisk).toEqual(p.cascade.fatalRisk);
     expect(l.edema.phase).toBe(p.edema.phase);
     expect(l.edema.midlineShiftMm).toBeCloseTo(p.edema.midlineShiftMm, 6);
     expect(l.volumes.finalInfarct).toBeCloseTo(p.volumes.finalInfarct, 6);
@@ -304,8 +315,11 @@ describe('clocks: cascade and oedema run from the index onset', () => {
   });
 
   it('hydrocephalus and its symptoms follow the onset of a late cerebellar infarct', () => {
-    const plain = (tH: number) => sim({ occlusions: [{ vessel: 'pica_r', severity: 1 }], collateral: 'poor', tH });
-    const late = (tH: number) => sim({ occlusions: [{ vessel: 'pica_r', severity: 1, fromH: 48 }], collateral: 'poor', tH });
+    // PICA + SCA: large enough to swell (C4-F3)
+    const plain = (tH: number) =>
+      sim({ occlusions: [{ vessel: 'pica_r', severity: 1 }, { vessel: 'sca_r', severity: 1 }], collateral: 'poor', tH });
+    const late = (tH: number) =>
+      sim({ occlusions: [{ vessel: 'pica_r', severity: 1, fromH: 48 }, { vessel: 'sca_r', severity: 1, fromH: 48 }], collateral: 'poor', tH });
     expect(plain(48).hydrocephalus).toBe(true);
     expect(late(48).hydrocephalus).toBe(false);
     expect(late(96).hydrocephalus).toBe(true);
@@ -333,7 +347,13 @@ async function simulateWithLag(lagH: number): Promise<typeof simulate> {
   vi.doMock('./tissueParams', async (importOriginal) => {
     const orig = await importOriginal<typeof import('./tissueParams')>();
     const withLag = (p: TissueParams): TissueParams => ({ ...p, lagH });
-    return { ...orig, DEFAULT_TISSUE: withLag(orig.DEFAULT_TISSUE), tissueParamsForBed: (bed: string) => withLag(orig.tissueParamsForBed(bed)) };
+    return {
+      ...orig,
+      DEFAULT_TISSUE: withLag(orig.DEFAULT_TISSUE),
+      PERFORATOR_TISSUE: withLag(orig.PERFORATOR_TISSUE),
+      tissueParamsForBed: (bed: string) => withLag(orig.tissueParamsForBed(bed)),
+      tissueParamsForUnit: (u: { bed: string; vessel: string }) => withLag(orig.tissueParamsForUnit(u)),
+    };
   });
   const mod = await import('./simulate');
   return mod.simulate;
@@ -382,7 +402,24 @@ describe('transient occlusions (relative to the tissue parameters)', () => {
     expect(day3.schedule.onsetH).toBe(72);
     expect(day3.syndromes.map((s) => s.def.id)).toContain('locked_in');
     expect(at(120).volumes.core).toBeGreaterThan(1);
-    expect(at(120).cascade.events.every((e) => e.onsetH >= 72)).toBe(true);
+    // the index event's story starts on day 3; only the prodromal TIA's own story comes earlier,
+    // and it ends when the artery occludes (C3-F8), with the locked-in picture of the attack itself,
+    // which ends with the attack (X2-15: the brainstem events follow the labels)
+    const TIA = ['ischemia_no_infarct', 'imaging_no_infarct', 'tia_urgent'];
+    const events = at(120).cascade.events;
+    const attack = events.find((e) => e.id === 'locked_in')!;
+    expect(attack.onsetH).toBeCloseTo(0, 9);
+    expect(attack.endH).toBeCloseTo(sc.occlusions[0].toH!, 9);
+    // (Z4-11: and the treatment windows of the attack while its deficit lasts)
+    const windows = events.find((e) => e.id === 'treatment_window' && e.onsetH < 1)!;
+    expect(windows.onsetH).toBe(0);
+    expect(windows.endH).toBeLessThan(0.25);
+    // (and the circle of Willis, whose posterior communicating arteries carry blood beyond the
+    // basilar clot and narrowing from the first attack on: U2-5)
+    expect(events.filter((e) => !TIA.includes(e.id) && e !== attack && e !== windows && e.id !== 'willis_compensation').every((e) => e.onsetH >= 72)).toBe(true);
+    expect(events.filter((e) => e.id === 'willis_compensation').map((e) => e.onsetH)).toEqual([0]);
+    const tia = events.filter((e) => TIA.includes(e.id)).sort((a, b) => a.id.localeCompare(b.id));
+    expect(tia.map((e) => [e.id, e.onsetH < 1, (e.endH ?? Infinity) <= 72])).toEqual([...TIA].sort().map((id) => [id, true, true]));
   });
 });
 

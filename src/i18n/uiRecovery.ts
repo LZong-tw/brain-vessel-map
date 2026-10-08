@@ -4,15 +4,21 @@
  */
 
 import type { Lang } from '../anatomy/types';
-import type { RedundancyKind } from '../anatomy/redundancy';
+import type { BottleneckSite, RedundancyKind } from '../anatomy/redundancy';
+import type { UnexaminableWhy } from '../engine/clinical';
 
 export interface RecoveryStrings {
   // ── region panel: status of the region's function now ──
   statusTitle: string;
   dead: string;
   deadNote: string;
+  /** a lacune: a small dead share that costs most of the structure's function (W3-5) */
+  deadLacuneNote: (lost: string) => string;
   silenced: string;
   silencedNote: (edema: boolean, remote: boolean) => string;
+  /** alive, still regaining its function: after a reopening, or penumbra that survives (Y1-12, W2-10) */
+  regaining: string;
+  regainingNote: string;
   compensated: string;
   compensatedNote: (pct: string) => string;
   compensatedLittle: string;
@@ -20,7 +26,8 @@ export interface RecoveryStrings {
   noBackup: string;
   noBackupNote: string;
   bilateralNote: string;
-  bottleneckNote: string;
+  /** why little is taken over, by where both sides were cut (the sites of SymptomRecovery.bottleneckSites, Z2-10) */
+  bottleneckNote: (sites: BottleneckSite[]) => string;
   /** shown wherever recovery is displayed */
   caveat: string;
   // ── per-symptom tags ──
@@ -32,6 +39,8 @@ export interface RecoveryStrings {
   // ── function groups ──
   funcDeadAndSilenced: string;
   funcSilenced: string;
+  funcDeadAndRegaining: string;
+  funcRegaining: string;
   funcLostCompensating: string;
   funcCompensatedGone: string;
   // ── time strips ──
@@ -48,24 +57,49 @@ export interface RecoveryStrings {
   hatchCell: string;
   // ── "what is happening now" ──
   nowSilenced: (ml: string) => string;
+  /** tissue that survived, still regaining its function after blood returned (Y1-12) */
+  nowRegaining: (ml: string) => string;
   nowRemote: string;
   nowCompensating: (pct: string) => string;
-  nowCompensatingLittle: (pct: string) => string;
+  nowCompensatingLittle: (pct: string, sites: BottleneckSite[]) => string;
   nowNihssTrend: (peak: number, at: string, now: number) => string;
   improvedLabel: (since: string) => string;
   noBackupLabel: string;
   goneWord: string;
+  /** signs the lesion gives that cannot be examined at the patient's level of consciousness (X1-2) */
+  unexaminableLabel: string;
+  unexaminableTitle: string;
+  /**
+   * the same for each reason a sign cannot be examined (Y2-14, Y2-15): `label` and `title` when it
+   * is the only reason, `tag` after each sign when there are several
+   */
+  unexaminableBy: Record<UnexaminableWhy, { label: string; title: string; tag: string }>;
+  /** the heading when signs cannot be examined for more than one reason */
+  unexaminableMixedLabel: string;
 }
+
+/** where both sides' main motor pathways and their backups were cut together (Z2-10) */
+const zhSite = (sites: BottleneckSite[]) =>
+  sites.includes('midbrain') && sites.includes('pons') ? '中腦的大腦腳與腹側橋腦' : sites.includes('midbrain') ? '中腦的大腦腳' : '腹側橋腦';
+const enSite = (sites: BottleneckSite[]) =>
+  sites.includes('midbrain') && sites.includes('pons')
+    ? 'the cerebral peduncles of the midbrain and the ventral pons'
+    : sites.includes('midbrain')
+      ? 'the cerebral peduncles of the midbrain'
+      : 'the ventral pons';
 
 const zh: RecoveryStrings = {
   statusTitle: '功能狀態',
   dead: '壞死',
   deadNote: '這部分組織已經死亡，不會再長回來。',
+  deadLacuneNote: (lost) => `這部分組織已經死亡，不會再長回來；它雖小（腔隙），卻落在神經纖維密集的地方，讓這個構造失去約 ${lost} 的功能。`,
   silenced: '暫時受抑制（水腫／遠端抑制）',
   silencedNote: (edema, remote) =>
     `組織還活著，只是被${edema && remote ? '周圍水腫與遠端抑制' : edema ? '周圍水腫' : '遠端抑制（相連腦區受損後的功能下降）'}暫時關掉；${
       edema ? '水腫約 1–3 週消退後' : '數週內'
     }這部分功能會回來。`,
+  regaining: '存活，仍在恢復功能',
+  regainingNote: '這部分組織存活下來，不會壞死，只是還沒恢復運作；它會在數小時到數天內逐漸恢復功能，缺血越久越慢。',
   compensated: '已部分代償',
   compensatedNote: (pct) => `其他神經路徑已接手約 ${pct} 因壞死而失去的功能；大部分代償在前 3 個月發生，之後變慢，但仍可能進步。`,
   compensatedLittle: '預期代償很有限',
@@ -73,8 +107,15 @@ const zh: RecoveryStrings = {
   noBackup: '此功能沒有備援',
   noBackupNote: '這些功能只有一條路（例如腦神經核、視覺皮質）；組織壞死後，其他路徑無法接手，只能靠策略（例如轉頭）彌補。',
   bilateralNote: '同一條路徑兩側都受損：原本可以接手的另一側也壞了，代償有限。',
-  bottleneckNote:
-    '腹側橋腦是瓶頸：兩側的皮質脊髓徑、皮質延髓徑與許多皮質網狀纖維都擠在這裡，主要路徑和備援一起被截斷——所以閉鎖症候群的恢復遠比症狀相近的半球中風差。',
+  bottleneckNote: (sites) =>
+    [
+      sites.includes('midbrain')
+        ? '中腦的大腦腳是瓶頸：每一側的皮質脊髓徑與皮質延髓徑都擠在同側大腦腳裡，兩側一起受損時，主要路徑和備援一起被截斷——所以恢復遠比症狀相近的半球中風差。'
+        : '',
+      sites.includes('pons') || sites.length === 0
+        ? '腹側橋腦是瓶頸：兩側的皮質脊髓徑、皮質延髓徑與許多皮質網狀纖維都擠在這裡，主要路徑和備援一起被截斷——所以閉鎖症候群的恢復遠比症狀相近的半球中風差。'
+        : '',
+    ].join(''),
   caveat: '恢復曲線只是示意的群體平均，不是預後；真實的恢復因人而異，差異很大。',
   tagNoBackup: '沒有備援',
   tagCompensated: (pct) => `已代償 ${pct}`,
@@ -86,11 +127,13 @@ const zh: RecoveryStrings = {
     fine: '精細動作（手指獨立運動）幾乎只靠皮質脊髓徑，其他路徑難以取代，恢復有限。',
     partial: '周邊或對側腦區可以重組、部分接手。',
     fcp: '最後共同路徑：腦神經運動核或其纖維是通往肌肉的唯一出口，壞死後沒有其他路徑能接手。',
-    none: '這個功能只有這一條路（例如視覺皮質、內耳），壞死後無法由其他路徑取代。',
+    none: '這個功能只有這一條路（例如視覺皮質、視網膜），壞死後無法由其他路徑取代。',
     exempt: '這是晚期出現的後果或描述，不是可以代償的功能。',
   },
   funcDeadAndSilenced: '已受損：部分組織壞死；周圍還活著的組織也被水腫暫時抑制，這部分會恢復',
   funcSilenced: '暫時受抑制：組織還活著，被水腫或遠端抑制暫時關掉，會隨之恢復',
+  funcDeadAndRegaining: '已受損：部分組織壞死；其餘的組織存活下來，仍在逐漸恢復功能，這部分會恢復',
+  funcRegaining: '暫停中，會恢復：組織存活下來，仍在逐漸恢復功能',
   funcLostCompensating: '已受損：組織壞死；部分功能正由其他路徑代償',
   funcCompensatedGone: '已代償：組織已壞死，但其他路徑接手後已不明顯',
   rowSilenced: '抑制',
@@ -105,25 +148,66 @@ const zh: RecoveryStrings = {
   hatchCell: '部分已由其他路徑代償',
   nowSilenced: (ml) =>
     `水腫讓病灶周圍約 ${ml} mL 還活著的組織暫時停擺，所以此刻的功能缺損比壞死範圍更大；水腫約 1–3 週消退後，這部分功能會回來。`,
+  nowRegaining: (ml) =>
+    `約 ${ml} mL 存活下來的組織仍在恢復功能：血流恢復（或側枝撐住半影區）之後，組織要幾小時到幾天才重新運作，不是立刻恢復；缺血越久，恢復越慢。`,
   nowRemote: '與受損區相連的遠處腦區（例如對側小腦）功能也暫時下降（遠端抑制），通常沒有明顯症狀，會在數週內淡去。',
   nowCompensating: (pct) => `其他神經路徑正逐漸接手部分失去的功能（典型的代償進程已走了約 ${pct}）；大部分發生在前 3 個月，之後變慢。`,
-  nowCompensatingLittle: (pct) =>
-    `典型的代償進程已走了約 ${pct}，但這裡兩側的主要運動路徑和它們的備援在腹側橋腦一起被截斷，能被接手的很少：四肢與說話的功能多半只有很有限的恢復。`,
+  nowCompensatingLittle: (pct, sites) =>
+    `典型的代償進程已走了約 ${pct}，但這裡兩側的主要運動路徑和它們的備援在${zhSite(sites)}一起被截斷，能被接手的很少：四肢與說話的功能多半只有很有限的恢復。`,
   nowNihssTrend: (peak, at, now) => `NIHSS 估計從最高的 ${peak}（${at}）降到 ${now}。`,
   improvedLabel: (since) => `比 ${since} 改善`,
   noBackupLabel: '沒有備援、不會再改善',
   goneWord: '消失',
+  unexaminableLabel: '意識下降，目前無法檢查',
+  unexaminableTitle:
+    '病灶仍會造成這些缺損，只是病人昏睡、昏迷或處於意識障礙時檢查不出來（需要病人清醒、配合或自己說出來），所以暫時不列在症狀清單裡，也不算改善；能檢查時會再列出。',
+  unexaminableBy: {
+    consciousness: {
+      label: '意識下降，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，只是病人昏睡、昏迷或處於意識障礙時檢查不出來（需要病人清醒、配合或自己說出來），所以暫時不列在症狀清單裡，也不算改善；能檢查時會再列出。',
+      tag: '意識下降',
+    },
+    blind: {
+      label: '看不見，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但認臉、認物、閱讀、看路、伸手拿看到的東西與視覺空間能力，都要先看得見才能檢查；病人目前看不見（皮質盲，或兩側半邊視野都看不到、中心視力也沒保留），所以暫時不列在症狀清單裡，也不算改善。視力部分恢復時會再列出。',
+      tag: '看不見',
+    },
+    akinetic: {
+      label: '無動性緘默，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但病人雖然清醒，卻幾乎不會自己動、不說話，也不照指令做，所以需要病人動手、回答或自己說出來的檢查（失用、異己手、伸手、認物、讀寫算、記憶、失語的類型等）都做不了；暫時不列在症狀清單裡，也不算改善。看得到的表現（意志缺失、情緒等）仍會列出。',
+      tag: '無動性緘默',
+    },
+    aphasia: {
+      label: '聽不懂話（失語），目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但病人聽不懂話（中度以上的全面性、接受性或混合型經皮質失語），而閱讀、書寫、計算、說出手指名稱、語文記憶、對自身缺損的覺察，以及只能靠病人自己說出來的症狀（眩暈、複視、聽力、味覺、位置感、疼痛等），都要透過語言才能檢查，和失語本身分不開；所以暫時不列在症狀清單裡，也不算改善。兩手的失用症可以請病人模仿檢查者的動作來檢查，不需要語言，所以仍會列出；但胼胝體斷聯造成的左手失用與失寫，要看左手做不出指令、寫不出字而右手可以，這要透過語言，也暫時不列。理解力恢復時會再列出。',
+      tag: '失語',
+    },
+    paralysed: {
+      label: '肢體癱瘓，目前無法檢查',
+      title:
+        '病灶仍會造成這些缺損，但肢體運動失調（指鼻、跟膝脛測試）、手臂動作時的顫抖、手指的精細動作與異己手（手自己做出抓握、摸索等動作），都要病人能移動那一側的手腳才看得出來；胼胝體斷聯造成的左手症狀（左手和右手互相作對；左手的失用與失寫，也就是右手做得到的指令動作與寫字，左手做不到）要和右手比較，所以兩手都要能動。這裡需要的手臂無法對抗重力抬起（或腿完全不能動），所以暫時不列在症狀清單裡，也不算改善（NIHSS 也不計分癱瘓那一側的運動失調）。步態與軀幹不穩要看病人走路、站立與坐直：兩腿都無法對抗重力抬起時，病人站不起來，軀幹兩側也無力、無法自己坐穩，不穩分不出是失調還是無力，所以也暫時不列（只有一腿無力時仍可讓病人坐著檢查軀幹）。無力本身仍會列出並計分；手腳能動到可以檢查時會再列出。',
+      tag: '肢體癱瘓',
+    },
+  },
+  unexaminableMixedLabel: '目前無法檢查',
 };
 
 const en: RecoveryStrings = {
   statusTitle: 'Function status',
   dead: 'Dead',
   deadNote: 'This tissue has died and will not grow back.',
+  deadLacuneNote: (lost) => `This tissue has died and will not grow back; small as it is (a lacune), it lies among tightly packed fibres and costs the structure about ${lost} of its function.`,
   silenced: 'Temporarily silenced (oedema / remote depression)',
   silencedNote: (edema, remote) =>
     `The tissue is alive but switched off by ${
       edema && remote ? 'the surrounding oedema and remote depression' : edema ? 'the surrounding oedema' : 'remote depression (a connected region was damaged)'
     }; this function comes back ${edema ? 'as the oedema settles over ~1–3 weeks' : 'over weeks'}.`,
+  regaining: 'Survived, still regaining function',
+  regainingNote: 'This tissue survived and will not die, but it is not working yet; it regains its function over hours to days, more slowly the longer the ischaemia lasted.',
   compensated: 'Partly compensated',
   compensatedNote: (pct) =>
     `Other pathways have taken over about ${pct} of the function lost to dead tissue; most compensation happens in the first 3 months, then more slowly, and later gains are possible.`,
@@ -133,8 +217,17 @@ const en: RecoveryStrings = {
   noBackupNote:
     'These functions have a single route (e.g. a cranial-nerve nucleus, the visual cortex); once that tissue is dead no other pathway can take over — only strategies such as turning the head help.',
   bilateralNote: 'The same pathway is damaged on both sides, so the side that could take over is damaged too: compensation is limited.',
-  bottleneckNote:
-    'The ventral pons is a bottleneck: both corticospinal tracts, both corticobulbar tracts and many cortico-reticular fibres run through it together, so the main pathway and its backup are cut at once — why locked-in syndrome recovers far less than a hemispheric stroke with a similar deficit.',
+  bottleneckNote: (sites) =>
+    [
+      sites.includes('midbrain')
+        ? 'The cerebral peduncles of the midbrain are a bottleneck: the corticospinal and corticobulbar tracts of each side run together through its peduncle, so when both are damaged the main pathway and its backup are cut at once — why recovery is far poorer than after a hemispheric stroke with a similar deficit.'
+        : '',
+      sites.includes('pons') || sites.length === 0
+        ? 'The ventral pons is a bottleneck: both corticospinal tracts, both corticobulbar tracts and many cortico-reticular fibres run through it together, so the main pathway and its backup are cut at once — why locked-in syndrome recovers far less than a hemispheric stroke with a similar deficit.'
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' '),
   caveat: 'Recovery is shown as an illustrative average pattern, not a prognosis; real recovery varies widely between people.',
   tagNoBackup: 'no backup',
   tagCompensated: (pct) => `compensated ${pct}`,
@@ -148,11 +241,13 @@ const en: RecoveryStrings = {
     fine: 'Fine (independent finger) movement relies almost entirely on the corticospinal tract; other pathways barely replace it.',
     partial: 'Nearby or opposite-side areas can reorganise and take part of it over.',
     fcp: 'Final common pathway: the cranial-nerve motor nucleus or its fibres are the only way to the muscle, so nothing can take over once it is dead.',
-    none: 'This function has a single route (e.g. the visual cortex, the inner ear); nothing else can replace it once it is dead.',
+    none: 'This function has a single route (e.g. the visual cortex, the retina); nothing else can replace it once it is dead.',
     exempt: 'A late consequence or a descriptor, not a function that is compensated.',
   },
   funcDeadAndSilenced: 'Impaired — part of the tissue has died; surviving tissue around it is also silenced by oedema, and that part will recover',
   funcSilenced: 'Temporarily silenced — the tissue is alive but switched off by oedema or remote depression, and will recover',
+  funcDeadAndRegaining: 'Impaired — part of the tissue has died; the rest survived and is still regaining its function, and that part will recover',
+  funcRegaining: 'Switched off but recovering — the tissue survived and is regaining its function',
   funcLostCompensating: 'Impaired — the tissue has died; other pathways are taking part of the function over',
   funcCompensatedGone: 'Compensated — the tissue is dead, but other pathways have taken over enough that it no longer shows',
   rowSilenced: 'Silenced',
@@ -167,16 +262,54 @@ const en: RecoveryStrings = {
   hatchCell: 'partly compensated by other pathways',
   nowSilenced: (ml) =>
     `Oedema has switched off about ${ml} mL of living tissue around the lesion, so the deficit is larger than the dead tissue alone; as the oedema settles over ~1–3 weeks, this function comes back.`,
+  nowRegaining: (ml) =>
+    `About ${ml} mL of tissue that survived is still regaining its function: once blood returns (or collaterals hold the penumbra), it works again over hours to days rather than at once, more slowly the longer the ischaemia lasted.`,
   nowRemote:
     'Connected regions further away (e.g. the opposite cerebellum) are temporarily depressed too (diaschisis); this is usually silent and fades over weeks.',
-  nowCompensatingLittle: (pct) =>
-    `The typical course of compensation is about ${pct} complete, but here the main motor pathways of both sides and their backups were cut together in the ventral pons, so little can be taken over: limb movement and speech usually recover only to a limited extent.`,
+  nowCompensatingLittle: (pct, sites) =>
+    `The typical course of compensation is about ${pct} complete, but here the main motor pathways of both sides and their backups were cut together in ${enSite(sites)}, so little can be taken over: limb movement and speech usually recover only to a limited extent.`,
   nowCompensating: (pct) =>
     `Other pathways are gradually taking over part of the lost functions (the typical course of compensation is about ${pct} complete); most of it happens in the first 3 months, then more slowly.`,
   nowNihssTrend: (peak, at, now) => `The NIHSS estimate has fallen from its highest, ${peak} (${at}), to ${now}.`,
   improvedLabel: (since) => `Better than at ${since}`,
   noBackupLabel: 'No backup — will not improve',
   goneWord: 'gone',
+  unexaminableLabel: 'Cannot be examined at this level of consciousness',
+  unexaminableTitle:
+    'The lesion still causes these deficits, but they cannot be examined while the patient is stuporous, comatose or in a disorder of consciousness (they need an awake, cooperating patient, or the patient’s own report), so they are left out of the symptom list for now and do not count as improved; they are listed again once they can be examined.',
+  unexaminableBy: {
+    consciousness: {
+      label: 'Cannot be examined at this level of consciousness',
+      title:
+        'The lesion still causes these deficits, but they cannot be examined while the patient is stuporous, comatose or in a disorder of consciousness (they need an awake, cooperating patient, or the patient’s own report), so they are left out of the symptom list for now and do not count as improved; they are listed again once they can be examined.',
+      tag: 'reduced consciousness',
+    },
+    blind: {
+      label: 'Cannot be tested: the patient cannot see',
+      title:
+        'The lesion still causes these deficits, but recognising faces and objects, reading, finding the way, reaching for what is seen and visuospatial tasks can only be tested in someone who sees; the patient is blind now (cortical blindness, or both half-fields lost without spared central vision), so they are left out of the symptom list for now and do not count as improved. They are listed again once vision partly returns.',
+      tag: 'blind',
+    },
+    akinetic: {
+      label: 'Cannot be examined: akinetic mutism',
+      title:
+        'The lesion still causes these deficits, but the patient, although awake, hardly moves or speaks and does not act on request, so nothing that needs the patient to act, answer or report can be tested (praxis, the alien hand, reaching, recognition, reading, writing and calculation, memory, the type of aphasia …); they are left out of the symptom list for now and do not count as improved. What can be seen (abulia, emotional expression) is still listed.',
+      tag: 'akinetic mutism',
+    },
+    aphasia: {
+      label: 'Cannot be examined: the patient does not understand speech (aphasia)',
+      title:
+        'The lesion still causes these deficits, but the patient does not understand speech (a moderate or severe global, Wernicke or mixed transcortical aphasia), and reading, writing, calculation, naming the fingers, verbal memory, awareness of the deficit and what only the patient can report (vertigo, double vision, hearing, taste, position sense, pain …) are tested through language and cannot be told apart from the aphasia; they are left out of the symptom list for now and do not count as improved. The apraxia of both hands is tested by imitating the examiner’s gestures, which needs no language, so it is still listed; the apraxia and agraphia of the left hand from a callosal disconnection is told by the left hand failing commands and writing that the right hand performs, which needs language, so it is left out too. They are listed again as comprehension returns.',
+      tag: 'aphasia',
+    },
+    paralysed: {
+      label: 'Cannot be examined: the limb is paralysed',
+      title:
+        'The lesion still causes these deficits, but limb ataxia (the finger–nose and heel–shin tests), a tremor of the moving arm, fine finger movements and an alien hand (grasping and groping of its own) only show when the patient can move that arm or leg, and the signs of a callosal disconnection in the left hand (the left hand working against the right; its apraxia and agraphia, failing movements on command and writing that the right hand performs) are told against the right hand, so both hands must move. Here an arm they need cannot move against gravity (or the leg cannot move at all), so they are left out of the symptom list for now and do not count as improved (the NIHSS does not score the ataxia of a paralysed side either). Gait and truncal ataxia are seen walking, standing and sitting upright: with neither leg able to move against gravity the patient cannot stand and, the trunk being weak from both sides, cannot sit unsupported, so the unsteadiness cannot be told from the weakness and it is left out too (with one weak leg the trunk can still be tested sitting). The weakness itself is still listed and scored; they are listed again once the limb moves enough to test them.',
+      tag: 'paralysed limb',
+    },
+  },
+  unexaminableMixedLabel: 'Cannot be examined now',
 };
 
 export const RECOVERY_UI: Record<Lang, RecoveryStrings> = { 'zh-TW': zh, en };

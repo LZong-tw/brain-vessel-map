@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { BEDS } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
+import { aggregateSymptoms } from './clinical';
 import { dropEmbolus } from './embolus';
 import { simulateHemodynamics, type HemoInput } from './hemodynamics';
 import { simulate, type SimInput } from './simulate';
 import { finalInfarctProb, infarctFraction, tauHours } from './tissue';
-import { midlineShiftAt } from './cascade';
+import { PERFORATOR_TISSUE } from './tissueParams';
 
 const base: HemoInput = { occlusions: [], variants: [], map: 93, collateral: 'good' };
 const occl = (...ids: string[]) => ids.map((vessel) => ({ vessel, severity: 1 }));
@@ -82,8 +83,14 @@ describe('collateral circulation', () => {
 });
 
 describe('tissue fate over time', () => {
-  it('core dies within minutes, penumbra over hours', () => {
-    expect(infarctFraction(0.1, 0.25, null)).toBeGreaterThan(0.8);
+  it('an end-artery territory without flow dies within minutes, tissue that collaterals reach over hours', () => {
+    // Y1-0: the fast course is kept for end-artery perforator territories only; the former check
+    // here (rel 0.1 more than 80 % lost at 15 min) held for every bed, which made a poor-collateral
+    // M1 infarct the whole MCA territory within half an hour
+    expect(infarctFraction(0.1, 0.25, null, 1, PERFORATOR_TISSUE)).toBeGreaterThan(0.8);
+    expect(infarctFraction(0.1, 0.25, null)).toBe(0);
+    expect(infarctFraction(0.1, 1, null)).toBeLessThan(0.25);
+    expect(infarctFraction(0.1, 12, null)).toBeGreaterThan(0.9);
     expect(tauHours(0.45)).toBeGreaterThan(3);
     expect(infarctFraction(0.45, 1, null)).toBeLessThan(0.3);
     expect(infarctFraction(0.32, 48, null)).toBeGreaterThan(0.9);
@@ -147,7 +154,10 @@ describe('classic syndromes', () => {
     ['right ophthalmic', { occlusions: occl('ophthalmic_r') }, 'amaurosis_r'],
     ['left pontine perforator', { occlusions: occl('pontine_paramedian_caudal_l') }, 'foville_l'],
     ['right pontine circumferential', { occlusions: occl('pontine_circumferential_r') }, 'one_and_half_r'],
-    ['right VA with a unilateral ASA', { occlusions: occl('va_v4_dist_r'), variants: ['asa_unilateral_r'] }, 'hemimedullary_r'],
+    // R2-7: a vertebral occlusion that takes its own ASA root too; with the whole ASA hanging on
+    // that vertebral, both medial medullae are lost: one bilateral label, not a hemimedullary one
+    ['right VA with its ASA root', { occlusions: occl('va_v4_dist_r', 'asa_root_r') }, 'hemimedullary_r'],
+    ['right VA with a unilateral ASA', { occlusions: occl('va_v4_dist_r'), variants: ['asa_unilateral_r'] }, 'bilateral_medial_medullary'],
     ['one lenticulostriate branch', { occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }] }, 'lacunar_pure_motor_l'],
     ['one rostral pontine branch', { occlusions: [{ vessel: 'pontine_paramedian_rostral_r', severity: 1, branch: true }] }, 'pontine_lacunar_r'],
     ['one caudal pontine branch', { occlusions: [{ vessel: 'pontine_paramedian_caudal_l', severity: 1, branch: true }] }, 'pontine_ventral_l'],
@@ -170,7 +180,8 @@ describe('classic syndromes', () => {
 
   it('flags that NIHSS underestimates posterior strokes', () => {
     const r = sim({ occlusions: occl('va_v4_dist_r') });
-    expect(r.nihss.total).toBeLessThanOrEqual(4);
+    // (Y2-8: the ataxia of the arm and the leg counts as two limbs: 5)
+    expect(r.nihss.total).toBeLessThanOrEqual(5);
     expect(r.nihss.posteriorCaveat).toBe(true);
   });
 
@@ -230,12 +241,17 @@ describe('clinical details that are easy to get wrong', () => {
   });
 
   it('an occipital-pole lesion alone gives a central scotoma, not a hemianopia', () => {
-    const ids = symptomIds(sim({ occlusions: occl('pca_p2_l'), collateral: 'moderate' }));
+    // (a P2 occlusion with moderate collaterals served here before; it now infarcts the calcarine
+    // cortex and gives a hemianopia, C1-F3)
+    const pole = { occipital_pole_l: 0.9 };
+    const ids = aggregateSymptoms(pole, pole, 24).map((x) => x.id + (x.side ? `(${x.side})` : ''));
     expect(ids).toContain('central_scotoma(r)');
+    expect(ids.some((x) => x.startsWith('hemianopia'))).toBe(false);
   });
 
   it('hydrocephalus causes drowsiness and upgaze palsy, not bilateral horizontal gaze palsy', () => {
-    const r = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 });
+    // a cerebellar infarct of ≥ 38 mL (PICA + SCA) swells; a PICA infarct alone is only watched (C4-F3)
+    const r = sim({ occlusions: occl('pica_r', 'sca_r'), collateral: 'poor', tH: 48 });
     const ids = symptomIds(r);
     expect(ids).toEqual(expect.arrayContaining(['coma', 'upgaze_palsy']));
     expect(ids).not.toContain('gaze_palsy_horizontal(l)');
@@ -253,11 +269,9 @@ describe('downstream cascade', () => {
   });
 
   it('midline shift peaks around day 3 and is largely relieved by decompression', () => {
-    const r = sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH: 72 });
-    const ms = r.cascade.midlineShift;
-    expect(ms).not.toBeNull();
-    const at = (h: number, d = false) => midlineShiftAt(ms, h, d);
-    expect(at(12)).toBe(0);
+    // the oedema model's shift is the only one (C4-F2: the cascade no longer keeps its own)
+    const at = (tH: number, decompression = false) => sim({ occlusions: occl('mca_m1_r'), collateral: 'poor', tH, decompression }).edema.midlineShiftMm;
+    expect(at(12)).toBeLessThan(3);
     expect(at(72)).toBeGreaterThan(at(36));
     expect(at(72)).toBeGreaterThan(at(720));
     expect(at(72, true)).toBeLessThan(at(72) / 2);
@@ -279,8 +293,10 @@ describe('downstream cascade', () => {
   });
 
   it('large cerebellar infarcts cause hydrocephalus', () => {
-    const r = sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 });
+    const r = sim({ occlusions: occl('pica_r', 'sca_r'), collateral: 'poor', tH: 48 });
     expect(r.hydrocephalus).toBe(true);
+    // a full PICA infarct (~34 mL) is space-occupying but under the 38 mL of a likely malignant swelling (C4-F3)
+    expect(sim({ occlusions: occl('pica_r'), collateral: 'poor', tH: 48 }).hydrocephalus).toBe(false);
   });
 
   it('predicts crossed cerebellar diaschisis and Wallerian degeneration after motor infarcts', () => {

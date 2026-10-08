@@ -44,25 +44,79 @@ describe('default treatment = the model before treatment details', () => {
   // was implemented): the default treatment must keep them exactly. The l_m1 and basilar values
   // moved in the 7th significant digit when the two inferior pontine paramedian arteries got their
   // refined centrelines (the generated paths had been missing them; their length enters the flow
-  // model).
+  // model), and in the 4th–5th when the subclavian arteries got their chest-wall and neck
+  // collaterals (C8-F5): they carry a trickle at baseline, which shifts the vertebral and
+  // communicating flows of the calibration slightly. They moved again in the 3rd–4th significant
+  // digit when the cuneus was given its calcarine supply (C1-F3: the new perfusion units shift the
+  // PCA branch flows and, through the circle of Willis, the rest of the network) and when half of
+  // the posterior thalamus was attached to the posterior choroidal artery before its choroidal
+  // anastomosis with the AChA (C9-F5: the posterior choroidal artery now carries more of its own
+  // territory at baseline, 0.13 → 0.33 mL/min, and the AChA less); the smaller paramedian midbrain
+  // share of the thalamoperforating arteries (C9-F1) moves the basilar values in the 5th, and so,
+  // by about 1e-5 mL, do the weaker PICA-to-PICA anastomosis and the smaller vertebral share of the
+  // medial medulla (C7-F2, C7-F3). They moved again in the 4th significant digit when the PICA's
+  // hemispheric anastomoses with the AICA and the SCA were strengthened (R4-3: 0.08 → 0.105; with
+  // good collaterals they carry a little more at baseline, which shifts the vertebrobasilar flows
+  // of the calibration). The values below are those of all of these together (l_m1 core
+  // 59.006 → 59.267 mL: about +0.156 from C1-F3, +0.097 from C8-F5 and C9-F5 and +0.009 from
+  // R4-3, which add up). NIHSS and event texts did not change. X3-0: they moved again when the
+  // flow model mirrored the pial arteries of the hemispheres (the mean of the two sides' lengths
+  // and baseline flows for A2, M2, P2 and their branches): l_m1 core 59.267 → 58.046 mL (the left
+  // M2 branches are traced longer than the right ones), the basilar values in the 4th significant
+  // digit through the P2 branches; NIHSS and event texts did not change. Y2-17: the cervical cord
+  // region is now the upper cervical cord (C1–C3) that an occlusion at the origin of the anterior
+  // spinal artery threatens, 2 mL instead of 3, which lowers the flow the ASA draws: l_m1 core
+  // 58.046 → 58.030 mL, the basilar values in the 4th significant digit; NIHSS and event texts did
+  // not change. Y1: re-pinned deliberately. Y1-0: tissue that collaterals reach is now lost over
+  // hours (end-artery perforator territories keep the fast course), so the left M1 opened at 2 h
+  // leaves 33.65 mL (was 58.03) and saves 113.70 mL (was 89.32); the poor-collateral right M1
+  // opened at 3 h leaves 148.46 mL instead of the whole 485 mL (with the herniation it no longer
+  // causes) and saves 148.26 mL (was 3e-12). Y1-12: the rescued tissue regains its function over
+  // hours to days, and the recanalisation event is graded by the deficit it avoids (NIHSS at 3
+  // months with and without the treatment): the left M1 at 24 h has NIHSS 12 (was 15; less infarct,
+  // most of the rescued cortex working again); the mid basilar opened at 6 h is still recovering at
+  // 72 h (NIHSS 4, was 0), and it and the stuttering basilar (NIHSS 0 at 168 h, as before) avoid a
+  // locked-in syndrome (NIHSS 0 instead of 20 at 3 months), the right M1 avoids 3 points (10 instead
+  // of 13): all three are now 'good' (were 'info', graded by the mL saved). The basilar volumes did
+  // not change.
+  // Z1: re-pinned deliberately. Z1-7: the internal capsule and corona radiata beside the infarcted
+  // striatum are lost only from about 2½ h on, so the left M1 opened at 2 h spares them (27.39 mL
+  // from the tissue change alone) and the arm recovers: NIHSS 3 at 24 h (was 12); the poor-
+  // collateral right M1 opened at 3 h loses a quarter of their lenticulostriate part instead of all
+  // of it (NIHSS 14 at 72 h, was 18). Z1-15: the anastomosis over the motor strip no longer gives it
+  // more collateral blood per mL/min than its neighbours, so a little more motor strip is lost
+  // (left M1 29.52 mL, right M1 145.12 mL; 'saved' grows with the untreated volume) and the network
+  // pressures shift slightly everywhere, the basilar volumes by less than 0.0001 mL.
+  // Z2: re-pinned deliberately. Z2-8: the brainstem is graded below the symptom threshold as it
+  // regains its function, so the reopened mid-basilar occlusion still has a mild weakness of all
+  // four limbs and its gaze palsies at 72 h (NIHSS 8, was 4), and the progressive basilar
+  // thrombosis reopened 6 h after it closed still a mild gaze palsy at 168 h (3, was 0). Their
+  // volumes and the grading of the event did not change.
+  // V1: re-pinned deliberately. V1-6: what the treatment saves counts, besides the rescued
+  // penumbra, the territories that the herniation of the untreated swelling would have infarcted:
+  // the poor-collateral right M1 opened at 3 h saves 340.02 mL (was 151.61, the 485 mL of the
+  // untreated course with its herniation less the 145 mL left). Nothing else changed.
   const GOLDEN: [string, Partial<SimInput>, { core: number; finalInfarct: number; saved: number; nihss: number; reperfusion: string }][] = [
-    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 59.005893551050434, finalInfarct: 59.005893551050434, saved: 90.22734174234623, nihss: 15, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5450941402345201, finalInfarct: 0.5450941402345201, saved: 2.2891307414568884, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 485.13835470147296, finalInfarct: 485.13835470147296, saved: 3.0127011996228248e-12, nihss: 37, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
-    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5519665529281932, finalInfarct: 0.5519665529281932, saved: 2.2822583287632154, nihss: 0, reperfusion: 'info|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['l_m1 opened at 2 h, 24 h', { reperfusionH: 2, tH: 24 }, { core: 29.51682781073422, finalInfarct: 29.51682781073422, saved: 136.00165047043836, nihss: 3, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_mid opened at 6 h, 72 h', { reperfusionH: 6, tH: 72 }, { core: 0.5482283448164386, finalInfarct: 0.5482283448164386, saved: 2.289181788259874, nihss: 8, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['r_m1_malignant opened at 3 h, 72 h', { reperfusionH: 3, tH: 72 }, { core: 145.11593871100814, finalInfarct: 145.11593871100814, saved: 340.0224159904678, nihss: 14, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
+    ['basilar_stuttering opened at 78 h, 168 h', { reperfusionH: 78, tH: 168 }, { core: 0.5551361205040257, finalInfarct: 0.5551361205040257, saved: 2.2822740125722865, nihss: 3, reperfusion: 'good|Recanalisation (thrombolysis / thrombectomy)' }],
   ];
   it.each(GOLDEN)('%s: exactly as before', (label, over, want) => {
     const id = label.split(' ')[0];
     for (const treatment of [undefined, DEFAULT_TREATMENT, { ...DEFAULT_TREATMENT }]) {
       const r = simulate({ ...scenario(id, over), treatment });
       const rep = eventOf(r, 'reperfusion');
+      // volumes are sums over many units, so their last couple of float digits move with
+      // summation order; nine significant digits is far finer than any real change
+      const sig = (v: number) => Number(v.toPrecision(9));
       expect({
-        core: r.volumes.core,
-        finalInfarct: r.volumes.finalInfarct,
-        saved: r.volumes.saved,
+        core: sig(r.volumes.core),
+        finalInfarct: sig(r.volumes.finalInfarct),
+        saved: sig(r.volumes.saved),
         nihss: r.nihss.total,
         reperfusion: `${rep?.severity}|${rep?.title.en}`,
-      }).toEqual(want);
+      }).toEqual({ ...want, core: sig(want.core), finalInfarct: sig(want.finalInfarct), saved: sig(want.saved) });
     }
   });
 
@@ -289,11 +343,15 @@ describe('method and events', () => {
   it('thrombolysis raises the haemorrhagic-transformation risk modestly, never below thrombectomy alone', () => {
     const LEVELS = ['low', 'moderate', 'high'];
     const level = (r: SimResult) => LEVELS.findIndex((l) => eventOf(r, 'hemorrhagic_transformation')!.title.en.endsWith(l));
-    // a 59 mL infarct: moderate after thrombectomy alone, one step higher with the drug
-    const evt = withT({ ...M1, tH: 24 }, { method: 'evt', grade: '3', noReflow: 0.01 });
+    // a 63 mL infarct (the left M1 opened at 6 h; Y1-0: at 2 h it is now 34 mL, under the step):
+    // moderate after thrombectomy alone, one step higher with the drug
+    const M1_6H = { ...M1, reperfusionH: 6, tH: 24 };
+    const evt = withT(M1_6H, { method: 'evt', grade: '3', noReflow: 0.01 });
+    expect(evt.volumes.finalInfarct).toBeGreaterThan(52.5);
+    expect(evt.volumes.finalInfarct).toBeLessThan(70);
     expect(level(evt)).toBe(1);
-    expect(level(withT({ ...M1, tH: 24 }, { method: 'ivt' }))).toBe(2);
-    expect(level(withT({ ...M1, tH: 24 }, { method: 'bridging' }))).toBe(2);
+    expect(level(withT(M1_6H, { method: 'ivt' }))).toBe(2);
+    expect(level(withT(M1_6H, { method: 'bridging' }))).toBe(2);
     for (const id of ['l_m2_sup', 'l_m2_inf', 'r_aca', 'l_pca', 'r_pica', 'l_m1'])
       for (const reperfusionH of [2, 6, 12]) {
         const over = scenario(id, { reperfusionH, tH: 24 });

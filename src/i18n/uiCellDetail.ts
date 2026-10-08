@@ -9,8 +9,13 @@ export interface CellDetailStrings {
   hint: string;
   close: string;
   none: string;
-  change: { new: string; worse: string; better: string; same: string };
+  change: { new: string; worse: string; better: string; same: string; again: string };
   resolved: string;
+  /**
+   * present, but cannot be examined now (X1-2; at the patient's level of consciousness, in a blind
+   * patient or in akinetic mutism: Y2-14, Y2-15), given the heading for the reason
+   */
+  unexaminable: (label: string) => string;
   from: string;
   fromEvent: string;
   compensated: (pct: number) => string;
@@ -22,8 +27,9 @@ const zh: CellDetailStrings = {
   hint: '點任一格，可在下方看到那個時間點的症狀、來自哪些腦區，以及和前一個時間點相比的變化。',
   close: '關閉',
   none: '這個時間點沒有這個系統的症狀。',
-  change: { new: '新出現', worse: '加重', better: '減輕', same: '與前一時間點相同' },
+  change: { new: '新出現', worse: '加重', better: '減輕', same: '與前一時間點相同', again: '又可以檢查' },
   resolved: '已消失',
+  unexaminable: (label) => `${label}（不是消失）`,
   from: '來自',
   fromEvent: '連鎖反應',
   compensated: (pct) => `已代償 ${pct}%`,
@@ -35,8 +41,9 @@ const en: CellDetailStrings = {
   hint: 'Click any cell to see below which symptoms were present at that time, which regions they come from, and how they changed since the previous time point.',
   close: 'Close',
   none: 'No symptoms in this system at this time.',
-  change: { new: 'new', worse: 'worse', better: 'better', same: 'unchanged' },
+  change: { new: 'new', worse: 'worse', better: 'better', same: 'unchanged', again: 'can be examined again' },
   resolved: 'Resolved',
+  unexaminable: (label) => `${label} (not resolved)`,
   from: 'From',
   fromEvent: 'Course event',
   compensated: (pct) => `${pct}% compensated`,

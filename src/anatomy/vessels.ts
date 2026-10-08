@@ -1015,8 +1015,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     name: { zh: '後交通動脈', en: 'Posterior communicating artery' },
     abbr: 'PComm',
     desc: {
-      zh: '連接前（內頸動脈）與後（椎基底）循環。粗細個體差異很大；約 1/4 的人一側缺如或極細，影響阻塞後的代償能力。',
-      en: 'Joins the anterior (carotid) and posterior (vertebrobasilar) circulations. Its size varies greatly — absent or hypoplastic on at least one side in a large share of people — which changes how well a blockage is compensated.',
+      zh: '連接前（內頸動脈）與後（椎基底）循環。粗細個體差異很大；MRA 研究中每一側都有一半以上的人缺如或極細（< 1 mm），影響阻塞後的代償能力。',
+      en: 'Joins the anterior (carotid) and posterior (vertebrobasilar) circulations. Its size varies greatly — on MRA it is missing or under 1 mm on each side in more than half of people — which changes how well a blockage is compensated.',
     },
     kind: 'communicating',
     group: 'willis',
@@ -1032,6 +1032,35 @@ export const VESSEL_DEFS: VesselDef[] = [
       [10, -14, -18.5],
     ],
     pathMode: 'cistern',
+  }),
+  bi({
+    // persistent trigeminal artery: Huang W et al. Surg Radiol Anat 2023;45:947–957 (57 of 94,487
+    // on CTA/MRA, 0.06 %; lateral course in 89.5 %; basilar artery non-dominant in most);
+    // Triantafyllou G et al. Neuroradiology 2026;68:1607–1617 (pooled prevalence 0.20 %)
+    id: 'trigeminal_persistent',
+    name: { zh: '永存三叉動脈', en: 'Persistent trigeminal artery' },
+    abbr: 'PTA',
+    desc: {
+      zh: '胚胎時期連接內頸動脈與基底動脈的血管，通常在出生前消失，少數人（約 0.06–0.2%）一直保留。它從海綿竇段內頸動脈發出，在小腦上動脈與小腦前下動脈之間接上基底動脈；這時接點以下的基底動脈多半較細。頸動脈的栓子可經由它到達腦幹與小腦。只有在選了這個變異時才存在。',
+      en: 'An embryonic connection between the internal carotid and basilar arteries that normally disappears before birth and persists in about 0.06–0.2% of people. It leaves the cavernous ICA and joins the basilar artery between the superior and anterior inferior cerebellar arteries; the basilar artery below the junction is then usually small. Carotid emboli can reach the brainstem and cerebellum through it. Present only when this variant is chosen.',
+    },
+    kind: 'communicating',
+    group: 'willis',
+    family: 'ICA',
+    from: 'ica_petrous_cavernous_{s}@mid',
+    to: 'ba_rostral',
+    parent: 'ica_petrous_cavernous_{s}',
+    r: 1.3,
+    path: [
+      [16.69, 2.87, -41.61],
+      [15, -1.5, -41.5],
+      [12, -6, -40],
+      [8, -9, -38],
+      [4, -10.8, -36.2],
+      [1.2, -11.4, -35.2],
+    ],
+    pathMode: 'free',
+    variantOnly: true,
   }),
   bi({
     id: 'tuberothalamic',
@@ -1585,8 +1614,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'thalamoperforator',
     name: { zh: '視丘穿通動脈（旁正中）', en: 'Thalamoperforating (paramedian) arteries' },
     desc: {
-      zh: '由 P1 發出，供應視丘旁正中（內背核、板內核）與中腦上部。部分人只有一條共同主幹（Percheron 動脈）同時供應兩側。',
-      en: 'From P1 to the paramedian thalamus (mediodorsal, intralaminar nuclei) and upper midbrain. Some people have a single trunk (artery of Percheron) feeding both sides.',
+      zh: '由 P1 發出，供應視丘旁正中（內背核、板內核），部分人也供應中腦上部。部分人只有一條共同主幹（Percheron 動脈）同時供應兩側。',
+      en: 'From P1 to the paramedian thalamus (mediodorsal, intralaminar nuclei) and, in some people, the upper midbrain. Some people have a single trunk (artery of Percheron) feeding both sides.',
     },
     kind: 'perforator',
     group: 'posterior',
@@ -1631,15 +1660,26 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'pca_p2',
     name: { zh: '後大腦動脈 P2 段', en: 'Posterior cerebral artery, P2 segment' },
     abbr: 'P2',
+    // "often", not "usually" (R1-8): the model leaves a hemianopia after an untreated P2 occlusion
+    // on either side (X3-0), but a field defect is not the rule for every PCA infarct, and an early
+    // reopening with good collaterals leaves none
     desc: {
-      zh: '繞過大腦腳往後走，發出供應視丘外側與後部的分支，再分成供應枕葉與顳葉內下側的皮質支。',
-      en: 'Wraps around the cerebral peduncle, gives branches to the lateral and posterior thalamus, then divides into cortical branches to the occipital and inferomedial temporal lobes.',
+      zh: '繞過大腦腳往後走，發出供應視丘外側與後部的分支，再分成供應枕葉與顳葉內下側的皮質支。未治療的阻塞常造成對側同側偏盲。',
+      en: 'Wraps around the cerebral peduncle, gives branches to the lateral and posterior thalamus, then divides into cortical branches to the occipital and inferomedial temporal lobes. Untreated occlusion often leaves a contralateral homonymous hemianopia.',
     },
     kind: 'trunk',
     group: 'posterior',
     family: 'PCA',
     from: 'pca_pcomm_{s}',
     to: 'pca_p2_end_{s}',
+    // calibration (C1-F3): the clot is taken to reach the terminal division, so the collaterals
+    // that fill one cortical branch backwards cannot run on through the division into the
+    // others. Otherwise the leptomeningeal inflow of all branches pooled there and a P2
+    // occlusion left less ischaemia in the calcarine cortex than an occlusion of the calcarine
+    // artery alone. A visual field defect is the main sign of superficial PCA infarcts
+    // (hemianopia 67 %, quadrantanopia 22 %, bilateral 7 % of 117: Cals N et al. J Neurol
+    // 2002;249:855-861, PMID 12140669; Kumral E et al. Eur J Neurol 2004;11:237-246, PMID 15061825).
+    occludesDistalJunction: true,
     parent: 'pca_p1_{s}',
     r: 1.0,
     path: [
@@ -1678,8 +1718,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'posterior_choroidal',
     name: { zh: '後脈絡叢動脈', en: 'Posterior choroidal arteries' },
     desc: {
-      zh: '供應視丘枕、外側膝狀體與脈絡叢；與前脈絡叢動脈相吻合。',
-      en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; anastomose with the anterior choroidal artery.',
+      zh: '供應視丘枕、外側膝狀體與脈絡叢；在脈絡叢處與前脈絡叢動脈相吻合，但供應視丘的分支在吻合處之前就已分出。',
+      en: 'Supply the pulvinar, lateral geniculate body and choroid plexus; they meet the anterior choroidal artery at the choroid plexus, but their thalamic branches leave before that anastomosis.',
     },
     kind: 'perforator',
     group: 'posterior',
@@ -1723,9 +1763,11 @@ export const VESSEL_DEFS: VesselDef[] = [
   bi({
     id: 'pca_calcarine',
     name: { zh: '距狀動脈', en: 'Calcarine artery' },
+    // "often" (R1-8): with good collaterals the model's calcarine occlusion leaves only an upper
+    // quadrantanopia at 3 months, on either side (X3-0): the cuneus shares the parieto-occipital artery
     desc: {
-      zh: '沿距狀溝走，供應初級視覺皮質。阻塞造成對側同側偏盲。',
-      en: 'Runs in the calcarine fissure to the primary visual cortex; occlusion gives a contralateral homonymous hemianopia.',
+      zh: '沿距狀溝走，供應初級視覺皮質（距狀溝上下唇；上唇的楔葉也由頂枕動脈供應）。阻塞常造成對側同側偏盲。',
+      en: 'Runs in the calcarine fissure to the primary visual cortex (both banks; the upper bank, the cuneus, shares the parieto-occipital artery); occlusion often gives a contralateral homonymous hemianopia.',
     },
     kind: 'branch',
     group: 'posterior',
@@ -1747,8 +1789,8 @@ export const VESSEL_DEFS: VesselDef[] = [
     id: 'pca_parietooccipital',
     name: { zh: '頂枕動脈', en: 'Parieto-occipital artery' },
     desc: {
-      zh: '沿頂枕溝往上，供應楔葉與楔前葉後部。',
-      en: 'Ascends in the parieto-occipital sulcus to the cuneus and posterior precuneus.',
+      zh: '沿頂枕溝往上，供應楔前葉後部，並與距狀動脈共同供應楔葉。',
+      en: 'Ascends in the parieto-occipital sulcus to the posterior precuneus, and shares the cuneus with the calcarine artery.',
     },
     kind: 'branch',
     group: 'posterior',
@@ -1811,7 +1853,15 @@ export const VESSEL_DEFS: VesselDef[] = [
       [42, -13, 58],
     ],
     pathMode: 'surface',
-    collStrength: 0.6,
+    // An anastomosis's capacity scales with the mean baseline flow of the two arteries it joins
+    // (hemodynamics.ts). Its ACA end is the callosomarginal artery, whose whole territory is about
+    // three times the precentral artery's, so at 0.6 the motor strip got about 1.7 times the
+    // collateral capacity per mL/min of its own territory of its neighbours on the same ACA–MCA
+    // border (the central and anterior parietal anastomoses, from the paracentral artery): with
+    // moderate collaterals an occlusion of the precentral branch left no deficit at all, and with
+    // good ones a superior-division occlusion gave a Broca aphasia without weakness (Z1-15, Z1-1).
+    // 0.35 gives it their capacity per mL/min of the territory it feeds.
+    collStrength: 0.35,
   }),
   bi({
     id: 'lepto_aca_mca_central',
@@ -2000,7 +2050,15 @@ export const VESSEL_DEFS: VesselDef[] = [
       [32, -48, -42],
     ],
     pathMode: 'surface',
-    collStrength: 0.08,
+    // R4-3: a little stronger than the other cerebellar links (0.08). Once the left–right PICA
+    // link was weakened (lepto_pica_crossed, C7-F2), a whole-PICA occlusion lost the supply it got
+    // across the midline: with good collaterals its territory fell below the core threshold, so
+    // collaterals and reopening even at 30 min no longer changed the infarct. The PICA trunk
+    // territory is now held through the hemispheric anastomoses with the AICA and the SCA instead
+    // (this one and lepto_pica_sca_lateral): with good collaterals it sits just above the core
+    // threshold, as before C7-F2, while the medial and the lateral branch alone still infarct
+    // their territories. TODO(medical-review): strength
+    collStrength: 0.105,
   }),
   bi({
     id: 'lepto_aica_sca',
@@ -2036,7 +2094,8 @@ export const VESSEL_DEFS: VesselDef[] = [
       [42, -70, -28],
     ],
     pathMode: 'surface',
-    collStrength: 0.08,
+    // R4-3: see lepto_pica_aica. TODO(medical-review): strength
+    collStrength: 0.105,
   }),
   bi({
     id: 'lepto_pica_sca_vermian',
@@ -2072,7 +2131,15 @@ export const VESSEL_DEFS: VesselDef[] = [
       [-3, -80, -35],
     ],
     pathMode: 'surface',
-    collStrength: 0.08,
+    // weak: with 0.08 this and the vermian anastomosis to the SCA refilled a medial PICA branch
+    // completely, so its occlusion caused nothing under the default collaterals — yet the medial
+    // branch territory is the commonest PICA infarct (23 of 74: Kumral E et al. Cerebrovasc Dis
+    // 2005;20:370–380, PMID 16205055) and gives nearly all cerebellar infarcts that mimic
+    // vestibular neuritis (24 of 25: Lee H et al. Neurology 2006;67:1178–1183, PMID 17030749).
+    // Only this PICA-to-PICA link is weakened: the shared PICA–SCA anastomosis is left as it was,
+    // so an SCA occlusion behaves as before (that series had no such SCA presentation). C7-F2.
+    // TODO(medical-review): strength
+    collStrength: 0.01,
   }),
   mid({
     id: 'lepto_sca_crossed',

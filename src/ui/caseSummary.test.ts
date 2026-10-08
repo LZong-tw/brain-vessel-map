@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { Lang } from '../anatomy/types';
 import type { Occlusion } from '../engine/hemodynamics';
-import { DEFAULT_TREATMENT } from '../engine/treatment';
+import { DEFAULT_TREATMENT, angiographicGrade } from '../engine/treatment';
 import { caseSummary, conditionsSummary, eventsSummary, hasCase, severityTag, treatmentLine, vesselSummary, type CaseState } from './caseSummary';
 
 /**
@@ -104,6 +104,10 @@ describe('severityTag and vesselSummary', () => {
     expect(severityTag(stacked, 'pica_r', 'zh-TW')).toBe('完全阻塞');
     expect(severityTag([{ vessel: 'pica_r', severity: 0.7 }], 'pica_r', 'zh-TW')).toBe('狹窄 70%');
     expect(severityTag([{ vessel: 'lenticulostriate_l', severity: 1, branch: true }], 'lenticulostriate_l', 'en')).toBe('one branch');
+    // a lacune at another site of its bundle says where (C6-F5)
+    const cr = [{ vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite: 'ataxic' }];
+    expect(severityTag(cr, 'lenticulostriate_l', 'en')).toBe('one branch · Corona radiata: ataxic hemiparesis');
+    expect(severityTag(cr, 'lenticulostriate_l', 'zh-TW')).toBe('單一分支 · 放射冠：運動失調性偏癱');
     const phases: Occlusion[] = [
       { vessel: 'basilar_mid', severity: 1, toH: 1 / 12 },
       { vessel: 'basilar_mid', severity: 0.9, fromH: 1 / 12, toH: 72 },
@@ -120,29 +124,74 @@ describe('severityTag and vesselSummary', () => {
 });
 
 describe('treatmentLine', () => {
+  // (a treatment reopens what is occluded then: a complete left M1 from onset)
+  const m1: CaseState = { ...base, occlusions: [{ vessel: 'mca_m1_l', severity: 1 }] };
   it('untreated', () => {
-    expect(treatmentLine(base, 'zh-TW')).toBe('未治療');
-    expect(treatmentLine(base, 'en')).toBe('Untreated');
+    expect(treatmentLine(m1, 'zh-TW')).toBe('未治療');
+    expect(treatmentLine(m1, 'en')).toBe('Untreated');
   });
 
   it('a treatment time with the default (complete, lasting) result', () => {
-    expect(treatmentLine({ ...base, reperfusionH: 24 }, 'zh-TW')).toBe('24 小時再通');
-    expect(treatmentLine({ ...base, reperfusionH: 4.5 }, 'en')).toBe('Reopened at 4.5 h');
+    expect(treatmentLine({ ...m1, reperfusionH: 24 }, 'zh-TW')).toBe('24 小時再通');
+    expect(treatmentLine({ ...m1, reperfusionH: 4.5 }, 'en')).toBe('Reopened at 4.5 h');
     // relative to a later occlusion: the absolute clock
-    expect(treatmentLine({ ...base, reperfusionH: 78 }, 'zh-TW')).toBe('3 天 6 小時再通');
+    expect(treatmentLine({ ...m1, reperfusionH: 78 }, 'zh-TW')).toBe('3 天 6 小時再通');
   });
 
   it('with treatment details, after the time or (compact) in brackets', () => {
-    const s = { ...base, reperfusionH: 24, treatment: { ...DEFAULT_TREATMENT, grade: '2b67' as const } };
+    const s = { ...m1, reperfusionH: 24, treatment: { ...DEFAULT_TREATMENT, grade: '2b67' as const } };
     expect(treatmentLine(s, 'zh-TW')).toBe('24 小時再通 · 取栓 · eTICI 2b67');
     expect(treatmentLine(s, 'zh-TW', true)).toBe('24 小時再通（取栓 · eTICI 2b67）');
     expect(treatmentLine({ ...s, treatment: { ...s.treatment, method: 'ivt' } }, 'en', true)).toBe('reopened at 24 h (IV thrombolysis · eTICI 2b67)');
   });
 
+  // V1-12: an attempt that reopens nothing is not a reopening (the event says "Recanalisation failed")
+  it('a failed attempt (eTICI 0) is an attempt at that time, not a reopening', () => {
+    const s = { ...m1, reperfusionH: 3, treatment: { ...DEFAULT_TREATMENT, grade: '0' as const } };
+    expect(treatmentLine(s, 'zh-TW')).toBe('3 小時嘗試、未再通 · 取栓 · eTICI 0');
+    expect(treatmentLine(s, 'zh-TW', true)).toBe('3 小時嘗試、未再通（取栓 · eTICI 0）');
+    expect(treatmentLine(s, 'en')).toBe('Attempted at 3 h, not reopened · Thrombectomy · eTICI 0');
+    expect(treatmentLine(s, 'en', true)).toBe('attempted at 3 h, not reopened (Thrombectomy · eTICI 0)');
+    expect(treatmentLine({ ...s, treatment: { ...s.treatment, method: 'ivt' } }, 'en', true)).toBe('attempted at 3 h, not reopened (IV thrombolysis · eTICI 0)');
+  });
+
   it('adds decompression, with or without recanalisation', () => {
-    expect(treatmentLine({ ...base, decompression: true }, 'zh-TW')).toBe('未再通 · 必要時減壓手術');
-    expect(treatmentLine({ ...base, reperfusionH: 6, decompression: true }, 'zh-TW')).toBe('6 小時再通 · 必要時減壓手術');
-    expect(treatmentLine({ ...base, decompression: true }, 'en')).toBe('No recanalisation · decompression if needed');
+    expect(treatmentLine({ ...m1, decompression: true }, 'zh-TW')).toBe('未再通 · 必要時減壓手術');
+    expect(treatmentLine({ ...m1, reperfusionH: 6, decompression: true }, 'zh-TW')).toBe('6 小時再通 · 必要時減壓手術');
+    expect(treatmentLine({ ...m1, decompression: true }, 'en')).toBe('No recanalisation · decompression if needed');
+  });
+
+  // U2-8: a treatment that finds nothing it can reopen is not a reopening, and has no eTICI grade
+  it('IV thrombolysis for a lacunar occlusion: given at that time, its effect not simulated', () => {
+    const s: CaseState = { ...base, occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true }], reperfusionH: 2, treatment: { ...DEFAULT_TREATMENT, method: 'ivt' } };
+    expect(treatmentLine(s, 'en', true)).toBe('IV thrombolysis at 2 h (not simulated for a lacunar occlusion)');
+    expect(treatmentLine(s, 'zh-TW', true)).toBe('2 小時靜脈血栓溶解（模型不模擬它對腔隙性阻塞的效果）');
+    expect(treatmentLine(s, 'en')).toBe('IV thrombolysis at 2 h (not simulated for a lacunar occlusion)');
+    for (const lang of ['en', 'zh-TW'] as const) {
+      expect(treatmentLine(s, lang, true)).not.toMatch(/eTICI|reopened|再通/);
+      expect(caseSummary(s, lang).join(' · ')).not.toMatch(/eTICI|reopened|再通/);
+    }
+  });
+
+  it('a treatment time when nothing complete is occluded (a stenosis, or before the occlusion begins): nothing to reopen', () => {
+    const sten: CaseState = { ...base, occlusions: [{ vessel: 'basilar_mid', severity: 0.7 }], reperfusionH: 2, treatment: { ...DEFAULT_TREATMENT, method: 'ivt' } };
+    expect(treatmentLine(sten, 'en', true)).toBe('treatment at 2 h: nothing to reopen');
+    expect(treatmentLine(sten, 'zh-TW', true)).toBe('2 小時治療：沒有可打通的阻塞');
+    const before: CaseState = { ...base, occlusions: [{ vessel: 'mca_m1_l', severity: 1, fromH: 24 }], reperfusionH: 4.5, treatment: { ...DEFAULT_TREATMENT, grade: '2b67' } };
+    expect(treatmentLine(before, 'en')).toBe('Treatment at 4.5 h: nothing to reopen');
+  });
+
+  // U2-9: eTICI grades the whole downstream territory, so a branch a fragment blocks lowers it
+  it('a distal embolus downstream: the eTICI grade the angiogram shows, not 3', () => {
+    const s: CaseState = { ...m1, reperfusionH: 2, treatment: { ...DEFAULT_TREATMENT, distalEmbolus: 'mca_m2_inf_l' } };
+    const shown = angiographicGrade(s.treatment, ['mca_m1_l']);
+    expect(shown).not.toBe('3');
+    const inf = (lang: Lang) => vesselName(VESSEL_BY_ID['mca_m2_inf_l'], lang);
+    expect(treatmentLine(s, 'en', true)).toBe(`reopened at 2 h (Thrombectomy · eTICI ${shown} (3 apart from the blocked branch) · distal embolus: ${inf('en')})`);
+    expect(treatmentLine(s, 'zh-TW', true)).toBe(`2 小時再通（取栓 · eTICI ${shown}（栓塞分支以外為 3） · 遠端栓塞：${inf('zh-TW')}）`);
+    // a new territory leaves the grade of the target territory as chosen
+    const aca = { ...s, treatment: { ...s.treatment, distalEmbolus: 'aca_a2_l' } };
+    expect(treatmentLine(aca, 'en', true)).toContain('Thrombectomy · eTICI 3 · ');
   });
 });
 

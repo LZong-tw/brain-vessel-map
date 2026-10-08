@@ -26,15 +26,22 @@ import {
   COMPENSATION_SHOWN,
   SILENCED_FILL,
   SILENCED_SHOWN,
+  UNEXAMINABLE_FILL,
+  bottleneckSites,
   compensatedShare,
+  foldedInto,
   hasNoBackup,
   peakSeverity,
+  regionFunctionGroup,
   regionRecovery,
   shareLevel,
   symptomBackup,
+  unexaminableHeading,
   withHatch,
+  type RegionFunctionGroup,
   type RegionRecovery,
 } from '../ui/recoveryFormat';
+import type { BottleneckSite } from '../anatomy/redundancy';
 import { StopGrid, type StopRow } from './StopGrid';
 import { useSimSeries } from './useSimSeries';
 
@@ -42,10 +49,14 @@ const COMP_ORDER: TissueState[] = ['core', 'penumbra', 'oligemia', 'salvaged', '
 const SHRINK_FILL = 'rgba(143, 184, 232, 0.55)';
 const DWI_COLOR = '#d6ecff';
 const T2_COLOR = '#a08cff';
-/** dead share of a region above which a vanished deficit counts as compensated rather than recovered */
+/** share of a region's function lost to dead tissue above which a vanished deficit counts as compensated rather than recovered */
 const DEAD_FOR_COMPENSATION = 0.2;
+/** the function lost exceeds the dead share by this much only for a lacune (W3-5) */
+const LACUNE_NOTE_FROM = 0.1;
 
 const fromRegion = (sim: SimResult, id: string) => sim.symptoms.filter((s) => s.sources.includes(id));
+/** what the region gives but cannot be examined at the patient's level of consciousness (X1-2) */
+const hiddenFromRegion = (sim: SimResult, id: string) => sim.unexaminable.filter((s) => s.sources.includes(id));
 
 interface Tag {
   cls: string;
@@ -81,24 +92,29 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
 
   const funcs = useMemo(() => {
     const now = fromRegion(sim, id);
-    const nowKeys = new Set(now.map(symptomKey));
+    // not examinable now is neither recovered nor taken over (X1-2)
+    const unexaminable = hiddenFromRegion(sim, id).sort((a, b) => b.sev - a.sev);
+    const nowKeys = new Set([...now, ...unexaminable].map(symptomKey));
     const earlier = new Map<string, SymptomItem>();
     const later = new Map<string, { s: SymptomItem; i: number }>();
     series.forEach((s, i) => {
       if (i === tIndex) return;
       for (const sy of fromRegion(s, id)) {
         const k = symptomKey(sy);
-        if (nowKeys.has(k)) continue;
+        // (a part now listed as the broader deficit of the same side has not gone: U3-7)
+        if (nowKeys.has(k) || foldedInto(sy, [...now, ...unexaminable])) continue;
         if (i < tIndex) earlier.set(k, sy);
         else if (!earlier.has(k) && !later.has(k)) later.set(k, { s: sy, i });
       }
     });
-    // a deficit of dead tissue that has gone was taken over by other pathways, not recovered
-    const deadNow = (sim.regions[id]?.infarct ?? 0) >= DEAD_FOR_COMPENSATION && sim.recovery.progress > 0;
+    // a deficit of dead tissue that has gone was taken over by other pathways, not recovered (a
+    // lacune, small as it is, costs most of its tract's function: W3-5)
+    const deadNow = (sim.regions[id]?.lost ?? 0) >= DEAD_FOR_COMPENSATION && sim.recovery.progress > 0;
     const takenOver = (s: SymptomItem) => deadNow && !hasNoBackup(s) && symptomBackup(s) !== 'exempt';
     const gone = [...earlier.values()];
     return {
       now,
+      unexaminable,
       recovered: gone.filter((s) => !takenOver(s)),
       compensated: gone.filter(takenOver),
       later: [...later.values()],
@@ -122,14 +138,20 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         cells: series.map((s) => {
           const syms = fromRegion(s, id);
           const lv = syms.reduce((m, x) => Math.max(m, x.sev), 0);
+          const sep = lang === 'en' ? '; ' : '、';
           const names = syms
             .sort((a, b) => b.sev - a.sev)
             .slice(0, 4)
             .map((x) => symptomLabel(x, lang, t));
           const fill = SEV_FILL[lv] ?? null;
           const comp = fill !== null && syms.some((x) => compensatedShare(x) >= COMPENSATION_SHOWN);
-          const title = names.length ? names.join(lang === 'en' ? '; ' : '、') : t.funcNone;
-          return { color: fill && comp ? withHatch(fill) : fill, title: comp ? (lang === 'en' ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
+          // a stop at which the region's deficits cannot be examined does not read "no loss" (X1-2)
+          const hiddenItems = hiddenFromRegion(s, id);
+          const hidden = hiddenItems.map((x) => symptomLabel(x, lang, t));
+          const hiddenText = hidden.length ? `${unexaminableHeading(hiddenItems, lang).label}${lang === 'en' ? ': ' : '：'}${hidden.join(sep)}` : '';
+          const title = [names.join(sep), hiddenText].filter(Boolean).join(sep) || t.funcNone;
+          const color = fill ? (comp ? withHatch(fill) : fill) : hidden.length ? UNEXAMINABLE_FILL : null;
+          return { color, title: comp ? (lang === 'en' ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
         }),
       },
     ];
@@ -182,23 +204,24 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
   const est = comp.penumbra >= 0.03 ? penumbraEstimate(sim, id) : null;
   const reperf = sim.input.reperfusionH;
   const rr = regionRecovery(sim, id);
-  const silencedMatters = rr.silenced >= 0.05 && rr.silenced >= 0.2 * (comp.core + rr.silenced);
-  // how reversible the region's current deficits are, from what its tissue is made of now
-  const nowGroup: [string, string] =
-    comp.core >= 0.15 && comp.penumbra >= 0.15
-      ? ['mixed', t.funcMixed]
-      : comp.penumbra > comp.core
-        ? ['at-risk', t.funcAtRisk]
-        : silencedMatters
-          ? comp.core >= 0.1
-            ? ['mixed silenced', rt.funcDeadAndSilenced]
-            : ['silenced', rt.funcSilenced]
-          : rr.compensated >= 0.05
-            ? ['lost compensating', rt.funcLostCompensating]
-            : ['lost', t.funcLost];
+  // how reversible the region's current deficits are, from what its tissue is made of now (tissue
+  // that survived and is still regaining its function is alive, not dead: Y1-12, W2-10)
+  const groups: Record<RegionFunctionGroup, [string, string]> = {
+    mixed: ['mixed', t.funcMixed],
+    'at-risk': ['at-risk', t.funcAtRisk],
+    'dead-regaining': ['mixed silenced', rt.funcDeadAndRegaining],
+    regaining: ['silenced', rt.funcRegaining],
+    'dead-silenced': ['mixed silenced', rt.funcDeadAndSilenced],
+    silenced: ['silenced', rt.funcSilenced],
+    'lost-compensating': ['lost compensating', rt.funcLostCompensating],
+    lost: ['lost', t.funcLost],
+  };
+  const nowGroup = groups[regionFunctionGroup(comp, rr)];
   const noBackupNow = funcs.now.filter(hasNoBackup);
   const bilateral = funcs.now.some((s) => s.recovery?.bilateral && symptomBackup(s) !== 'exempt' && !hasNoBackup(s));
   const bottleneck = funcs.now.some((s) => s.recovery?.bottleneck && !hasNoBackup(s));
+  // where both sides were cut together (Z2-10)
+  const sites = bottleneckSites(funcs.now.filter((s) => !hasNoBackup(s)));
   // compensation line: how much has been taken over, or — when both sides are cut at the ventral
   // pons — that little will be
   const compLine: 'comp' | 'little' | null =
@@ -209,7 +232,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         : rr.compensated >= SILENCED_SHOWN
           ? 'comp'
           : null;
-  const showStatus = rr.dead >= 0.02 || rr.silenced >= SILENCED_SHOWN || compLine !== null;
+  const showStatus = rr.dead >= 0.02 || rr.silenced >= SILENCED_SHOWN || rr.regaining >= SILENCED_SHOWN || compLine !== null;
   const tagOf = (s: SymptomItem): Tag | null => {
     const kind = symptomBackup(s);
     const peak = funcs.peak.get(symptomKey(s)) ?? s.sev;
@@ -217,7 +240,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
     if (hasNoBackup(s) && rr.dead >= 0.1)
       return { cls: 'nobackup', text: rt.tagNoBackup, title: rt.kindExplain[kind], note: eased && rt.tagEasedNoBackup(peak, s.sev) };
     if (compensatedShare(s) >= COMPENSATION_SHOWN) {
-      const why = s.recovery?.bottleneck ? sep + rt.bottleneckNote : s.recovery?.bilateral ? sep + rt.bilateralNote : '';
+      const why = s.recovery?.bottleneck ? sep + rt.bottleneckNote(bottleneckSites([s])) : s.recovery?.bilateral ? sep + rt.bilateralNote : '';
       return { cls: 'comp', text: rt.tagCompensated(pct(compensatedShare(s))), title: `${rt.kindExplain[kind]}${why}`, note: eased };
     }
     return eased ? { cls: '', text: '', title: '', note: eased } : null;
@@ -270,6 +293,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
             compLine={compLine}
             bilateral={bilateral}
             bottleneck={bottleneck}
+            sites={sites}
           />
         )}
 
@@ -286,8 +310,16 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         )}
 
         <h4>{t.funcNow}</h4>
-        {funcs.now.length === 0 && <p className="muted small">{t.funcNone}</p>}
+        {funcs.now.length === 0 && funcs.unexaminable.length === 0 && <p className="muted small">{t.funcNone}</p>}
         {funcs.now.length > 0 && <FuncGroup cls={nowGroup[0]} title={nowGroup[1]} items={funcs.now} tags={funcs.now.map(tagOf)} />}
+        {funcs.unexaminable.length > 0 && (
+          <FuncGroup
+            cls="unexaminable"
+            title={unexaminableHeading(funcs.unexaminable, lang).label}
+            titleHint={unexaminableHeading(funcs.unexaminable, lang).title}
+            items={funcs.unexaminable}
+          />
+        )}
         {funcs.compensated.length > 0 && <FuncGroup cls="compensated" title={rt.funcCompensatedGone} items={funcs.compensated} />}
         {funcs.recovered.length > 0 && <FuncGroup cls="recovered" title={t.funcRecovered} items={funcs.recovered} />}
         {funcs.later.length > 0 && (
@@ -323,12 +355,28 @@ function Meter({ label, v, color, note }: { label: string; v: number; color: str
   );
 }
 
-function FuncGroup({ cls, title, items, notes, tags }: { cls: string; title: string; items: SymptomItem[]; notes?: string[]; tags?: (Tag | null)[] }) {
+function FuncGroup({
+  cls,
+  title,
+  titleHint,
+  items,
+  notes,
+  tags,
+}: {
+  cls: string;
+  title: string;
+  titleHint?: string;
+  items: SymptomItem[];
+  notes?: string[];
+  tags?: (Tag | null)[];
+}) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   return (
     <div className={`func-group ${cls}`}>
-      <div className="func-title small">{title}</div>
+      <div className="func-title small" title={titleHint}>
+        {title}
+      </div>
       <ul className="bullets">
         {items.map((s, i) => {
           const tag = tags?.[i];
@@ -359,6 +407,7 @@ function RecoveryStatus({
   compLine,
   bilateral,
   bottleneck,
+  sites,
 }: {
   rr: RegionRecovery;
   rt: RecoveryStrings;
@@ -366,6 +415,8 @@ function RecoveryStatus({
   compLine: 'comp' | 'little' | null;
   bilateral: boolean;
   bottleneck: boolean;
+  /** where both sides were cut together (Z2-10) */
+  sites: BottleneckSite[];
 }) {
   const lang = useApp((s) => s.lang);
   const edema = rr.silenced - rr.remote >= 0.005;
@@ -382,7 +433,8 @@ function RecoveryStatus({
               <span className="rec-head">
                 {rt.dead} <span className="num">{pct(rr.dead)}</span>
               </span>
-              <span className="muted small"> — {rt.deadNote}</span>
+              {/* a lacune costs the structure much more of its function than its share of it (W3-5) */}
+              <span className="muted small"> — {rr.lost >= rr.dead + LACUNE_NOTE_FROM ? rt.deadLacuneNote(pct(rr.lost)) : rt.deadNote}</span>
             </div>
           </li>
         )}
@@ -397,6 +449,17 @@ function RecoveryStatus({
             </div>
           </li>
         )}
+        {rr.regaining >= SILENCED_SHOWN && (
+          <li className="silenced">
+            <span className="rec-dot" aria-hidden="true" />
+            <div>
+              <span className="rec-head">
+                {rt.regaining} <span className="num">{pct(rr.regaining)}</span>
+              </span>
+              <span className="muted small"> — {rt.regainingNote}</span>
+            </div>
+          </li>
+        )}
         {compLine === 'comp' && (
           <li className="comp">
             <span className="rec-dot" aria-hidden="true" />
@@ -407,7 +470,7 @@ function RecoveryStatus({
               <span className="muted small">
                 {' — '}
                 {rt.compensatedNote(pct(rr.compensated))}
-                {bottleneck ? sep + rt.bottleneckNote : bilateral ? sep + rt.bilateralNote : ''}
+                {bottleneck ? sep + rt.bottleneckNote(sites) : bilateral ? sep + rt.bilateralNote : ''}
               </span>
             </div>
           </li>
@@ -419,7 +482,7 @@ function RecoveryStatus({
               <span className="rec-head">{rt.compensatedLittle}</span>
               <span className="muted small">
                 {' — '}
-                {[rt.compensatedLittleNote(rr.compensated >= 0.005 ? pct(rr.compensated) : null), rt.bottleneckNote].filter(Boolean).join(sep)}
+                {[rt.compensatedLittleNote(rr.compensated >= 0.005 ? pct(rr.compensated) : null), rt.bottleneckNote(sites)].filter(Boolean).join(sep)}
               </span>
             </div>
           </li>

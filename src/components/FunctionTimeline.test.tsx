@@ -4,11 +4,13 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { REGION_BY_ID, regionName } from '../anatomy';
+import { REGION_BY_ID, regionName, tr } from '../anatomy';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { FunctionTimeline } from './FunctionTimeline';
+import { RECOVERY_UI } from '../i18n/uiRecovery';
 
 afterEach(() => {
   cleanup();
@@ -50,5 +52,35 @@ describe('function heat-map cell detail', () => {
     expect(container.querySelector('.cell-detail')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(container.querySelector('.cell-detail')).toBeNull();
+  });
+});
+
+// X1-2: a stop at which a function's deficits cannot be examined (the patient is comatose) is not
+// a stop without deficits
+describe('function heat-map under reduced consciousness', () => {
+  const lm1 = TIME_STOPS.map((s) =>
+    simulate({ occlusions: [{ vessel: 'mca_m1_l', severity: 1 }], variants: [], map: 93, collateral: 'moderate', tH: s.h, reperfusionH: null, decompression: false }),
+  );
+  const i48 = TIME_STOPS.findIndex((s) => s.h === 48);
+
+  it.each(['zh-TW', 'en'] as const)('%s: the cognition cell of the herniation coma names what cannot be examined and is not drawn empty', (lang) => {
+    expect(lm1[i48].nihss.items['1a']).toBe(3);
+    expect(lm1[i48].symptoms.some((s) => SYMPTOM_BY_ID[s.id].system === 'cognition')).toBe(false);
+    useApp.setState({ lang, tIndex: 0, selected: null, rightTab: 'now' });
+    render(<FunctionTimeline series={lm1} />);
+    const row = lang === 'en' ? 'Cognition & behaviour' : '認知與行為';
+    const cell = screen.getByRole('button', { name: new RegExp(`^${row} · ${tr(TIME_STOPS[i48].label, lang)}`) });
+    const label = cell.getAttribute('aria-label') ?? '';
+    expect(label).toContain(tr(SYMPTOM_BY_ID.executive.name, lang));
+    expect(label).toContain(lang === 'en' ? 'Cannot be examined' : '無法檢查');
+    expect(cell.className).not.toMatch(/\bempty\b/);
+    // awake two weeks later, the deficits are listed and drawn again; only what is tested through
+    // language cannot be examined while the global aphasia leaves too little comprehension (Z3-16)
+    const i336 = TIME_STOPS.findIndex((s) => s.h === 336);
+    const later = screen.getByRole('button', { name: new RegExp(`^${row} · ${tr(TIME_STOPS[i336].label, lang)}`) });
+    const laterLabel = later.getAttribute('aria-label') ?? '';
+    expect(later.className).not.toMatch(/\bempty\b/);
+    expect(laterLabel).not.toContain(RECOVERY_UI[lang].unexaminableBy.consciousness.label);
+    expect(laterLabel).toContain(RECOVERY_UI[lang].unexaminableBy.aphasia.label);
   });
 });

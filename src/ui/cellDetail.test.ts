@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { TIME_STOPS } from '../anatomy/timeline';
+import type { CascadeEvent } from '../engine/cascade';
 import type { Occlusion } from '../engine/hemodynamics';
 import { simulate, type SimInput } from '../engine/simulate';
 import { systemCellDetail } from './cellDetail';
@@ -44,11 +45,91 @@ describe('function heat-map cell detail', () => {
   });
 
   it('names the course event behind a symptom that no region explains', () => {
-    // untreated cerebellar infarct: obstructive hydrocephalus makes the patient drowsy on day 3
-    const pica = seriesOf({ occlusions: [{ vessel: 'pica_r', severity: 1 }], collateral: 'poor' });
+    // untreated large cerebellar infarct (PICA + SCA, C4-F3): obstructive hydrocephalus makes the patient drowsy on day 3
+    const pica = seriesOf({ occlusions: [{ vessel: 'pica_r', severity: 1 }, { vessel: 'sca_r', severity: 1 }], collateral: 'poor' });
     const d = systemCellDetail(pica, at(72), 'consciousness');
     const coma = d.items.find((s) => s.id === 'coma');
     expect(coma).toBeDefined();
     expect(coma!.events).toContain('hydrocephalus');
+  });
+
+  it('traces reduced consciousness to the swelling that shifts the midline, and drops a herniation coma once it has lifted (C4-F1, C4-F2)', () => {
+    const malignant = seriesOf({ occlusions: [{ vessel: 'mca_m1_r', severity: 1 }], collateral: 'poor' });
+    // 48 h: comatose from a ~10 mm shift, a day before the uncal herniation
+    const coma48 = systemCellDetail(malignant, at(48), 'consciousness').items.find((s) => s.id === 'coma');
+    expect(coma48).toBeDefined();
+    expect(coma48!.events).toContain('malignant_edema_r');
+    expect(coma48!.events).not.toContain('uncal_r');
+    // 2 weeks: the survivor is drowsy from the remaining shift; the herniation no longer explains it
+    const drowsy = systemCellDetail(malignant, at(336), 'consciousness').items.find((s) => s.id === 'somnolence');
+    expect(drowsy).toBeDefined();
+    expect(drowsy!.events).toContain('vasogenic_edema');
+    expect(drowsy!.events).not.toContain('uncal_r');
+  });
+
+  it('attributes a symptom to an event by the one rule simulate uses: a shift-gated event explains nothing while the shift is under its threshold, before its peak too (R6-9, R6-5)', () => {
+    const malignant = seriesOf({ occlusions: [{ vessel: 'mca_m1_r', severity: 1 }], collateral: 'poor' });
+    const i = at(24);
+    expect(malignant[i].edema.midlineShiftMm).toBeLessThan(8);
+    const gated: CascadeEvent = {
+      id: 'gated_test',
+      kind: 'secondary',
+      severity: 'danger',
+      onsetH: 12,
+      peakH: 120,
+      title: { zh: '', en: '' },
+      desc: { zh: '', en: '' },
+      regions: [],
+      symptoms: [{ id: 'arm_weak', side: 'l', sev: 2 }],
+      symptomsWhileShiftMm: 8,
+    };
+    const series = malignant.map((r, k) => (k === i ? { ...r, cascade: { ...r.cascade, events: [...r.cascade.events, gated] } } : r));
+    const arm = systemCellDetail(series, i, 'motor').items.find((s) => s.id === 'arm_weak' && s.side === 'l');
+    expect(arm).toBeDefined();
+    expect(arm!.events).not.toContain('gated_test');
+  });
+});
+
+// X1-2: what cannot be examined at the patient's level of consciousness has not resolved, and when
+// the patient can be examined again it is not new
+describe('function heat-map cell detail under reduced consciousness', () => {
+  const sc = SCENARIOS.find((s) => s.id === 'l_m1')!;
+  const lm1 = seriesOf({ occlusions: sc.occlusions, collateral: 'moderate' });
+
+  it('lists the signs that cannot be examined in coma apart, not as resolved', () => {
+    const d = systemCellDetail(lm1, at(48), 'cognition');
+    expect(lm1[at(48)].nihss.items['1a']).toBe(3);
+    expect(d.resolved.map((s) => s.id)).not.toContain('executive');
+    expect(d.unexaminable.map((s) => s.id)).toContain('executive');
+    const lang = systemCellDetail(lm1, at(48), 'language');
+    for (const id of ['aphasia_global', 'alexia', 'agraphia']) {
+      expect(lang.resolved.map((s) => s.id), id).not.toContain(id);
+      expect(lang.unexaminable.map((s) => s.id), id).toContain(id);
+    }
+  });
+
+  it('marks them as examinable again, not new, once the patient is awake', () => {
+    const d = systemCellDetail(lm1, at(336), 'cognition');
+    expect(lm1[at(336) - 1].nihss.items['1a']).toBe(3);
+    const ex = d.items.find((s) => s.id === 'executive');
+    expect(ex?.change).toBe('again');
+    expect(ex?.prevSev).toBeGreaterThan(0);
+    // (what is tested through language stays apart while the global aphasia leaves too little
+    // comprehension: Z3-16)
+    expect(d.unexaminable.every((s) => s.why === 'aphasia')).toBe(true);
+    expect(d.unexaminable.map((s) => s.id)).not.toContain('executive');
+  });
+});
+
+// U3-7: a part of a broader deficit of the same side is listed as that deficit while no more severe
+describe('function heat-map cell detail: a part taken in by the broader deficit of its side (U3-7)', () => {
+  const lm1 = seriesOf({ occlusions: [{ vessel: 'mca_m1_l', severity: 1 }] });
+  it('the face and arm sensory loss of a left M1, taken in by the hemisensory loss at 3 months, is not resolved', () => {
+    const i = at(2160);
+    const listed = (k: number, id: string) => lm1[k].symptoms.some((s) => s.id === id && s.side === 'r');
+    expect(listed(i - 1, 'sens_face_arm')).toBe(true);
+    expect(listed(i, 'sens_face_arm')).toBe(false);
+    expect(listed(i, 'sens_hemibody')).toBe(true);
+    expect(systemCellDetail(lm1, i, 'sensory').resolved.map((s) => s.id)).not.toContain('sens_face_arm');
   });
 });

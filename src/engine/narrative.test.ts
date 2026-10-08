@@ -36,7 +36,9 @@ describe('course narrative', () => {
     expect(r.volumes.finalInfarct).toBe(0);
     const ids = eventIds(r);
     expect(ids).toEqual(expect.arrayContaining(['ischemia_no_infarct', 'imaging_no_infarct', 'tia_urgent']));
-    for (const id of BRAIN_STORY) expect(ids).not.toContain(id);
+    for (const id of ['ischemic_cascade', 'imaging_dwi']) expect(ids).not.toContain(id);
+    // Z4-11: the treatment windows only while the attack's deficit lasts (5 minutes)
+    expect(r.cascade.events.find((e) => e.id === 'treatment_window')!.endH).toBeLessThanOrEqual(0.25);
   });
 
   it('a brain infarct keeps the brain-stroke story', () => {

@@ -4,10 +4,14 @@
  */
 
 import { BED_BY_ID, BEDS, REGION_BY_ID } from '../anatomy';
-import { NO_BACKUP_KINDS, redundancyFor, type RedundancyKind } from '../anatomy/redundancy';
-import type { NihssResult, SymptomItem } from '../engine/clinical';
+import { isQualifier } from '../anatomy/symptoms';
+import { NO_BACKUP_KINDS, redundancyFor, type BottleneckSite, type RedundancyKind } from '../anatomy/redundancy';
+import { PART_OF, type NihssResult, type SymptomItem, type UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
-import { SEV_FILL, symptomKey } from './format';
+import type { TissueState } from '../engine/tissue';
+import type { Lang } from '../anatomy/types';
+import { RECOVERY_UI } from '../i18n/uiRecovery';
+import { SEV_FILL, SYSTEM_ORDER, symptomKey, systemOf } from './format';
 
 /** a symptom counts as "partly compensated" from this share */
 export const COMPENSATION_SHOWN = 0.1;
@@ -19,18 +23,29 @@ const BRAIN = new Set(['cortex', 'deep', 'brainstem', 'cerebellum']);
 export interface RegionRecovery {
   /** infarcted fraction */
   dead: number;
+  /**
+   * share of the region's function lost to dead tissue: `dead`, or more for a lacune, which costs
+   * most of the function of the compact tract it lies in (W3-5)
+   */
+  lost: number;
   /** alive but temporarily silenced (oedema + remote depression) */
   silenced: number;
   /** … of which remote depression (diaschisis) */
   remote: number;
   /** share of the function lost to dead tissue that other pathways have taken over */
   compensated: number;
+  /**
+   * alive, will not die, but still silent while it regains its function: tissue that blood reached
+   * again (Y1-12), penumbra that collaterals held, also once it is past the time it is at risk
+   * (W2-10)
+   */
+  regaining: number;
 }
 
 /** Volume-weighted recovery status of a region at the simulated time. */
 export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery {
   const r = REGION_BY_ID[regionId];
-  const out: RegionRecovery = { dead: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0 };
+  const out: RegionRecovery = { dead: 0, lost: 0, silenced: 0, remote: 0, compensated: sim.recovery.compensated[regionId] ?? 0, regaining: 0 };
   if (!r) return out;
   let tot = 0;
   for (const bid of r.beds) {
@@ -38,20 +53,48 @@ export function regionRecovery(sim: SimResult, regionId: string): RegionRecovery
     out.dead += (sim.beds[bid]?.infarct ?? 0) * w;
     out.silenced += (sim.recovery.extraDys[bid] ?? 0) * w;
     out.remote += (sim.recovery.diaschisisDys[bid] ?? 0) * w;
+    out.regaining += ((sim.beds[bid]?.regaining ?? 0) + (sim.beds[bid]?.holding ?? 0)) * w;
     tot += w;
   }
   if (tot > 0) {
     out.dead = Math.max(out.dead / tot, sim.regions[regionId]?.infarct ?? 0);
+    out.lost = Math.max(out.dead, sim.regions[regionId]?.lost ?? 0);
     out.silenced /= tot;
     out.remote /= tot;
+    out.regaining /= tot;
   }
   return out;
+}
+
+/**
+ * How reversible a region's current deficits are, from what its tissue is made of now (the region
+ * details' heading over them): penumbra still at risk ('at-risk', or 'mixed' beside dead tissue);
+ * tissue that survived and is still silent while it regains its function, after a reopening or as
+ * penumbra that collaterals held, also once it is past the time it is at risk ('regaining', or
+ * 'dead-regaining' beside dead tissue: Y1-12, W2-10); living tissue silenced by oedema or remote
+ * depression ('silenced', 'dead-silenced'); or dead tissue ('lost', 'lost-compensating').
+ */
+export type RegionFunctionGroup = 'mixed' | 'at-risk' | 'regaining' | 'dead-regaining' | 'silenced' | 'dead-silenced' | 'lost-compensating' | 'lost';
+
+export function regionFunctionGroup(comp: Record<TissueState, number>, rr: RegionRecovery): RegionFunctionGroup {
+  if (comp.core >= 0.15 && comp.penumbra >= 0.15) return 'mixed';
+  if (comp.penumbra > comp.core) return 'at-risk';
+  // alive and recovering, not dead (whichever of the two kinds of silent tissue is larger)
+  const matters = (x: number) => x >= 0.05 && x >= 0.2 * (comp.core + x);
+  if (matters(rr.regaining) && rr.regaining >= rr.silenced) return comp.core >= 0.1 ? 'dead-regaining' : 'regaining';
+  if (matters(rr.silenced)) return comp.core >= 0.1 ? 'dead-silenced' : 'silenced';
+  return rr.compensated >= 0.05 ? 'lost-compensating' : 'lost';
 }
 
 /** Redundancy of a symptom (from its dominant source when the engine attached it). */
 export const symptomBackup = (s: SymptomItem): RedundancyKind => s.recovery?.kind ?? redundancyFor(s.id).kind;
 export const hasNoBackup = (s: SymptomItem) => NO_BACKUP_KINDS.has(symptomBackup(s));
 export const compensatedShare = (s: SymptomItem) => s.recovery?.compensated ?? 0;
+/** where the bottleneck deficits among `symptoms` were cut on both sides: the cerebral peduncles, the ventral pons, or both (Z2-10) */
+export function bottleneckSites(symptoms: SymptomItem[]): BottleneckSite[] {
+  const found = new Set(symptoms.flatMap((s) => (s.recovery?.bottleneck ? s.recovery.bottleneckSites ?? [] : [])));
+  return (['midbrain', 'pons'] as BottleneckSite[]).filter((x) => found.has(x));
+}
 
 /** Living brain tissue (mL) silenced by oedema and by remote depression at the simulated time. */
 export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: number } {
@@ -67,15 +110,49 @@ export function silencedVolume(sim: SimResult): { edemaMl: number; remoteMl: num
   return { edemaMl, remoteMl };
 }
 
+/**
+ * mL of brain tissue that survived and is still regaining its function (after a reopening, or
+ * penumbra that collaterals held; Y1-12), with the tissue that is past the time it is at risk and
+ * will survive but is still silent (W2-10)
+ */
+export function regainingVolume(sim: SimResult): number {
+  let ml = 0;
+  for (const b of BEDS) if (BRAIN.has(REGION_BY_ID[b.region].category)) ml += ((sim.beds[b.id]?.regaining ?? 0) + (sim.beds[b.id]?.holding ?? 0)) * b.volume;
+  return ml;
+}
+
+const APHASIA_TYPES = [
+  'aphasia_global',
+  'aphasia_broca',
+  'aphasia_wernicke',
+  'aphasia_conduction',
+  'aphasia_tc_motor',
+  'aphasia_tc_sensory',
+  'aphasia_mixed_tc',
+];
 // symptoms that "disappear" only because they were merged into a larger one
 const MERGED_INTO: Record<string, string[]> = {
   quadrant_sup: ['hemianopia', 'cortical_blindness'],
   quadrant_inf: ['hemianopia', 'cortical_blindness'],
   central_scotoma: ['hemianopia', 'cortical_blindness'],
   hemianopia: ['cortical_blindness'],
-  aphasia_broca: ['aphasia_global'],
-  aphasia_wernicke: ['aphasia_global'],
-  somnolence: ['coma'],
+  // colour loss is not listed in a blind (half-)field (R1-5)
+  hemiachromatopsia: ['achromatopsia', 'hemianopia', 'cortical_blindness'],
+  achromatopsia: ['cortical_blindness', 'hemianopia'],
+  // one aphasia type at a time: a type that is no longer listed has changed into another one
+  // (e.g. global → Broca) rather than gone, as long as some aphasia is still listed (C1-F1)
+  ...Object.fromEntries(APHASIA_TYPES.map((id) => [id, APHASIA_TYPES.filter((o) => o !== id)])),
+  // drowsiness gives way to persistent hypersomnia after two weeks; coma after extensive
+  // tegmental damage continues as a disorder of consciousness (C3-F2)
+  somnolence: ['coma', 'hypersomnia', 'disorder_of_consciousness'],
+  hypersomnia: ['coma', 'disorder_of_consciousness'],
+  coma: ['disorder_of_consciousness'],
+  // when both lateral medullas fail, the breathing problem is no longer only one of sleep
+  central_sleep_apnoea: ['respiratory'],
+  // with both frontal eye fields lost the two deviations become one gaze paresis to both sides,
+  // and it becomes a deviation again when one side recovers more (Y2-13)
+  gaze_deviation: ['gaze_paresis_bilateral'],
+  gaze_paresis_bilateral: ['gaze_deviation'],
 };
 
 export interface Improvement {
@@ -85,21 +162,80 @@ export interface Improvement {
   to: number;
 }
 
-/** Symptoms that are milder (or gone) now than in `before`, worst first. */
-export function improvedSince(before: SymptomItem[], now: SymptomItem[]): Improvement[] {
+/**
+ * Symptoms that are milder (or gone) now than in `before`, worst first. A symptom left out of the
+ * list because it cannot be examined at the patient's level of consciousness now (`unexaminable`,
+ * SimResult.unexaminable) has not improved (X1-2). A finding that describes another deficit rather
+ * than being one (macular sparing, isQualifier) does not improve when it goes: the field defect has
+ * become worse (V2-9). Nor has a part of a broader deficit of the same side gone when it is listed as
+ * that deficit now (clinical.PART_OF, U3-7).
+ */
+export const foldedInto = (s: { id: string; side: SymptomItem['side'] }, now: SymptomItem[]) =>
+  !!PART_OF[s.id] && now.some((x) => x.id === PART_OF[s.id] && x.side === s.side);
+export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexaminable: SymptomItem[] = []): Improvement[] {
   const nowByKey = new Map(now.map((s) => [symptomKey(s), s]));
   const nowIds = new Set(now.map((s) => s.id));
+  const hidden = new Set(unexaminable.map(symptomKey));
   const out: Improvement[] = [];
   for (const b of before) {
-    if (b.delayed) continue;
+    if (b.delayed || isQualifier(b.id)) continue;
     const n = nowByKey.get(symptomKey(b));
     if (n) {
       if (n.sev < b.sev) out.push({ s: n, from: b.sev, to: n.sev });
-    } else if (!(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id))) {
+    } else if (
+      !hidden.has(symptomKey(b)) &&
+      !(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id)) &&
+      !foldedInto(b, now) &&
+      // a deficit of both sides now listed once per side (Y2-17) has not gone
+      !(b.side === 'both' && now.some((x) => x.id === b.id))
+    ) {
       out.push({ s: b, from: b.sev, to: 0 });
     }
   }
   return out.sort((a, b) => b.from - b.to - (a.from - a.to) || b.from - a.from);
+}
+
+/**
+ * What the lesion gives but cannot be examined now (SimResult.unexaminable: at the patient's level
+ * of consciousness, in a blind patient, in akinetic mutism, in a paralysed limb), worst first, then
+ * in the order of the function systems; not a finding that only describes another deficit
+ * (isQualifier, V2-9).
+ */
+export function unexaminableNow(sim: SimResult): SymptomItem[] {
+  const rank = (s: SymptomItem) => SYSTEM_ORDER.indexOf(systemOf(s.id));
+  return sim.unexaminable.filter((s) => !isQualifier(s.id)).sort((a, b) => b.sev - a.sev || rank(a) - rank(b));
+}
+
+/**
+ * The deficits "without backup, that will not improve" at `sim` (V2-5): of a function without
+ * backup (hasNoBackup), at no more than the severity their dead tissue alone gives them
+ * (SymptomItem.deadSev). One still deepened by the oedema around the infarct, caused by the
+ * compression of a swollen neighbour or by tissue that is alive but still silent will improve as
+ * that passes, so it is not named yet; nor is one that has improved since the previous stop
+ * (`prev`), at that stop. Worst first.
+ */
+export function noBackupNow(sim: SimResult, prev: SimResult | null): SymptomItem[] {
+  const better = new Set(prev ? improvedSince(prev.symptoms, sim.symptoms, sim.unexaminable).map((x) => symptomKey(x.s)) : []);
+  return sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s) && (s.deadSev ?? 0) >= s.sev && !better.has(symptomKey(s))).sort((a, b) => b.sev - a.sev);
+}
+
+/**
+ * The heading and explanation of a list of signs that cannot be examined (Y2-14, Y2-15): the
+ * reason's own when they share one, otherwise a general heading with each reason explained;
+ * `tag(s)` names a sign's reason when there are several (empty otherwise).
+ */
+export function unexaminableHeading(items: { why?: UnexaminableWhy }[], lang: Lang): { label: string; title: string; tag: (s: { why?: UnexaminableWhy }) => string } {
+  const rt = RECOVERY_UI[lang];
+  const whys = [...new Set(items.map((s) => s.why ?? 'consciousness'))];
+  if (whys.length <= 1) {
+    const one = rt.unexaminableBy[whys[0] ?? 'consciousness'];
+    return { label: one.label, title: one.title, tag: () => '' };
+  }
+  return {
+    label: rt.unexaminableMixedLabel,
+    title: whys.map((w) => `${rt.unexaminableBy[w].tag}${lang === 'en' ? ': ' : '：'}${rt.unexaminableBy[w].title}`).join(lang === 'en' ? ' ' : ''),
+    tag: (s) => rt.unexaminableBy[s.why ?? 'consciousness'].tag,
+  };
 }
 
 /** Highest severity each symptom (id + side) has reached in `series`. */
@@ -113,6 +249,11 @@ export function peakSeverity(series: SimResult[]): Map<string, number> {
 /** diagonal stripes laid over a severity fill: "partly compensated" */
 const HATCH = 'repeating-linear-gradient(135deg, rgba(150, 235, 190, 0.8) 0 1.5px, transparent 1.5px 5px)';
 export const withHatch = (color: string) => `${HATCH}, ${color}`;
+/**
+ * a heat-map cell whose deficits are all there but cannot be examined at the patient's level of
+ * consciousness (SimResult.unexaminable): grey dots, neither a severity nor "no loss" (X1-2)
+ */
+export const UNEXAMINABLE_FILL = 'radial-gradient(circle, rgba(160, 160, 175, 0.85) 0 1px, transparent 1.4px) 0 0 / 4px 4px';
 /** fills of the "temporarily silenced" and "compensated" strips (index 1–3 = intensity) */
 export const SILENCED_FILL: (string | null)[] = [null, 'rgba(110, 168, 255, 0.35)', 'rgba(110, 168, 255, 0.62)', 'rgba(110, 168, 255, 0.9)'];
 export const COMPENSATED_FILL: (string | null)[] = [null, 'rgba(67, 181, 129, 0.35)', 'rgba(67, 181, 129, 0.62)', 'rgba(67, 181, 129, 0.9)'];

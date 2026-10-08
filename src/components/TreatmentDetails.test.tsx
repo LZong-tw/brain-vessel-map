@@ -7,8 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { VESSEL_BY_ID, vesselName } from '../anatomy';
 import type { RecanalisationEvidence } from '../anatomy/recanalisation';
+import { SCENARIOS } from '../anatomy/scenarios';
 import { simulate } from '../engine/simulate';
-import { DEFAULT_TREATMENT, downstreamBranches } from '../engine/treatment';
+import { DEFAULT_TREATMENT, angiographicGrade, downstreamBranches } from '../engine/treatment';
 import { useApp } from '../state/store';
 import { LeftPanel, TreatmentDetails } from './LeftPanel';
 import { RightPanel } from './RightPanel';
@@ -19,10 +20,16 @@ const sim = simulate({ occlusions: [], variants: [], map: 93, collateral: 'good'
 const EMPTY: RecanalisationEvidence = {
   success: {},
   sich: {},
+  sichMevo: {},
+  sichLargeCore: null,
+  tenecteplase: { sich: null, reperfusionBeforeEvt: null },
+  lateIvt: null,
   reocclusion: {},
   distalEmbolization: null,
+  newTerritoryEmbolization: null,
   noReflow: null,
   ivtWindowH: 4.5,
+  ivtConsensusWindowH: {},
   evtWindowH: 24,
 };
 
@@ -38,9 +45,15 @@ const FAKE: RecanalisationEvidence = {
   success: { m1: { evt: range(0.7, 0.9, 0.8, 'Trial A 2015'), ivt: range(0.1, 0.4, 0.25, 'Cohort B 2010') } },
   sich: { evt: range(0.03, 0.07, 0.045, 'Meta C 2016'), ivt: range(0.02, 0.08, 0.05, 'Trial D 1995') },
   reocclusion: { evt: range(0.02, 0.08, undefined, 'Registry E 2019') },
+  sichMevo: {},
+  sichLargeCore: null,
+  tenecteplase: { sich: null, reperfusionBeforeEvt: null },
+  lateIvt: null,
   distalEmbolization: range(0.05, 0.15, 0.09, 'Review F 2020'),
+  newTerritoryEmbolization: null,
   noReflow: range(0.1, 0.4, undefined, 'Imaging G 2022'),
   ivtWindowH: 4.5,
+  ivtConsensusWindowH: {},
   evtWindowH: 24,
 };
 
@@ -150,37 +163,65 @@ describe('published figures', () => {
 });
 
 describe('warnings', () => {
-  it('IV thrombolysis at 6 h is outside its usual window; thrombectomy at 6 h is not', () => {
-    useApp.setState({ reperfusionH: 6 });
+  it('IV thrombolysis with flow back at 8 h is outside its usual window; thrombectomy at 8 h is not', () => {
+    useApp.setState({ reperfusionH: 8 });
     render(<TreatmentDetails evidence={EMPTY} />);
-    expect(screen.queryByText(/靜脈血栓溶解通常只在發作後 4.5 小時內使用/)).toBeNull();
+    expect(screen.queryByText(/靜脈血栓溶解須在發作後 4.5 小時內開始用藥/)).toBeNull();
 
     fireEvent.click(screen.getByRole('radio', { name: '靜脈血栓溶解' }));
-    screen.getByText('靜脈血栓溶解通常只在發作後 4.5 小時內使用；這裡是發作後 6 小時。');
+    // the window refers to drug start; the time chosen is when flow returns (C2-F5)
+    screen.getByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥.*這裡選的是血流恢復的時間：發作後 8 小時；用藥後動脈通常在接下來 1–3 小時內才逐漸打通/);
 
+    // bridging: thrombectomy sets the time, so a neutral note instead of the warning (R4-8)
     fireEvent.click(screen.getByRole('radio', { name: '兩者（橋接）' }));
-    screen.getByText(/靜脈血栓溶解通常只在發作後 4.5 小時內使用/);
+    expect(screen.queryByText(/^靜脈血栓溶解須在發作後 4.5 小時內開始用藥/)).toBeNull();
+    const note = screen.getByText(/^橋接治療的靜脈血栓溶解也須在發作後 4.5 小時內開始用藥.*取栓恢復血流的時間/);
+    expect(note.className).toBe('callout note');
+  });
+
+  it('IV thrombolysis with flow back at 6 h fits a drug started within 4.5 h: a note that says how fast the artery must have reopened (X3-6)', () => {
+    useApp.setState({ reperfusionH: 6 });
+    useApp.getState().setTreatment({ method: 'ivt' });
+    render(<TreatmentDetails evidence={EMPTY} />);
+    expect(screen.queryByText(/^靜脈血栓溶解須在發作後/)).toBeNull();
+    const note = screen.getByText(/和 4.5 小時內開始用藥相符.*發作後約 3–5 小時開始的（動脈在用藥後 1.5 小時以上才打通時，是在 4.5 小時內開始/);
+    expect(note.className).toBe('callout note');
+  });
+
+  it('IV thrombolysis with flow back at 5 h gets a neutral note, not the window warning (R4-8)', () => {
+    useApp.setState({ reperfusionH: 5 });
+    useApp.getState().setTreatment({ method: 'ivt' });
+    render(<TreatmentDetails evidence={EMPTY} />);
+    expect(screen.queryByText(/^靜脈血栓溶解須在發作後/)).toBeNull();
+    expect(screen.getByText(/和 4.5 小時內開始用藥相符/).className).toBe('callout note');
+  });
+
+  it('thrombectomy for a lenticulostriate occlusion is said not to apply (R4-5)', () => {
+    useApp.setState({ occlusions: [{ vessel: 'lenticulostriate_l', severity: 1 }], reperfusionH: 3 });
+    render(<TreatmentDetails />);
+    expect(screen.getByText(/^取栓不處理這類動脈/).className).toBe('callout warn');
+    expect(screen.queryByText(/只能個別決定/)).toBeNull();
   });
 
   it('IV thrombolysis within the window gets no time warning', () => {
     useApp.setState({ reperfusionH: 3 });
     useApp.getState().setTreatment({ method: 'ivt' });
     render(<TreatmentDetails evidence={EMPTY} />);
-    expect(screen.queryByText(/通常只在發作後/)).toBeNull();
+    expect(screen.queryByText(/須在發作後|通常只在發作後/)).toBeNull();
   });
 
   it('measures the window from the onset of the occlusion that is treated', () => {
     useApp.setState({ occlusions: [{ vessel: 'mca_m1_l', severity: 1, fromH: 24 }], reperfusionH: 27 });
     useApp.getState().setTreatment({ method: 'ivt' });
     render(<TreatmentDetails evidence={EMPTY} />);
-    expect(screen.queryByText(/通常只在發作後/)).toBeNull();
+    expect(screen.queryByText(/須在發作後|通常只在發作後/)).toBeNull();
   });
 
   it('warns about thrombolysis alone for a large-vessel occlusion when the evidence says it rarely works', () => {
     useApp.setState({ reperfusionH: 3 });
     useApp.getState().setTreatment({ method: 'ivt' });
     render(<TreatmentDetails evidence={FAKE} siteGroupOf={() => 'm1'} />);
-    screen.getByText(/中大腦動脈 M1這類大血管阻塞，只用靜脈血栓溶解打通的機會低/);
+    screen.getByText(/中大腦動脈 M1這類大血管阻塞，只用靜脈血栓溶解在數小時內早期打通的機會低/);
     cleanup();
     render(<TreatmentDetails evidence={EMPTY} siteGroupOf={() => 'm1'} />);
     expect(screen.queryByText(/大血管阻塞/)).toBeNull();
@@ -203,5 +244,66 @@ describe('treatment summary in the results', () => {
     useApp.getState().setTreatment({ grade: '2b67', reocclusionAfterH: 6 });
     rerender(<RightPanel sim={s} />);
     screen.getByText('治療：取栓 · eTICI 2b67 · 6 小時後再阻塞');
+  });
+});
+
+describe('cluster C2 of the clinical-detail audit', () => {
+  it('C2-F7: a lacunar occlusion says thrombolysis applies but the model does not simulate it', () => {
+    const lacune = SCENARIOS.find((x) => x.id === 'l_lacune')!.occlusions;
+    useApp.setState({ occlusions: lacune, reperfusionH: 3 });
+    render(<TreatmentDetails />);
+    screen.getByText(/腔隙性（單一穿通支）阻塞也用靜脈血栓溶解治療/);
+    cleanup();
+    useApp.setState({ lang: 'en' });
+    render(<TreatmentDetails />);
+    screen.getByText(/A lacunar \(single perforator\) occlusion is also treated with IV thrombolysis/);
+    // not shown when a complete occlusion is reopened
+    cleanup();
+    useApp.setState({ occlusions, reperfusionH: 3 });
+    render(<TreatmentDetails />);
+    expect(screen.queryByText(/lacunar \(single perforator\)/)).toBeNull();
+  });
+
+  it('C2-F9: new-territory emboli are offered in their own group, and IV thrombolysis says the figures are thrombectomy data', () => {
+    useApp.setState({ reperfusionH: 3 });
+    render(<TreatmentDetails />);
+    const box = details()!;
+    const group = within(box).getByRole('group', { name: '新區域（同側前大腦動脈）' });
+    within(group).getByRole('option', { name: vesselName(VESSEL_BY_ID['aca_callosomarginal_l'], 'zh-TW') });
+    fireEvent.change(within(box).getByDisplayValue('無'), { target: { value: 'aca_callosomarginal_l' } });
+    expect(useApp.getState().treatment.distalEmbolus).toBe('aca_callosomarginal_l');
+    expect(within(box).queryByText(/靜脈血栓溶解後血栓也可能碎裂/)).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: '靜脈血栓溶解' }));
+    within(box).getByText(/靜脈血栓溶解後血栓也可能碎裂/);
+  });
+});
+
+// U2-9: eTICI grades the whole downstream territory on the final angiogram, so a branch that a clot
+// fragment blocks lowers it; the grade chosen is that of the rest of the territory
+describe('a distal embolus and the eTICI grade (U2-9)', () => {
+  it('a downstream branch: the details say what the angiogram shows, and the summary does not say eTICI 3', () => {
+    useApp.setState({ reperfusionH: 2 });
+    useApp.getState().setTreatment({ distalEmbolus: 'mca_m2_inf_l' });
+    const shown = angiographicGrade(useApp.getState().treatment, ['mca_m1_l']);
+    expect(shown).not.toBe('3');
+    render(<TreatmentDetails />);
+    screen.getByText(new RegExp(`最後的血管攝影是 eTICI ${shown}`));
+    cleanup();
+    useApp.setState({ lang: 'en' });
+    render(<TreatmentDetails />);
+    screen.getByText(new RegExp(`the final angiogram reads eTICI ${shown}`));
+    cleanup();
+    const s = simulate({ occlusions, variants: [], map: 93, collateral: 'good', tH: 24, reperfusionH: 2, decompression: false, treatment: useApp.getState().treatment });
+    render(<RightPanel sim={s} />);
+    const line = screen.getByText(/^Treatment: /);
+    expect(line.textContent).toContain(`eTICI ${shown} (3 apart from the blocked branch)`);
+    expect(line.textContent).not.toMatch(/eTICI 3 ·/);
+  });
+
+  it('a new territory: no such note, the grade stays as chosen', () => {
+    useApp.setState({ reperfusionH: 2, lang: 'en' });
+    useApp.getState().setTreatment({ distalEmbolus: 'aca_a2_l' });
+    render(<TreatmentDetails />);
+    expect(screen.queryByText(/the final angiogram reads/)).toBeNull();
   });
 });

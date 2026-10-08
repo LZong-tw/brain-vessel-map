@@ -6,6 +6,8 @@
  * Bilateral structures are authored once for the RIGHT side and mirrored.
  */
 
+import type { Redundancy } from './redundancy';
+
 export type Vec3 = [number, number, number];
 
 /** Localised string. zh = Traditional Chinese (zh-TW), en = English. */
@@ -108,6 +110,11 @@ export interface VesselDef {
   notOccludable?: boolean;
   /** an occluding clot here also covers the distal bifurcation (e.g. carotid-T, basilar tip) */
   occludesDistalJunction?: boolean;
+  /**
+   * absent from the default anatomy: the vessel exists only when a chosen variant gives it a
+   * scale above 0 (e.g. a persistent trigeminal artery); see variantOverrides in hemodynamics.ts
+   */
+  variantOnly?: boolean;
 }
 
 /** Fully expanded vessel (after bilateral expansion). */
@@ -168,6 +175,32 @@ export interface DeficitRef {
   bilateralOnly?: boolean;
   /** a lacune in this structure usually spares this function (e.g. sensation in a capsular pure motor lacune) */
   spareInLacune?: boolean;
+  /**
+   * needs at least this much of the region affected (default: the symptom threshold, 0.25): for
+   * a function that only a large lesion reaches, e.g. a tract running deep to part of the region,
+   * or drowsiness after an extensive one-sided upper pontine tegmental infarct
+   */
+  minLevel?: number;
+  /**
+   * a tract running deep to the region, which only a large lesion reaches (`minLevel`): once the
+   * lesion reached that level at onset and has left an infarct (at least the symptom threshold),
+   * the tract stays cut, even when the surviving cortex above it has got its function back
+   */
+  deepTract?: boolean;
+  /**
+   * in a region of compact tracts and nuclei (the brainstem), this deficit keeps the symptom
+   * threshold instead of being graded below it (Z2-8): it comes from one part of the region that a
+   * share of the region does not stand for (the pretectum of the tectum, for an upgaze palsy)
+   */
+  wholeRegion?: boolean;
+  /** the compensation of this source settles within ~1–2 weeks (overrides the symptom's own pace) */
+  fast?: boolean;
+  /**
+   * how the deficit from this source is taken over, in place of the symptom's own redundancy
+   * (anatomy/redundancy.ts): for a source whose deficit has a course of its own, such as the clumsy
+   * hand of a dysarthria–clumsy hand lacune (R2-1)
+   */
+  redundancy?: Redundancy;
 }
 
 export interface StructureInfo {
@@ -195,6 +228,12 @@ export interface RegionDef {
   /** explicit baseline flow (mL/min) for non-brain beds */
   flow?: number;
   deficits: DeficitRef[];
+  /**
+   * what the region does when its dysfunction lies mainly in its ACA–MCA border-zone beds (the
+   * part of the motor strip next to the vertex): these replace `deficits` then (see
+   * clinical.aggregateSymptoms)
+   */
+  borderDeficits?: DeficitRef[];
   structures?: StructureInfo[];
   /** supratentorial / infratentorial compartment (mass effect) */
   compartment: 'supra' | 'infra' | 'none';
@@ -257,7 +296,13 @@ export type SymptomSystem =
   | 'balance'
   | 'language'
   | 'cognition'
+  /** emotional expression and mood that a lesion site produces (pathological crying/laughing …) */
+  | 'mood'
+  /** sleep and breathing during sleep */
+  | 'sleep'
   | 'autonomic'
+  /** temperature regulation and sweating (the hypothalamus itself is not modelled) */
+  | 'thermo'
   | 'limb';
 
 export type NihssItem =
@@ -286,6 +331,33 @@ export interface SymptomDef {
   /** body-part wording for the side prefix: 'body' → 左側/右側, 'eye' → 左眼/右眼, 'field' → 左側視野 */
   sideWord?: 'body' | 'eye' | 'field' | 'gaze';
   nihss?: { item: NihssItem; pts: [number, number, number] };
-  /** appears only in the chronic phase */
+  /** a late consequence of dead tissue (not in the acute NIHSS), from `onsetH` or 2 weeks */
   delayed?: boolean;
+  /**
+   * a late consequence that only some patients develop, even after a lesion at its site: listed as
+   * a possibility (its name says so), and not counted among the lasting deficits (Y3-9)
+   */
+  possible?: boolean;
+  /**
+   * appears only where tissue has died (from the start, not only in the chronic phase): for a
+   * deficit described after infarcts but not during passing ischaemia
+   */
+  fromInfarct?: boolean;
+  /**
+   * a finding that describes these deficits (symptom ids) rather than a deficit of its own: macular
+   * sparing, the central vision a hemianopia keeps (V2-9). Losing it is no improvement, and it is
+   * not counted among the deficits; the Outcome names it with the deficit it describes.
+   */
+  qualifies?: string[];
+  /**
+   * appears only this many hours after onset (a latent period), not from the start; for a
+   * `delayed` symptom it replaces the default start at 2 weeks (symptoms.DELAYED_ONSET_H), so each
+   * late consequence starts when its own evidence says (C10-F2)
+   */
+  onsetH?: number;
+  /**
+   * worst between these hours after onset [from, to): one severity step more than the lesion
+   * alone gives, before compensation (e.g. central sleep apnoea, which peaks around day 7)
+   */
+  peakH?: [number, number];
 }

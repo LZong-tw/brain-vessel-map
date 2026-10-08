@@ -42,3 +42,18 @@ describe('vessel search with no match', () => {
     expect(screen.queryByText(/找不到符合/)).toBeNull();
   });
 });
+
+describe('vessels this anatomy does not have (C8-F7)', () => {
+  it('lists the persistent trigeminal artery only when its variant is chosen, and drops an absent AComm', () => {
+    useApp.setState({ leftTab: 'vessels', lang: 'en', variants: [] });
+    const { unmount } = render(<LeftPanel sim={sim} />);
+    expect(screen.queryByText(/persistent trigeminal artery/i)).toBeNull();
+    screen.getByText('Anterior communicating artery');
+    unmount();
+    useApp.setState({ variants: ['persistent_trigeminal_r', 'acomm_absent'] });
+    render(<LeftPanel sim={sim} />);
+    screen.getByText(/persistent trigeminal artery/i);
+    expect(screen.queryByText('Anterior communicating artery')).toBeNull();
+    useApp.setState({ variants: [] });
+  });
+});

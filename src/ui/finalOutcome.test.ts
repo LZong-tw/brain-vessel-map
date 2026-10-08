@@ -4,13 +4,18 @@
  * flag for a late event.
  */
 import { describe, expect, it } from 'vitest';
+import { REGION_BY_ID } from '../anatomy';
+import { LACUNE_ML } from '../anatomy/lacunes';
 import { SCENARIO_BY_ID } from '../anatomy/scenarios';
+import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS } from '../anatomy/timeline';
 import type { SymptomItem } from '../engine/clinical';
 import type { Occlusion } from '../engine/hemodynamics';
-import { simulate } from '../engine/simulate';
+import { simulate, type SimResult } from '../engine/simulate';
+import { fmtMl, pctShare } from './format';
 import {
   FINAL_REGION_MIN,
+  FINAL_REGION_SHARE_OF_INFARCT,
   H_3M,
   H_6M,
   I_3M,
@@ -19,6 +24,7 @@ import {
   PARTIAL_FROM,
   deficitGroup,
   finalOutcome,
+  finalRegions,
   groupDeficits,
   type OutcomeInput,
 } from './finalOutcome';
@@ -84,10 +90,29 @@ describe('treated vs untreated', () => {
     expect(out.untreated!.m6.input.reperfusionH).toBeNull();
     expect(out.course.m3.input.tH).toBe(2160);
     expect(out.course.m6.input.tH).toBe(4320);
-    // lasting deficits = symptoms still present at 6 months
-    expect(out.course.lasting).toBe(at(4320, 2).symptoms.length);
-    expect(out.untreated!.lasting).toBe(at(4320, null).symptoms.length);
+    // lasting deficits = symptoms still present at 6 months, listed or there but not examinable
+    // at the patient's level of consciousness (X1-2), but not a late sign listed only as possible
+    // (Y3-9: pathological crying, central pain …)
+    const deficits = (r: ReturnType<typeof at>) => [...r.symptoms, ...r.unexaminable].filter((x) => !SYMPTOM_BY_ID[x.id].possible).length;
+    expect(at(4320, 2).symptoms.some((x) => SYMPTOM_BY_ID[x.id].possible)).toBe(true);
+    expect(out.course.lasting).toBe(deficits(at(4320, 2)));
+    expect(out.untreated!.lasting).toBe(deficits(at(4320, null)));
     expect(out.untreated!.finalInfarct).toBeCloseTo(at(4320, null).volumes.finalInfarct, 6);
+  });
+
+  // X1-2: a deficit that cannot be examined in a disorder of consciousness has not gone; leaving
+  // it out of the count made the untreated top-of-the-basilar occlusion look as if it left fewer
+  // deficits than the treated one (22 listed against 25, beside 14 not examinable)
+  it('counts the deficits a disorder of consciousness hides as lasting, so treatment is not made to look worse', () => {
+    const tip = finalOutcome({ ...scenarioInput('basilar_tip'), collateral: 'moderate', reperfusionH: 4 });
+    const u = tip.untreated!;
+    expect(u.m6.symptoms.map((x) => x.id)).toContain('disorder_of_consciousness');
+    expect(u.m6.unexaminable.length).toBeGreaterThan(0);
+    // (the treated patient is awake: only the dysmetria of the paralysed limbs cannot be examined, V2-10)
+    expect(tip.course.m6.unexaminable.filter((x) => x.why !== 'paralysed')).toEqual([]);
+    // (a finding that only describes a deficit, macular sparing, is not one: V2-9)
+    expect(u.lasting).toBe([...u.m6.symptoms, ...u.m6.unexaminable].filter((x) => !SYMPTOM_BY_ID[x.id].possible && !SYMPTOM_BY_ID[x.id].qualifies).length);
+    expect(u.lasting).toBeGreaterThan(tip.course.lasting);
   });
 
   it('reuses 3- and 6-month simulations handed to it', () => {
@@ -160,6 +185,18 @@ describe('lasting-deficit groups', () => {
   });
 });
 
+describe('macular sparing describes the hemianopia, it is not a lasting deficit (V2-9)', () => {
+  it('the fetal PCA template: neither in the deficit groups nor in the count of lasting deficits', () => {
+    const fo = finalOutcome(scenarioInput('fetal_pca'));
+    const m6 = fo.course.m6;
+    expect(m6.symptoms.map((s) => s.id)).toContain('macular_sparing');
+    const grouped = [...fo.deficits.m6.marked, ...fo.deficits.m6.partial, ...fo.deficits.m6.largely].map((s) => s.id);
+    expect(grouped).toContain('hemianopia');
+    expect(grouped).not.toContain('macular_sparing');
+    expect(fo.course.lasting).toBe([...m6.symptoms, ...m6.unexaminable].filter((s) => !SYMPTOM_BY_ID[s.id]?.possible && s.id !== 'macular_sparing').length);
+  });
+});
+
 describe('late course', () => {
   const m1 = finalOutcome(scenarioInput('l_m1'));
   const ids = (list: { id: string }[]) => list.map((e) => e.id);
@@ -193,9 +230,10 @@ describe('late course', () => {
     // … nothing is left at 6 months, and it is not part of the late course
     expect(early.course.m6.symptoms).toEqual([]);
     expect(ids(early.late)).not.toContain('locked_in');
-    // untreated, the locked-in state itself is what remains at 6 months
+    // untreated, the locked-in state itself is what remains at 6 months (incomplete by then: some
+    // limb movement has returned, C3-F1)
     const untreated = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }]));
-    expect(untreated.course.m6.syndromes.map((s) => s.def.id)).toContain('locked_in');
+    expect(untreated.course.m6.syndromes.map((s) => s.def.id)).toContain('locked_in_incomplete');
   });
 
   it('leaves out treatment events such as the reperfusion itself', () => {
@@ -217,16 +255,74 @@ describe('late course', () => {
 });
 
 describe('a late event is not settled at 6 months', () => {
-  it('flags an occlusion that starts at 1 month', () => {
-    const late = finalOutcome(plain([{ vessel: 'mca_m1_l', severity: 1, fromH: 720 }]));
-    expect(late.finalH).toBe(720 + 4320);
-    expect(late.unsettled).toBe(true);
-  });
-
   it('does not flag one that starts at onset', () => {
     const early = finalOutcome(plain([{ vessel: 'mca_m1_l', severity: 1 }]));
     expect(early.finalH).toBe(4320);
+    expect(early.lateBy).toBe(0);
     expect(early.unsettled).toBe(false);
+  });
+});
+
+/**
+ * V3-13: the final infarct is evaluated 6 months after the last change of the vessels, so a course
+ * whose last change comes after the start of the timeline is evaluated that long after the
+ * timeline's 6-month stop. It is called unsettled only when what the Outcome shows of it still
+ * changes in between: the infarct (its volume and the regions listed) or the deficits (the NIHSS,
+ * the labels, each deficit listed with its severity and its group, and those that cannot be
+ * examined). The stuttering basilar template was called unsettled at "6 months" with a 2.8 mL
+ * infarct fixed since its first week and nothing else changing in the 3 days.
+ */
+describe('V3-13: called unsettled only when the infarct or the deficits still change after the 6-month stop', () => {
+  /** what the Outcome shows of the infarct and of the deficits at one time */
+  const shown = (r: SimResult) => ({
+    infarct: [fmtMl(r.volumes.core), ...finalRegions(r).map((x) => `${x.id}:${fmtMl(x.ml)}:${pctShare(x.infarct)}`)],
+    deficits: [
+      `NIHSS ${r.nihss.total}`,
+      ...r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
+      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
+      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${x.why}`),
+    ].sort(),
+  });
+  const LATE: [string, OutcomeInput][] = [
+    ['the stuttering basilar template', scenarioInput('basilar_stuttering')],
+    ['right M1, left P2 at 2 days', plain([{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'pca_p2_l', severity: 1, fromH: 48 }])],
+    ['left M1 reopening by itself at 3 days', plain([{ vessel: 'mca_m1_l', severity: 1, toH: 72 }])],
+    ['left M1 at 1 month', plain([{ vessel: 'mca_m1_l', severity: 1, fromH: 720 }])],
+    ['left M1, right P2 at 125 days', plain([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 3000 }])],
+    ['left inferior division a day before the 6-month stop', plain([{ vessel: 'mca_m2_inf_l', severity: 1, fromH: 4296 }])],
+    ['a left M1 TIA at 4000 h', plain([{ vessel: 'mca_m1_l', severity: 1, fromH: 4000, toH: 4000.25 }])],
+  ];
+
+  it.each(LATE)('%s: unsettled exactly when the infarct or the deficits shown differ at the final evaluation', (_, input) => {
+    const out = finalOutcome(input);
+    expect(out.lateBy).toBeCloseTo(out.finalH - H_6M, 6);
+    const now = shown(out.course.m6);
+    const end = shown(simulate({ ...input, tH: out.finalH }));
+    const infarct = now.infarct.join('|') !== end.infarct.join('|');
+    const deficits = now.deficits.join('|') !== end.deficits.join('|');
+    expect(out.changesAfter).toEqual({ infarct, deficits });
+    expect(out.unsettled).toBe(infarct || deficits);
+  });
+
+  it('the stuttering basilar template is settled 3 days before its final evaluation', () => {
+    const out = finalOutcome(scenarioInput('basilar_stuttering'));
+    expect(out.lateBy).toBe(72);
+    expect(out.course.finalInfarct).toBeGreaterThan(1);
+    expect(out.unsettled).toBe(false);
+    expect(out.changesAfter).toEqual({ infarct: false, deficits: false });
+  });
+
+  it('a second occlusion at 125 days still changes the deficits after the 6-month stop', () => {
+    const out = finalOutcome(plain([{ vessel: 'mca_m1_l', severity: 1 }, { vessel: 'pca_p2_r', severity: 1, fromH: 3000 }]));
+    expect(out.unsettled).toBe(true);
+    expect(out.changesAfter).toEqual({ infarct: false, deficits: true });
+  });
+
+  it('an occlusion a day before the 6-month stop is still growing there', () => {
+    const out = finalOutcome(plain([{ vessel: 'mca_m2_inf_l', severity: 1, fromH: 4296 }]));
+    expect(out.unsettled).toBe(true);
+    expect(out.changesAfter.infarct).toBe(true);
+    expect(out.course.m6.volumes.core).toBeLessThan(out.course.finalInfarct - 1);
   });
 });
 
@@ -235,11 +331,86 @@ describe('final regions', () => {
     const out = finalOutcome(scenarioInput('l_m1'));
     expect(out.regions.length).toBeGreaterThan(3);
     for (const r of out.regions) {
-      expect(r.infarct).toBeGreaterThanOrEqual(FINAL_REGION_MIN);
+      expect(r.infarct >= FINAL_REGION_MIN || r.ml >= FINAL_REGION_SHARE_OF_INFARCT * out.course.finalInfarct).toBe(true);
       expect(r.infarct).toBeCloseTo(out.course.m6.regions[r.id].infarct, 9);
     }
     const shares = out.regions.map((r) => r.infarct);
     expect(shares).toEqual([...shares].sort((a, b) => b - a));
     expect(out.regions.map((r) => r.id)).toContain('insula_l');
   });
+
+  // W3-5: a lacune is listed at its own volume and share of its structure, not at the share of the
+  // structure's function it costs (80 %), so the list agrees with the final infarct above it
+  const LACUNES: [string, OutcomeInput][] = [
+    ['l_lacune', scenarioInput('l_lacune')],
+    ['l_cr_lacune', scenarioInput('l_cr_lacune')],
+    ['r_pontine_lacune', scenarioInput('r_pontine_lacune')],
+    ['acha_l ataxic', plain([{ vessel: 'acha_l', severity: 1, branch: true, lacuneSite: 'ataxic' }])],
+    ['heubner_l caudate', plain([{ vessel: 'heubner_l', severity: 1, branch: true }])],
+    ['thalamogeniculate_l', plain([{ vessel: 'thalamogeniculate_l', severity: 1, branch: true }])],
+  ];
+  it.each(LACUNES)('%s: the lacune is listed at its own volume and share, which add up to the final infarct (W3-5)', (_, input) => {
+    const out = finalOutcome(input);
+    expect(out.regions.length).toBe(1);
+    const [r] = out.regions;
+    expect(r.ml).toBeLessThanOrEqual(LACUNE_ML + 1e-9);
+    expect(r.ml).toBeCloseTo(out.course.finalInfarct, 2);
+    expect(r.infarct).toBeCloseTo(r.ml / REGION_BY_ID[r.id].volume, 9);
+    // a lacune never takes most of these structures (the corona radiata, the caudate head, the thalamus)
+    expect(r.infarct).toBeLessThan(0.5);
+  });
+
+  it('lists the small pontine infarct of a basilar occlusion reopened at 1 h, and nothing when it leaves none (W3-5)', () => {
+    const at1h = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }], 1));
+    expect(at1h.course.finalInfarct).toBeGreaterThanOrEqual(0.05);
+    expect(at1h.regions.map((r) => r.id)).toEqual(expect.arrayContaining(['pons_caudal_basis_r', 'pons_caudal_basis_l']));
+    // reopened at 30 min: less than 0.05 mL, no infarct (a TIA), so no region is listed
+    const at30 = finalOutcome(plain([{ vessel: 'basilar_mid', severity: 1 }], 0.5));
+    expect(at30.course.finalInfarct).toBeLessThan(0.05);
+    expect(at30.regions).toEqual([]);
+  });
+
+  it('shows a share that rounds to 0 % as under 1 % (W3-5)', () => {
+    expect(pctShare(0.003)).toBe('<1%');
+    expect(pctShare(0)).toBe('0%');
+    expect(pctShare(0.064)).toBe('6%');
+  });
+
+  it('lists the region that holds a small final infarct below 5 % of its volume (W3-5)', () => {
+    // a capsular branch closed for 3 h (part of its lacune dies) and the precentral branch with good
+    // collaterals: a final infarct of about 0.1 and 0.5 mL, and a region list that shows where it is
+    for (const [input, id] of [
+      [plain([{ vessel: 'lenticulostriate_l', severity: 1, branch: true, toH: 3 }]), 'ic_posterior_limb_l'],
+      [plain([{ vessel: 'mca_precentral_r', severity: 1 }]), 'precentral_face_arm_r'],
+    ] as const) {
+      const out = finalOutcome(input);
+      expect(out.course.finalInfarct).toBeGreaterThanOrEqual(0.05);
+      expect(out.regions.map((r) => r.id)).toContain(id);
+      expect(out.regions.reduce((a, r) => a + r.ml, 0)).toBeLessThanOrEqual(out.course.finalInfarct + 0.01);
+    }
+  });
 });
+
+describe('a course that usually ends in death (C4-F1)', () => {
+  it('flags herniation without decompression, and not the decompressed course', () => {
+    const untreated = finalOutcome(scenarioInput('r_m1_malignant'));
+    expect(untreated.fatal).toEqual(['herniation']);
+    expect(untreated.course.fatal).toEqual(['herniation']);
+    expect(finalOutcome(scenarioInput('r_m1_decompression')).fatal).toEqual([]);
+    expect(finalOutcome(scenarioInput('l_m1')).fatal).toEqual([]);
+  });
+
+  it('flags a swollen cerebellum in coma without decompression', () => {
+    expect(finalOutcome(scenarioInput('cerebellar_swelling')).fatal).toEqual(['posterior_fossa']);
+    expect(finalOutcome({ ...scenarioInput('cerebellar_swelling'), decompression: true }).fatal).toEqual([]);
+    expect(finalOutcome(scenarioInput('r_pica')).fatal).toEqual([]);
+  });
+
+  it('compares it with the untreated course when a treatment is set', () => {
+    // left M1 with moderate collaterals: herniates untreated, not when reopened at 1 h
+    const o = finalOutcome({ ...plain([{ vessel: 'mca_m1_l', severity: 1 }], 1), collateral: 'moderate' });
+    expect(o.untreated!.fatal).toEqual(['herniation']);
+    expect(o.course.fatal).toEqual([]);
+  });
+});
+
