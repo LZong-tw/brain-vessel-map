@@ -10,6 +10,7 @@ import { VESSEL_COLORS } from '../ui/colors';
 import { vesselVisual } from '../ui/vesselState';
 import { SCALE, vesselCurve } from './coords';
 import { RENDER_ORDER } from './renderOrder';
+import { visibleWithNeck } from './neckVisibility';
 
 interface Built {
   v: Vessel;
@@ -67,7 +68,7 @@ export function Vessels({ sim, clipPlanes }: { sim: SimResult; clipPlanes: Plane
         const { v } = b;
         if (absent.has(v.id)) return null;
         const vis = vesselVisual(v.id, sim);
-        if (v.group === 'extracranial' && !layers.neck) return null;
+        if (!visibleWithNeck(v, layers.neck)) return null;
         if (v.kind === 'collateral' && !layers.collaterals && vis.state !== 'collateral_active') return null;
         // cortical branches lying on a hidden hemisphere would float in the air
         if (v.pathMode === 'surface' && CEREBRAL.has(v.family) && !/pica|aica|sca/.test(v.baseId) && v.side !== 'm' && !hemis[v.side]) return null;

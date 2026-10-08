@@ -1,0 +1,2 @@
+- When a rendering report is clarified as mobile only, inspect viewport framing, device-specific rendering, and saved display state before attributing it to anatomy coordinates. Distinguish a confirmed code defect from an unverified device-specific trigger.
+- Use supplied screenshots and their structure tooltips to identify detached geometry before accepting or rejecting a visibility hypothesis; a reported default view may restore per-browser layer settings from localStorage.
