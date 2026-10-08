@@ -1517,17 +1517,24 @@ describe('syndromes and events agree with the symptoms', () => {
     it.each(quoting())('%s: how far two hemispheres swelling together push the midline across, as a text tells it, is what the Now tab shows (T1-1)', (name, input) => {
       const r = inputs.has(name) ? endOfCase(name, input) : series(name)[STOPS.length - 1];
       const starts = input.occlusions.map(startOf);
-      // (the largest shift shown at all, and once both lesions have begun, which the text is about:
-      // before the later occlusion begins the Now tab shows the case as it stood then)
+      // (the largest shift shown at all, and while both sides are swelling, which the text is about:
+      // the later lesion's onset can precede the second side's swelling, and before the later
+      // occlusion begins the Now tab shows the case as it stood then)
+      const later = Math.max(...starts);
       let shown = 0;
       let both = 0;
-      for (let tH = Math.min(...starts) + 12; tH <= Math.max(...starts) + 400; tH += 3) {
-        const x = simulate({ ...input, tH }).edema.midlineShiftMm;
-        shown = Math.max(shown, x);
-        if (tH >= Math.max(...starts)) both = Math.max(both, x);
+      let sawBoth = false;
+      for (let tH = Math.min(...starts) + 12; tH <= later + 400; tH += 3) {
+        const edema = simulate({ ...input, tH }).edema;
+        shown = Math.max(shown, edema.midlineShiftMm);
+        const swelling = tH >= later && edema.ownShiftMm.r > 0.05 && edema.ownShiftMm.l > 0.05;
+        if (swelling) {
+          sawBoth = true;
+          both = Math.max(both, edema.midlineShiftMm);
+        } else if (sawBoth) break;
       }
       for (const e of r.cascade.events.filter((x) => BILATERAL_NOTE.test(x.desc.en))) {
-        const where = `${name}: ${e.id}, the Now tab shows up to ${shown.toFixed(2)} mm (${both.toFixed(2)} mm once both have begun)`;
+        const where = `${name}: ${e.id}, the Now tab shows up to ${shown.toFixed(2)} mm (${both.toFixed(2)} mm while both swell)`;
         if (/so the midline moves little/.test(e.desc.en)) {
           expect(e.desc.zh, where).toContain('中線移動不多');
           expect(both, where).toBeLessThan(4.2);
