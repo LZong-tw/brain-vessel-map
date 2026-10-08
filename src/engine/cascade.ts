@@ -577,8 +577,9 @@ export const HIGH_MAP = 120;
 /**
  * Level of consciousness from the horizontal midline shift (mm) of an acute hemispheric mass:
  * pineal shift 0–3 mm alert, 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma (Ropper AH. N Engl J
- * Med 1986;314:953–958; 24 patients, mostly haematomas, so the bands are approximate). The model
- * starts drowsiness at the upper end of Ropper's band (4 mm) and counts 4–6 mm as drowsy.
+ * Med 1986;314:953–958; 24 patients, mostly haematomas, so the bands are approximate).
+ * Source: https://pubmed.ncbi.nlm.nih.gov/3960059/. These are illustrative, not herniation criteria.
+ * The model starts drowsiness at the upper end of Ropper's band (4 mm) and counts 4–6 mm as drowsy.
  */
 export const DROWSY_SHIFT_MM = 4;
 export const STUPOR_SHIFT_MM = 6;
@@ -616,6 +617,7 @@ const OEDEMA_END_H = 336;
 /** the share of each hemisphere infarcted from which both count as destroyed (Z3-12; a model choice) */
 const HEMISPHERES_DESTROYED = 2 / 3;
 const MASS_EFFECT_ML = 70;
+// Early DWI predictor, not a surgical cutoff: https://pubmed.ncbi.nlm.nih.gov/10978048/.
 const MALIGNANT_EARLY_ML = 145;
 const MALIGNANT_FINAL_ML = 250;
 /** the share of a bed that the MCA supplies (its cortical branches and the lenticulostriate arteries) */
@@ -637,6 +639,7 @@ export function consciousnessFromShift(mm: number): { id: 'somnolence' | 'coma';
  */
 export const CEREBELLAR_SPACE_ML = 20;
 /** … and from which malignant swelling is more likely than not (Baki 2025: 38 cm³, > 50%) */
+// Retrospective risk predictor, not certainty: https://doi.org/10.1136/svn-2024-003360.
 export const CEREBELLAR_MALIGNANT_ML = 38;
 /** when a malignant cerebellar swelling brings hydrocephalus and brainstem compression (h): the
  * start of day 3, the day deterioration is most frequent (Jauss 1999: days 2–4, most on day 3) */
@@ -718,10 +721,10 @@ const METHOD_NAME: Record<TreatmentMethod, L> = {
   bridging: { zh: '靜脈血栓溶解＋動脈取栓', en: 'IV thrombolysis + thrombectomy' },
 };
 
-/** what each expanded-TICI grade means (the ranges of treatment.GRADE_REPERFUSED) */
+/** eTICI ranges: Liebeskind 2019, https://doi.org/10.1136/neurintsurg-2018-014127. */
 const GRADE_MEANING: Record<ReperfusionGrade, L> = {
   '0': { zh: '沒有再灌流', en: 'no reperfusion' },
-  '1': { zh: '血流通過血栓，但遠端幾乎沒有灌流', en: 'flow past the clot, but hardly any distal filling' },
+  '1': { zh: '血栓減少，但沒有遠端再灌流', en: 'thrombus reduction, but no distal reperfusion' },
   '2a': { zh: '下游區域有 1–49 % 恢復灌流', en: '1–49 % of the downstream territory reperfused' },
   '2b50': { zh: '下游區域有 50–66 % 恢復灌流', en: '50–66 % of the downstream territory reperfused' },
   '2b67': { zh: '下游區域有 67–89 % 恢復灌流', en: '67–89 % of the downstream territory reperfused' },
@@ -1217,6 +1220,7 @@ const EAR_WORKUP: L = {
 
 function pushEarEvents(events: CascadeEvent[]): void {
   events.push({
+    // Long-term hearing outcome: https://pubmed.ncbi.nlm.nih.gov/15607217/.
     id: 'labyrinthine_infarction',
     kind: 'mechanism',
     severity: 'warn',
@@ -1224,8 +1228,8 @@ function pushEarEvents(events: CascadeEvent[]): void {
     endH: 6,
     title: { zh: '內耳梗塞（數分鐘內失去聽覺與平衡）', en: 'Inner-ear infarction (hearing and balance lost within minutes)' },
     desc: {
-      zh: '迷路動脈是供應耳蝸與前庭的終末動脈，通常由小腦前下動脈（AICA）分出。阻塞時，這一側的聽覺與平衡器官一起失去功能——血管性的原因通常兩者都受影響，和病毒性的不同（82 例 AICA 梗塞中 60% 聽覺與前庭功能一起喪失）。內耳不是腦組織：壞死的是器官本身，所以耳聾可能留下來。完全聽不見（極重度）時約 40% 會在幾個月內改善，模型顯示較常見、不再改善的病程（見「突發性聽力喪失」）。這裡沒有腦組織缺血。',
-      en: 'The labyrinthine artery is an end artery to the cochlea and the vestibule, usually a branch of the AICA. When it closes, hearing and the balance organ on that side fail together — a vascular cause usually takes both, unlike a viral one (combined loss in 60 % of 82 AICA infarcts). The inner ear is not brain tissue: what dies is the organ itself, so the deafness can last. A profound loss improves over months in about 40 %, and the model shows the commoner course, in which it does not (see sudden hearing loss). No brain tissue is ischaemic here.',
+      zh: '迷路動脈是供應耳蝸與前庭的終末動脈，通常由小腦前下動脈（AICA）分出。阻塞時，這一側的聽覺與平衡器官一起失去功能——血管性的原因通常兩者都受影響，和病毒性的不同（82 例 AICA 梗塞中 60% 聽覺與前庭功能一起喪失）。內耳不是腦組織：壞死的是器官本身，所以耳聾可能留下來。完全聽不見（極重度）時約 40% 在長期追蹤中改善，模型顯示較常見、不再改善的病程（見「突發性聽力喪失」）。這裡沒有腦組織缺血。',
+      en: 'The labyrinthine artery is an end artery to the cochlea and the vestibule, usually a branch of the AICA. When it closes, hearing and the balance organ on that side fail together — a vascular cause usually takes both, unlike a viral one (combined loss in 60 % of 82 AICA infarcts). The inner ear is not brain tissue: what dies is the organ itself, so the deafness can last. A profound loss improves during long-term follow-up in about 40 %, and the model shows the commoner course, in which it does not (see sudden hearing loss). No brain tissue is ischaemic here.',
     },
     regions: [],
   });
@@ -1247,8 +1251,9 @@ function pushEarEvents(events: CascadeEvent[]): void {
     endH: 336,
     title: { zh: '檢查：聽力與前庭功能，腦部 DWI 看不到內耳', en: 'Examination: hearing and balance tests; brain DWI does not show the inner ear' },
     desc: {
-      zh: '腦部擴散加權 MRI 看不到內耳本身；它用來找腦幹與小腦的梗塞，而早期掃描可能漏掉小病灶（發病 48 小時內約 12% 為假陰性）。聽力的喪失用純音聽力檢查記錄，前庭功能用溫差測試等檢查——血管性的突發耳聾，同側前庭功能也常變弱（62 人中 56 人）。',
-      en: 'Brain diffusion MRI does not show the inner ear itself; it is used to look for infarcts in the brainstem and cerebellum, and an early scan can miss small ones (about 12 % false negatives within 48 h). The hearing loss is documented with a pure-tone audiogram and the vestibule with caloric and similar tests — with sudden deafness of vascular cause the vestibule on the same side is usually weak too (56 of 62).',
+      // High-risk AVS cohort: https://pubmed.ncbi.nlm.nih.gov/19762709/.
+      zh: '腦部擴散加權 MRI 看不到內耳本身；它用來找腦幹與小腦的梗塞，而早期掃描可能漏掉小病灶（一項高風險急性前庭症候群研究中，發病 48 小時內約 12% 為假陰性）。聽力的喪失用純音聽力檢查記錄，前庭功能用溫差測試等檢查——血管性的突發耳聾，同側前庭功能也常變弱（62 人中 56 人）。',
+      en: 'Brain diffusion MRI does not show the inner ear itself; it is used to look for infarcts in the brainstem and cerebellum, and an early scan can miss small ones (about 12 % false negatives within 48 h in a high-risk acute vestibular syndrome study). The hearing loss is documented with a pure-tone audiogram and the vestibule with caloric and similar tests — with sudden deafness of vascular cause the vestibule on the same side is usually weak too (56 of 62).',
     },
     regions: [],
   });
@@ -1286,6 +1291,7 @@ function pushCordEvents(events: CascadeEvent[], regions: string[], o: { infarct:
     regions,
   });
   events.push({
+    // Imaging subset denominators: https://pubmed.ncbi.nlm.nih.gov/30264146/.
     id: 'imaging_spine',
     kind: 'imaging',
     severity: 'info',
@@ -1293,8 +1299,8 @@ function pushCordEvents(events: CascadeEvent[], regions: string[], o: { infarct:
     endH: 336,
     title: { zh: '檢查：頸髓 MRI，腦部影像看不到', en: 'Examination: MRI of the cervical cord; brain imaging does not show it' },
     desc: {
-      zh: '腦部影像看不到脊髓梗塞，需要做脊椎 MRI，也藉此排除治療方式不同的脊髓壓迫。T2 影像上，梗塞是沿著脊髓前方的一條亮帶（「鉛筆狀」，133 例自發性脊髓梗塞中 40%），或橫切面上兩個發亮的前角（「貓頭鷹眼」，65%）；有做擴散加權影像的 29 人中 19 人看得到擴散受限；第一次 MRI 有 24% 正常，需要重做；20% 找到旁邊動脈的剝離或阻塞（Zalewski 2019）。',
-      en: "Brain imaging does not show a spinal cord infarct: MRI of the spine is needed, also to rule out a compression of the cord, which is treated differently. On T2 the infarct is a bright strip down the front of the cord ('pencil-like', 40 % of 133 spontaneous spinal cord infarcts) or two bright anterior horns on axial images ('owl eyes', 65 %); diffusion imaging showed it in 19 of the 29 who had it, the first MRI was normal in 24 % and is repeated, and a dissection or occlusion of an artery beside it was found in 20 % (Zalewski 2019).",
+      zh: '腦部影像看不到脊髓梗塞，需要做脊椎 MRI，也藉此排除治療方式不同的脊髓壓迫。T2 影像上，梗塞是沿著脊髓前方的一條亮帶（「鉛筆狀」，133 例自發性脊髓梗塞研究中，影像受檢者的 40%），或橫切面上兩個發亮的前角（「貓頭鷹眼」，65%）；有做擴散加權影像的 29 人中 19 人看得到擴散受限；第一次 MRI 有 24% 正常，需要重做；82 位接受相關檢查者中 16 位（20%）找到旁邊動脈的剝離或阻塞（Zalewski 2019）。',
+      en: "Brain imaging does not show a spinal cord infarct: MRI of the spine is needed, also to rule out a compression of the cord, which is treated differently. On T2 the infarct is a bright strip down the front of the cord ('pencil-like', 40 % of those imaged in a series of 133 spontaneous spinal cord infarcts) or two bright anterior horns on axial images ('owl eyes', 65 %); diffusion imaging showed it in 19 of the 29 who had it, the first MRI was normal in 24 % and is repeated, and a dissection or occlusion of an artery beside it was found in 16 of 82 examined (20 %) (Zalewski 2019).",
     },
     regions: [],
   });
@@ -1581,15 +1587,17 @@ function treatmentWindowDesc(w: WindowStory): L {
       'This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue. Without access to thrombectomy, tenecteplase 4.5–24 h after onset improved outcome in TRACE-III (Chinese patients with ICA/MCA occlusion and salvageable tissue on perfusion imaging).',
     );
     // SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE (sources.ts): selected by ASPECTS
-    // 3–5, a core ≥ 50 mL (SELECT2) or 70–100 mL (ANGEL-ASPECT), or ASPECTS ≤ 5 of any size (LASTE)
+    // SELECT2: ASPECTS 3–5 or core ≥50 mL, no upper volume limit; 100 mL only triggers a caution.
+    // Sarraj 2023, https://doi.org/10.1056/NEJMoa2214403. ANGEL-ASPECT's 70–100 mL
+    // criterion applies to selected ASPECTS strata, not all patients with ASPECTS 3–5.
     if (core !== null && core >= LARGE_CORE_ML) {
       zh.push(
         `大核心（決定治療時約 ${core} mL）：五項前循環大血管阻塞大核心隨機試驗（SELECT2、ANGEL-ASPECT、RESCUE-Japan LIMIT、TENSION、LASTE）中取栓仍改善功能，TENSION 與 LASTE 也降低死亡率（SELECT2 沒有）；任何顱內出血與血管併發症較多，症狀性出血在部分試驗較高（ANGEL-ASPECT 6.1% vs 2.7%、LASTE 9.6% vs 5.7%），其他試驗則沒有（SELECT2、TENSION）。` +
-          (core > BEYOND_TRIALS_ML ? '這個核心比多數試驗的病人大（ASPECTS 3–5 或核心約 100 mL 以內；只有 LASTE 不設上限）。' : ''),
+          (core > BEYOND_TRIALS_ML ? '極大核心的效益估計較不精確；SELECT2 也沒有核心體積上限，100 mL 並不是取栓試驗通用的排除界線。' : ''),
       );
       en.push(
         `Large core (about ${core} mL when treatment is decided): in five randomised trials of anterior large-vessel occlusion with a large core (SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE) thrombectomy still improved function, with lower mortality in TENSION and LASTE (not in SELECT2); any intracranial haemorrhage and vascular complications were more frequent, and symptomatic haemorrhage was higher in some trials (ANGEL-ASPECT 6.1% vs 2.7%, LASTE 9.6% vs 5.7%) but not in others (SELECT2, TENSION).` +
-          (core > BEYOND_TRIALS_ML ? ' This core is larger than in most of these trials (ASPECTS 3–5 or cores up to about 100 mL; only LASTE set no upper limit).' : ''),
+          (core > BEYOND_TRIALS_ML ? ' Benefit estimates are less precise for cores larger than in most of these trials; SELECT2 also had no upper core-volume limit, so 100 mL is not a universal thrombectomy trial exclusion.' : ''),
       );
     }
   }
@@ -2001,8 +2009,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       title: { zh: '影像：MRI 擴散加權在數分鐘內就看得到', en: 'Imaging: diffusion MRI positive within minutes' },
       desc: lacunarOnly
         ? {
-            zh: 'DWI 很早就能顯示小小的腔隙性梗塞（直徑約 1.5 公分以下）；CT 常看不出來（腦幹尤其如此），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
-            en: 'DWI shows the small lacunar infarct (under about 1.5 cm across) early; CT is often normal (especially in the brainstem) but excludes haemorrhage, which is required before thrombolysis.',
+            // STRIVE-2: recent small subcortical infarct ≤20 mm; chronic lacune 3–15 mm.
+            // https://discovery.ucl.ac.uk/10173196/1/STRIVE-2_Manuscript_accepted.pdf
+            zh: 'DWI 很早就能顯示近期小型皮質下梗塞（軸向直徑通常不超過 2 公分）；CT 常看不出來（腦幹尤其如此），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
+            en: 'DWI shows a recent small subcortical infarct (usually no more than 2 cm in axial diameter) early; CT is often normal (especially in the brainstem) but excludes haemorrhage, which is required before thrombolysis.',
           }
         : {
             zh: 'DWI 可在數分鐘內顯示梗塞核心；CT 在最初幾小時常看不出來（約 6 小時後才逐漸變暗），但能先排除腦出血——這是血栓溶解治療前必做的檢查。',
@@ -2345,8 +2355,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       // (when both swell, the push across is the rule for one swollen hemisphere, which the note on
       // the other then qualifies: V1-4)
       const rest = {
-        zh: `${bothSwell ? '單側腫脹的半球會把中線推向對側' : '腫脹的半球把中線推向對側'}，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個 53 人的系列中 36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
-        en: ` ${bothSwell ? 'On its own, a swollen hemisphere pushes' : 'The swollen hemisphere pushes'} the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
+        zh: `${bothSwell ? '單側腫脹的半球會把中線推向對側' : '腫脹的半球把中線推向對側'}，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個選入 53 位已發生惡化病人的系列中，36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
+        en: ` ${bothSwell ? 'On its own, a swollen hemisphere pushes' : 'The swollen hemisphere pushes'} the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients selected because they deteriorated, 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
       };
       const event: CascadeEvent = {
         id: `malignant_edema_${s}`,
@@ -2454,8 +2464,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           onsetH: sideOnset(s) + 36,
           title: { zh: '減壓性半側顱骨切除術', en: 'Decompressive hemicraniectomy' },
           desc: {
-            zh: '在 48 小時內（60 歲以下證據最強）移除一大片頭骨並擴大硬腦膜。三個隨機試驗的合併分析（60 歲以下、48 小時內）：一年存活 78% vs 未手術 29%，mRS 0–4 的比例 75% vs 24%；但存活者常留下中重度失能（Vahedi 2007）。',
-            en: 'Removing a large bone flap and opening the dura within 48 h (strongest evidence under age 60). In the pooled analysis of three randomised trials (age ≤ 60, within 48 h) 1-year survival was 78% vs 29% without surgery and mRS 0–4 75% vs 24%, although survivors often remain moderately–severely disabled (Vahedi 2007).',
+            // Pooled ages 18–60, surgery ≤48 h: https://pubmed.ncbi.nlm.nih.gov/17303527/.
+            zh: '在 48 小時內（60 歲（含）以下證據最強）移除一大片頭骨並擴大硬腦膜。三個隨機試驗的合併分析（60 歲（含）以下、48 小時內）：一年存活 78% vs 未手術 29%，mRS 0–4 的比例 75% vs 24%；但存活者常留下中重度失能（Vahedi 2007）。',
+            en: 'Removing a large bone flap and opening the dura within 48 h (strongest evidence at age 60 or younger). In the pooled analysis of three randomised trials (age ≤ 60, within 48 h) 1-year survival was 78% vs 29% without surgery and mRS 0–4 75% vs 24%, although survivors often remain moderately–severely disabled (Vahedi 2007).',
           },
           regions: [],
         });
@@ -2644,7 +2655,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: firstHerniation.onsetH,
       title: { zh: '疝脫後很可能死亡（未減壓）', en: 'Death likely after herniation (no decompression)' },
       desc: {
-        zh: '完整中大腦動脈區梗塞的 55 位病人中，43 位（78%）因天幕切跡疝脫與腦死而死亡，多在第 2–5 天；存活者的平均 Barthel 指數為 60（Hacke 1996）。三個隨機試驗的合併分析（60 歲以下、48 小時內隨機分組）中，沒有手術的一年存活率只有 29%（手術 78%），mRS 0–4 為 24% vs 75%——兩組的主要差別在於能否存活，未手術的存活者多數仍是 mRS 0–4（Vahedi 2007）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是「假如病人存活（少數）」的情況。',
+        zh: '完整中大腦動脈區梗塞的 55 位病人中，43 位（78%）因天幕切跡疝脫與腦死而死亡，多在第 2–5 天；存活者的平均 Barthel 指數為 60（Hacke 1996）。三個隨機試驗的合併分析（60 歲（含）以下、48 小時內隨機分組）中，沒有手術的一年存活率只有 29%（手術 78%），mRS 0–4 為 24% vs 75%——兩組的主要差別在於能否存活，未手術的存活者多數仍是 mRS 0–4（Vahedi 2007）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是「假如病人存活（少數）」的情況。',
         en: 'Of 55 patients with complete MCA-territory infarction, 43 (78%) died of transtentorial herniation and brain death, mostly on days 2–5; the survivors had a mean Barthel index of 60 (Hacke 1996). In the pooled analysis of three randomised trials (age ≤ 60, randomised within 48 h) 1-year survival without surgery was only 29% (78% with it), and mRS 0–4 24% vs 75% — the main difference between the arms is survival, and most untreated survivors were still mRS 0–4 (Vahedi 2007). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show what happens if the patient survives (a minority).',
       },
       regions: [],
@@ -3029,7 +3040,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       title: { zh: '中樞性高熱的風險（腦幹被蓋兩側受損）', en: 'Risk of central hyperthermia (brainstem tegmentum on both sides)' },
       desc: {
         zh: '上橋腦（或中腦—視丘旁正中）被蓋兩側大範圍受損又昏迷時，體溫調節可能失控：發病頭一天內體溫急升到 39 °C 以上、劇烈起伏，退燒藥可能無效。缺血性中風後這很少見（74 位中樞性高熱病人中只有 4% 是大範圍皮質梗塞、3% 是基底動脈阻塞，其餘是出血），而且是排除診斷：中風後發燒要先找感染（肺炎、尿路感染），找過都沒有才考慮中樞性。預後很差：一項腦幹昏迷研究的 9 位中有 4 位出現高熱、在沒有感染下死亡；另一個系列近 70% 在一個月內死亡。',
-        en: 'When the upper pontine (or paramedian midbrain–thalamic) tegmentum is extensively damaged on both sides and the person is comatose, temperature control can fail: within the first day the temperature shoots above 39 °C and swings widely, and antipyretics may not help. This is rare after an ischaemic stroke (of 74 patients with central hyperthermia only 4% had a large cortical infarct and 3% a basilar occlusion, the rest haemorrhages), and it is a diagnosis of exclusion: fever after a stroke means looking for infection first (pneumonia, urinary tract), and only when none is found is a central cause considered. The prognosis is poor: in a study of brainstem coma 4 of 9 patients developed hyperthermia and died without infection; in another series nearly 70% died within a month.',
+        en: 'When the upper pontine (or paramedian midbrain–thalamic) tegmentum is extensively damaged on both sides and the person is comatose, temperature control can fail: within the first day the temperature reaches 39 °C or higher and swings widely, and antipyretics may not help. This is rare after an ischaemic stroke (of 74 patients with central hyperthermia only 4% had a large cortical infarct and 3% a basilar occlusion, the rest haemorrhages), and it is a diagnosis of exclusion: fever after a stroke means looking for infection first (pneumonia, urinary tract), and only when none is found is a central cause considered. The prognosis is poor: in a study of brainstem coma 4 of 9 patients developed hyperthermia and died without infection; in another series nearly 70% died within a month.',
       },
       regions: [...PONS_TEG_ROSTRAL, ...MIDBRAIN_PARAMEDIAN].flat().filter((r) => extensive(r)),
     });
@@ -3271,12 +3282,12 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         endH,
         title: { zh: '中風後的心臟：心律不整、心肌受損', en: 'The heart after a stroke: arrhythmia, cardiac injury' },
         desc: {
-          zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；較長時間的心律監測約可新發現四分之一的心房顫動——這是在找中風的原因，不是中風造成的併發症。${sev.zh}${
+          zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；合併入院心電圖、住院與出院後各階段心律監測，約四分之一的病人新發現心房顫動——這是在找中風的原因，不是中風造成的併發症。${sev.zh}${
             insula.length
               ? `梗塞包含${insula.map(sideZh).join('、')}側島葉：島葉參與心臟的自主神經控制，但哪一側比較重要，證據不一致——右側背前島葉與 troponin 上升有關，左側島葉與之後一年的心臟事件有關。`
               : ''
           }`,
-          en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; longer rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${sev.en}${
+          en: `Cardiac complications are common in the first days after a stroke (the "stroke–heart syndrome"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; sequential assessment across admission ECG, inpatient and outpatient rhythm monitoring newly finds atrial fibrillation in about a quarter — a search for the cause of the stroke, not a complication of it.${sev.en}${
             insula.length
               ? ` The infarct involves the ${insula.map(sideEn).join(' and ')} insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.`
               : ''
@@ -3325,6 +3336,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   const corticalRegions = infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex');
   if (corticalRegions.length) {
     events.push({
+      // 27% is across stroke types: https://doi.org/10.1212/WNL.57.2.200.
       id: 'seizure_early',
       kind: 'complication',
       severity: 'info',
@@ -3332,8 +3344,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       endH: 168,
       title: { zh: '早發性癲癇發作（第一週）', en: 'Early seizures (first week)' },
       desc: {
-        zh: '第一週內的發作是急性症狀性的：來自急性缺血對皮質的刺激，不是疤痕。多半在最初 24–48 小時。皮質（腦葉）梗塞約 4–6%（一個社區研究：腦葉梗塞 5.9%、深部梗塞 0.6%；另一研究皮質梗塞 6.5%），其中約四分之一以癲癇重積狀態表現。出血轉化時可能較高（一項研究 12.5%，但只有 32 人、未達統計顯著）。中風嚴重度（NIHSS）不是獨立的預測因子。',
-        en: 'Seizures in the first week are acute symptomatic: they come from the acute ischaemic irritation of the cortex, not from a scar. Most occur within the first 24–48 h. About 4–6% after a cortical (lobar) infarct (in one community study 5.9% after a lobar and 0.6% after a deep infarct; in another 6.5% after cortical infarction), and about a quarter of them present as status epilepticus. Haemorrhagic transformation may raise the risk (12.5% in one study, but only 32 patients and not statistically significant). Stroke severity (NIHSS) was not an independent predictor.',
+        zh: '第一週內的發作是急性症狀性的：來自急性缺血對皮質的刺激，不是疤痕。多半在最初 24–48 小時。皮質（腦葉）梗塞約 4–7%（一個社區研究：腦葉梗塞 5.9%、深部梗塞 0.6%；另一研究皮質梗塞 6.5%），該社區研究合計所有中風類型（包括出血）後，37 位早發性癲癇患者中 10 位（27%）以癲癇重積狀態表現。出血轉化時可能較高（一項研究 12.5%，但只有 32 人、未達統計顯著）。中風嚴重度（NIHSS）不是獨立的預測因子。',
+        en: 'Seizures in the first week are acute symptomatic: they come from the acute ischaemic irritation of the cortex, not from a scar. Most occur within the first 24–48 h. About 4–7% after a cortical (lobar) infarct (in one community study 5.9% after a lobar and 0.6% after a deep infarct; in another 6.5% after cortical infarction), and in that community study 10 of 37 early-seizure patients (27%) across all stroke types, including haemorrhages, presented as status epilepticus. Haemorrhagic transformation may raise the risk (12.5% in one study, but only 32 patients and not statistically significant). Stroke severity (NIHSS) was not an independent predictor.',
       },
       regions: corticalRegions,
     });
@@ -3633,8 +3645,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       // cohorts (Weaver NA et al. Lancet Neurol 2021;20:448-459, PMID 33901427) — in place of an
       // uncited list of "strategic" sites (C10-F9)
       desc: {
-        zh: '任一時間點約三分之一的中風者有憂鬱（統合分析 31%），5 年內累積有 39–52% 出現過。系統性回顧沒有找到一致的左右半球或左額葉效應（Carson 2000）；一個大型病灶定位研究則發現右側杏仁核與蒼白球的梗塞與憂鬱症狀有關（Weaver 2023）。中風後第一年約一半有某種認知障礙；12 個世代、2950 人的病灶定位分析中，左側額顳葉、左側視丘與右側頂葉的梗塞關聯最強（Weaver 2021）。首次中風後一年內約 7% 出現失智，再次中風後超過三分之一，多發梗塞也會增加風險。這些是族群數字，「最終」頁有出處與相關因素。',
-        en: 'At any time about a third of stroke survivors have depression (31 % in a meta-analysis) and 39–52 % have had it within 5 years. A systematic review found no consistent hemispheric or left-frontal effect (Carson 2000); one large lesion-mapping study links depressive symptoms to infarcts of the right amygdala and pallidum (Weaver 2023). About half have some cognitive impairment in the first year; in a lesion-mapping analysis of 2950 patients from 12 cohorts, infarcts of the left frontotemporal lobes, left thalamus and right parietal lobe were the most strongly associated with it (Weaver 2021). About 7 % develop dementia within a year of a first stroke, more than a third after a recurrent one, and multiple infarcts raise the risk. These are population figures — the Outcome tab lists their sources and the factors involved.',
+        // Prevalence populations: https://pubmed.ncbi.nlm.nih.gov/19782001/.
+        zh: '統合分析中約三分之一的中風者有憂鬱（合併比例 31%，不同追蹤時間的比例會變動），5 年內累積有 39–52% 出現過。系統性回顧沒有找到一致的左右半球或左額葉效應（Carson 2000）；一個大型病灶定位研究則發現右側杏仁核與蒼白球的梗塞與憂鬱症狀有關（Weaver 2023）。中風後第一年約一半有某種認知障礙；12 個世代、2950 人的病灶定位分析中，左側額顳葉、左側視丘與右側頂葉的梗塞關聯最強（Weaver 2021）。中風後一年內的失智比例，在排除既有失智的首次中風社區研究中為 7.4%；在包含既有失智的再次中風醫院研究中為 41.3%（Pendlebury 2009）。這些不同族群的盛行比例不能都解讀為新發失智的機率。這些是族群數字，「最終」頁有出處與相關因素。',
+        en: 'About a third of stroke survivors have depression in a meta-analysis (pooled 31 %, varying with follow-up time) and 39–52 % have had it within 5 years. A systematic review found no consistent hemispheric or left-frontal effect (Carson 2000); one large lesion-mapping study links depressive symptoms to infarcts of the right amygdala and pallidum (Weaver 2023). About half have some cognitive impairment in the first year; in a lesion-mapping analysis of 2950 patients from 12 cohorts, infarcts of the left frontotemporal lobes, left thalamus and right parietal lobe were the most strongly associated with it (Weaver 2021). Within one year, dementia prevalence was 7.4% in population-based first-stroke studies excluding pre-stroke dementia and 41.3% in hospital-based recurrent-stroke studies including pre-stroke dementia (Pendlebury 2009). These different populations do not give interchangeable risks of newly developing dementia. These are population figures — the Outcome tab lists their sources and the factors involved.',
       },
       regions: [],
     });
@@ -3898,9 +3911,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
   // vegetative until death after an acute brain insult, every brain had profound damage to the
   // subcortical white matter or the thalamic relay nuclei, which leaves any intact cortex unable to
   // function (Adams JH, Graham DI, Jennett B. Brain 2000;123:1327-1338, PMID 10869046); recovery
-  // from a non-traumatic persistent vegetative state after 3 months is exceedingly rare, and life
-  // expectancy is mostly 2-5 years (Multi-Society Task Force on PVS. N Engl J Med
-  // 1994;330:1499-1508, PMID 7818633). So a survivor wakes from the coma (eyes open, sleep-wake
+  // remains uncertain: late recovery after 3 months is possible (AAN 2018,
+  // https://doi.org/10.1212/WNL.0000000000005926). No fixed life expectancy is inferred.
+  // This model portrays a survivor waking from coma (eyes open, sleep-wake
   // cycles) into a disorder of consciousness, not into an alert patient: listed from two weeks after
   // the newer of the two hemispheres' lesions, when a coma gives way to what follows it (as the
   // brainstem coma does, clinical.comaBecomes), and scored as unresponsive (NIHSS 1a = 3: "responds
@@ -3958,8 +3971,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         ? { zh: '兩側大腦半球大多梗塞：意識障礙', en: 'Both hemispheres mostly infarcted: a disorder of consciousness' }
         : { zh: '兩側中大腦動脈區大多梗塞：意識障礙', en: 'Most of both MCA territories infarcted: a disorder of consciousness' },
       desc: {
-        zh: `右側大腦半球約 ${pr}%、左側約 ${pl}% 梗塞（有疝脫時包括它造成的續發梗塞）${mcaNote.zh}。覺察需要大腦半球，以及它們和視丘之間的連結：49 位在急性腦損傷後直到死亡都處於植物人狀態的病人，每一位的大腦半球白質或視丘中繼核都嚴重受損，讓仍完好的皮質也無法運作（Adams 2000）。兩側大腦半球都這樣受損的存活者，昏迷結束後會睜眼、有睡醒週期，卻沒有覺察——無反應覺醒症候群（舊稱植物人狀態）——最好也只是最小意識狀態；非外傷造成的植物人狀態超過 3 個月後恢復極為罕見，多數病人的餘命約 2–5 年（Multi-Society Task Force 1994）。模型在兩次病灶中較晚的那次發生兩週後（昏迷通常在這時轉為後續的狀態）列出意識障礙，NIHSS 以只有反射反應的病人計分（1a = 3）。以每側三分之二以上${whole ? '' : '（大腦半球，或中大腦動脈區）'}梗塞為界，是模型的選擇：沒有研究依梗塞範圍給出數字。`,
-        en: `About ${pr}% of the right and ${pl}% of the left hemisphere are infarcted (with the secondary infarcts of a herniation, if any)${mcaNote.en}. Awareness needs the cerebral hemispheres and their connections with the thalamus: in 49 patients who remained vegetative until death after an acute brain insult, every brain had profound damage to the white matter of the hemispheres or to the relay nuclei of the thalamus, which leaves any cortex still intact unable to function (Adams 2000). A survivor of such a loss of both hemispheres opens the eyes and has sleep–wake cycles once the coma ends, but stays without awareness — the unresponsive wakefulness (vegetative) state — or at best in a minimally conscious state; recovery from a vegetative state of non-traumatic cause after 3 months is exceedingly rare, and life expectancy is mostly 2–5 years (Multi-Society Task Force 1994). The model lists a disorder of consciousness from two weeks after the newer of the two lesions, when a coma gives way to what follows it, and scores the NIHSS as for a patient who responds only with reflexes (1a = 3). The threshold, two-thirds of each hemisphere${whole ? '' : ' (or of each MCA territory)'} infarcted, is a model choice: no series gives the extent.`,
+        zh: `右側大腦半球約 ${pr}%、左側約 ${pl}% 梗塞（有疝脫時包括它造成的續發梗塞）${mcaNote.zh}。覺察需要大腦半球，以及它們和視丘之間的連結：49 位在急性腦損傷後直到死亡都處於植物人狀態的病人，每一位的大腦半球白質或視丘中繼核都嚴重受損，讓仍完好的皮質也無法運作（Adams 2000）。模型將這類存活者描繪為昏迷後仍有意識障礙，可能睜眼、有睡醒週期，卻沒有覺察（無反應覺醒症候群），或只有最小意識。這不是個人預後的確定預測：非外傷性意識障礙在 3 個月後仍可能恢復，應持續評估，不能據此指定固定餘命（AAN 2018）。模型在兩次病灶中較晚的那次發生兩週後（昏迷通常在這時轉為後續的狀態）列出意識障礙，NIHSS 以只有反射反應的病人計分（1a = 3）。以每側三分之二以上${whole ? '' : '（大腦半球，或中大腦動脈區）'}梗塞為界，是模型的選擇：沒有研究依梗塞範圍給出數字。`,
+        en: `About ${pr}% of the right and ${pl}% of the left hemisphere are infarcted (with the secondary infarcts of a herniation, if any)${mcaNote.en}. Awareness needs the cerebral hemispheres and their connections with the thalamus: in 49 patients who remained vegetative until death after an acute brain insult, every brain had profound damage to the white matter of the hemispheres or to the relay nuclei of the thalamus, which leaves any cortex still intact unable to function (Adams 2000). The model portrays a survivor with persistent impaired consciousness after coma: unresponsive wakefulness (eyes open with sleep–wake cycles but no awareness) or a minimally conscious state. This is not a certain individual prognosis: recovery after 3 months remains possible after nontraumatic injury, ongoing assessment is needed, and no fixed life expectancy can be inferred (AAN 2018). The model lists a disorder of consciousness from two weeks after the newer of the two lesions, when a coma gives way to what follows it, and scores the NIHSS as for a patient who responds only with reflexes (1a = 3). The threshold, two-thirds of each hemisphere${whole ? '' : ' (or of each MCA territory)'} infarcted, is a model choice: no series gives the extent.`,
       },
       regions: [],
       symptoms: [{ id: 'disorder_of_consciousness', side: null, sev: 3 }],
@@ -3980,8 +3993,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const see: L = whole ? { zh: '兩側大腦半球大多梗塞', en: 'Both hemispheres mostly infarcted' } : { zh: '兩側中大腦動脈區大多梗塞', en: 'Most of both MCA territories infarcted' };
     if (hf)
       hf.desc = {
-        zh: `${extent.zh}，又沒有減壓：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字——55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）、未手術的一年存活率 29%（Vahedi 2007）——講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重（一篇病例報告與文獻回顧）。兩側大腦半球都被破壞的存活者不會恢復覺察，會停留在植物人狀態，最好也只是最小意識狀態（見「${see.zh}」）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是這樣一位存活者的情況。`,
-        en: `${extent.en}, without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). A survivor of the destruction of both hemispheres does not regain awareness: he or she stays in a vegetative or at best a minimally conscious state (see "${see.en}"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.`,
+        zh: `${extent.zh}，又沒有減壓：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字——55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）、未手術的一年存活率 29%（Vahedi 2007）——講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重（一篇病例報告與文獻回顧）。模型將兩側大腦半球嚴重受損的存活者描繪為持續有意識障礙；個人預後仍不確定，晚期恢復仍有可能（AAN 2018）（見「${see.zh}」）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是這樣一位存活者的情況。`,
+        en: `${extent.en}, without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). The model portrays persistent impaired consciousness in a survivor with severe injury to both hemispheres; individual prognosis remains uncertain and late recovery is possible (AAN 2018) (see "${see.en}"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.`,
       };
     // the drowsiness of the first two weeks gives way to it
     const bh = events.find((e) => e.id === 'bilateral_hemispheres');

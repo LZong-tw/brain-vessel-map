@@ -13,10 +13,10 @@ const bilateralQuote = (occ: unknown[], decompression: boolean) => {
   return { quoted: q ? Number(q[1] ?? q[2]) : null, zh };
 };
 /** largest midline shift while both hemispheres' own shifts exceed 0.05 mm, from `from` until one stops */
-const bothSwellMax = (occ: unknown[], decompression: boolean, from: number, to: number) => {
+const bothSwellMax = (occ: unknown[], decompression: boolean, from: number, to: number, step = 1) => {
   let shown = 0;
   let both = false;
-  for (let t = from; t <= to; t += 1) {
+  for (let t = from; t <= to; t += step) {
     const e = sim(occ, t, decompression).edema;
     const swelling = e.ownShiftMm.r > 0.05 && e.ownShiftMm.l > 0.05;
     if (swelling) {
@@ -32,20 +32,16 @@ const coreQuote = (occ: unknown[]) => {
   const zh = /大核心（決定治療時約 (\d+) mL）/.exec(events.map((e) => e.desc.zh).join('\n'));
   return { en: en?.[1] ?? null, zh: zh?.[1] ?? null };
 };
-const shownMax = (occ: unknown[], from: number, to: number, decompression: boolean) => {
-  let shown = 0;
-  for (let t = from; t <= to; t += 1) shown = Math.max(shown, sim(occ, t, decompression).edema.midlineShiftMm);
-  return shown;
-};
 
 describe('codex review 1', () => {
   it('quotes the real midline shift for simultaneous asymmetric bilateral lesions', () => {
     const occ = [{ vessel: 'mca_m1_r', severity: 1 }, { vessel: 'mca_m2_sup_l', severity: 1 }];
     const { quoted } = bilateralQuote(occ, true);
     expect(quoted).not.toBeNull();
-    const shown = shownMax(occ, 0, 240, true);
-    expect(shown).toBeGreaterThan(0.5);
-    expect(Math.abs(quoted! - shown)).toBeLessThanOrEqual(0.3);
+    // quarter-hours: decompression drops the shift between whole hours, and that instant is the peak
+    const { shown, both } = bothSwellMax(occ, true, 0, 400, 0.25);
+    expect(both).toBe(true);
+    expect(quoted!).toBe(+shown.toFixed(1));
   });
 
   it('quotes no more midline shift than shown once a late second hemisphere swells', () => {
@@ -53,18 +49,9 @@ describe('codex review 1', () => {
     const { quoted } = bilateralQuote(occ, false);
     expect(quoted).not.toBeNull();
     // while both swell: from the later lesion, until either side's own shift drops to <= 0.05 mm
-    let shown = 0;
-    let both = false;
-    for (let t = 200; t <= 600; t += 1) {
-      const e = sim(occ, t, false).edema;
-      const swelling = e.ownShiftMm.r > 0.05 && e.ownShiftMm.l > 0.05;
-      if (swelling) both = true;
-      else if (both) break;
-      if (swelling) shown = Math.max(shown, e.midlineShiftMm);
-    }
+    const { shown, both } = bothSwellMax(occ, false, 200, 600);
     expect(both).toBe(true);
-    expect(quoted!).toBeLessThanOrEqual(shown + 0.3);
-    expect(quoted!).toBeGreaterThanOrEqual(shown - 0.3);
+    expect(quoted!).toBe(+shown.toFixed(1));
   });
 
   it('with decompression, quotes the shift only while both sides still swell', () => {
@@ -74,8 +61,7 @@ describe('codex review 1', () => {
     expect(quoted).not.toBeNull();
     const { shown, both } = bothSwellMax(occ, true, 300, 900);
     expect(both).toBe(true);
-    expect(quoted!).toBeLessThanOrEqual(shown + 0.3);
-    expect(quoted!).toBeGreaterThanOrEqual(shown - 0.3);
+    expect(Math.abs(quoted! - shown)).toBeLessThanOrEqual(0.1);
     expect(zh).toContain(`最多約 ${quoted} mm`);
   });
 
@@ -86,10 +72,10 @@ describe('codex review 1', () => {
     expect(quoted).not.toBeNull();
     const at201 = sim(occ, 201, false).edema;
     expect(at201.ownShiftMm.l).toBe(0);
-    const { shown, both } = bothSwellMax(occ, false, 200, 600);
+    // half-hours: the shift peaks between whole hours, as the second side begins to swell
+    const { shown, both } = bothSwellMax(occ, false, 200, 600, 0.5);
     expect(both).toBe(true);
-    expect(quoted!).toBeLessThanOrEqual(shown + 0.3);
-    expect(quoted!).toBeGreaterThanOrEqual(shown - 0.3);
+    expect(quoted!).toBe(+shown.toFixed(1));
     expect(zh).toContain(`最多約 ${quoted} mm`);
   });
 });

@@ -37,12 +37,14 @@ export const DEFAULT_TREATMENT: TreatmentOptions = {
 
 /**
  * Share of the occluded artery's downstream territory that is reperfused, by eTICI grade (the
- * middle of each grade's range: 0; 1 = past the clot but hardly any distal filling; 2a = 1–49 %;
+ * representative values within each grade's range: 0; 1 = thrombus reduction without distal reperfusion; 2a = 1–49 %;
  * 2b50 = 50–66 %; 2b67 = 67–89 %; 2c = 90–99 %; 3 = complete).
+ * Liebeskind et al. 2019, https://doi.org/10.1136/neurintsurg-2018-014127.
+ * Grade 1 has zero distal reperfusion; the positive grade representatives are model choices.
  */
 export const GRADE_REPERFUSED: Record<ReperfusionGrade, number> = {
   '0': 0,
-  '1': 0.05,
+  '1': 0,
   '2a': 0.25,
   '2b50': 0.58,
   '2b67': 0.78,

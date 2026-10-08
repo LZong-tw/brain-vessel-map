@@ -118,7 +118,8 @@ const zh: TreatmentStrings = {
     '2b67': '2b67：三分之二到九成（67–89%）',
     '2b50': '2b50：一半到三分之二（50–66%）',
     '2a': '2a：不到一半',
-    '1': '1：只通過血栓，遠端幾乎沒血流',
+    // Liebeskind 2019, https://doi.org/10.1136/neurintsurg-2018-014127.
+    '1': '1：血栓減少，沒有遠端再灌流',
     '0': '0：沒有打通',
   },
   reocclusion: '再阻塞',
@@ -209,7 +210,8 @@ const en: TreatmentStrings = {
     '2b67': '2b67: two thirds to nine tenths (67–89%)',
     '2b50': '2b50: half to two thirds (50–66%)',
     '2a': '2a: less than half',
-    '1': '1: past the clot, hardly any distal flow',
+    // Liebeskind 2019, https://doi.org/10.1136/neurintsurg-2018-014127.
+    '1': '1: thrombus reduction, no distal reperfusion',
     '0': '0: not reopened',
   },
   reocclusion: 'Reocclusion',
