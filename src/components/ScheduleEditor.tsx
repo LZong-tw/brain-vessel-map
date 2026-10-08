@@ -17,7 +17,7 @@ const SEVERITIES = [0.5, 0.7, 0.9, 1] as const;
  * When a vessel's occlusion begins, whether it reopens by itself, and later phases (a stenosis
  * that becomes an occlusion). Times are on the timeline clock.
  */
-export function ScheduleEditor({ vessel, sim }: { vessel: string; sim: SimResult }) {
+export function ScheduleEditor({ vessel, sim, editSinglePhase = false }: { vessel: string; sim: SimResult; editSinglePhase?: boolean }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const occlusions = useApp((s) => s.occlusions);
@@ -56,7 +56,7 @@ export function ScheduleEditor({ vessel, sim }: { vessel: string; sim: SimResult
           <div className="sched-row" key={i}>
             <div className="sched-row-head">
               {multi && <span className="sched-k">{s.phase(k + 1)}</span>}
-              {multi && (
+              {(multi || editSinglePhase) && (
                 <select
                   className="sched-sev"
                   aria-label={s.severity}
@@ -70,6 +70,9 @@ export function ScheduleEditor({ vessel, sim }: { vessel: string; sim: SimResult
                       {t.stenosisOptions[sv]}
                     </option>
                   ))}
+                  {!o.branch && !SEVERITIES.some((sv) => sv === o.severity) && (
+                    <option value={String(o.severity)}>{Math.round(o.severity * 100)}%</option>
+                  )}
                   {lacunar && <option value="b">{t.lacuneTag}</option>}
                 </select>
               )}

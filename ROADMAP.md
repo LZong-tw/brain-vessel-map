@@ -65,8 +65,8 @@
   · The spinal cord: the radiculomedullary supply of the upper cervical cord from below (both vertebral arteries blocked beyond their spinal roots now infarct all of C1–C3), and a recovery curve of its own for a spinal cord infarct (now the brain's, which leaves it nearly unchanged at 6 months; Robertson 2012)
 - [ ] 中央型疝脫的續發梗塞：目前單獨就會疝脫的半球保留它的後與前大腦動脈區梗塞（前者有病例記載，後者是模型的選擇），只有兩側合計才達昏迷範圍時不加；也還沒有間腦與中腦本身的缺血或 Duret 出血
   · The secondary infarcts of a central herniation: a hemisphere that would herniate on its own now keeps its posterior and anterior cerebral infarcts (the first described in case series, the second a model choice), and none are added when only both together reach the coma range; nor are ischaemia of the diencephalon and midbrain themselves or Duret haemorrhages modelled yet
-- [ ] 病例卡片可直接改單一階段血管的阻塞程度（目前要到血管詳細資料改）
-  · Change a single-phase vessel's degree of occlusion in the case card (currently only in the vessel details)
+- [x] 病例卡片可直接改單一階段血管的阻塞程度
+  · Change a single-phase vessel's degree of occlusion in the case card
 - [ ] 靜脈系統與靜脈竇血栓；出血性中風（目前完全沒有模擬）
   · Venous system and venous sinus thrombosis; haemorrhagic stroke (not simulated at all yet)
 - [ ] 以 MRA 分割的真實血管樹取代部分手繪的小分支路徑
