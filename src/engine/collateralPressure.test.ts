@@ -5,7 +5,7 @@ import { simulate, type SimResult } from './simulate';
 
 const input = (vessels: string[], collateral: CollateralGrade = 'good') => ({
   occlusions: vessels.map((vessel) => ({ vessel, severity: 1 })), variants: [], map: 93,
-  collateral, tH: 24, reperfusionH: null,
+  collateral, tH: 24, reperfusionH: null, decompression: false,
 });
 const infarct = (result: SimResult, side: 'l' | 'r') => BEDS.filter((b) => REGION_BY_ID[b.region].side === side)
   .reduce((sum, b) => sum + b.volume * (result.beds[b.id]?.infarct ?? 0), 0);

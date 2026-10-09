@@ -52,7 +52,7 @@ describe('continuous deficits and separate ordinal grades', () => {
   });
 
   it('keeps a tiny simulated treatment difference separate from whole NIHSS grades', () => {
-    const input = { occlusions: [{ vessel: 'basilar_mid', severity: 1 }], variants: [], map: 93, collateral: 'poor' as const, tH: 2160, reperfusionH: null };
+    const input = { occlusions: [{ vessel: 'basilar_mid', severity: 1 }], variants: [], map: 93, collateral: 'poor' as const, tH: 2160, reperfusionH: null, decompression: false };
     const untreated = simulate(input);
     const treated = simulate({ ...input, reperfusionH: 12 });
     const before = untreated.symptoms.find((s) => s.id === 'arm_weak' && s.side === 'r')!;
