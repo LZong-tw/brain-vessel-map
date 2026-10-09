@@ -73,7 +73,7 @@
   · Replace hand-drawn small-branch paths with vessel trees segmented from MRA
 - [ ] 2D 切片檢視（在 T1 影像上疊加梗塞區，像看 MRI 一樣）
   · 2D slice view (infarct overlaid on T1 images, like reading an MRI)
-- [ ] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
+- [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
   · Accessibility: keyboard control of the 3D scene, a screen-reader summary of the results
 - [ ] 更多語言 · More languages
 

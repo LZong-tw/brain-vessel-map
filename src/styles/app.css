@@ -53,6 +53,24 @@ button {
   outline-offset: 2px;
 }
 
+.scene-keyboard {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 30;
+  max-width: min(340px, calc(100% - 16px));
+  padding: 8px;
+  background: #171c29;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+
+.scene-keyboard summary { cursor: pointer; }
+.scene-keyboard p { font-size: 12px; margin: 6px 0; }
+.scene-structure-list { max-height: 160px; overflow: auto; padding: 4px; }
+.scene-structure-list button { display: block; width: 100%; text-align: left; margin: 3px 0; }
+.scene-structure-list button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 h1,
 h2,
 h3,

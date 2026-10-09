@@ -15,6 +15,7 @@ import { EmbolusAnimation } from './EmbolusAnimation';
 import { FlowParticles } from './FlowParticles';
 import { ClotMarkers, ExtraStructures } from './Markers';
 import { Vessels } from './Vessels';
+import { KeyboardCamera, KeyboardFocus, SceneKeyboard } from './SceneKeyboard';
 
 const PRESETS: Record<CameraView, { pos: Vector3; target: Vector3 }> = {
   left: { pos: new Vector3(30, 3, -1.8), target: BRAIN_CENTER },
@@ -28,10 +29,15 @@ const PRESETS: Record<CameraView, { pos: Vector3; target: Vector3 }> = {
   brainstem: { pos: toThree([-25, 70, -100]), target: toThree([0, -26, -30]) },
 };
 
-function CameraRig() {
+function CameraRig({ events }: { events: EventTarget }) {
   const req = useApp((s) => s.camera);
   const { camera, controls, invalidate } = useThree();
   const anim = useRef<{ t: number; fromP: Vector3; fromT: Vector3; toP: Vector3; toT: Vector3 } | null>(null);
+  useEffect(() => {
+    const cancel = () => { anim.current = null; };
+    events.addEventListener('camera-key', cancel);
+    return () => events.removeEventListener('camera-key', cancel);
+  }, [events]);
   useEffect(() => {
     const ctl = controls as unknown as OrbitControlsImpl | null;
     const p = PRESETS[req.view];
@@ -74,6 +80,8 @@ export function Scene3D({ sim }: { sim: SimResult }) {
   const embolusRunning = useApp((s) => !!s.embolus && !s.embolus.done);
   const finishEmbolus = useApp((s) => s.finishEmbolus);
   const [webgl] = useState(hasWebGL);
+  const [keyboardEvents] = useState(() => new EventTarget());
+  const [focusPosition, setFocusPosition] = useState<Vector3 | null>(null);
   // without WebGL the embolus cannot be animated: apply its result straight away
   useEffect(() => {
     if (!webgl && embolusRunning) finishEmbolus();
@@ -105,7 +113,9 @@ export function Scene3D({ sim }: { sim: SimResult }) {
         <color attach="background" args={['#0d1017']} />
         <Lights />
         <OrbitControls makeDefault target={BRAIN_CENTER} enableDamping dampingFactor={0.08} minDistance={4} maxDistance={70} />
-        <CameraRig />
+        <CameraRig events={keyboardEvents} />
+        <KeyboardCamera events={keyboardEvents} />
+        <KeyboardFocus position={focusPosition} />
         {data && <BrainMeshes data={data} sim={sim} clipPlanes={clipPlanes} />}
         <Vessels sim={sim} clipPlanes={clipPlanes} />
         <ExtraStructures sim={sim} />
@@ -113,6 +123,7 @@ export function Scene3D({ sim }: { sim: SimResult }) {
         <FlowParticles sim={sim} />
         <EmbolusAnimation />
       </Canvas>
+      <SceneKeyboard data={data} sim={sim} events={keyboardEvents} onFocus={setFocusPosition} />
       {!data && !error && <div className="scene-message loading">{t.loading}</div>}
       {error && (
         <div className="scene-message error">
