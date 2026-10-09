@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Vector3 } from 'three';
 import { VESSELS, VESSEL_BY_ID } from '../anatomy';
 import type { Vessel } from '../anatomy';
+import mraCommunicatingPaths from '../anatomy/generated/mraCommunicatingPaths.json';
 import { parseBrain, type Manifest, type MeshData } from './brainData';
 import { SCALE, toThree } from './coords';
 
@@ -32,10 +33,16 @@ function midpoint(p: number[][]): number[] {
 }
 
 describe('drawn vessels', () => {
-  it('only surface vessels are drawn off their modelled course', () => {
+  it('render overrides are surface courses or explicit MRA shapes and authored connectors', () => {
     const lifted = VESSELS.filter((v) => v.renderPath);
     expect(lifted.length).toBeGreaterThan(20);
-    for (const v of lifted) expect(v.pathMode, v.id).toBe('surface');
+    const deepOverrides = new Set(['pcomm_r', 'pcomm_l', 'acomm', 'tuberothalamic_r', 'tuberothalamic_l']);
+    expect(Object.keys(mraCommunicatingPaths).sort()).toEqual([...deepOverrides].sort());
+    for (const v of lifted) {
+      if (deepOverrides.has(v.id)) {
+        expect(v.renderPath).toEqual(mraCommunicatingPaths[v.id as keyof typeof mraCommunicatingPaths]);
+      } else expect(v.pathMode, v.id).toBe('surface');
+    }
   });
 
   it.each([

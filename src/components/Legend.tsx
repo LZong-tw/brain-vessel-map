@@ -6,6 +6,7 @@ import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { EDEMA_COLORS, STATE_COLORS, VESSEL_COLORS } from '../ui/colors';
 import { inlineText } from '../i18n/content';
+import { MRA_GEOMETRY } from '../i18n/mraGeometry';
 
 export function Legend() {
   const t = useT();
@@ -53,8 +54,10 @@ export function Legend() {
       <button className="legend-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
         {t.legend} {open ? '▾' : '▸'}
       </button>
+      <p className="mra-notice small muted">{MRA_GEOMETRY[lang].notice}</p>
       {open && (
         <div className="legend-body">
+          <a href="https://zenodo.org/records/17358162" target="_blank" rel="noreferrer">{MRA_GEOMETRY[lang].source}</a>
           {tissue.length > 0 && (
             <ul>
               {tissue.map(([c, l]) => (

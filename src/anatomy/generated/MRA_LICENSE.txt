@@ -1,0 +1,23 @@
+TopCoW MRA-derived communicating vessel shapes
+
+The files mraCommunicatingPaths.json and mraCommunicatingAudit.json contain
+source data and modified data from:
+Musio et al., "Circle of Willis Centerline Graphs: A Dataset and Baseline
+Algorithm" (2025 preprint, arXiv:2510.13720), TopCoW centerline dataset
+released 2025-10-15, MRA case 008.
+Source: https://zenodo.org/records/17358162
+
+Source and derivative data are licensed CC BY-NC 4.0:
+https://creativecommons.org/licenses/by-nc/4.0/
+Attribution is required. Commercial use requires separate permission.
+These data are not relicensed under the application's software license.
+
+Changes: extracted the unique right/left PCom and right-to-left ACom paths;
+omitted the ACom third-A2 side branch; applied a separate proper rotation,
+translation and uniform scale to each curve for model endpoint placement.
+Placement is unvalidated. No endorsement by the source authors is implied.
+Original graph and node descriptions are retained in mraCommunicatingAudit.json.
+
+Included tuberothalamic render connectors remain project-authored geometry;
+only their initial attachment point follows the derived PCom curve. They are
+not source-measured vessel shapes.

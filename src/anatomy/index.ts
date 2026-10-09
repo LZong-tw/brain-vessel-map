@@ -6,6 +6,7 @@
 import bedsJson from './generated/beds.json';
 import vesselPaths from './generated/vesselPaths.json';
 import vesselRenderPaths from './generated/vesselRenderPaths.json';
+import mraCommunicatingPaths from './generated/mraCommunicatingPaths.json';
 import { expandSupply, expandVessels, regionSides, vid } from './expand';
 import { REGION_DEFS } from './regions';
 import { bedSupply } from './territories';
@@ -31,7 +32,7 @@ interface RawBed {
 export const TARGET_BRAIN_VOLUME = 1250;
 
 const paths = vesselPaths as unknown as Record<string, Vec3[]>;
-const renderPaths = vesselRenderPaths as unknown as Record<string, Vec3[]>;
+const renderPaths = { ...vesselRenderPaths, ...mraCommunicatingPaths } as unknown as Record<string, Vec3[]>;
 
 export const VESSELS: Vessel[] = expandVessels(VESSEL_DEFS).map((v) => ({
   ...v,

@@ -84,6 +84,8 @@ application as a clinical decision tool.
   secondary injury without a displacement-and-duration equation for its
   damaged tissue fraction. Automatically creating that fraction would add
   unsupported calibration.
-- **MRA vessel replacement:** the license and alignment of a candidate
-  replacement dataset have not been verified. Existing slice-atlas provenance
-  does not establish permission or registration for a new vessel tree.
+- **MRA vessel replacement:** TopCoW MRA008 source entries and CC BY-NC 4.0
+  licensing are verified for three communicating-vessel render shapes.
+  Placement remains unvalidated; distal branches remain authored.
+  [Source-specific provenance and assumptions](mra-communicating-shapes.md)
+  distinguish measured shapes from authored connectors and simulation geometry.

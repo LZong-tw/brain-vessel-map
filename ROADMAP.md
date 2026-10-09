@@ -78,8 +78,10 @@
     · Coupled spatial venous/hemorrhagic brain lesions, symptoms and dynamics.
   - [x] 獨立的自發性腦內出血血腫擴大風險計算器：重現 2018 年四因子模型，不生成出血體積或病灶邊界，也不估計治療效果。[公式、適用範圍與尚待查證的來源](docs/ich-expansion.md)。
     · Separate spontaneous ICH expansion-risk calculator reproducing the 2018 four-predictor model, without generating hemorrhage volumes or lesion boundaries or estimating treatment effects. [Equation, domain and remaining source checks](docs/ich-expansion.md).
-- [ ] 以 MRA 分割的真實血管樹取代部分手繪的小分支路徑
-  · Replace hand-drawn small-branch paths with vessel trees segmented from MRA
+- [x] 以真實 MRA 分割的前交通動脈與雙側後交通動脈曲線取代三條繪圖路徑；僅改顯示形狀，不改模擬參數。放置尚未驗證，遠端分支仍為手繪。[來源與限制](docs/mra-communicating-shapes.md)。
+  · Replace three rendered communicating vessel shapes (ACom and bilateral PCom) with real segmented MRA curves; display only, without changing simulation parameters. Placement is unvalidated and distal branches remain authored. [Sources and limitations](docs/mra-communicating-shapes.md).
+  - [ ] 以有授權、具解剖對應且完成對齊驗證的 MRA 血管樹取代其餘手繪遠端小分支。
+    · Replace the remaining authored distal small branches with licensed MRA vessel trees with anatomical correspondence and validated alignment.
 - [x] 2D 切片檢視：真實 T1 模板上的 Liu 動脈供血區參考輪廓；梗塞以每個灌流單元的比例熱圖呈現，明示空間近似，並不捏造病灶邊界。圖譜對齊沿用近似轉換；[來源與限制](docs/slices.md)。
   · 2D slice view: Liu reference arterial territory outlines on the real T1 template; infarction shown as a per-bed fraction heatmap with an explicit spatial fallback, without invented lesion boundaries. Atlas alignment uses the existing approximate transform; [sources and limitations](docs/slices.md).
 - [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要

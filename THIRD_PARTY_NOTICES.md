@@ -126,7 +126,28 @@ Licence: **CC0 1.0** (public domain dedication). Attribution given as a courtesy
 | [neuroaxis-atlas](https://github.com/linkbag/neuroaxis-atlas) | MIT | Its brainstem-syndrome cards and attribution practice informed our presentation. |
 | [brain-game](https://github.com/Rickaym/brain-game) | MIT (code); model CC BY-SA 2.1 JP | Region–artery mapping and stroke-simulator ideas. Its 3D model is **not** used here. |
 
-All anatomy, rules and code in this repository were written for this project.
+The authored anatomy definitions, rules and application code were written for this project;
+generated atlas data and the MRA-derived communicating vessel shapes below are third-party exceptions.
+
+### TopCoW MRA-derived communicating vessel shapes
+
+`src/anatomy/generated/mraCommunicatingPaths.json` and `mraCommunicatingAudit.json`
+contain source and modified data from Musio et al., *Circle of Willis Centerline Graphs:
+A Dataset and Baseline Algorithm* (2025 preprint, arXiv:2510.13720),
+TopCoW dataset released 2025-10-15, MRA case 008.
+Source: <https://zenodo.org/records/17358162>.
+
+These source and derivative data are **CC BY-NC 4.0**, separately from the MIT software
+and the CC BY-SA atlas assets: <https://creativecommons.org/licenses/by-nc/4.0/>.
+Attribution is required; commercial use needs separate permission. No endorsement is implied.
+The original source graph and node metadata are retained in the audit file.
+
+Changes: extracted right/left PCom and the main ACom path; excluded the third-A2 side branch;
+applied proper rotations, translations and uniform scales to existing model attachment points.
+The included tuberothalamic connectors are authored render geometry with updated initial points.
+Placement is unvalidated, distal branches remain authored, and simulation geometry and parameters
+are unchanged. See [source-specific assumptions](docs/mra-communicating-shapes.md) and
+`src/anatomy/generated/MRA_LICENSE.txt`.
 
 ---
 

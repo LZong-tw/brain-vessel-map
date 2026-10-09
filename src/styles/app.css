@@ -899,6 +899,7 @@ details.syndrome summary {
   display: grid;
   gap: 6px;
 }
+.legend .mra-notice { margin: 0; padding: 0 10px 8px; }
 .legend ul {
   list-style: none;
   margin: 0;
