@@ -53,13 +53,6 @@
 
 - [ ] **臨床審閱**：請神經科／神經放射科醫師審閱腦區—症狀對應、症候群規則與時間軸（最重要）
   · **Clinical review** of the region–symptom mapping, syndrome rules and time courses by a neurologist / neuroradiologist (most important)
-- [ ] 以公開資料做更系統的參數校正並寫進測試；前循環的首次 G-only 嘗試未通過，不採用為新側枝分級。[來源、結果與限制](docs/public-calibration.md)。
-  · Systematic public-data parameter calibration encoded as tests; the first anterior G-only attempt is rejected and is not adopted as a new collateral profile. [Sources, results and limits](docs/public-calibration.md).
-  · Additional Wheeler M1 early-growth timing fit also rejected: default-tissue slowing cannot reach the median; global slowing changes regional injury timings without paired evidence. No fitted multiplier is applied. 再次檢查 Wheeler 的早期 M1 增長資料仍未通過：只放慢預設組織無法達到中位數，放慢全部組織則缺乏各區域成對證據；不採用時間倍率。
-  - [x] 實驗性校正診斷工作台：以 MacLellan 的三組梗塞增長中位數檢查單獨右 M1 阻塞；明列相反的候選 G 排序、無法達到的目標與過大的基線核心，固定既有組織參數且不改預設模擬。此項完成只代表可重現的診斷工具，不代表完成校正。
-    · Experimental calibration diagnostic workbench: check isolated right M1 against MacLellan's three growth medians, exposing reversed candidate G ordering, an unreachable target and excessive baseline cores; existing tissue parameters and defaults remain unchanged. Completion means a reproducible diagnostic tool, not successful calibration.
-  - [ ] 其餘尚未重新校正或驗證：跨兩段的基底動脈阻塞與後循環側枝血流、小腦與延髓的壞死時程、腔隙自己的時程、48 小時半影假設、Willis 環與後顱窩動脈的左右對稱，以及頂後、顳枕、顳前與顳後動脈的軟腦膜側枝。
-    · Remaining unvalidated calibration domains: two-segment basilar occlusions and posterior collateral flow; the time course of the cerebellum and the medulla; lacunar kinetics; the 48-hour penumbra convention; symmetry of the circle of Willis and posterior-fossa arteries; and posterior-parietal, temporo-occipital and temporal leptomeningeal anastomoses.
 - [ ] 失語與忽略的代償隨病灶範圍下降的比例（包括韋尼克型失語隨韋尼克區梗塞比例下降的範圍）、腦幹分級的下限（15%）、瓶頸作用的範圍（症狀門檻到兩側 40%）、中腦外側交感纖維的門檻（35%）與「保住 50 mL 算有益」的門檻，以病灶負荷研究（例如 PLORAS、Wilson 2023 的分組資料、Naeser 1987 的韋尼克區分組）校正
   · Calibrate the fall of aphasia and neglect recovery with lesion extent (the range of Wernicke's area over which a Wernicke aphasia's recovery falls included), the brainstem's lower grading limit (15 %), the range of the bottleneck (from the symptom threshold to 40 % of both sides), the lateral-midbrain threshold of the sympathetic fibres (35 %) and the 50 mL benefit threshold against lesion-load data (e.g. PLORAS, the groups of Wilson 2023, the Wernicke's-area groups of Naeser 1987)
 - [x] 對側阻塞造成額外側枝供血壓力的數值保護；以 MCA 加上對側 ACA/PCA 阻塞、三種側枝分級與低／正常／高血壓的案例驗證，不把數值保護稱為已校正的生理自動調節。
@@ -75,16 +68,10 @@
   · Change a single-phase vessel's degree of occlusion in the case card
 - [x] 簡化靜脈／靜脈竇血栓引流與觀測血腫的壓力效應；獨立研究模型，不改變目前病例。[來源與限制](docs/venous-hemorrhage.md)。
   · Reduced venous/sinus-thrombosis outflow and observed hematoma pressure effects; independent research models that do not change the current case. [Sources and limits](docs/venous-hemorrhage.md).
-  - [ ] 耦合空間靜脈／出血性腦病灶、症狀與動態病程。
-    · Coupled spatial venous/hemorrhagic brain lesions, symptoms and dynamics.
-    · Still blocked after source audit: accessible PHE masks label edema regions, not blood or net added water; the old open CT-ICH files are unavailable and current masks have access restrictions. No paired CVST pressure/lesion/time/registration data identified. [Evidence and required inputs](docs/venous-hemorrhage.md#spatial-coupling-source-audit). 來源稽核後仍未完成：可取得的 PHE 標籤是水腫區，不是血液或淨新增水量；尚無成對的靜脈壓力、病灶與時程資料支持空間推算。
   - [x] 獨立的自發性腦內出血血腫擴大風險計算器：重現 2018 年四因子模型，不生成出血體積或病灶邊界，也不估計治療效果。[公式、適用範圍與尚待查證的來源](docs/ich-expansion.md)。
     · Separate spontaneous ICH expansion-risk calculator reproducing the 2018 four-predictor model, without generating hemorrhage volumes or lesion boundaries or estimating treatment effects. [Equation, domain and remaining source checks](docs/ich-expansion.md).
 - [x] 以真實 MRA 分割的前交通動脈與雙側後交通動脈曲線取代三條繪圖路徑；僅改顯示形狀，不改模擬參數。放置尚未驗證，遠端分支仍為手繪。[來源與限制](docs/mra-communicating-shapes.md)。
   · Replace three rendered communicating vessel shapes (ACom and bilateral PCom) with real segmented MRA curves; display only, without changing simulation parameters. Placement is unvalidated and distal branches remain authored. [Sources and limitations](docs/mra-communicating-shapes.md).
-  - [ ] 以有授權、具解剖對應且完成對齊驗證的 MRA 血管樹取代其餘手繪遠端小分支。
-    · Replace the remaining authored distal small branches with licensed MRA vessel trees with anatomical correspondence and validated alignment.
-    · Named small-branch correspondence and alignment validation remain unavailable; the reference below does not change physiological topology or claim that completion. 小分支解剖對應與對齊驗證仍未完成；下列參考模式不更改生理網路，也不代表本項已完成。
   - [x] 個別 MRA 遠端血管參考模式：以 Bravissima BG0001 的 13,206 個來源體素取代顯示中的手繪血管，保留缺口與孤立點，僅採來源的 ACA／MCA／PCA 血管群標籤；明示放置未驗證、無模擬血流對應。[来源與假設](docs/mra-distal.md)。
     · Individual MRA distal anatomy mode replaces the authored vessel display with 13,206 source voxels from Bravissima BG0001, preserving gaps and isolated points and using only source arterial-family labels. Unvalidated placement and absent simulated-flow correspondence are visible in the UI. [Sources and assumptions](docs/mra-distal.md).
 - [x] 2D 切片檢視：真實 T1 模板上的 Liu 動脈供血區參考輪廓；梗塞以每個灌流單元的比例熱圖呈現，明示空間近似，並不捏造病灶邊界。圖譜對齊沿用近似轉換；[來源與限制](docs/slices.md)。
@@ -92,6 +79,25 @@
 - [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
   · Accessibility: keyboard control of the 3D scene, a screen-reader summary of the results
 - [x] 更多語言：簡體中文、德文、日文 · More languages: Simplified Chinese, German, Japanese
+
+## 已知限制 · Known limitations
+
+以下項目受限於可取得的公開資料，目前定位為教學示意，不再列為待辦；文件與介面維持「未驗證」標示。取得受控資料或臨床審閱後可重新開啟。
+  · Limited by available public data; these parts are positioned as teaching illustrations rather than open tasks. Docs and UI keep their "unvalidated" labels. They can be reopened once controlled-access data or clinical review is available.
+
+- 以公開資料做更系統的參數校正並寫進測試；前循環的首次 G-only 嘗試未通過，不採用為新側枝分級。[來源、結果與限制](docs/public-calibration.md)。
+  · Systematic public-data parameter calibration encoded as tests; the first anterior G-only attempt is rejected and is not adopted as a new collateral profile. [Sources, results and limits](docs/public-calibration.md).
+  · Additional Wheeler M1 early-growth timing fit also rejected: default-tissue slowing cannot reach the median; global slowing changes regional injury timings without paired evidence. No fitted multiplier is applied. 再次檢查 Wheeler 的早期 M1 增長資料仍未通過：只放慢預設組織無法達到中位數，放慢全部組織則缺乏各區域成對證據；不採用時間倍率。
+  - 實驗性校正診斷工作台：以 MacLellan 的三組梗塞增長中位數檢查單獨右 M1 阻塞；明列相反的候選 G 排序、無法達到的目標與過大的基線核心，固定既有組織參數且不改預設模擬。此項完成只代表可重現的診斷工具，不代表完成校正。
+    · Experimental calibration diagnostic workbench: check isolated right M1 against MacLellan's three growth medians, exposing reversed candidate G ordering, an unreachable target and excessive baseline cores; existing tissue parameters and defaults remain unchanged. Completion means a reproducible diagnostic tool, not successful calibration.
+  - 其餘尚未重新校正或驗證：跨兩段的基底動脈阻塞與後循環側枝血流、小腦與延髓的壞死時程、腔隙自己的時程、48 小時半影假設、Willis 環與後顱窩動脈的左右對稱，以及頂後、顳枕、顳前與顳後動脈的軟腦膜側枝。
+    · Remaining unvalidated calibration domains: two-segment basilar occlusions and posterior collateral flow; the time course of the cerebellum and the medulla; lacunar kinetics; the 48-hour penumbra convention; symmetry of the circle of Willis and posterior-fossa arteries; and posterior-parietal, temporo-occipital and temporal leptomeningeal anastomoses.
+- 耦合空間靜脈／出血性腦病灶、症狀與動態病程。
+  · Coupled spatial venous/hemorrhagic brain lesions, symptoms and dynamics.
+  · Still blocked after source audit: accessible PHE masks label edema regions, not blood or net added water; the old open CT-ICH files are unavailable and current masks have access restrictions. No paired CVST pressure/lesion/time/registration data identified. [Evidence and required inputs](docs/venous-hemorrhage.md#spatial-coupling-source-audit). 來源稽核後仍未完成：可取得的 PHE 標籤是水腫區，不是血液或淨新增水量；尚無成對的靜脈壓力、病灶與時程資料支持空間推算。
+- 以有授權、具解剖對應且完成對齊驗證的 MRA 血管樹取代其餘手繪遠端小分支。
+  · Replace the remaining authored distal small branches with licensed MRA vessel trees with anatomical correspondence and validated alignment.
+  · Named small-branch correspondence and alignment validation remain unavailable; the individual MRA reference mode does not change physiological topology or claim that completion. 小分支解剖對應與對齊驗證仍未完成；個別 MRA 參考模式不更改生理網路，也不代表本項已完成。
 
 歡迎開 issue 指出醫學內容的錯誤——請附上文獻來源。
 Issues pointing out medical errors are welcome — please include a reference.
