@@ -1,3 +1,5 @@
+[繁體中文](contralateral-pressure.zh-TW.md) · [简体中文](contralateral-pressure.zh-CN.md) · [English](contralateral-pressure.md) · [Deutsch](contralateral-pressure.de.md) · [日本語](contralateral-pressure.ja.md)
+
 # Contralateral pressure safeguard
 
 This is a scoped numerical safeguard for the educational flow model. It is not
