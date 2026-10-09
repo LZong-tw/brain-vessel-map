@@ -2670,3 +2670,11 @@ select.sched-sev {
 .public-calibration summary { cursor: pointer; color: var(--accent); }
 .public-calibration dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 12px; }
 .public-calibration dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.pathology-models { margin-top: 16px; overflow-wrap: anywhere; }
+.pathology-models summary { cursor: pointer; color: var(--accent); }
+.pathology-models form, .pathology-models fieldset { display: grid; gap: 10px; min-width: 0; }
+.pathology-models label { display: block; }
+.pathology-models input { display: block; width: 100%; min-width: 0; margin-top: 4px; }
+.pathology-models dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 12px; }
+.pathology-models dd { margin: 0; font-variant-numeric: tabular-nums; }

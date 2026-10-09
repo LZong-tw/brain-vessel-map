@@ -62,10 +62,12 @@ application as a clinical decision tool.
 ## Remaining source checks for the roadmap
 
 - **Venous pressure/outflow:** [Marcotti 2015](https://pmc.ncbi.nlm.nih.gov/articles/PMC4476203/)
-  supplies a steady Poiseuille network and a legible connectivity figure.
-  Its geometry supplement was not successfully retrieved as a document, and
-  numerical inlet flows were not verified. These are concrete reproduction
-  gaps even for a pressure-only calculator.
+  supplies a steady Poiseuille network and published geometry. The legacy
+  geometry supplement has now been retrieved and transcribed for a reduced
+  eight-edge calculator. Inlet flow, its deep-drainage fraction, and outlet
+  pressure are entered by the user rather than assigned unverified defaults.
+  See [venous and hemorrhage pressure models](venous-hemorrhage.md) for source
+  provenance and the remaining limits. This does not generate venous lesions.
 - **Spinal recovery:** [Robertson 2012](https://pmc.ncbi.nlm.nih.gov/articles/PMC3466672/)
   documents long-term functional recovery through cohort outcomes; it does
   not supply a continuous C1–C3 deficit-recovery curve. A quantitative mapping

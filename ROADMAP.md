@@ -72,8 +72,10 @@
   · The secondary infarcts of a central herniation: a hemisphere that would herniate on its own now keeps its posterior and anterior cerebral infarcts (the first described in case series, the second a model choice), and none are added when only both together reach the coma range; nor are ischaemia of the diencephalon and midbrain themselves or Duret haemorrhages modelled yet
 - [x] 病例卡片可直接改單一階段血管的阻塞程度
   · Change a single-phase vessel's degree of occlusion in the case card
-- [ ] 靜脈系統與靜脈竇血栓；出血性中風（目前完全沒有模擬）
-  · Venous system and venous sinus thrombosis; haemorrhagic stroke (not simulated at all yet)
+- [x] 簡化靜脈／靜脈竇血栓引流與觀測血腫的壓力效應；獨立研究模型，不改變目前病例。[來源與限制](docs/venous-hemorrhage.md)。
+  · Reduced venous/sinus-thrombosis outflow and observed hematoma pressure effects; independent research models that do not change the current case. [Sources and limits](docs/venous-hemorrhage.md).
+  - [ ] 耦合空間靜脈／出血性腦病灶、症狀與動態病程。
+    · Coupled spatial venous/hemorrhagic brain lesions, symptoms and dynamics.
   - [x] 獨立的自發性腦內出血血腫擴大風險計算器：重現 2018 年四因子模型，不生成出血體積或病灶邊界，也不估計治療效果。[公式、適用範圍與尚待查證的來源](docs/ich-expansion.md)。
     · Separate spontaneous ICH expansion-risk calculator reproducing the 2018 four-predictor model, without generating hemorrhage volumes or lesion boundaries or estimating treatment effects. [Equation, domain and remaining source checks](docs/ich-expansion.md).
 - [ ] 以 MRA 分割的真實血管樹取代部分手繪的小分支路徑
