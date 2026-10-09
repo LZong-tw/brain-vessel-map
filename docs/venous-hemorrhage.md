@@ -1,3 +1,5 @@
+[繁體中文](venous-hemorrhage.zh-TW.md) · [简体中文](venous-hemorrhage.zh-CN.md) · [English](venous-hemorrhage.md) · [Deutsch](venous-hemorrhage.de.md) · [日本語](venous-hemorrhage.ja.md)
+
 # Venous outflow and observed hematoma pressure
 
 These independent research calculators appear in Details. They do not alter
