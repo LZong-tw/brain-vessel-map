@@ -238,7 +238,7 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
         <SymptomLine
           label={rt.improvedLabel(stopTime(tIndex - 1, lang))}
           cls="improved"
-          items={improved.map((x) => ({ s: x.s, text: `${x.from}→${x.to === 0 ? rt.goneWord : x.to}` }))}
+          items={improved.map((x) => ({ s: x.s, text: `${+x.from.toFixed(3)}→${x.to === 0 ? rt.goneWord : +x.to.toFixed(3)}` }))}
         />
       )}
       {unexaminable.length > 0 && (
@@ -277,15 +277,20 @@ function SymptomLine({ label, title, cls, items }: { label: string; title?: stri
       <span className="now-line-label" title={title}>
         {label}
       </span>
-      <span className={`now-events now-symptoms ${cls}`}>
+      <div className={`now-events now-symptoms ${cls}`}>
         {items.slice(0, 5).map(({ s, text }) => (
           <span key={`${s.id}|${s.side ?? ''}`} className="now-event">
             {symptomLabel(s, lang, t)}
             {text && <span className="num muted"> {text}</span>}
           </span>
         ))}
-        {items.length > 5 && <span className="muted">+{items.length - 5}</span>}
-      </span>
+        {items.length > 5 && <details>
+          <summary aria-label={`${label} (+${items.length - 5})`}>+{items.length - 5}</summary>
+          {items.slice(5).map(({ s, text }) => <span key={`${s.id}|${s.side ?? ''}`} className="now-event">
+            {symptomLabel(s, lang, t)}{text && <span className="num muted"> {text}</span>}
+          </span>)}
+        </details>}
+      </div>
     </div>
   );
 }

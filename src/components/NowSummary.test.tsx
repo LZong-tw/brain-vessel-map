@@ -349,10 +349,10 @@ describe('"what is happening now": what will not improve (V2-5)', () => {
       expect(noBackup, lang).not.toContain(label(id, 'l', lang));
     }
   });
-  it('the Foville template at 1 week: the gaze palsy still deepened by the oedema is not said not to improve; the dead sixth-nerve nucleus is', () => {
+  it('the Foville template at 1 week: continuous passing dysfunction is not called fixed within an unchanged ordinal grade', () => {
     const { noBackup } = lines('l_pontine', 168, 'en');
     expect(noBackup).not.toContain(label('gaze_palsy_horizontal', 'l', 'en'));
-    expect(noBackup).toContain(label('cn6_palsy', 'l', 'en'));
+    expect(noBackup).not.toContain(label('cn6_palsy', 'l', 'en'));
   });
   it('the swollen cerebellum at 1 week: the gaze palsy from the compression of the brainstem is not said not to improve', () => {
     expect(lines('cerebellar_swelling', 168, 'en').noBackup).not.toContain(label('gaze_palsy_horizontal', 'r', 'en'));

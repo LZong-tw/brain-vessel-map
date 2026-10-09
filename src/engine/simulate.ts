@@ -2725,10 +2725,14 @@ function run(input: SimInput, symptomsOnly: boolean): SimResult | SymptomItem[] 
   const deadSev = new Map(
     lesionSymptoms(lv.rInf, lv.rInf, t, [], lv.lacuneOnly, deadBorder, lacuneDeficitsOf(model.course), model.regionAcute, lv.regionAgeH, undefined, { steady: lv.rInf, base: lv.rInf }).map((s) => [
       `${s.id}|${s.side ?? ''}`,
-      s.sev,
+      s,
     ]),
   );
-  for (const s of [...symptoms, ...unexaminable]) s.deadSev = deadSev.get(`${s.id}|${s.side ?? ''}`) ?? 0;
+  for (const s of [...symptoms, ...unexaminable]) {
+    const dead = deadSev.get(`${s.id}|${s.side ?? ''}`);
+    s.deadSev = dead?.sev ?? 0;
+    s.deadContinuousSeverity = dead?.continuousSeverity ?? dead?.sev ?? 0;
+  }
   // the NIHSS caveat for posterior strokes (Y3-6): tissue of the vertebrobasilar circulation has
   // become ischaemic by now, and the patient has a symptom (listed, or there but not examinable)
   const posterior = model.posteriorStarts.some((h) => h <= tAbs + 1e-9) && symptoms.length + unexaminable.length > 0;

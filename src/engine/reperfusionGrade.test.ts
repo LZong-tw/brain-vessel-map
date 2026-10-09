@@ -65,16 +65,19 @@ describe('a reopening that avoids a fatal course is a benefit (Z2-3)', () => {
     expect(ev.desc.zh).toMatch(/不治療時假如病人存活/);
   });
 
-  it('a right M1 with decompression (no fatal course either way) reopened at 6 h spares about 70 mL: a benefit the scale shows little of', () => {
+  it('a right M1 with decompression (no fatal course either way) reopened at 6 h spares about 70 mL: a benefit shown by intermediate motor grades and saved volume', () => {
     const input = one('mca_m1_r', 'poor', 6, { decompression: true });
     const { t, u, saved } = outcome(input);
     expect(saved).toBeGreaterThan(50);
-    expect(u.nihss.total - t.nihss.total).toBeLessThan(2);
+    // Continuous motor projection now includes grade 2, formerly skipped by these anchors.
+    expect(t.nihss.items).toEqual({ '3': 2, '4': 1, '8': 1, '10': 1, '11': 1, '5l': 2, '6l': 1 });
+    expect(u.nihss.items).toEqual({ '3': 2, '4': 1, '8': 1, '10': 1, '11': 2, '5l': 3, '6l': 2 });
+    expect(u.nihss.total - t.nihss.total).toBe(3);
     const ev = event(input)!;
     expect(ev.severity).toBe('good');
-    expect(ev.desc.en).toMatch(/The scale shows little of the difference, but the treatment spared about \d+ mL of brain/);
-    expect(ev.desc.en).toMatch(/right-hemisphere infarct lower than a left one/);
-    expect(ev.desc.zh).toMatch(/NIHSS 看不太出差別，但治療保住了約 \d+ mL 的腦組織/);
+    expect(ev.desc.en).toContain(`NIHSS at 3 months about ${t.nihss.total} instead of ${u.nihss.total} without treatment`);
+    expect(ev.desc.en).toMatch(/model estimates ~72 mL less infarct/);
+    expect(ev.desc.zh).not.toMatch(SAME_AS_DIFFERENCE_ZH);
   });
 
   it('a reopening too late to change the deficit, the course or much volume is told, but not as a benefit', () => {

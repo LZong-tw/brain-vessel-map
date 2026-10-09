@@ -1,3 +1,4 @@
+import { DeficitSeverity } from './DeficitSeverity';
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
 import { canBeLacunar, lacuneSiteOf, lacuneSitesOf } from '../anatomy/lacunes';
@@ -322,7 +323,7 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
                   .sort((a, b) => b.sev - a.sev)
                   .slice(0, 6)
                   .map((s) => (
-                    <li key={s.id + s.side}>{symptomLabel(s, lang, t)}</li>
+                    <li key={s.id + s.side}>{symptomLabel(s, lang, t)}<DeficitSeverity symptom={s} lang={lang} /></li>
                   ))}
               </ul>
               <button className="btn block" onClick={() => st.toggleOcclusion(id)}>
@@ -684,6 +685,7 @@ function Results({ sim }: { sim: SimResult }) {
                   <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
                     <span className={`sev sev${s.sev}`} aria-hidden="true" />
                     {symptomLabel(s, lang, t)}
+                    <DeficitSeverity symptom={s} lang={lang} />
                     {s.delayed && <span className="tag">{t.delayedTag}</span>}
                   </li>
                 ))}
@@ -700,6 +702,7 @@ function Results({ sim }: { sim: SimResult }) {
                 <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}
+                  <DeficitSeverity symptom={s} lang={lang} unexaminable />
                   {unexaminableHead.tag(s) && <span className="muted small"> · {unexaminableHead.tag(s)}</span>}
                 </li>
               ))}

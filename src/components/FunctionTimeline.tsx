@@ -7,6 +7,7 @@ import { TIME_STOPS } from '../anatomy/timeline';
 import type { SymptomItem } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
 import { CELL_DETAIL_UI } from '../i18n/uiCellDetail';
+import { DEFICIT_SEVERITY } from '../i18n/deficitSeverity';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
@@ -26,6 +27,7 @@ import {
 import { systemCellDetail } from '../ui/cellDetail';
 import { COMPENSATION_SHOWN, UNEXAMINABLE_FILL, compensatedShare, nihssFill, unexaminableHeading, withHatch } from '../ui/recoveryFormat';
 import { StopGrid, type StopRow } from './StopGrid';
+import { DeficitSeverity } from './DeficitSeverity';
 
 /** systems in which some deficit is partly compensated by other pathways */
 function compensatedSystems(s: SimResult): Set<SymptomSystem> {
@@ -45,7 +47,8 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
   const rt = RECOVERY_UI[lang];
   const [picked, setPicked] = useState<string | null>(null);
   const { rows, hatched, unexaminable } = useMemo(() => {
-    const perStop = series.map((s) => severityBySystem(s.symptoms));
+    const perStop = series.map((s) => severityBySystem(s.symptoms, 'ordinal'));
+    const continuousStop = series.map((s) => severityBySystem(s.symptoms));
     const compStop = series.map(compensatedSystems);
     const out: StopRow[] = [];
     let anyHatch = false;
@@ -64,7 +67,7 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
           const fill = SEV_FILL[lv] ?? null;
           const comp = fill !== null && compStop[i].has(sys);
           anyHatch ||= comp;
-          const level = lv > 0 || !hidden[i].length ? `${t.sevWords[lv]}${lv > 0 ? ` (${lv}/3)` : ''}` : '';
+          const level = lv > 0 || !hidden[i].length ? `${t.sevWords[lv]}${lv > 0 ? ` · ${DEFICIT_SEVERITY[lang].model}: ${(continuousStop[i][sys] ?? 0).toFixed(2)}/3` : ''}` : '';
           const notExamined = hidden[i].length
             ? `${unexaminableHeading(hidden[i], lang).label}${usesLatinSpacing(lang) ? ': ' : '：'}${hidden[i].map((x) => symptomLabel(x, lang, t)).join(usesLatinSpacing(lang) ? '; ' : '、')}`
             : '';
@@ -191,6 +194,7 @@ function CellDetailBox({ rowKey, series, onClose }: { rowKey: string; series: Si
                     {s.side && `（${sideWord(s.side)}）`}
                   </span>{' '}
                   <span className="muted small">{t.sevWords[s.sev]}</span>{' '}
+                  <DeficitSeverity symptom={{ ...s, sources: s.regions }} lang={lang} />
                   {index > 0 && s.change !== 'same' && <span className={`badge cd-${s.change}`}>{ct.change[s.change]}</span>}
                   {s.compensated >= COMPENSATION_SHOWN && <span className="badge">{ct.compensated(Math.round(s.compensated * 100))}</span>}
                   {(s.regions.length > 0 || s.events.length > 0) && (
@@ -228,10 +232,10 @@ function CellDetailBox({ rowKey, series, onClose }: { rowKey: string; series: Si
           </ul>
         )}
         {d.unexaminable.length > 0 && (
-          <p className="small muted cd-unexaminable" title={unexaminableHeading(d.unexaminable, lang).title}>
+          <div className="small muted cd-unexaminable" title={unexaminableHeading(d.unexaminable, lang).title}>
             {ct.unexaminable(unexaminableHeading(d.unexaminable, lang).label)}：
-            {d.unexaminable.map((s) => `${SYMPTOM_BY_ID[s.id] ? tr(SYMPTOM_BY_ID[s.id].name, lang) : s.id}${s.side ? `（${sideWord(s.side)}）` : ''}`).join('、')}
-          </p>
+            <ul>{d.unexaminable.map((s) => <li key={`${s.id}|${s.side ?? ''}`}>{SYMPTOM_BY_ID[s.id] ? tr(SYMPTOM_BY_ID[s.id].name, lang) : s.id}{s.side && `（${sideWord(s.side)}）`}<DeficitSeverity symptom={s} lang={lang} unexaminable /></li>)}</ul>
+          </div>
         )}
         {d.resolved.length > 0 && (
           <p className="small muted">

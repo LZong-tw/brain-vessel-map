@@ -4,6 +4,7 @@ import { SYMPTOM_BY_ID } from '../anatomy/symptoms';
 import { TIME_STOPS, formatHours } from '../anatomy/timeline';
 import type { BedEffectKind } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
+import { continuousSeverity } from '../engine/deficitGrades';
 import type { EdemaState } from '../engine/edemaTypes';
 import { getUnits } from '../engine/hemodynamics';
 import type { SimResult } from '../engine/simulate';
@@ -150,11 +151,11 @@ export const SYSTEM_LABEL: Record<SymptomSystem, L> = {
 export const systemOf = (symptomId: string): SymptomSystem => SYMPTOM_BY_ID[symptomId]?.system ?? 'cognition';
 
 /** Highest symptom severity (0–3) per system. */
-export function severityBySystem(symptoms: SymptomItem[]): Partial<Record<SymptomSystem, number>> {
+export function severityBySystem(symptoms: SymptomItem[], scale: 'continuous' | 'ordinal' = 'continuous'): Partial<Record<SymptomSystem, number>> {
   const out: Partial<Record<SymptomSystem, number>> = {};
   for (const s of symptoms) {
     const sys = systemOf(s.id);
-    out[sys] = Math.max(out[sys] ?? 0, s.sev);
+    out[sys] = Math.max(out[sys] ?? 0, scale === 'ordinal' ? s.sev : continuousSeverity(s));
   }
   return out;
 }

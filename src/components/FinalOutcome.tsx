@@ -1,3 +1,4 @@
+import { DeficitSeverity } from './DeficitSeverity';
 import { useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { REGION_BY_ID, regionName, tr } from '../anatomy';
@@ -276,6 +277,7 @@ export function FinalOutcome() {
                 <li key={s.id + s.side}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}
+                  <DeficitSeverity symptom={s} lang={lang} unexaminable />
                   <span className="muted small"> · {tr(SYSTEM_LABEL[systemOf(s.id)], lang)}</span>
                   {unexaminableHead.tag(s) && <span className="muted small"> · {unexaminableHead.tag(s)}</span>}
                 </li>
@@ -415,6 +417,7 @@ function DeficitItem({ s, qualifiers = [] }: { s: SymptomItem; qualifiers?: stri
     <li title={[tr(SYMPTOM_BY_ID[s.id]?.desc ?? { zh: '', en: '' }, lang), rt.kindExplain[kind], note].filter(Boolean).join('\n')}>
       <span className={`sev sev${s.sev}`} aria-hidden="true" />
       {symptomLabel(s, lang, t)}
+      <DeficitSeverity symptom={s} lang={lang} />
       {qualifiers.map((q) => (
         <span key={q} className="muted small">
           {usesLatinSpacing(lang) ? ` (${q})` : `（${q}）`}

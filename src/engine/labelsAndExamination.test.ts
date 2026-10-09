@@ -9,7 +9,7 @@ import { REGION_BY_ID } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
 import { SYNDROMES } from '../anatomy/syndromes';
 import { TIME_STOPS } from '../anatomy/timeline';
-import { NEEDS_SIGHT, aggregateSymptoms, estimateNihss, examinability, isBlind, type SymptomItem } from './clinical';
+import { NEEDS_SIGHT, aggregateSymptoms, estimateNihss, symptomNihssPoints, examinability, isBlind, type SymptomItem } from './clinical';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
 
@@ -452,10 +452,10 @@ describe('V2-10: limb ataxia and the clumsy hand are not examined in a paralysed
   // names it apart, as the signs that cannot be examined at other levels of consciousness
   /** NIHSS points of the arm (item 5: arm_weak, and the proximal weakness of a border-zone infarct), of the hand's own weakness and of the leg (item 6) */
   const paralysedSide = (r: SimResult, sd: 'r' | 'l') => {
-    const pts = (id: string, scale: number[]) =>
-      r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, scale[s.sev - 1]), 0);
-    const hand = pts('arm_weak', [1, 3, 4]);
-    return { arm: Math.max(hand, pts('arm_weak_proximal', [1, 2, 3])), hand, leg: pts('leg_weak', [1, 3, 4]) };
+    const pts = (id: string) =>
+      r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, symptomNihssPoints(s) ?? 0), 0);
+    const hand = pts('arm_weak');
+    return { arm: Math.max(hand, pts('arm_weak_proximal')), hand, leg: pts('leg_weak') };
   };
   it.each([
     ['basilar_mid', 0],
@@ -612,7 +612,7 @@ describe('U3-11: the retinal-ischaemia label is shown only beside its sign', () 
  */
 describe('U3-12: gait and truncal ataxia are not examined while neither leg can be lifted against gravity', () => {
   const legPts = (r: SimResult, sd: 'r' | 'l') =>
-    r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, [1, 3, 4][s.sev - 1]), 0);
+    r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === sd || s.side === 'both')).reduce((m, s) => Math.max(m, symptomNihssPoints(s) ?? 0), 0);
   it('both distal vertebral arteries (all four limbs plegic): named apart as not examinable, the NIHSS unchanged', () => {
     for (const tH of [24, 720, 4320]) {
       const r = run(occl('va_v4_dist_r', 'va_v4_dist_l'), tH);

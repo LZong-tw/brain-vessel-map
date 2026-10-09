@@ -8,6 +8,16 @@ import { improvedSince, noBackupNow, unexaminableHeading } from './recoveryForma
 const item = (id: string, sev: 1 | 2 | 3, side: SymptomItem['side'] = null): SymptomItem => ({ id, side, sev, sources: ['x'], delayed: false });
 
 describe('improvedSince', () => {
+  it('reports continuous improvement within an unchanged ordinal category', () => {
+    const before = { ...item('hiccups', 2), continuousSeverity: 2.49 };
+    const after = { ...item('hiccups', 2), continuousSeverity: 2.01 };
+    expect(improvedSince([before], [after]).map((s) => [s.from, s.to])).toEqual([[2.49, 2.01]]);
+  });
+  it('does not call a deficit fixed by dead tissue when continuous passing dysfunction remains', () => {
+    const symptom = { ...item('hemianopia', 2), continuousSeverity: 2.49, deadSev: 2 as const, deadContinuousSeverity: 2.01 };
+    const sim = { symptoms: [symptom], unexaminable: [] } as unknown as SimResult;
+    expect(noBackupNow(sim, null)).toEqual([]);
+  });
   it('reports a symptom that is gone as improved', () => {
     expect(improvedSince([item('hiccups', 2)], []).map((x) => [x.s.id, x.to])).toEqual([['hiccups', 0]]);
   });
@@ -134,8 +144,11 @@ describe('noBackupNow: what will not improve (V2-5)', () => {
     const runs = runsOf('l_pontine', 'good');
     expect(ids(noBackupNow(runs[at(168)], runs[at(120)]))).not.toContain('gaze_palsy_horizontal/l');
     expect(ids(noBackupNow(runs[at(336)], runs[at(168)]))).not.toContain('face_weak_peripheral/l');
-    // the sixth-nerve palsy of the dead basis is
-    expect(ids(noBackupNow(runs[at(168)], runs[at(120)]))).toContain('cn6_palsy/l');
+    // Its generic category is unchanged, but passing dysfunction still adds to the CN VI deficit.
+    const cn6 = runs[at(168)].symptoms.find((s) => s.id === 'cn6_palsy' && s.side === 'l')!;
+    expect(cn6.deadSev).toBe(cn6.sev);
+    expect(cn6.deadContinuousSeverity).toBeLessThan(cn6.continuousSeverity!);
+    expect(ids(noBackupNow(runs[at(168)], runs[at(120)]))).not.toContain('cn6_palsy/l');
   });
   it('a gaze palsy from the compression by a swollen cerebellum is not said to stay', () => {
     const runs = runsOf('cerebellar_swelling', SCENARIO_BY_ID.cerebellar_swelling.collateral ?? 'good');

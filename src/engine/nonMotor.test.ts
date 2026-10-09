@@ -282,7 +282,8 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // W1-6: 92 % of Wernicke's area is infarcted, so the comprehension deficit is taken over little
   // (Naeser 1987): the Wernicke type that follows the global aphasia is moderate to severe (9: 1 → 2,
   // 1b: 1 → 2, 1c: 0 → 1; was 11)
-  'l_m1@2160': [14, { '1b': 2, '1c': 1, 3: 2, 4: 1, '5r': 3, '6r': 1, 8: 1, 9: 2, 10: 1 }, ['mca_complete_l']],
+  // Continuous motor projection: 6r: 1 → 2; non-motor items and syndrome labels unchanged.
+  'l_m1@2160': [15, { '1b': 2, '1c': 1, 3: 2, 4: 1, '5r': 3, '6r': 2, 8: 1, 9: 2, 10: 1 }, ['mca_complete_l']],
   // Y2-2: the deep infarct the reopening at 2 h leaves (putamen, caudate, posterior limb) is named
   // a striatocapsular infarct next to the inferior-division label of its temporal part (was
   // ['mca_inferior_l'] alone, whose text describes little weakness beside a hemiparesis)
@@ -317,7 +318,8 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   'r_m1_decompression@24': [17, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 3, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 10 (6l 2); C1-F2: hemianopia (3: 1 → 2; was 9); Z2-6: as r_m1_malignant (11:
   // 1 → 2; was 10)
-  'r_m1_decompression@2160': [11, { 3: 2, 4: 1, '5l': 3, '6l': 1, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
+  // Continuous motor projection: 6l: 1 → 2; non-motor items and syndrome labels unchanged.
+  'r_m1_decompression@2160': [12, { 3: 2, 4: 1, '5l': 3, '6l': 2, 8: 1, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C4-F2: 3.5 mm of midline shift at 24 h, alert (1a: 1 → 0; was 19)
   'r_ica_t@24': [18, { 2: 1, 3: 2, 4: 2, '5l': 4, '6l': 4, 8: 2, 10: 1, 11: 2 }, ['mca_complete_r', 'neglect_r']],
   // C5-F1 drift: was 11 (6l 2); Y1-1: as r_m1_malignant (5l: 3 → 4, 6l: 1 → 3; was 10); Z2-6: as
@@ -330,7 +332,8 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // (11: 1 → 0; was 6)
   // Z1-15: with moderate collaterals 78 % of the motor strip is lost (was 58 %): a moderate arm
   // weakness and a dysarthria remain (5r: 1 → 3, 10: 0 → 1; was 5)
-  'l_m2_sup@2160': [8, { '1b': 1, 4: 1, '5r': 3, 8: 1, 9: 1, 10: 1 }, ['mca_superior_l']],
+  // Continuous motor projection: 5r: 3 → 2; non-motor items and syndrome labels unchanged.
+  'l_m2_sup@2160': [7, { '1b': 1, 4: 1, '5r': 2, 8: 1, 9: 1, 10: 1 }, ['mca_superior_l']],
   // C1-F2: hemianopia (3: 1 → 2); C1-F5: right neglect (11: 0 → 1); C1-F1: no Gerstmann label
   // with a Wernicke aphasia (was 7, ['gerstmann_l', 'mca_inferior_l'])
   'l_m2_inf@24': [9, { '1b': 2, '1c': 1, 3: 2, 9: 2, 10: 1, 11: 1 }, ['mca_inferior_l']],
@@ -344,15 +347,18 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C1-F5: the superior parietal lobule alone gives no neglect (was 7, 11: 1, ['aca_r', 'neglect_r'])
   'r_aca@24': [6, { '5l': 1, '6l': 4, 8: 1 }, ['aca_r']],
   // C5-F1 drift: was 4 (6l 2); C5-F2: the neglect has resolved, so its label goes (aca_r stays)
-  'r_aca@2160': [3, { '5l': 1, '6l': 1, 8: 1 }, ['aca_r']],
+  // Continuous motor projection: 6l: 1 → 2; non-motor items and syndrome labels unchanged.
+  'r_aca@2160': [4, { '5l': 1, '6l': 2, 8: 1 }, ['aca_r']],
   'l_acha@24': [12, { 3: 2, 4: 2, '5r': 3, '6r': 3, 8: 1, 10: 1 }, ['acha_l']],
   // C5-F1 drift: was 9; Y1-1: half of the posterior limb infarcted under a plegic arm: a moderate
   // weakness, not a drift (5r: 1 → 3; was 7)
-  'l_acha@2160': [9, { 3: 2, 4: 1, '5r': 3, '6r': 1, 8: 1, 10: 1 }, ['acha_l']],
+  // Continuous motor projection: 6r: 1 → 2; non-motor items and syndrome labels unchanged.
+  'l_acha@2160': [10, { 3: 2, 4: 1, '5r': 3, '6r': 2, 8: 1, 10: 1 }, ['acha_l']],
   // C6-F6: a subcortical (transcortical motor) aphasia from cortical hypoperfusion (9: 0 → 1; was 10)
   'l_lsa@24': [11, { 4: 2, '5r': 3, '6r': 3, 8: 1, 9: 1, 10: 1 }, ['striatocapsular_l']],
   // C5-F1 drift: was 7; Y1-1: as l_acha (5r: 1 → 3; was 5)
-  'l_lsa@2160': [7, { 4: 1, '5r': 3, '6r': 1, 8: 1, 10: 1 }, ['striatocapsular_l']],
+  // Continuous motor projection: 6r: 1 → 2; non-motor items and syndrome labels unchanged.
+  'l_lsa@2160': [8, { 4: 1, '5r': 3, '6r': 2, 8: 1, 10: 1 }, ['striatocapsular_l']],
   // C6-F1: a lacune weakens face, arm and leg mildly (sev 1 each), not to a plegia (was 10, 4: 2, 5r: 4, 6r: 4)
   'l_lacune@24': [3, { 4: 1, '5r': 1, '6r': 1 }, ['lacunar_pure_motor_l']],
   // C5-F1 drift: was 6 (6r 2); C6-F1: drift of arm and leg left, the face compensated (was 5, 4: 1, 5r: 3)
@@ -408,7 +414,8 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // X3-0: with the pial arteries of the hemispheres mirrored in the flow model, the left lingual
   // gyrus keeps less infarct (0.27 → 0.23 of the region), so the upper quadrantanopia has gone by
   // 3 months (3: 1 → 0); was 29
-  'basilar_tip@2160': [28, { '1a': 2, '1b': 2, '1c': 2, 2: 1, 4: 2, '5l': 3, '5r': 3, '6l': 3, '6r': 3, 8: 2, 9: 3, 10: 2 }, ['top_of_basilar']],
+  // Continuous motor projection: 5l: 3 → 2, 6l: 3 → 2; non-motor items and syndrome labels unchanged.
+  'basilar_tip@2160': [26, { '1a': 2, '1b': 2, '1c': 2, 2: 1, 4: 2, '5l': 2, '5r': 3, '6l': 2, '6r': 3, 8: 2, 9: 3, 10: 2 }, ['top_of_basilar']],
   // C5-F1: anarthric, so cannot answer the questions aloud: 1b = 1
   'basilar_mid@24': [24, { '1b': 1, 2: 2, 4: 3, '5l': 4, '5r': 4, '6l': 4, '6r': 4, 10: 2 }, ['locked_in']],
   // C3-F1: some limb movement has returned (5 and 6 score 3, not 4): incomplete locked-in syndrome
@@ -440,14 +447,16 @@ const PINNED: Record<string, [number, Record<string, number>, string[]]> = {
   // C5-F1 drift: was 9; Y1-1: 65 % of the left basis pontis infarcted under a plegic arm and leg: a
   // moderate weakness of both at 3 months (5r: 1 → 3, 6r: 1 → 3; the leg recovers further by 6
   // months), too weak for the ataxia to be scored (7: 1 → 0; was 7)
-  'l_pontine@2160': [10, { 2: 2, 4: 2, '5r': 3, '6r': 3 }, ['foville_l']],
+  // Continuous motor projection: 6r: 3 → 2; non-motor items and syndrome labels unchanged.
+  'l_pontine@2160': [9, { 2: 2, 4: 2, '5r': 3, '6r': 2 }, ['foville_l']],
   // C6-F1: ataxic hemiparesis — mild weakness, so the ataxia is scored (was 11, 4: 2, 5l: 4, 6l: 4, no 7).
   // Y2-8: "marked ataxia of the same limbs", the arm and the leg (7: 1 → 2; was 5)
   'r_pontine_lacune@24': [6, { 4: 1, '5l': 1, '6l': 1, 7: 2, 10: 1 }, ['pontine_lacunar_r']],
   // C5-F1 drift: was 7 (6l 2); C6-F1: (was 6, 4: 1, 5l: 3, no 7)
   'r_pontine_lacune@2160': [4, { '5l': 1, '6l': 1, 7: 1, 10: 1 }, ['pontine_lacunar_r']],
   'r_asa@24': [9, { '5l': 4, '6l': 4, 10: 1 }, ['dejerine_r']],
-  'r_asa@2160': [5, { '5l': 3, '6l': 1, 10: 1 }, ['dejerine_r']], // C5-F1 drift: was 6 (6l 2)
+  // Continuous motor projection: 5l: 3 → 2, 6l: 1 → 2; non-motor items and syndrome labels unchanged.
+  'r_asa@2160': [5, { '5l': 2, '6l': 2, 10: 1 }, ['dejerine_r']], // C5-F1 drift: was 6 (6l 2)
   'ica_silent@24': [0, {}, ['carotid_compensated_r']],
   'ica_silent@2160': [0, {}, ['carotid_compensated_r']],
   // Y1-0: the infarct grows over hours, about 300 mL at 24 h instead of 334, so the midline shift is
@@ -488,6 +497,7 @@ describe('NIHSS and named syndromes are unchanged by the non-motor symptoms', ()
   it.each(Object.entries(PINNED))('%s', (key, [total, items, syndromes]) => {
     const [id, h] = key.split('@');
     const r = scenario(id, Number(h));
+
     expect(r.nihss.total).toBe(total);
     const got = Object.fromEntries(Object.entries(r.nihss.items).filter(([, v]) => (v ?? 0) > 0));
     expect(got).toEqual(Object.fromEntries(Object.entries(items).map(([k, v]) => [String(k), v])));

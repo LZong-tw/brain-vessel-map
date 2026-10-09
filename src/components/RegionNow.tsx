@@ -1,3 +1,4 @@
+import { DeficitSeverity } from './DeficitSeverity';
 import { usesLatinSpacing } from '../i18n/locales';
 import { useMemo } from 'react';
 import { formatHours } from '../anatomy/timeline';
@@ -385,6 +386,7 @@ function FuncGroup({
             <li key={symptomKey(s)}>
               <span className={`sev sev${s.sev}`} aria-hidden="true" />
               {symptomLabel(s, lang, t)}
+              {cls !== 'recovered' && cls !== 'compensated' && <DeficitSeverity symptom={s} lang={lang} unexaminable={cls === 'unexaminable'} />}
               {tag?.text && (
                 <span className={`rec-tag ${tag.cls}`} title={tag.title}>
                   {tag.text}
