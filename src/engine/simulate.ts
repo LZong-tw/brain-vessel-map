@@ -908,6 +908,8 @@ function prodromalEvents(attacks: Prodrome[], clearsAt: (a: Prodrome) => number 
 function shiftTimes<T>(x: T, dh: number): T {
   if (Array.isArray(x)) return x.map((y) => shiftTimes(y, dh)) as T;
   if (x && typeof x === 'object') {
+    // Text has no times to shift; retain its non-enumerable language renderer.
+    if ('zh' in x && 'en' in x && typeof x.zh === 'string' && typeof x.en === 'string') return x;
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(x)) out[k] = typeof v === 'number' && k.endsWith('H') ? v + dh : shiftTimes(v, dh);
     return out as T;

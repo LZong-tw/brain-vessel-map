@@ -14,9 +14,11 @@ export type Vec3 = [number, number, number];
 export interface L {
   zh: string;
   en: string;
+  /** Non-enumerable renderer attached by withLocalized for dynamic clinical prose. */
+  localized?: (lang: Exclude<Lang, 'zh-TW' | 'en'>) => string;
 }
 
-export type Lang = 'zh-TW' | 'en';
+export type Lang = 'zh-TW' | 'en' | 'zh-CN' | 'de' | 'ja';
 
 export type Side = 'r' | 'l';
 /** 'm' = midline / unpaired structure */

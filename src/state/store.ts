@@ -13,6 +13,7 @@ import type { CollateralGrade, Occlusion } from '../engine/hemodynamics';
 import { endOf, fitSchedule, startOf, tidy } from '../engine/schedule';
 import { DEFAULT_TREATMENT, type TreatmentOptions } from '../engine/treatment';
 import { defaultView, hasWebGL } from './webgl';
+import { preferredLanguage } from '../i18n/locales';
 
 /** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
 export type Selection = { kind: 'vessel' | 'region' | 'structure'; id: string } | null;
@@ -169,10 +170,7 @@ function safeSet(key: string, v: string) {
 }
 
 const initialLang = (): Lang => {
-  const saved = safeGet('bvm.lang');
-  if (saved === 'en' || saved === 'zh-TW') return saved;
-  if (typeof navigator !== 'undefined' && !navigator.language.toLowerCase().startsWith('zh')) return 'en';
-  return 'zh-TW';
+  return preferredLanguage(safeGet('bvm.lang'), typeof navigator === 'undefined' ? 'zh-TW' : navigator.language);
 };
 
 export const useApp = create<AppState>((set, get) => ({

@@ -1,3 +1,4 @@
+import { usesLatinSpacing } from '../i18n/locales';
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, regionName, tr } from '../anatomy';
 import type { SymptomSystem } from '../anatomy';
@@ -65,7 +66,7 @@ export function FunctionTimeline({ series }: { series: SimResult[] }) {
           anyHatch ||= comp;
           const level = lv > 0 || !hidden[i].length ? `${t.sevWords[lv]}${lv > 0 ? ` (${lv}/3)` : ''}` : '';
           const notExamined = hidden[i].length
-            ? `${unexaminableHeading(hidden[i], lang).label}${lang === 'en' ? ': ' : '：'}${hidden[i].map((x) => symptomLabel(x, lang, t)).join(lang === 'en' ? '; ' : '、')}`
+            ? `${unexaminableHeading(hidden[i], lang).label}${usesLatinSpacing(lang) ? ': ' : '：'}${hidden[i].map((x) => symptomLabel(x, lang, t)).join(usesLatinSpacing(lang) ? '; ' : '、')}`
             : '';
           const title = `${tr(SYSTEM_LABEL[sys], lang)} — ${[level, notExamined].filter(Boolean).join(' · ')}`;
           // a stop at which every deficit of the system cannot be examined is not drawn as "none"

@@ -6,6 +6,8 @@ import { useT } from '../../state/hooks';
 import { useApp } from '../../state/store';
 import { fmtFlow } from '../../ui/format';
 import { vesselVisual } from '../../ui/vesselState';
+import { inlineText } from '../../i18n/content';
+import { usesLatinSpacing } from '../../i18n/locales';
 
 /**
  * Schematic basal view of the circle of Willis and vertebrobasilar system
@@ -134,24 +136,26 @@ export function WillisDiagram({ sim }: { sim: SimResult }) {
     <div className="diagram">
       <div className="diagram-head">
         <p className="muted small">
-          {lang === 'en'
-            ? 'Basal view — anterior at top, patient’s right on your left. Arrows show flow direction; numbers are mL/min.'
-            : '由腦底往上看——前方在上、病人的右側在畫面左側。箭頭為血流方向，數字單位為 mL/分。'}
+          {inlineText(lang, '由腦底往上看——前方在上、病人的右側在畫面左側。箭頭為血流方向，數字單位為 mL/分。',
+            'Basal view — anterior at top, patient’s right on your left. Arrows show flow direction; numbers are mL/min.',
+            '从脑底向上看——前方在上，患者右侧在画面左侧。箭头表示血流方向，数值单位为 mL/min。',
+            'Basalansicht: anterior oben, Patientenrechts links im Bild. Pfeile zeigen die Flussrichtung; Zahlen in mL/min.',
+            '脳底からの表示 — 前方が上、患者の右が画面の左。矢印は血流方向、数値は mL/min。')}
         </p>
         <label className="check inline">
           <input type="checkbox" checked={clickToBlock} onChange={(e) => setClickToBlock(e.target.checked)} />
-          {lang === 'en' ? 'Click to block / unblock' : '點一下即阻塞／解除'}
+          {inlineText(lang, '點一下即阻塞／解除', 'Click to block / unblock', '点击闭塞／解除', 'Klicken zum Verschließen / Öffnen', 'クリックで閉塞／解除')}
         </label>
       </div>
       <svg viewBox="0 0 420 520" className="willis" role="group" aria-label={t.viewWillis}>
         <text x="30" y="30" className="dir">
-          {lang === 'en' ? 'R' : '右'}
+          {usesLatinSpacing(lang) ? 'R' : '右'}
         </text>
         <text x="380" y="30" className="dir">
-          {lang === 'en' ? 'L' : '左'}
+          {usesLatinSpacing(lang) ? 'L' : '左'}
         </text>
         <text x="210" y="515" className="dir" textAnchor="middle">
-          {lang === 'en' ? 'posterior ↓' : '後 ↓'}
+          {inlineText(lang, '後 ↓', 'posterior ↓', '后 ↓', 'posterior ↓', '後 ↓')}
         </text>
         {Object.entries(SEG).map(([id, d]) => {
           const v = VESSEL_BY_ID[id];

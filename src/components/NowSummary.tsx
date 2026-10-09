@@ -1,3 +1,4 @@
+import { usesLatinSpacing } from '../i18n/locales';
 import { BEDS, REGION_BY_ID, regionName, tr } from '../anatomy';
 import { PHASE_LABEL, REPERFUSION_STOPS, TIME_STOPS, formatHours, phaseOf } from '../anatomy/timeline';
 import type { CascadeEvent, EventSeverity } from '../engine/cascade';
@@ -232,7 +233,7 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
     <section className={`now-summary ph-${phaseOf(tH)}`} aria-live="polite">
       <div className="kicker">{t.nowTitle}</div>
       <div className="now-phase">{t.nowPhase(tH === 0 ? null : stopTime(tIndex, lang), tr(PHASE_LABEL[phaseOf(tH)], lang))}</div>
-      <p>{sentences.join(lang === 'en' ? ' ' : '')}</p>
+      <p>{sentences.join(usesLatinSpacing(lang) ? ' ' : '')}</p>
       {improved.length > 0 && (
         <SymptomLine
           label={rt.improvedLabel(stopTime(tIndex - 1, lang))}

@@ -1,3 +1,4 @@
+import { usesLatinSpacing } from '../i18n/locales';
 import { useMemo } from 'react';
 import { VESSEL_BY_ID, vesselName } from '../anatomy';
 import { RECANALISATION_EVIDENCE, siteGroupOf as defaultSiteGroupOf, type RecanalisationEvidence, type SiteGroup } from '../anatomy/recanalisation';
@@ -42,7 +43,7 @@ export function ReperfusionTimeOptions({ occlusions, lang, reperfusionAt }: { oc
         const names = occlusions
           .filter((o) => isTreatable(o) && startOf(o) === at)
           .map((o) => vesselName(VESSEL_BY_ID[o.vessel], lang))
-          .join(lang === 'en' ? ', ' : '、');
+          .join(usesLatinSpacing(lang) ? ', ' : '、');
         return (
           <optgroup key={at} label={s.treatAfter(names, formatClock(at, lang))}>
             {REPERFUSION_STOPS.map((d) => (
@@ -213,7 +214,7 @@ export function EvidenceBox({
   const lang = useApp((s) => s.lang);
   const s = TREATMENT_UI[lang];
   const rows = evidenceRows(evidence, sites, method, lang, { delayH });
-  const colon = lang === 'en' ? ': ' : '：';
+  const colon = usesLatinSpacing(lang) ? ': ' : '：';
   return (
     <section className="tx-evidence" aria-label={s.evidenceTitle}>
       <div className="tx-label">{s.evidenceTitle}</div>

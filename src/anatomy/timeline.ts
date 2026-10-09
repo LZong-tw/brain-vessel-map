@@ -1,4 +1,4 @@
-import type { L } from './types';
+import type { L, Lang } from './types';
 
 export interface TimeStop {
   h: number;
@@ -46,8 +46,29 @@ export const PHASE_LABEL: Record<Phase, L> = {
   chronic: { zh: '慢性期（1 個月以上）', en: 'Chronic (> 1 month)' },
 };
 
-export function formatHours(h: number, lang: 'zh-TW' | 'en'): string {
-  const zh = lang !== 'en';
+export function formatHours(h: number, lang: Lang): string {
+  if (lang === 'de') {
+    if (h < 1) return `${Math.round(h * 60)} min`;
+    if (h < 48) return `${+h.toFixed(1)} h`;
+    if (h < 336) { const n = Math.round(h / 24); return `${n} ${n === 1 ? 'Tag' : 'Tage'}`; }
+    if (h < 1440) { const n = Math.round(h / 168); return `${n} ${n === 1 ? 'Woche' : 'Wochen'}`; }
+    const n = Math.round(h / 720); return `${n} ${n === 1 ? 'Monat' : 'Monate'}`;
+  }
+  if (lang === 'ja') {
+    if (h < 1) return `${Math.round(h * 60)} 分`;
+    if (h < 48) return `${+h.toFixed(1)} 時間`;
+    if (h < 336) return `${Math.round(h / 24)} 日`;
+    if (h < 1440) return `${Math.round(h / 168)} 週間`;
+    return `${Math.round(h / 720)} か月`;
+  }
+  if (lang === 'zh-CN') {
+    if (h < 1) return `${Math.round(h * 60)} 分钟`;
+    if (h < 48) return `${+h.toFixed(1)} 小时`;
+    if (h < 336) return `${Math.round(h / 24)} 天`;
+    if (h < 1440) return `${Math.round(h / 168)} 周`;
+    return `${Math.round(h / 720)} 个月`;
+  }
+  const zh = lang === 'zh-TW';
   if (h < 1) return zh ? `${Math.round(h * 60)} 分鐘` : `${Math.round(h * 60)} min`;
   if (h < 48) return zh ? `${+h.toFixed(1)} 小時` : `${+h.toFixed(1)} h`;
   if (h < 336) return zh ? `${Math.round(h / 24)} 天` : `${Math.round(h / 24)} days`;

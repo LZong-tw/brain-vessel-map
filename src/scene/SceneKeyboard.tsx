@@ -11,6 +11,7 @@ import { vesselVisual } from '../ui/vesselState';
 import type { BrainData } from './brainData';
 import { toThree, vesselCurve } from './coords';
 import { visibleWithNeck } from './neckVisibility';
+import { inlineText } from '../i18n/content';
 
 type Target = { selection: NonNullable<Selection>; label: string; position: Vector3 };
 
@@ -37,7 +38,7 @@ export function keyboardTargets(data: BrainData | null, sim: SimResult, state: S
       if (m.kind === 'ventricle') {
         if (!seen.has('ventricles')) {
           seen.add('ventricles');
-          targets.push({ selection: { kind: 'structure', id: 'ventricles' }, label: lang === 'en' ? 'Ventricles' : '腦室', position: p });
+          targets.push({ selection: { kind: 'structure', id: 'ventricles' }, label: inlineText(lang, '腦室', 'Ventricles', '脑室', 'Ventrikel', '脳室'), position: p });
         }
         break;
       }
@@ -107,7 +108,6 @@ export function SceneKeyboard({ data, sim, events, onFocus }: {
   const [open, setOpen] = useState(false);
   const targets = useMemo(() => open ? keyboardTargets(data, sim, { layers, hemis, lang, clip, colorMode, variants }) : [], [open, data, sim, layers, hemis, lang, clip, colorMode, variants]);
   const [focused, setFocused] = useState<string | null>(null);
-  const en = state.lang === 'en';
   useEffect(() => {
     if (focused && !targets.some((t) => `${t.selection.kind}:${t.selection.id}` === focused)) {
       setFocused(null);
@@ -120,14 +120,14 @@ export function SceneKeyboard({ data, sim, events, onFocus }: {
   }} onBlur={(e) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) { setFocused(null); onFocus(null); state.hover(null); }
   }}>
-    <summary onClick={(e) => { e.preventDefault(); setOpen(!open); }} onFocus={() => { setFocused(null); onFocus(null); state.hover(null); }}>{en ? 'Keyboard navigation' : '鍵盤導覽'}</summary>
-    <p>{en ? 'Camera: arrows rotate, +/− zoom. Structures: Tab or arrows to focus, Enter to select, Esc to clear.' : '相機：方向鍵旋轉，+/− 縮放。構造：Tab 或方向鍵移動焦點，Enter 選取，Esc 清除。'}</p>
-    <button type="button" aria-label={en ? '3D camera' : '3D 相機'} onFocus={() => { setFocused(null); onFocus(null); state.hover(null); }} onKeyDown={(e) => {
+    <summary onClick={(e) => { e.preventDefault(); setOpen(!open); }} onFocus={() => { setFocused(null); onFocus(null); state.hover(null); }}>{inlineText(lang, '鍵盤導覽', 'Keyboard navigation', '键盘导航', 'Tastaturnavigation', 'キーボード操作')}</summary>
+    <p>{inlineText(lang, '相機：方向鍵旋轉，+/− 縮放。構造：Tab 或方向鍵移動焦點，Enter 選取，Esc 清除。', 'Camera: arrows rotate, +/− zoom. Structures: Tab or arrows to focus, Enter to select, Esc to clear.', '相机：方向键旋转，+/− 缩放。构造：Tab 或方向键移动焦点，Enter 选择，Esc 清除。', 'Kamera: Pfeile drehen, +/− zoomen. Strukturen: Tab oder Pfeile zum Fokussieren, Enter wählt aus, Esc hebt die Auswahl auf.', 'カメラ：矢印で回転、+/− で拡大・縮小。構造：Tab または矢印でフォーカス移動、Enter で選択、Esc で解除。')}</p>
+    <button type="button" aria-label={inlineText(lang, '3D 相機', '3D camera', '3D 相机', '3D-Kamera', '3D カメラ')} onFocus={() => { setFocused(null); onFocus(null); state.hover(null); }} onKeyDown={(e) => {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '=', '-'].includes(e.key)) {
         e.preventDefault(); events.dispatchEvent(new CustomEvent('camera-key', { detail: e.key }));
       }
-    }}>{en ? 'Camera' : '相機'}</button>
-    <div className="scene-structure-list" role="group" aria-label={en ? 'Anatomical structures' : '解剖構造'}>
+    }}>{inlineText(lang, '相機', 'Camera', '相机', 'Kamera', 'カメラ')}</button>
+    <div className="scene-structure-list" role="group" aria-label={inlineText(lang, '解剖構造', 'Anatomical structures', '解剖构造', 'Anatomische Strukturen', '解剖学的構造')}>
       {targets.map((t, index) => <button type="button" key={`${t.selection.kind}:${t.selection.id}`} aria-pressed={state.selected?.kind === t.selection.kind && state.selected.id === t.selection.id}
         onFocus={() => { setFocused(`${t.selection.kind}:${t.selection.id}`); onFocus(t.position); state.hover(t.selection); }}
         onClick={() => state.select(t.selection)} onKeyDown={(e) => {

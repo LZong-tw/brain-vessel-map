@@ -5,6 +5,8 @@ import { TIME_STOPS } from '../../anatomy/timeline';
 import type { SimResult } from '../../engine/simulate';
 import { useApp } from '../../state/store';
 import { edemaColor, stateColor, territoryColor, regionColor, toHex } from '../../ui/colors';
+import { inlineText } from '../../i18n/content';
+import { usesLatinSpacing } from '../../i18n/locales';
 
 /**
  * Schematic axial sections through the brainstem showing vascular sectors and the key
@@ -149,9 +151,11 @@ export function BrainstemSections({ sim }: { sim: SimResult }) {
   return (
     <div className="diagram">
       <p className="muted small">
-        {lang === 'en'
-          ? 'Axial sections, anterior at top, patient’s right on your left. Colours show each vascular sector; ellipses mark key nuclei and tracts (hover for names, click a sector for details).'
-          : '橫切面，前方在上、病人的右側在畫面左側。顏色代表各血管供應區塊；橢圓為主要神經核與路徑（滑過看名稱、點區塊看詳細）。'}
+        {inlineText(lang, '橫切面，前方在上、病人的右側在畫面左側。顏色代表各血管供應區塊；橢圓為主要神經核與路徑（滑過看名稱、點區塊看詳細）。',
+          'Axial sections, anterior at top, patient’s right on your left. Colours show each vascular sector; ellipses mark key nuclei and tracts (hover for names, click a sector for details).',
+          '横断面，前方在上，患者右侧在画面左侧。颜色表示各血管供血区，椭圆标出主要核团和传导束（悬停查看名称，点击区域查看详情）。',
+          'Axiale Schnitte: anterior oben, Patientenrechts links im Bild. Farben zeigen die Gefäßsektoren; Ellipsen markieren wichtige Kerne und Bahnen (Namen beim Überfahren, Details durch Anklicken eines Sektors).',
+          '水平断面で、前方が上、患者の右が画面の左。色は血管領域、楕円は主要な核と伝導路です（ホバーで名称、領域クリックで詳細）。')}
       </p>
       <div className="bs-grid">
         {LEVELS.map((lv) => (
@@ -199,10 +203,10 @@ export function BrainstemSections({ sim }: { sim: SimResult }) {
                 }),
               )}
               <text x={8} y={14} className="dir">
-                {lang === 'en' ? 'R' : '右'}
+                {usesLatinSpacing(lang) ? 'R' : '右'}
               </text>
               <text x={204} y={14} className="dir">
-                {lang === 'en' ? 'L' : '左'}
+                {usesLatinSpacing(lang) ? 'L' : '左'}
               </text>
             </svg>
             <figcaption>{tr(lv.title, lang)}</figcaption>

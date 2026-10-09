@@ -10,6 +10,7 @@ import { PART_OF, type NihssResult, type SymptomItem, type UnexaminableWhy } fro
 import type { SimResult } from '../engine/simulate';
 import type { TissueState } from '../engine/tissue';
 import type { Lang } from '../anatomy/types';
+import { usesLatinSpacing } from '../i18n/locales';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { SEV_FILL, SYSTEM_ORDER, symptomKey, systemOf } from './format';
 
@@ -233,7 +234,7 @@ export function unexaminableHeading(items: { why?: UnexaminableWhy }[], lang: La
   }
   return {
     label: rt.unexaminableMixedLabel,
-    title: whys.map((w) => `${rt.unexaminableBy[w].tag}${lang === 'en' ? ': ' : '：'}${rt.unexaminableBy[w].title}`).join(lang === 'en' ? ' ' : ''),
+    title: whys.map((w) => `${rt.unexaminableBy[w].tag}${usesLatinSpacing(lang) ? ': ' : '：'}${rt.unexaminableBy[w].title}`).join(usesLatinSpacing(lang) ? ' ' : ''),
     tag: (s) => rt.unexaminableBy[s.why ?? 'consciousness'].tag,
   };
 }

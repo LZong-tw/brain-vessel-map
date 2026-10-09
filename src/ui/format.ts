@@ -11,6 +11,8 @@ import { finalInfarctProb, infarctFraction, penumbraDecidedH, type TissueState }
 import { tissueParamsForUnit } from '../engine/tissueParams';
 import type { Strings } from '../i18n/ui';
 import { STATE_COLORS } from './colors';
+import { inlineText } from '../i18n/content';
+import { usesLatinSpacing } from '../i18n/locales';
 
 export function symptomLabel(s: SymptomItem, lang: Lang, t: Strings): string {
   const def = SYMPTOM_BY_ID[s.id];
@@ -18,21 +20,22 @@ export function symptomLabel(s: SymptomItem, lang: Lang, t: Strings): string {
   const name = tr(def.name, lang);
   const side = s.side;
   if (!def.lateralised || !side) return name;
-  const en = lang === 'en';
+  const en = usesLatinSpacing(lang);
+  const lowerName = lang === 'en' ? name.charAt(0).toLowerCase() + name.slice(1) : name;
   switch (def.sideWord) {
     case 'eye':
-      return en ? `${t.eyeSide[side]}: ${name.charAt(0).toLowerCase()}${name.slice(1)}` : `${t.eyeSide[side]}${name}`;
+      return en ? `${t.eyeSide[side]}: ${lowerName}` : `${t.eyeSide[side]}${name}`;
     case 'field':
       return en ? `${name} (${t.fieldSide[side].toLowerCase()})` : `${name}（${t.fieldSide[side]}）`;
     case 'gaze':
       if (s.id === 'gaze_deviation') {
         if (side === 'both') return name;
-        return en ? `Eyes deviate to the ${side === 'r' ? 'right' : 'left'} (towards the lesion)` : `雙眼偏向${side === 'r' ? '右' : '左'}側（看向病灶）`;
+        return inlineText(lang, `雙眼偏向${side === 'r' ? '右' : '左'}側（看向病灶）`, `Eyes deviate to the ${side === 'r' ? 'right' : 'left'} (towards the lesion)`, `双眼偏向${side === 'r' ? '右' : '左'}侧（朝向病灶）`, `Blickdeviation nach ${side === 'r' ? 'rechts' : 'links'} (zur Läsion)`, `両眼が${side === 'r' ? '右' : '左'}へ偏倚（病変側）`);
       }
-      if (side === 'both') return en ? 'Horizontal gaze palsy (both directions)' : '雙向水平凝視麻痺';
-      return en ? `Cannot look to the ${side === 'r' ? 'right' : 'left'}` : `無法向${side === 'r' ? '右' : '左'}側看`;
+      if (side === 'both') return inlineText(lang, '雙向水平凝視麻痺', 'Horizontal gaze palsy (both directions)', '双向水平凝视麻痹', 'Horizontale Blickparese (beide Richtungen)', '両方向の水平注視麻痺');
+      return inlineText(lang, `無法向${side === 'r' ? '右' : '左'}側看`, `Cannot look to the ${side === 'r' ? 'right' : 'left'}`, `无法向${side === 'r' ? '右' : '左'}侧注视`, `Blick nach ${side === 'r' ? 'rechts' : 'links'} nicht möglich`, `${side === 'r' ? '右' : '左'}への注視不能`);
     default:
-      return en ? `${t.bodySide[side]}: ${name.charAt(0).toLowerCase()}${name.slice(1)}` : `${t.bodySide[side]}${name}`;
+      return en ? `${t.bodySide[side]}: ${lowerName}` : `${t.bodySide[side]}${name}`;
   }
 }
 
@@ -48,6 +51,9 @@ export function fmtFlow(v: number): string {
 
 export function fmtNeurons(n: number, lang: Lang): string {
   if (n <= 0) return '0';
+  if (lang === 'de') return n >= 1e9 ? `${(n / 1e9).toFixed(1)} Milliarden` : `${Math.round(n / 1e6)} Millionen`;
+  if (lang === 'ja') return n >= 1e8 ? `${(n / 1e8).toFixed(1)} 億` : `${Math.round(n / 1e4).toLocaleString('ja-JP')} 万`;
+  if (lang === 'zh-CN') return n >= 1e8 ? `${(n / 1e8).toFixed(1)} 亿` : `${Math.round(n / 1e4).toLocaleString('zh-CN')} 万`;
   if (lang === 'en') {
     if (n >= 1e9) return `${(n / 1e9).toFixed(1)} billion`;
     return `${Math.round(n / 1e6)} million`;

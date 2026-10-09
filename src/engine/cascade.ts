@@ -1,3 +1,4 @@
+import {type AdditionalLang, contentTemplate, localizedContent, contentFragment, contentList, withLocalized } from '../i18n/content';
 /**
  * Downstream consequences of an infarct over time — including effects on brain regions
  * OUTSIDE the occluded artery's territory (mass effect, herniation, hydrocephalus,
@@ -754,21 +755,21 @@ function ivtTimingNote(t: number): L {
   };
   const latest = t - 1;
   if (latest <= 1e-6)
-    return {
+    return withLocalized({
       zh: `${head.zh}這個時間是血流恢復的時間，發作後才 ${t < 1 ? `${Math.round(t * 60)} 分鐘` : hoursZh(t)}：比靜脈血栓溶解通常能做到的更快，因為用藥後動脈通常在 1–3 小時內才逐漸打通；一個大型世代研究中，從開始用藥到評估再通的中位數約 2 小時）`,
-      en: `${head.en}This is when flow returns, only ${t < 1 ? `${Math.round(t * 60)} min` : hoursEn(t)} after onset: faster than IV thrombolysis usually achieves, since after the drug the artery usually reopens gradually over 1–3 h; in one large cohort recanalisation was assessed a median of about 2 h after the drug was started)`,
-    };
+      en: `${head.en}This is when flow returns, only ${t < 1 ? `${Math.round(t * 60)} min` : hoursEn(t)} after onset: faster than IV thrombolysis usually achieves, since after the drug the artery usually reopens gradually over 1–3 h; in one large cohort recanalisation was assessed a median of about 2 h after the drug was started)`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫This is when flow returns, only ⟪1⟫ after onset: faster than IV thrombolysis usually achieves, since after the drug the artery usually reopens gradually over 1–3 h; in one large cohort recanalisation was assessed a median of about 2 h after the drug was started)", [localizedContent(head, contentLang), (t < 1 ? contentTemplate("⟪0⟫ min", [contentFragment(Math.round(t * 60), contentLang)], contentLang) : contentFragment(hoursEn(t), contentLang))], contentLang),
+    });
   const earliest = Math.max(0, t - 3);
   const n = (h: number) => `${+h.toFixed(1)}`;
   return earliest <= 1e-6
-    ? {
+    ? withLocalized({
         zh: `${head.zh}這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以是在發作後約 ${n(latest)} 小時內就開始用藥）`,
-        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started within about ${n(latest)} h of onset)`,
-      }
-    : {
+        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started within about ${n(latest)} h of onset)`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started within about ⟪1⟫ h of onset)", [localizedContent(head, contentLang), contentFragment(n(latest), contentLang)], contentLang),
+      })
+    : withLocalized({
         zh: `${head.zh}這個時間是血流恢復的時間：用藥後動脈通常在 1–3 小時內才逐漸打通，所以是在發作後約 ${n(earliest)}–${n(latest)} 小時開始用藥）`,
-        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about ${n(earliest)}–${n(latest)} h after onset)`,
-      };
+        en: `${head.en}This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about ${n(earliest)}–${n(latest)} h after onset)`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫This is when flow returns: after the drug the artery usually reopens gradually over 1–3 h, so the drug was started about ⟪1⟫–⟪2⟫ h after onset)", [localizedContent(head, contentLang), contentFragment(n(earliest), contentLang), contentFragment(n(latest), contentLang)], contentLang),
+      });
 }
 
 /**
@@ -843,7 +844,7 @@ const reperfusionSeverity = (outcome: ReperfusionOutcome | undefined, savedVolum
  */
 const savedPhrase = (v: number): L => {
   const n = v >= SLIVER_ML || v < 0.05 ? v.toFixed(0) : v.toFixed(1);
-  return { zh: `約 ${n} mL`, en: `~${n} mL` };
+  return withLocalized({ zh: `約 ${n} mL`, en: `~${n} mL`, localized: (contentLang: AdditionalLang) => contentTemplate("~⟪0⟫ mL", [contentFragment(n, contentLang)], contentLang) });
 };
 /** what the untreated course would have brought that the treated one does not (Z2-3) */
 const FATAL_AVOIDED: Record<FatalRisk, L> = {
@@ -884,30 +885,30 @@ function outcomeSentence(
   if (uf && tf)
     nihss =
       t === u
-        ? { zh: `模型估計 3 個月時，假如病人存活，不論治療與否 NIHSS 都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment, if the patient survives.` }
-        : { zh: `模型估計 3 個月時，假如病人存活，NIHSS 治療後約 ${t} 分、不治療約 ${u} 分。`, en: ` Model estimate: if the patient survives, NIHSS at 3 months about ${t} with treatment and ${u} without.` };
+        ? withLocalized({ zh: `模型估計 3 個月時，假如病人存活，不論治療與否 NIHSS 都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment, if the patient survives.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫ with or without treatment, if the patient survives.", [contentFragment(t, contentLang)], contentLang) })
+        : withLocalized({ zh: `模型估計 3 個月時，假如病人存活，NIHSS 治療後約 ${t} 分、不治療約 ${u} 分。`, en: ` Model estimate: if the patient survives, NIHSS at 3 months about ${t} with treatment and ${u} without.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: if the patient survives, NIHSS at 3 months about ⟪0⟫ with treatment and ⟪1⟫ without.", [contentFragment(t, contentLang), contentFragment(u, contentLang)], contentLang) });
   else if (uf)
     nihss =
       t === u
-        ? { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分；不治療時假如病人存活，也約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}; without treatment the same, if the patient survives.` }
-        : { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分；不治療時假如病人存活，約 ${u} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}; without treatment about ${u}, if the patient survives.` };
+        ? withLocalized({ zh: `模型估計 3 個月時 NIHSS 約 ${t} 分；不治療時假如病人存活，也約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}; without treatment the same, if the patient survives.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫; without treatment the same, if the patient survives.", [contentFragment(t, contentLang)], contentLang) })
+        : withLocalized({ zh: `模型估計 3 個月時 NIHSS 約 ${t} 分；不治療時假如病人存活，約 ${u} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}; without treatment about ${u}, if the patient survives.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫; without treatment about ⟪1⟫, if the patient survives.", [contentFragment(t, contentLang), contentFragment(u, contentLang)], contentLang) });
   else if (tf)
-    nihss = { zh: `模型估計 3 個月時 NIHSS 假如病人存活約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} if the patient survives, and about ${u} without treatment.` };
+    nihss = withLocalized({ zh: `模型估計 3 個月時 NIHSS 假如病人存活約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} if the patient survives, and about ${u} without treatment.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫ if the patient survives, and about ⟪1⟫ without treatment.", [contentFragment(t, contentLang), contentFragment(u, contentLang)], contentLang) });
   else
     nihss =
       t < u && !sliver
-        ? { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} instead of ${u} without treatment.` }
+        ? withLocalized({ zh: `模型估計 3 個月時 NIHSS 約 ${t} 分（不治療約 ${u} 分）。`, en: ` Model estimate: NIHSS at 3 months about ${t} instead of ${u} without treatment.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫ instead of ⟪1⟫ without treatment.", [contentFragment(t, contentLang), contentFragment(u, contentLang)], contentLang) })
         : t === u
-          ? { zh: `模型估計 3 個月時 NIHSS 不論治療與否都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment.` }
-          : { zh: `模型估計 3 個月時 NIHSS 約 ${t} 分，不治療約 ${u} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}, and about ${u} without treatment.` };
+          ? withLocalized({ zh: `模型估計 3 個月時 NIHSS 不論治療與否都約 ${t} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t} with or without treatment.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫ with or without treatment.", [contentFragment(t, contentLang)], contentLang) })
+          : withLocalized({ zh: `模型估計 3 個月時 NIHSS 約 ${t} 分，不治療約 ${u} 分。`, en: ` Model estimate: NIHSS at 3 months about ${t}, and about ${u} without treatment.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Model estimate: NIHSS at 3 months about ⟪0⟫, and about ⟪1⟫ without treatment.", [contentFragment(t, contentLang), contentFragment(u, contentLang)], contentLang) });
   const fatal = avoided.map((k) => FATAL_AVOIDED[k]);
   // the scale shows little of a large saving (Boers 2018), and less still on the right (Woo 1999)
   const scale: L =
     u - t < AVOIDED_NIHSS && savedVolume >= SAVED_ML
-      ? {
+      ? withLocalized({
           zh: `NIHSS 看不太出差別，但治療保住了約 ${savedVolume.toFixed(0)} mL 的腦組織，而最終梗塞體積本身就預測日後的功能${rightSided ? '；NIHSS 對右半球梗塞的計分也比同樣大小的左半球梗塞低' : ''}。`,
-          en: ` The scale shows little of the difference, but the treatment spared about ${savedVolume.toFixed(0)} mL of brain, and the final infarct volume predicts the functional outcome on its own${rightSided ? '; the NIHSS also scores a right-hemisphere infarct lower than a left one of the same size' : ''}.`,
-        }
+          en: ` The scale shows little of the difference, but the treatment spared about ${savedVolume.toFixed(0)} mL of brain, and the final infarct volume predicts the functional outcome on its own${rightSided ? '; the NIHSS also scores a right-hemisphere infarct lower than a left one of the same size' : ''}.`, localized: (contentLang: AdditionalLang) => contentTemplate(" The scale shows little of the difference, but the treatment spared about ⟪0⟫ mL of brain, and the final infarct volume predicts the functional outcome on its own⟪1⟫.", [contentFragment(savedVolume.toFixed(0), contentLang), (rightSided ? contentFragment('; the NIHSS also scores a right-hemisphere infarct lower than a left one of the same size', contentLang) : contentFragment('', contentLang))], contentLang),
+        })
       : { zh: '', en: '' };
   // a sliver saved does not earn the grade it tips (T3-11); a higher score with the treatment is no
   // benefit to disown
@@ -918,10 +919,10 @@ function outcomeSentence(
           en: " With less than 0.5 mL saved, the model does not count this gap as the treatment's benefit: the tissue left lies at the edge between two of its grades of severity, which a sliver of tissue tips one way or the other (a known limitation of the model).",
         }
       : { zh: '', en: '' };
-  return {
+  return withLocalized({
     zh: nihss.zh + tipped.zh + fatal.map((x) => x.zh).join('') + scale.zh,
-    en: nihss.en + tipped.en + fatal.map((x) => x.en).join('') + scale.en,
-  };
+    en: nihss.en + tipped.en + fatal.map((x) => x.en).join('') + scale.en, localized: (contentLang: AdditionalLang) => (((localizedContent(nihss, contentLang) + localizedContent(tipped, contentLang)) + fatal.map((x) => localizedContent(x, contentLang)).join('')) + localizedContent(scale, contentLang)),
+  });
 }
 
 /**
@@ -933,10 +934,10 @@ function savedSplit(saved: number, secondary: number): L {
   if (secondary < 0.5) return { zh: '', en: '' };
   const pen = (saved - secondary).toFixed(0);
   const sec = secondary.toFixed(0);
-  return {
+  return withLocalized({
     zh: `：約 ${pen} mL 是救回的半影區，約 ${sec} mL 是不治療時腫脹造成疝脫、壓迫而梗塞的其他區域`,
-    en: `: ~${pen} mL of penumbra, and ~${sec} mL of the territories that the herniation of the untreated swelling would have infarcted`,
-  };
+    en: `: ~${pen} mL of penumbra, and ~${sec} mL of the territories that the herniation of the untreated swelling would have infarcted`, localized: (contentLang: AdditionalLang) => contentTemplate(": ~⟪0⟫ mL of penumbra, and ~⟪1⟫ mL of the territories that the herniation of the untreated swelling would have infarcted", [contentFragment(pen, contentLang), contentFragment(sec, contentLang)], contentLang),
+  });
 }
 
 /**
@@ -955,24 +956,24 @@ function spontaneousEvent(sp: SpontaneousReopening, saved: number, savedSecondar
   const split: L =
     savedSecondary < 0.5
       ? { zh: '', en: '' }
-      : {
+      : withLocalized({
           zh: `：約 ${pen} mL 是救回的半影區，約 ${sec} mL 是血管一直阻塞時腫脹造成疝脫、壓迫而梗塞的其他區域`,
-          en: `: ~${pen} mL of penumbra, and ~${sec} mL of the territories that the herniation of the swelling would have infarcted had it stayed closed`,
-        };
+          en: `: ~${pen} mL of penumbra, and ~${sec} mL of the territories that the herniation of the swelling would have infarcted had it stayed closed`, localized: (contentLang: AdditionalLang) => contentTemplate(": ~⟪0⟫ mL of penumbra, and ~⟪1⟫ mL of the territories that the herniation of the swelling would have infarcted had it stayed closed", [contentFragment(pen, contentLang), contentFragment(sec, contentLang)], contentLang),
+        });
   return {
     id: 'spontaneous_recanalisation',
     kind: 'mechanism',
     severity: saved > 5 ? 'good' : 'info',
     onsetH: sp.atH,
     title: { zh: '血管自行再通', en: 'The artery reopens by itself' },
-    desc: {
+    desc: withLocalized({
       zh: `發作後約 ${hoursZh(sp.atH)}，阻塞的血管（${zh}）在沒有任何治療下自行再通（自發性再通：血栓碎裂，或被身體自己的纖維蛋白溶解作用溶掉）。血流恢復時尚未壞死的半影區被救回，${
         saved < 1 ? '但這裡比血管一直阻塞少不到 1 mL 的梗塞' : `模型估計比血管一直阻塞少了約 ${saved.toFixed(0)} mL 的梗塞${split.zh}`
       }。和治療打通時一樣，救回的組織要數小時到數天才逐漸恢復功能，已經壞死的核心不會恢復。血管確實會自行打開：一項 53 個研究（1985–2002 年）的統合分析中，約四分之一的阻塞（24%）沒有治療就再通，靜脈血栓溶解後約 46%；再通與 3 個月時預後良好有關（勝算比 4.4）。`,
       en: `About ${hoursEn(sp.atH)} after onset the occluded artery (${en}) reopens without any treatment (spontaneous recanalisation: the clot breaks up or is dissolved by the body's own fibrinolysis). Restored flow rescues penumbra that has not yet died — ${
         saved < 1 ? 'here less than 1 mL, against an artery that stayed closed' : `the model estimates ~${saved.toFixed(0)} mL less infarct than if it had stayed closed${split.en}`
-      }. As after a treated reopening, the rescued tissue works again only over hours to days, and the dead core does not recover. Arteries do reopen by themselves: in a meta-analysis of 53 studies (1985–2002) about a quarter of occlusions (24 %) reopened without treatment, against 46 % after IV thrombolysis; recanalisation was linked to a good outcome at 3 months (odds ratio 4.4).`,
-    },
+      }. As after a treated reopening, the rescued tissue works again only over hours to days, and the dead core does not recover. Arteries do reopen by themselves: in a meta-analysis of 53 studies (1985–2002) about a quarter of occlusions (24 %) reopened without treatment, against 46 % after IV thrombolysis; recanalisation was linked to a good outcome at 3 months (odds ratio 4.4).`, localized: (contentLang: AdditionalLang) => contentTemplate("About ⟪0⟫ after onset the occluded artery (⟪1⟫) reopens without any treatment (spontaneous recanalisation: the clot breaks up or is dissolved by the body's own fibrinolysis). Restored flow rescues penumbra that has not yet died — ⟪2⟫. As after a treated reopening, the rescued tissue works again only over hours to days, and the dead core does not recover. Arteries do reopen by themselves: in a meta-analysis of 53 studies (1985–2002) about a quarter of occlusions (24 %) reopened without treatment, against 46 % after IV thrombolysis; recanalisation was linked to a good outcome at 3 months (odds ratio 4.4).", [contentFragment(hoursEn(sp.atH), contentLang), contentFragment(en, contentLang), (saved < 1 ? contentFragment('here less than 1 mL, against an artery that stayed closed', contentLang) : contentTemplate("the model estimates ~⟪0⟫ mL less infarct than if it had stayed closed⟪1⟫", [contentFragment(saved.toFixed(0), contentLang), localizedContent(split, contentLang)], contentLang))], contentLang),
+    }),
     regions: [],
   };
 }
@@ -1005,10 +1006,10 @@ function reperfusionEvent(
   const ev = t.distalEmbolus !== null ? VESSEL_BY_ID[t.distalEmbolus] : undefined;
   const cutBranch: L =
     shown !== t.grade && ev
-      ? {
+      ? withLocalized({
           zh: `血栓碎片塞住了${vesselName(ev, 'zh-TW')}，約占這區的 ${pct(t.embolusShare ?? 0)}，最後的血管攝影把它算成沒有再灌流；其餘區域的再灌流相當於 eTICI ${t.grade}（${g.zh}）。`,
-          en: ` A clot fragment blocks the ${lowerFirst(vesselName(ev, 'en'))}, about ${pct(t.embolusShare ?? 0)} of the territory, which the final angiogram counts as not reperfused; the rest of the territory was reperfused as with eTICI ${t.grade} (${g.en}).`,
-        }
+          en: ` A clot fragment blocks the ${lowerFirst(vesselName(ev, 'en'))}, about ${pct(t.embolusShare ?? 0)} of the territory, which the final angiogram counts as not reperfused; the rest of the territory was reperfused as with eTICI ${t.grade} (${g.en}).`, localized: (contentLang: AdditionalLang) => contentTemplate(" A clot fragment blocks the ⟪0⟫, about ⟪1⟫ of the territory, which the final angiogram counts as not reperfused; the rest of the territory was reperfused as with eTICI ⟪2⟫ (⟪3⟫).", [contentFragment(lowerFirst(vesselName(ev, 'en')), contentLang), contentFragment(pct(t.embolusShare ?? 0), contentLang), contentFragment(t.grade, contentLang), localizedContent(g, contentLang)], contentLang),
+        })
       : { zh: '', en: '' };
   if (t.failed) {
     const reduced = t.grade === '1';
@@ -1017,11 +1018,11 @@ function reperfusionEvent(
       kind: 'treatment',
       severity: 'warn',
       onsetH: reperfusionH,
-      title: { zh: `${reduced ? "再灌流失敗" : "再通失敗"}：${m.zh}（eTICI ${t.grade}）`, en: `${reduced ? "Reperfusion failed" : "Recanalisation failed"}: ${m.en} (eTICI ${t.grade})` },
-      desc: {
+      title: withLocalized({ zh: `${reduced ? "再灌流失敗" : "再通失敗"}：${m.zh}（eTICI ${t.grade}）`, en: `${reduced ? "Reperfusion failed" : "Recanalisation failed"}: ${m.en} (eTICI ${t.grade})`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫: ⟪1⟫ (eTICI ⟪2⟫)", [(reduced ? contentFragment("Reperfusion failed", contentLang) : contentFragment("Recanalisation failed", contentLang)), localizedContent(m, contentLang), contentFragment(t.grade, contentLang)], contentLang) }),
+      desc: withLocalized({
         zh: `${m.zh}${reduced ? '使血栓減少，但沒有遠端再灌流' : '沒有打通阻塞的血管'}（eTICI ${t.grade}，${g.zh}）：${reduced ? '模型沒有恢復下游組織的灌流' : '血栓留在原處'}，組織的結果和沒有治療時一樣。這次嘗試本身仍可能帶來出血等併發症。`,
-        en: `${m.en.charAt(0).toUpperCase()}${m.en.slice(1)} ${reduced ? 'achieved thrombus reduction without distal reperfusion' : 'did not reopen the occluded artery'} (eTICI ${t.grade}, ${g.en}): ${reduced ? 'the model restores no downstream tissue perfusion' : 'the clot stays'}, and the tissue fares as it would without treatment. The attempt itself can still bring complications such as bleeding.`,
-      },
+        en: `${m.en.charAt(0).toUpperCase()}${m.en.slice(1)} ${reduced ? 'achieved thrombus reduction without distal reperfusion' : 'did not reopen the occluded artery'} (eTICI ${t.grade}, ${g.en}): ${reduced ? 'the model restores no downstream tissue perfusion' : 'the clot stays'}, and the tissue fares as it would without treatment. The attempt itself can still bring complications such as bleeding.`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫⟪1⟫ ⟪2⟫ (eTICI ⟪3⟫, ⟪4⟫): ⟪5⟫, and the tissue fares as it would without treatment. The attempt itself can still bring complications such as bleeding.", [localizedContent(m, contentLang), '', (reduced ? contentFragment('achieved thrombus reduction without distal reperfusion', contentLang) : contentFragment('did not reopen the occluded artery', contentLang)), contentFragment(t.grade, contentLang), localizedContent(g, contentLang), (reduced ? contentFragment('the model restores no downstream tissue perfusion', contentLang) : contentFragment('the clot stays', contentLang))], contentLang),
+      }),
       regions: [],
     };
   }
@@ -1029,10 +1030,13 @@ function reperfusionEvent(
   const partial = t.reperfusedFraction < 1;
   const noReflowZh = t.noReflow > 0 ? `其中約 ${pct(t.noReflow)} 的組織大血管雖通、微血管仍不通（無再流現象）。` : '';
   const noReflowEn = t.noReflow > 0 ? ` In about ${pct(t.noReflow)} of it the microcirculation stays shut although the artery is open (no-reflow).` : '';
+ const noReflowEnLocalized = (contentLang: AdditionalLang) => (t.noReflow > 0 ? contentTemplate(" In about ⟪0⟫ of it the microcirculation stays shut although the artery is open (no-reflow).", [contentFragment(pct(t.noReflow), contentLang)], contentLang) : contentFragment('', contentLang));
   const shareZh = partial ? `模型讓約 ${pct(t.reperfusedFraction)} 的下游區域恢復血流，其餘仍照未治療的病程。` : '';
   const shareEn = partial ? ` The model gives about ${pct(t.reperfusedFraction)} of the downstream territory its flow back; the rest follows the untreated course.` : '';
+ const shareEnLocalized = (contentLang: AdditionalLang) => (partial ? contentTemplate(" The model gives about ⟪0⟫ of the downstream territory its flow back; the rest follows the untreated course.", [contentFragment(pct(t.reperfusedFraction), contentLang)], contentLang) : contentFragment('', contentLang));
   const reclosesZh = t.reocclusionH !== null ? '（血管之後又再阻塞，見「再阻塞」）' : '';
   const reclosesEn = t.reocclusionH !== null ? ' in the end (the artery later closes again: see "Reocclusion")' : '';
+ const reclosesEnLocalized = (contentLang: AdditionalLang) => (t.reocclusionH !== null ? contentFragment(' in the end (the artery later closes again: see "Reocclusion")', contentLang) : contentFragment('', contentLang));
   const o = outcomeSentence(outcome, savedVolume, avoided, treatedFatal, rightSided, sliver);
   const sp = savedPhrase(savedVolume);
   return {
@@ -1040,11 +1044,11 @@ function reperfusionEvent(
     kind: 'treatment',
     severity: reperfusionSeverity(outcome, savedVolume, avoided, sliver),
     onsetH: reperfusionH,
-    title: { zh: `血管再通：${m.zh}，eTICI ${shown}`, en: `Recanalisation: ${m.en}, eTICI ${shown}` },
-    desc: {
+    title: withLocalized({ zh: `血管再通：${m.zh}，eTICI ${shown}`, en: `Recanalisation: ${m.en}, eTICI ${shown}`, localized: (contentLang: AdditionalLang) => contentTemplate("Recanalisation: ⟪0⟫, eTICI ⟪1⟫", [localizedContent(m, contentLang), contentFragment(shown, contentLang)], contentLang) }),
+    desc: withLocalized({
       zh: `eTICI ${shown}：${gs.zh}${ivtNote.zh}。${cutBranch.zh}${noReflowZh}${shareZh}血流恢復時尚未壞死的半影區被救回，模型估計少了${sp.zh} 的梗塞${reclosesZh}${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-      en: `eTICI ${shown}: ${gs.en}${ivtNote.en}.${cutBranch.en}${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ${sp.en} less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
-    },
+      en: `eTICI ${shown}: ${gs.en}${ivtNote.en}.${cutBranch.en}${noReflowEn}${shareEn} Restored flow rescues penumbra that has not yet died — the model estimates ${sp.en} less infarct${reclosesEn}${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`, localized: (contentLang: AdditionalLang) => contentTemplate("eTICI ⟪0⟫: ⟪1⟫⟪2⟫.⟪3⟫⟪4⟫⟪5⟫ Restored flow rescues penumbra that has not yet died — the model estimates ⟪6⟫ less infarct⟪7⟫⟪8⟫.⟪9⟫⟪10⟫ The dead core does not recover; ⟪11⟫reperfusion can also bring haemorrhagic transformation and reperfusion injury.", [contentFragment(shown, contentLang), localizedContent(gs, contentLang), localizedContent(ivtNote, contentLang), localizedContent(cutBranch, contentLang), noReflowEnLocalized(contentLang), shareEnLocalized(contentLang), localizedContent(sp, contentLang), reclosesEnLocalized(contentLang), localizedContent(savedSplit(savedVolume, savedSecondary), contentLang), localizedContent(o, contentLang), localizedContent(REGAIN_NOTE, contentLang), (late ? contentFragment('with late recanalisation ', contentLang) : contentFragment('', contentLang))], contentLang),
+    }),
     regions: [],
   };
 }
@@ -1059,10 +1063,10 @@ function pushTreatmentComplications(events: CascadeEvent[], t: CascadeTreatment,
       severity: 'danger',
       onsetH: t.reocclusionH,
       title: { zh: '再阻塞：打通的血管又塞住了', en: 'Reocclusion: the reopened artery closes again' },
-      desc: {
+      desc: withLocalized({
         zh: `再通約 ${hoursZh(after)}後，同一條血管又完全阻塞（例如在殘餘狹窄或受損的血管壁上再形成血栓）。這區組織再度缺血，症狀常再次惡化。在模型裡，側枝撐不住的組織最後仍會壞死，和從未打通時差不多：再通只是把損失延後。越晚再阻塞，梗塞長得越慢；但只要血管沒有再打開，最終梗塞就和沒有治療時相當。`,
-        en: `About ${hoursEn(after)} after reperfusion the same artery occludes completely again (e.g. new thrombus on a residual stenosis or a damaged vessel wall). Its territory becomes ischaemic again and the deficit often worsens again. In the model, tissue that collaterals cannot sustain is still lost in the end, about as much as if the artery had never been opened: reopening only postponed the loss. The later it recloses, the more slowly the infarct grows, but unless the artery is opened again the final infarct is about that of no treatment.`,
-      },
+        en: `About ${hoursEn(after)} after reperfusion the same artery occludes completely again (e.g. new thrombus on a residual stenosis or a damaged vessel wall). Its territory becomes ischaemic again and the deficit often worsens again. In the model, tissue that collaterals cannot sustain is still lost in the end, about as much as if the artery had never been opened: reopening only postponed the loss. The later it recloses, the more slowly the infarct grows, but unless the artery is opened again the final infarct is about that of no treatment.`, localized: (contentLang: AdditionalLang) => contentTemplate("About ⟪0⟫ after reperfusion the same artery occludes completely again (e.g. new thrombus on a residual stenosis or a damaged vessel wall). Its territory becomes ischaemic again and the deficit often worsens again. In the model, tissue that collaterals cannot sustain is still lost in the end, about as much as if the artery had never been opened: reopening only postponed the loss. The later it recloses, the more slowly the infarct grows, but unless the artery is opened again the final infarct is about that of no treatment.", [contentFragment(hoursEn(after), contentLang)], contentLang),
+      }),
       regions: [],
     });
   }
@@ -1078,11 +1082,11 @@ function pushTreatmentComplications(events: CascadeEvent[], t: CascadeTreatment,
         kind: 'complication',
         severity: 'warn',
         onsetH: reperfusionH,
-        title: { zh: `新區域栓塞：${zh}`, en: `Embolus to a new territory: ${en}` },
-        desc: {
+        title: withLocalized({ zh: `新區域栓塞：${zh}`, en: `Embolus to a new territory: ${en}`, localized: (contentLang: AdditionalLang) => contentTemplate("Embolus to a new territory: ⟪0⟫", [contentFragment(en, contentLang)], contentLang) }),
+        desc: withLocalized({
           zh: `治療時一小塊血栓碎片跑到原本沒有受影響的區域，塞住了${zh}。這是另一條動脈的供血區，原本的阻塞打通了，這裡卻出現新的缺血，側枝循環補不上的部分會梗塞。取栓研究中這類新區域栓塞約 5–9%（最常見於前大腦動脈區），多半在血管攝影上看不到阻塞，並與較差的預後與較高的死亡率有關。`,
-          en: `During the treatment a fragment of the clot reached a previously unaffected territory and blocked the ${lowerFirst(en)}. This is another artery's territory: the original occlusion is open, but new ischaemia appears here, and what collaterals cannot make up for infarcts. In thrombectomy studies such new-territory emboli occur in about 5–9% (most often in the ACA territory); most show no visible occlusion on angiography, and they are associated with worse outcome and higher mortality.`,
-        },
+          en: `During the treatment a fragment of the clot reached a previously unaffected territory and blocked the ${lowerFirst(en)}. This is another artery's territory: the original occlusion is open, but new ischaemia appears here, and what collaterals cannot make up for infarcts. In thrombectomy studies such new-territory emboli occur in about 5–9% (most often in the ACA territory); most show no visible occlusion on angiography, and they are associated with worse outcome and higher mortality.`, localized: (contentLang: AdditionalLang) => contentTemplate("During the treatment a fragment of the clot reached a previously unaffected territory and blocked the ⟪0⟫. This is another artery's territory: the original occlusion is open, but new ischaemia appears here, and what collaterals cannot make up for infarcts. In thrombectomy studies such new-territory emboli occur in about 5–9% (most often in the ACA territory); most show no visible occlusion on angiography, and they are associated with worse outcome and higher mortality.", [contentFragment(lowerFirst(en), contentLang)], contentLang),
+        }),
         regions: t.embolusRegions,
       });
       return;
@@ -1092,11 +1096,11 @@ function pushTreatmentComplications(events: CascadeEvent[], t: CascadeTreatment,
       kind: 'complication',
       severity: 'warn',
       onsetH: reperfusionH,
-      title: { zh: `遠端栓塞：${zh}`, en: `Distal embolus: ${en}` },
-      desc: {
+      title: withLocalized({ zh: `遠端栓塞：${zh}`, en: `Distal embolus: ${en}`, localized: (contentLang: AdditionalLang) => contentTemplate("Distal embolus: ⟪0⟫", [contentFragment(en, contentLang)], contentLang) }),
+      desc: withLocalized({
         zh: `血栓被取出或溶解時，一小塊碎片被沖到下游，塞住了${zh}。主幹雖然打通，這條分支供應的區域仍然缺血，側枝循環補不上的部分會梗塞（血管攝影上這常是只達 eTICI 2b、而非 3 的原因）。有時還能再取出，但細小的遠端分支常只能靠側枝循環。`,
-        en: `While the clot was retrieved or dissolved, a fragment was carried downstream and blocked the ${lowerFirst(en)}. The main artery is open, but the territory of this branch stays ischaemic, and what collaterals cannot make up for infarcts (on angiography such a cut-off branch is often why the result is eTICI 2b rather than 3). It can sometimes be retrieved too, but small distal branches often have to rely on collaterals.`,
-      },
+        en: `While the clot was retrieved or dissolved, a fragment was carried downstream and blocked the ${lowerFirst(en)}. The main artery is open, but the territory of this branch stays ischaemic, and what collaterals cannot make up for infarcts (on angiography such a cut-off branch is often why the result is eTICI 2b rather than 3). It can sometimes be retrieved too, but small distal branches often have to rely on collaterals.`, localized: (contentLang: AdditionalLang) => contentTemplate("While the clot was retrieved or dissolved, a fragment was carried downstream and blocked the ⟪0⟫. The main artery is open, but the territory of this branch stays ischaemic, and what collaterals cannot make up for infarcts (on angiography such a cut-off branch is often why the result is eTICI 2b rather than 3). It can sometimes be retrieved too, but small distal branches often have to rely on collaterals.", [contentFragment(lowerFirst(en), contentLang)], contentLang),
+      }),
       regions: t.embolusRegions,
     });
   }
@@ -1285,10 +1289,10 @@ function pushCordEvents(events: CascadeEvent[], regions: string[], o: { infarct:
     title: o.infarct
       ? { zh: '脊髓梗塞（前脊髓動脈）', en: 'Spinal cord infarction (anterior spinal artery)' }
       : { zh: '脊髓缺血（前脊髓動脈）', en: 'Spinal cord ischaemia (anterior spinal artery)' },
-    desc: {
+    desc: withLocalized({
       zh: `前脊髓動脈沿著脊髓前面往下走，供應脊髓的前三分之二：兩側的運動徑與痛溫覺路徑。它一阻塞，兩側在幾分鐘內一起失去功能：頸髓病灶以下四肢無力、痛覺與溫度覺喪失，而走在脊髓後方、由後脊髓動脈供應的位置覺與振動覺保留；膀胱也常受影響（115 人中 86% 在最嚴重時需要導尿）。多數人在數小時內就到最嚴重：115 人中 68% 在一小時內（Robertson 2012），133 例自發性脊髓梗塞中 77% 在 12 小時內（Zalewski 2019）。模型顯示的是上段頸髓（C1–C3），也就是這條動脈從兩側椎動脈的起始處供應的部分；症狀只列出無力與感覺喪失，沒有列出膀胱與呼吸（病灶延伸到 C3–C5 時可能讓橫膈無力）。打通這條動脈的治療沒有經過試驗；照護以支持性治療（血壓、膀胱、呼吸）與找出原因為主。${cleared.zh}${brain.zh}`,
-      en: `The anterior spinal artery runs down the front of the spinal cord and feeds its anterior two-thirds: the motor tracts and the pain and temperature pathways of both sides. When it closes, both sides fail together within minutes: weakness of the limbs below a cervical lesion and loss of pain and temperature sense, while position and vibration sense, carried at the back of the cord and fed by the posterior spinal arteries, are spared; the bladder is often affected too (86 % of 115 patients needed a catheter at their worst). Most patients are at their worst within hours: 68 % of those 115 within an hour (Robertson 2012), 77 % of 133 spontaneous spinal cord infarcts within 12 hours (Zalewski 2019). The model shows the upper cervical cord (C1–C3), the part this artery feeds from its origin at the two vertebral arteries; it lists the weakness and the sensory loss, not the bladder or breathing (a lesion that reaches C3–C5 can weaken the diaphragm). No treatment to reopen the artery has been tested in trials; care is supportive (blood pressure, bladder, breathing) and aimed at the cause.${cleared.en}${brain.en}`,
-    },
+      en: `The anterior spinal artery runs down the front of the spinal cord and feeds its anterior two-thirds: the motor tracts and the pain and temperature pathways of both sides. When it closes, both sides fail together within minutes: weakness of the limbs below a cervical lesion and loss of pain and temperature sense, while position and vibration sense, carried at the back of the cord and fed by the posterior spinal arteries, are spared; the bladder is often affected too (86 % of 115 patients needed a catheter at their worst). Most patients are at their worst within hours: 68 % of those 115 within an hour (Robertson 2012), 77 % of 133 spontaneous spinal cord infarcts within 12 hours (Zalewski 2019). The model shows the upper cervical cord (C1–C3), the part this artery feeds from its origin at the two vertebral arteries; it lists the weakness and the sensory loss, not the bladder or breathing (a lesion that reaches C3–C5 can weaken the diaphragm). No treatment to reopen the artery has been tested in trials; care is supportive (blood pressure, bladder, breathing) and aimed at the cause.${cleared.en}${brain.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("The anterior spinal artery runs down the front of the spinal cord and feeds its anterior two-thirds: the motor tracts and the pain and temperature pathways of both sides. When it closes, both sides fail together within minutes: weakness of the limbs below a cervical lesion and loss of pain and temperature sense, while position and vibration sense, carried at the back of the cord and fed by the posterior spinal arteries, are spared; the bladder is often affected too (86 % of 115 patients needed a catheter at their worst). Most patients are at their worst within hours: 68 % of those 115 within an hour (Robertson 2012), 77 % of 133 spontaneous spinal cord infarcts within 12 hours (Zalewski 2019). The model shows the upper cervical cord (C1–C3), the part this artery feeds from its origin at the two vertebral arteries; it lists the weakness and the sensory loss, not the bladder or breathing (a lesion that reaches C3–C5 can weaken the diaphragm). No treatment to reopen the artery has been tested in trials; care is supportive (blood pressure, bladder, breathing) and aimed at the cause.⟪0⟫⟪1⟫", [localizedContent(cleared, contentLang), localizedContent(brain, contentLang)], contentLang),
+    }),
     regions,
   });
   events.push({
@@ -1396,7 +1400,7 @@ export function noInfarctEvents(fromH: number, untilH: number, attack: AttackSto
             onsetH: fromH,
             endH: windowEnd,
             title: { zh: '突發耳聾與眩暈：當作中風急症', en: 'Sudden deafness and vertigo: a stroke emergency' },
-            desc: { zh: ATTACK_EAR_INTRO.zh + EAR_WORKUP.zh, en: `${ATTACK_EAR_INTRO.en} ${EAR_WORKUP.en}` },
+            desc: withLocalized({ zh: ATTACK_EAR_INTRO.zh + EAR_WORKUP.zh, en: `${ATTACK_EAR_INTRO.en} ${EAR_WORKUP.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ ⟪1⟫", [localizedContent(ATTACK_EAR_INTRO, contentLang), localizedContent(EAR_WORKUP, contentLang)], contentLang) }),
             regions: [],
           }
         : {
@@ -1406,7 +1410,7 @@ export function noInfarctEvents(fromH: number, untilH: number, attack: AttackSto
             onsetH: fromH,
             endH: windowEnd,
             title: { zh: '治療時間窗', en: 'Treatment windows' },
-            desc: { zh: ATTACK_WINDOW_INTRO.zh + attack.window.zh, en: `${ATTACK_WINDOW_INTRO.en} ${attack.window.en}` },
+            desc: withLocalized({ zh: ATTACK_WINDOW_INTRO.zh + attack.window.zh, en: `${ATTACK_WINDOW_INTRO.en} ${attack.window.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ ⟪1⟫", [localizedContent(ATTACK_WINDOW_INTRO, contentLang), localizedContent(attack.window, contentLang)], contentLang) }),
             regions: [],
           },
     );
@@ -1446,10 +1450,10 @@ export function noInfarctEvents(fromH: number, untilH: number, attack: AttackSto
     onsetH: clears,
     endH: until(Math.max(fromH + 168, clears + 24)),
     title: { zh: '症狀消失不代表沒事', en: 'Symptoms gone does not mean safe' },
-    desc: {
+    desc: withLocalized({
       zh: `TIA 後最初幾天發生真正中風的風險最高，應當天就醫、盡快完成腦與血管檢查。腦部影像排除出血後，醫師通常會立即開始抗血小板藥物（高風險者短期併用兩種：CHANCE、POINT 試驗）${attack.thrombolysed ? '；打過靜脈血栓溶解劑時，通常等 24 小時後的追蹤影像沒有出血才開始' : ''}，並找出頸動脈狹窄、心房顫動等原因。反覆、越來越頻繁的發作（尤其後循環）可能是大血管即將完全阻塞的前兆。`,
-      en: `The risk of a real stroke is highest in the first days after a TIA: seek care the same day and complete brain and vessel imaging promptly. Once brain imaging has excluded a bleed, antiplatelet treatment is usually started at once (two drugs for a short time in high-risk cases: the CHANCE and POINT trials)${attack.thrombolysed ? '; after thrombolysis it usually waits until a follow-up scan at 24 h shows no bleeding' : ''}, and causes such as carotid stenosis or atrial fibrillation are sought. Repeated, increasingly frequent attacks (especially in the posterior circulation) can herald a complete large-vessel occlusion.`,
-    },
+      en: `The risk of a real stroke is highest in the first days after a TIA: seek care the same day and complete brain and vessel imaging promptly. Once brain imaging has excluded a bleed, antiplatelet treatment is usually started at once (two drugs for a short time in high-risk cases: the CHANCE and POINT trials)${attack.thrombolysed ? '; after thrombolysis it usually waits until a follow-up scan at 24 h shows no bleeding' : ''}, and causes such as carotid stenosis or atrial fibrillation are sought. Repeated, increasingly frequent attacks (especially in the posterior circulation) can herald a complete large-vessel occlusion.`, localized: (contentLang: AdditionalLang) => contentTemplate("The risk of a real stroke is highest in the first days after a TIA: seek care the same day and complete brain and vessel imaging promptly. Once brain imaging has excluded a bleed, antiplatelet treatment is usually started at once (two drugs for a short time in high-risk cases: the CHANCE and POINT trials)⟪0⟫, and causes such as carotid stenosis or atrial fibrillation are sought. Repeated, increasingly frequent attacks (especially in the posterior circulation) can herald a complete large-vessel occlusion.", [(attack.thrombolysed ? contentFragment('; after thrombolysis it usually waits until a follow-up scan at 24 h shows no bleeding', contentLang) : contentFragment('', contentLang))], contentLang),
+    }),
     regions: [],
   });
   return events;
@@ -1566,10 +1570,10 @@ export const RECENT_INFARCT_MAX_H = 2160;
 export const RECENT_INFARCT_MIN_H = 24;
 const recentIvtIntro = (h: number): L => {
   const days = Math.max(1, Math.round(h / 24));
-  return {
+  return withLocalized({
     zh: `靜脈血栓溶解（alteplase 或 tenecteplase）：這裡不是標準治療。過去 3 個月內發生過缺血性中風時，指引建議不要使用（這位病人較早的梗塞約在這次阻塞前 ${days} 天開始）；這是相對禁忌，主要依據專家共識：美國一個登錄研究中，293 位在中風後 3 個月內接受血栓溶解的 66 歲以上病人，只有前一次中風在 14 天內時症狀性腦出血較多（16.3% vs 4.8%）；3 個月內再次血栓溶解只見於經過挑選的病人的報告。適合取栓的阻塞，是否取栓依影像決定。`,
-    en: `IV thrombolysis (alteplase or tenecteplase): not standard here. Guidelines advise against it after an ischaemic stroke in the previous 3 months (this patient's earlier infarct began about ${days} day${days === 1 ? '' : 's'} before this occlusion), a relative contraindication resting largely on expert consensus: in a US registry of 293 patients aged 66 or older thrombolysed within 3 months of a stroke, symptomatic haemorrhage was more frequent only when that stroke was within the previous 14 days (16.3% vs 4.8%); repeat thrombolysis within 3 months is reported only in selected patients. Where the occlusion suits thrombectomy, it is decided on imaging.`,
-  };
+    en: `IV thrombolysis (alteplase or tenecteplase): not standard here. Guidelines advise against it after an ischaemic stroke in the previous 3 months (this patient's earlier infarct began about ${days} day${days === 1 ? '' : 's'} before this occlusion), a relative contraindication resting largely on expert consensus: in a US registry of 293 patients aged 66 or older thrombolysed within 3 months of a stroke, symptomatic haemorrhage was more frequent only when that stroke was within the previous 14 days (16.3% vs 4.8%); repeat thrombolysis within 3 months is reported only in selected patients. Where the occlusion suits thrombectomy, it is decided on imaging.`, localized: (contentLang: AdditionalLang) => contentTemplate("IV thrombolysis (alteplase or tenecteplase): not standard here. Guidelines advise against it after an ischaemic stroke in the previous 3 months (this patient's earlier infarct began about ⟪0⟫ day⟪1⟫ before this occlusion), a relative contraindication resting largely on expert consensus: in a US registry of 293 patients aged 66 or older thrombolysed within 3 months of a stroke, symptomatic haemorrhage was more frequent only when that stroke was within the previous 14 days (16.3% vs 4.8%); repeat thrombolysis within 3 months is reported only in selected patients. Where the occlusion suits thrombectomy, it is decided on imaging.", [contentFragment(days, contentLang), (days === 1 ? contentFragment('', contentLang) : contentFragment('s', contentLang))], contentLang),
+  });
 };
 
 /** what fits this occlusion site: thrombolysis, thrombectomy and the trials behind them */
@@ -1577,6 +1581,7 @@ function treatmentWindowDesc(w: WindowStory): L {
   const recent = w.priorInfarctH;
   const intro = recent === null ? IVT_INTRO : recentIvtIntro(recent);
   const zh: string[] = [intro.zh];
+  const localized: ((lang: AdditionalLang) => string)[] = [(lang) => localizedContent(intro, lang)];
   const en: string[] = [intro.en];
   const core = w.coreMl === null ? null : Math.round(w.coreMl);
   if (w.anterior) {
@@ -1587,6 +1592,7 @@ function treatmentWindowDesc(w: WindowStory): L {
     en.push(
       'This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue. Without access to thrombectomy, tenecteplase 4.5–24 h after onset improved outcome in TRACE-III (Chinese patients with ICA/MCA occlusion and salvageable tissue on perfusion imaging).',
     );
+    localized.push((contentLang: AdditionalLang) => contentFragment('This is a large-vessel occlusion suited to mechanical thrombectomy: clearest benefit within 6 h, extendable to 24 h when imaging shows salvageable tissue. Without access to thrombectomy, tenecteplase 4.5–24 h after onset improved outcome in TRACE-III (Chinese patients with ICA/MCA occlusion and salvageable tissue on perfusion imaging).', contentLang));
     // SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE (sources.ts): selected by ASPECTS
     // SELECT2: ASPECTS 3–5 or core ≥50 mL, no upper volume limit; 100 mL only triggers a caution.
     // Sarraj 2023, https://doi.org/10.1056/NEJMoa2214403. ANGEL-ASPECT's 70–100 mL
@@ -1600,6 +1606,7 @@ function treatmentWindowDesc(w: WindowStory): L {
         `Large core (about ${core} mL when treatment is decided): in five randomised trials of anterior large-vessel occlusion with a large core (SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE) thrombectomy still improved function, with lower mortality in TENSION and LASTE (not in SELECT2); any intracranial haemorrhage was more frequent in some trials, and thrombectomy can cause vascular complications. Symptomatic haemorrhage was numerically higher in ANGEL-ASPECT (6.1% vs 2.7%) and LASTE (9.6% vs 5.7%), but neither difference was statistically conclusive.` +
           (core > BEYOND_TRIALS_ML ? ' Benefit estimates are less precise for cores larger than in most of these trials; SELECT2 also had no upper core-volume limit, so 100 mL is not a universal thrombectomy trial exclusion.' : ''),
       );
+    localized.push((contentLang: AdditionalLang) => (contentTemplate("Large core (about ⟪0⟫ mL when treatment is decided): in five randomised trials of anterior large-vessel occlusion with a large core (SELECT2, ANGEL-ASPECT, RESCUE-Japan LIMIT, TENSION, LASTE) thrombectomy still improved function, with lower mortality in TENSION and LASTE (not in SELECT2); any intracranial haemorrhage was more frequent in some trials, and thrombectomy can cause vascular complications. Symptomatic haemorrhage was numerically higher in ANGEL-ASPECT (6.1% vs 2.7%) and LASTE (9.6% vs 5.7%), but neither difference was statistically conclusive.", [contentFragment(core, contentLang)], contentLang) + (core > BEYOND_TRIALS_ML ? contentFragment(' Benefit estimates are less precise for cores larger than in most of these trials; SELECT2 also had no upper core-volume limit, so 100 mL is not a universal thrombectomy trial exclusion.', contentLang) : contentFragment('', contentLang))));
     }
   }
   if (w.basilar) {
@@ -1615,6 +1622,7 @@ function treatmentWindowDesc(w: WindowStory): L {
         `${recent === null ? 'The guideline suggests' : 'Without a contraindication, the guideline suggests'} IV thrombolysis up to 24 h after onset, by expert consensus at very low certainty, and IV thrombolysis plus thrombectomy over direct thrombectomy. ` +
         'In the trials (mostly Chinese patients with NIHSS ≥ 10; IV thrombolysis in 34% and 21% of the control arms) 90-day mortality was 37% with thrombectomy vs 55% with medical care (ATTENTION) and 31% vs 42% (BAOCHE; not statistically significant). Without recanalisation only about 2% have a good outcome (Lindsberg & Mattle 2006, case series).',
     );
+    localized.push((contentLang: AdditionalLang) => ((contentTemplate("Basilar-artery occlusion: in ATTENTION thrombectomy within 12 h of onset, and in BAOCHE thrombectomy 6–24 h after onset, improved outcome; the benefit was shown for NIHSS ≥ 10 (ESO/ESMINT 2024: no evidence below 10), and the effect was weaker for distal than for proximal or middle occlusions⟪0⟫. ", [(w.basilarTip ? contentFragment('; this is a distal (tip) occlusion', contentLang) : contentFragment('', contentLang))], contentLang) + contentTemplate("⟪0⟫ IV thrombolysis up to 24 h after onset, by expert consensus at very low certainty, and IV thrombolysis plus thrombectomy over direct thrombectomy. ", [(recent === null ? contentFragment('The guideline suggests', contentLang) : contentFragment('Without a contraindication, the guideline suggests', contentLang))], contentLang)) + contentFragment('In the trials (mostly Chinese patients with NIHSS ≥ 10; IV thrombolysis in 34% and 21% of the control arms) 90-day mortality was 37% with thrombectomy vs 55% with medical care (ATTENTION) and 31% vs 42% (BAOCHE; not statistically significant). Without recanalisation only about 2% have a good outcome (Lindsberg & Mattle 2006, case series).', contentLang)));
   }
   if (w.cervicalIsolated) {
     const large = core !== null && core >= LARGE_CORE_ML;
@@ -1626,10 +1634,12 @@ function treatmentWindowDesc(w: WindowStory): L {
       'Isolated cervical ICA occlusion (no intracranial occlusion on this side): not tested in the randomised thrombectomy trials, which largely excluded it; in an observational meta-analysis endovascular treatment was not clearly better than medical treatment (adjusted OR 1.22, 95% CI 0.82–1.82), so it is an individual decision (e.g. for persisting severe deficits). With a tandem lesion (cervical ICA plus an intracranial occlusion) the large-vessel trials apply.' +
         (large ? ` With a large established core (about ${core} mL) any benefit is even less certain.` : ''),
     );
+    localized.push((contentLang: AdditionalLang) => (contentFragment('Isolated cervical ICA occlusion (no intracranial occlusion on this side): not tested in the randomised thrombectomy trials, which largely excluded it; in an observational meta-analysis endovascular treatment was not clearly better than medical treatment (adjusted OR 1.22, 95% CI 0.82–1.82), so it is an individual decision (e.g. for persisting severe deficits). With a tandem lesion (cervical ICA plus an intracranial occlusion) the large-vessel trials apply.', contentLang) + (large ? contentTemplate(" With a large established core (about ⟪0⟫ mL) any benefit is even less certain.", [contentFragment(core, contentLang)], contentLang) : contentFragment('', contentLang))));
   }
   if (w.v4) {
     zh.push('顱內椎動脈（V4）阻塞：沒有隨機試驗測試過這裡的取栓；主要在血栓延伸進基底動脈時才考慮。');
     en.push('Intracranial vertebral artery (V4) occlusion: no randomised trial has tested thrombectomy here; it is mainly considered when the clot extends into the basilar artery.');
+    localized.push((contentLang: AdditionalLang) => contentFragment('Intracranial vertebral artery (V4) occlusion: no randomised trial has tested thrombectomy here; it is mainly considered when the clot extends into the basilar artery.', contentLang));
   }
   if (w.mevo) {
     // ESCAPE-MeVO (Goyal M et al. 2025), DISTAL (Psychogios M et al. 2025)
@@ -1641,14 +1651,17 @@ function treatmentWindowDesc(w: WindowStory): L {
       `This is a medium/distal vessel occlusion: ${recent === null ? 'IV thrombolysis is standard.' : 'without a contraindication, IV thrombolysis is the standard treatment.'} ` +
         'Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), and mortality higher only in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.',
     );
+    localized.push((contentLang: AdditionalLang) => (contentTemplate("This is a medium/distal vessel occlusion: ⟪0⟫ ", [(recent === null ? contentFragment('IV thrombolysis is standard.', contentLang) : contentFragment('without a contraindication, IV thrombolysis is the standard treatment.', contentLang))], contentLang) + contentFragment('Routine thrombectomy did not improve outcome in the 2025 ESCAPE-MeVO and DISTAL trials; symptomatic haemorrhage was 5.4% vs 2.2% in ESCAPE-MeVO and 5.9% vs 2.6% in DISTAL (judged similar by its authors), and mortality higher only in ESCAPE-MeVO (13.3% vs 8.4%); a proximal, dominant M2 (excluded from DISTAL) remains uncertain and is considered case by case.', contentLang)));
   }
   if (!w.anterior && !w.basilar && !w.cervicalIsolated && !w.v4 && !w.mevo) {
     zh.push('此處不是大血管阻塞，一般不做取栓。');
     en.push('This is not a large-vessel occlusion; thrombectomy is not usually done.');
+    localized.push((contentLang: AdditionalLang) => contentFragment('This is not a large-vessel occlusion; thrombectomy is not usually done.', contentLang));
   }
   zh.push(SAVER.zh);
   en.push(SAVER.en);
-  return { zh: zh.join(''), en: en.join(' ') };
+    localized.push((contentLang: AdditionalLang) => localizedContent(SAVER, contentLang));
+  return withLocalized({ zh: zh.join(''), en: en.join(' '), localized: (contentLang: AdditionalLang) => localized.map((piece) => piece(contentLang)).join(' ') });
 }
 
 /**
@@ -1740,6 +1753,7 @@ const resolvesZh = (back: string, end: string, atOnce: boolean) =>
   `血流在發作後 ${back}恢復，兩側沒有形成梗塞：${atOnce ? '這個狀態隨之解除。' : `救回的組織在之後幾小時到幾天內逐漸恢復功能，這個狀態約在發作後 ${end}解除。`}`;
 const resolvesEn = (back: string, end: string, atOnce: boolean) =>
   ` Blood returned ${back} after onset before both sides infarcted, so the state ${atOnce ? 'resolves then' : `resolves as the rescued tissue regains its function over the following hours to days, by about ${end} after onset`}.`;
+const resolvesLocalized = (back: string, end: string, atOnce: boolean, contentLang: AdditionalLang) => contentTemplate(" Blood returned ⟪0⟫ after onset before both sides infarcted, so the state ⟪1⟫.", [back, (atOnce ? contentFragment('resolves then', contentLang) : contentTemplate("resolves as the rescued tissue regains its function over the following hours to days, by about ⟪0⟫ after onset", [end], contentLang))], contentLang);
 
 /**
  * The events of the brainstem consciousness course (X2-7, X2-10, X2-11, X2-15): one per stretch
@@ -1764,7 +1778,7 @@ function brainstemEvents(
   segs.forEach((seg, i) => {
     const prev = i > 0 && segs[i - 1].untilH !== null && Math.abs(segs[i - 1].untilH! - seg.fromH) < 1e-6 ? segs[i - 1] : null;
     const next = seg.untilH !== null && i + 1 < segs.length && Math.abs(segs[i + 1].fromH - seg.untilH) < 1e-6 ? segs[i + 1] : null;
-    const after = (h: number) => ({ zh: formatHours(h - seg.lesionOnsetH, 'zh-TW'), en: formatHours(h - seg.lesionOnsetH, 'en') });
+    const after = (h: number) => (withLocalized({ zh: formatHours(h - seg.lesionOnsetH, 'zh-TW'), en: formatHours(h - seg.lesionOnsetH, 'en'), localized: (contentLang: AdditionalLang) => contentFragment(formatHours(h - seg.lesionOnsetH, 'en'), contentLang) }));
     const end = seg.untilH === null ? null : after(seg.untilH);
     // blood that returned during this stretch or the ones just before it (one course: a classical
     // locked-in state that turned incomplete as the pons recovered) ends it (Y1-12)
@@ -1774,53 +1788,67 @@ function brainstemEvents(
     const atOnce = reopenH !== null && seg.untilH !== null && Math.abs(seg.untilH - reopenH) < 1e-6;
     const lis = (st: BrainstemState | undefined) => st === 'classical' || st === 'incomplete';
     let zh = '';
+    let localized: ((lang: AdditionalLang) => string)[] = [];
     let en = '';
     if (seg.state === 'coma') {
       zh = '四肢與臉部癱瘓，維持清醒的被蓋網狀結構也兩側受損：病人現在昏迷，不是閉鎖症候群，常需要呼吸器。';
       en = 'Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation.';
+localized = [(contentLang: AdditionalLang) => contentFragment('Limbs and face are paralysed and the arousal network of the tegmentum has failed on both sides as well: the person is comatose now, not locked-in, and often needs ventilation.', contentLang)];
       if (end && back && lis(next?.state)) {
         const part = next!.state === 'incomplete';
         zh += `血流在發作後 ${back.zh}恢復，兩側被蓋還沒有形成梗塞：昏迷${atOnce ? '隨之解除' : `隨著被蓋恢復功能而解除（約在發作後 ${end.zh}）`}；但兩側橋腦腹側已經梗塞，病人醒來是${part ? '不完全' : ''}閉鎖的（清醒、有意識，卻${part ? '幾乎' : ''}不能動也不能說話）。`;
         en += ` Blood returned ${back.en} after onset before the tegmentum of both sides infarcted, so the coma lifts ${atOnce ? 'then' : `as it regains its function, by about ${end.en} after onset`}; but the ventral pons has infarcted on both sides, so the person wakes up ${part ? 'incompletely ' : ''}locked-in (awake and aware, ${part ? 'barely able' : 'unable'} to move or speak).`;
+localized.push((contentLang: AdditionalLang) => contentTemplate(" Blood returned ⟪0⟫ after onset before the tegmentum of both sides infarcted, so the coma lifts ⟪1⟫; but the ventral pons has infarcted on both sides, so the person wakes up ⟪2⟫locked-in (awake and aware, ⟪3⟫ to move or speak).", [localizedContent(back, contentLang), (atOnce ? contentFragment('then', contentLang) : contentTemplate("as it regains its function, by about ⟪0⟫ after onset", [localizedContent(end, contentLang)], contentLang)), (part ? contentFragment('incompletely ', contentLang) : contentFragment('', contentLang)), (part ? contentFragment('barely able', contentLang) : contentFragment('unable', contentLang))], contentLang));
       } else if (end && back && !next) {
         zh += resolvesZh(back.zh, end.zh, atOnce);
         en += resolvesEn(back.en, end.en, atOnce);
+localized.push((contentLang: AdditionalLang) => resolvesLocalized(localizedContent(back, contentLang), localizedContent(end, contentLang), atOnce, contentLang));
       } else {
         zh += '這類病人常昏迷數天到數週後才逐漸醒來：有些人醒來是閉鎖的（清醒但不能動，只能用垂直眼動與眨眼溝通），有些人停在意識障礙（無反應覺醒或最小意識狀態），兩者外觀相近、容易誤判。';
         en += ' Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.';
+localized.push((contentLang: AdditionalLang) => contentFragment(' Such patients often stay comatose for days to weeks and then gradually wake: some wake up locked-in (aware but unable to move, communicating by vertical eye movements and blinking), others remain in a disorder of consciousness (unresponsive wakefulness or a minimally conscious state); the two look alike and are easily confused.', contentLang));
         if (end && !next) {
           zh += `這裡昏迷約在發作後 ${end.zh}解除。`;
           en += ` Here the coma lifts about ${end.en} after onset.`;
+localized.push((contentLang: AdditionalLang) => contentTemplate(" Here the coma lifts about ⟪0⟫ after onset.", [localizedContent(end, contentLang)], contentLang));
         }
       }
     } else if (seg.state === 'doc') {
       zh = `昏迷之後眼睛會睜開、恢復睡醒週期，但可能沒有覺察（無反應覺醒症候群）、時有時無（最小意識狀態），也可能其實完全清醒、只是被癱瘓閉鎖住（閉鎖症候群）。這幾種狀態外觀相近、常被誤判；閉鎖症候群平均要 2.5 個月以上才被診斷，常是家屬先發現病人是清醒的：要反覆請病人用上下看或眨眼回答問題。${care.zh}`;
       en = `The coma has given way to eye opening and sleep–wake cycles, but awareness may be absent (unresponsive wakefulness syndrome), may come and go (minimally conscious state), or may be fully present behind the paralysis (locked-in syndrome). The states look alike and are often confused; locked-in syndrome took over 2.5 months to diagnose on average, and it is often the family who first notices that the person is aware: ask repeatedly for answers by looking up or blinking.${care.en}`;
+localized = [(contentLang: AdditionalLang) => contentTemplate("The coma has given way to eye opening and sleep–wake cycles, but awareness may be absent (unresponsive wakefulness syndrome), may come and go (minimally conscious state), or may be fully present behind the paralysis (locked-in syndrome). The states look alike and are often confused; locked-in syndrome took over 2.5 months to diagnose on average, and it is often the family who first notices that the person is aware: ask repeatedly for answers by looking up or blinking.⟪0⟫", [localizedContent(care, contentLang)], contentLang)];
     } else {
       const part = seg.state === 'incomplete';
       if (prev?.state === 'coma') {
         zh = `昏迷已經過去：病人醒著、有意識，但四肢與臉部${part ? '嚴重無力' : '完全癱瘓'}、無法說話吞嚥，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。因為接在昏迷之後、外觀又像昏迷，很容易被忽略：要反覆請病人用上下看或眨眼回答問題。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。`;
         en = `The coma has lifted: the person is awake and aware, but with ${part ? 'severe weakness' : 'total paralysis'} of limbs and face and no speech or swallowing, communicating by vertical eye movements and blinking (the midbrain gaze centres are spared). Because it follows a coma and looks like one, it is easily missed: ask repeatedly for answers by looking up or blinking. With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.`;
+localized = [(contentLang: AdditionalLang) => contentTemplate("The coma has lifted: the person is awake and aware, but with ⟪0⟫ of limbs and face and no speech or swallowing, communicating by vertical eye movements and blinking (the midbrain gaze centres are spared). Because it follows a coma and looks like one, it is easily missed: ask repeatedly for answers by looking up or blinking. With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.", [(part ? contentFragment('severe weakness', contentLang) : contentFragment('total paralysis', contentLang))], contentLang)];
       } else if (prev && part) {
         const leadH = reopenedIn(prev.fromH, seg.fromH);
         const lead = leadH === null || !credit(leadH, seg.fromH) ? null : after(leadH);
         zh = `${lead ? `血流在發作後 ${lead.zh}恢復，救回部分橋腦腹側：四肢已能稍微動，閉鎖症候群變成「不完全」。` : '四肢已能稍微動：典型閉鎖症候群已變成「不完全」閉鎖。'}病人仍然意識清楚、幾乎不能說話、吞嚥嚴重困難，用垂直眼動與眨眼溝通。`;
         en = `${lead ? `Blood returned ${lead.en} after onset and saved part of the ventral pons: some limb movement has come back, so the locked-in syndrome is now incomplete.` : 'Some limb movement has come back: classical locked-in syndrome has become incomplete.'} The person is still conscious, with little or no speech and severe difficulty swallowing, communicating by vertical eye movements and blinking.`;
+localized = [(contentLang: AdditionalLang) => contentTemplate("⟪0⟫ The person is still conscious, with little or no speech and severe difficulty swallowing, communicating by vertical eye movements and blinking.", [(lead ? contentTemplate("Blood returned ⟪0⟫ after onset and saved part of the ventral pons: some limb movement has come back, so the locked-in syndrome is now incomplete.", [localizedContent(lead, contentLang)], contentLang) : contentFragment('Some limb movement has come back: classical locked-in syndrome has become incomplete.', contentLang))], contentLang)];
       } else if (prev) {
         zh = '四肢無力加重到完全不能動：典型閉鎖症候群。病人仍然意識清楚，只能用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。';
         en = 'The weakness has deepened until no limb moves: classical locked-in syndrome. The person is still conscious, communicating only by vertical eye movements and blinking (the midbrain gaze centres are spared).';
+localized = [(contentLang: AdditionalLang) => contentFragment('The weakness has deepened until no limb moves: classical locked-in syndrome. The person is still conscious, communicating only by vertical eye movements and blinking (the midbrain gaze centres are spared).', contentLang)];
       } else {
         zh = `${part ? '兩側都受損但不完全：' : '一開始常是'}四肢與臉部${part ? '嚴重' : '完全'}癱瘓、無法說話吞嚥，但意識清楚，用垂直眼動與眨眼溝通（控制垂直眼動的中腦未受損）。還能有其他動作時稱為「不完全」閉鎖；典型閉鎖症候群在數週到數月後恢復部分動作時也會變成不完全。`;
         en = `${part ? 'Both sides, but not completely: severe' : 'Often at first total'} paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.`;
+localized = [(contentLang: AdditionalLang) => contentTemplate("⟪0⟫ paralysis of limbs and face with no speech or swallowing, yet conscious — communication by vertical eye movements and blinking (the midbrain gaze centres are spared). With any other movement left it is incomplete locked-in syndrome; classical locked-in syndrome becomes incomplete when some movement returns over weeks to months.", [(part ? contentFragment('Both sides, but not completely: severe', contentLang) : contentFragment('Often at first total', contentLang))], contentLang)];
       }
       zh += care.zh;
       en += care.en;
+localized.push((contentLang: AdditionalLang) => localizedContent(care, contentLang));
       if (end && !next && back) {
         zh += resolvesZh(back.zh, end.zh, atOnce);
         en += resolvesEn(back.en, end.en, atOnce);
+localized.push((contentLang: AdditionalLang) => resolvesLocalized(localizedContent(back, contentLang), localizedContent(end, contentLang), atOnce, contentLang));
       } else if (end && !next) {
         zh += `約在發作後 ${end.zh}，四肢無力與無法說話已減輕，不再是這個表現。`;
         en += ` By about ${end.en} after onset the weakness of all four limbs and the loss of speech have eased, and the picture no longer applies.`;
+localized.push((contentLang: AdditionalLang) => contentTemplate(" By about ⟪0⟫ after onset the weakness of all four limbs and the loss of speech have eased, and the picture no longer applies.", [localizedContent(end, contentLang)], contentLang));
       }
     }
     const { id: baseId, title } = BRAINSTEM_EVENT[seg.state];
@@ -1832,7 +1860,7 @@ function brainstemEvents(
       onsetH: seg.fromH,
       ...(seg.untilH !== null ? { endH: seg.untilH } : {}),
       title,
-      desc: { zh, en },
+      desc: withLocalized({ zh, en, localized: (contentLang: AdditionalLang) => localized.map((piece) => piece(contentLang)).join('') }),
       regions: seg.state === 'coma' ? regions.coma : seg.state === 'doc' ? regions.doc : regions.lis,
     });
   });
@@ -2054,7 +2082,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: reclosedH,
         endH: 24,
         title: { zh: '治療時間窗', en: 'Treatment windows' },
-        desc: { zh: REOCCLUDED_WINDOW_INTRO.zh + w.zh, en: `${REOCCLUDED_WINDOW_INTRO.en} ${w.en}` },
+        desc: withLocalized({ zh: REOCCLUDED_WINDOW_INTRO.zh + w.zh, en: `${REOCCLUDED_WINDOW_INTRO.en} ${w.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ ⟪1⟫", [localizedContent(REOCCLUDED_WINDOW_INTRO, contentLang), localizedContent(w, contentLang)], contentLang) }),
         regions: [],
       });
     }
@@ -2102,10 +2130,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         severity: reperfusionSeverity(input.reperfusionOutcome, savedVolume, avoided, sliver()),
         onsetH: reperfusionH,
         title: { zh: '血管再通（血栓溶解／取栓）', en: 'Recanalisation (thrombolysis / thrombectomy)' },
-        desc: {
+        desc: withLocalized({
           zh: `血流恢復時尚未壞死的半影區被救回，模型估計少了${sp.zh} 的梗塞${savedSplit(savedVolume, savedSecondary).zh}。${o.zh}${REGAIN_NOTE.zh}已經壞死的核心不會恢復；${late ? '較晚再通時，' : ''}再灌流也可能帶來出血轉化與再灌流傷害。`,
-          en: `Restored flow rescues penumbra that has not yet died — the model estimates ${sp.en} less infarct${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`,
-        },
+          en: `Restored flow rescues penumbra that has not yet died — the model estimates ${sp.en} less infarct${savedSplit(savedVolume, savedSecondary).en}.${o.en}${REGAIN_NOTE.en} The dead core does not recover; ${late ? 'with late recanalisation ' : ''}reperfusion can also bring haemorrhagic transformation and reperfusion injury.`, localized: (contentLang: AdditionalLang) => contentTemplate("Restored flow rescues penumbra that has not yet died — the model estimates ⟪0⟫ less infarct⟪1⟫.⟪2⟫⟪3⟫ The dead core does not recover; ⟪4⟫reperfusion can also bring haemorrhagic transformation and reperfusion injury.", [localizedContent(sp, contentLang), localizedContent(savedSplit(savedVolume, savedSecondary), contentLang), localizedContent(o, contentLang), localizedContent(REGAIN_NOTE, contentLang), (late ? contentFragment('with late recanalisation ', contentLang) : contentFragment('', contentLang))], contentLang),
+        }),
         regions: [],
       };
     };
@@ -2278,14 +2306,14 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const bilateralNote: L = !bothSwell
       ? { zh: '', en: '' }
       : alike
-        ? {
+        ? withLocalized({
             zh: `另一側半球也梗塞了（最終約 ${vol.supra[o].toFixed(0)} mL；兩側在 14 小時內合計約 ${(earlySupra.r + earlySupra.l).toFixed(0)} mL）：兩側一起腫脹，把腦往下擠而不是推向對側，中線移動不多（兩側同時腫脹時最多約 ${across.toFixed(1)} mm）；模型把兩側的腫脹加在一起，視同單側半球的腫脹來決定意識（這是模型的選擇：Ropper 的分級是在單側占位病人測得的）。`,
-            en: ` The other hemisphere is infarcted too (≈ ${vol.supra[o].toFixed(0)} mL in the end; ≈ ${(earlySupra.r + earlySupra.l).toFixed(0)} mL in both within 14 h): the two swell together and push the brain down rather than across, so the midline moves little (at most about ${across.toFixed(1)} mm while both swell); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).`,
-          }
-        : {
+            en: ` The other hemisphere is infarcted too (≈ ${vol.supra[o].toFixed(0)} mL in the end; ≈ ${(earlySupra.r + earlySupra.l).toFixed(0)} mL in both within 14 h): the two swell together and push the brain down rather than across, so the midline moves little (at most about ${across.toFixed(1)} mm while both swell); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).`, localized: (contentLang: AdditionalLang) => contentTemplate(" The other hemisphere is infarcted too (≈ ⟪0⟫ mL in the end; ≈ ⟪1⟫ mL in both within 14 h): the two swell together and push the brain down rather than across, so the midline moves little (at most about ⟪2⟫ mm while both swell); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).", [contentFragment(vol.supra[o].toFixed(0), contentLang), contentFragment((earlySupra.r + earlySupra.l).toFixed(0), contentLang), contentFragment(across.toFixed(1), contentLang)], contentLang),
+          })
+        : withLocalized({
             zh: `另一側半球也梗塞了（最終約 ${vol.supra[o].toFixed(0)} mL；兩側在 14 小時內合計約 ${(earlySupra.r + earlySupra.l).toFixed(0)} mL）：兩側同時腫脹、互相抵銷一部分，中線被推過去的距離比腫得較厲害的一側單獨腫脹時少（這裡最多約 ${across.toFixed(1)} mm）；模型把兩側的腫脹加在一起，視同單側半球的腫脹來決定意識（這是模型的選擇：Ropper 的分級是在單側占位病人測得的）。`,
-            en: ` The other hemisphere is infarcted too (≈ ${vol.supra[o].toFixed(0)} mL in the end; ≈ ${(earlySupra.r + earlySupra.l).toFixed(0)} mL in both within 14 h): the two swell at the same time and partly balance each other, so the midline is pushed across less than the larger swelling alone would push it (here at most about ${across.toFixed(1)} mm); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).`,
-          };
+            en: ` The other hemisphere is infarcted too (≈ ${vol.supra[o].toFixed(0)} mL in the end; ≈ ${(earlySupra.r + earlySupra.l).toFixed(0)} mL in both within 14 h): the two swell at the same time and partly balance each other, so the midline is pushed across less than the larger swelling alone would push it (here at most about ${across.toFixed(1)} mm); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).`, localized: (contentLang: AdditionalLang) => contentTemplate(" The other hemisphere is infarcted too (≈ ⟪0⟫ mL in the end; ≈ ⟪1⟫ mL in both within 14 h): the two swell at the same time and partly balance each other, so the midline is pushed across less than the larger swelling alone would push it (here at most about ⟪2⟫ mm); the model counts their swelling together, as if it were one hemisphere's, for the level of consciousness (a model choice: Ropper's bands were measured for one-sided masses).", [contentFragment(vol.supra[o].toFixed(0), contentLang), contentFragment((earlySupra.r + earlySupra.l).toFixed(0), contentLang), contentFragment(across.toFixed(1), contentLang)], contentLang),
+          });
     // malignant course: early (≤ 14 h) lesion > 145 mL (Oppenheim 2000) or a very large final infarct.
     // The level of consciousness is not fixed by this event: simulate() takes it from the midline
     // shift the oedema model computes at the displayed time (Ropper AH. N Engl J Med 1986;314:953–958;
@@ -2322,32 +2350,32 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
                 en: 'Swelling together with the other hemisphere, without decompression most patients die of a central herniation, the brain pushed down through the tentorial notch (see "Central transtentorial herniation" and "Death likely after herniation").',
               }
             : bothSwell && (peakMm ?? 0) >= COMA_SHIFT_MM && hern[o].lateral
-            ? {
+            ? withLocalized({
                 zh: `與另一側合計的腫脹已達昏迷的範圍（換算約 ${peakMm} mm 的中線偏移），疝脫來自腫得較厲害的另一側半球（見該側的事件）。`,
-                en: `Together with the other hemisphere's swelling it reaches the coma range (about ${peakMm} mm, counted as one side's midline shift); the herniation comes from the more swollen other hemisphere (see its events).`,
-              }
+                en: `Together with the other hemisphere's swelling it reaches the coma range (about ${peakMm} mm, counted as one side's midline shift); the herniation comes from the more swollen other hemisphere (see its events).`, localized: (contentLang: AdditionalLang) => contentTemplate("Together with the other hemisphere's swelling it reaches the coma range (about ⟪0⟫ mm, counted as one side's midline shift); the herniation comes from the more swollen other hemisphere (see its events).", [contentFragment(peakMm, contentLang)], contentLang),
+              })
             : bothSwell && (peakMm ?? 0) >= COMA_SHIFT_MM
-            ? {
+            ? withLocalized({
                 zh: `與另一側合計的腫脹已達昏迷的範圍（換算約 ${peakMm} mm 的中線偏移），但在第 3 天之前就降到昏迷的範圍以下，模型沒有讓它疝脫。這麼大的梗塞仍是高風險，實務上要密切觀察。`,
-                en: `Together with the other hemisphere's swelling it reaches the coma range (about ${peakMm} mm, counted as one side's midline shift), but falls below it again before day 3, and the model does not let it herniate. Lesions this size are still at high risk and are watched closely.`,
-              }
+                en: `Together with the other hemisphere's swelling it reaches the coma range (about ${peakMm} mm, counted as one side's midline shift), but falls below it again before day 3, and the model does not let it herniate. Lesions this size are still at high risk and are watched closely.`, localized: (contentLang: AdditionalLang) => contentTemplate("Together with the other hemisphere's swelling it reaches the coma range (about ⟪0⟫ mm, counted as one side's midline shift), but falls below it again before day 3, and the model does not let it herniate. Lesions this size are still at high risk and are watched closely.", [contentFragment(peakMm, contentLang)], contentLang),
+              })
             : bothSwell
-              ? {
+              ? withLocalized({
                   zh: `這裡兩側合計的腫脹最多換算約 ${peakMm} mm 的中線偏移，未達昏迷的範圍（8 mm）${
                     (peakMm ?? 0) >= STUPOR_SHIFT_MM ? '：病人變得木僵' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? '：病人變得嗜睡' : '，不足以讓意識下降'
                   }，也沒有疝脫。這麼大的梗塞仍是高風險，實務上要密切觀察。`,
                   en: `Here the swelling of both hemispheres together peaks at about ${peakMm} mm, counted as one side's midline shift, short of the coma range (8 mm)${
                     (peakMm ?? 0) >= STUPOR_SHIFT_MM ? ': the patient becomes stuporous' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? ': the patient becomes drowsy' : ', too little to lower consciousness'
-                  }, and does not herniate. Lesions this size are still at high risk and are watched closely.`,
-                }
-              : {
+                  }, and does not herniate. Lesions this size are still at high risk and are watched closely.`, localized: (contentLang: AdditionalLang) => contentTemplate("Here the swelling of both hemispheres together peaks at about ⟪0⟫ mm, counted as one side's midline shift, short of the coma range (8 mm)⟪1⟫, and does not herniate. Lesions this size are still at high risk and are watched closely.", [contentFragment(peakMm, contentLang), ((peakMm ?? 0) >= STUPOR_SHIFT_MM ? contentFragment(': the patient becomes stuporous', contentLang) : ((peakMm ?? 0) >= DROWSY_SHIFT_MM ? contentFragment(': the patient becomes drowsy', contentLang) : contentFragment(', too little to lower consciousness', contentLang)))], contentLang),
+                })
+              : withLocalized({
                   zh: `這裡模型算出的腫脹讓中線偏移最多約 ${peakMm} mm，未達昏迷的範圍（8 mm）${
                     (peakMm ?? 0) >= STUPOR_SHIFT_MM ? '：病人變得木僵' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? '：病人變得嗜睡' : '，不足以讓意識下降'
                   }，也沒有疝脫。這麼大的梗塞仍是高風險，實務上要密切觀察，並考慮減壓手術（試驗在 48 小時內手術）。`,
                   en: `Here the swelling the model computes peaks at about ${peakMm} mm of midline shift, short of the coma range (8 mm)${
                     (peakMm ?? 0) >= STUPOR_SHIFT_MM ? ': the patient becomes stuporous' : (peakMm ?? 0) >= DROWSY_SHIFT_MM ? ': the patient becomes drowsy' : ', too little to lower consciousness'
-                  }, and does not herniate. A lesion this size is still at high risk; in practice it is watched closely and decompression is considered (the trials operated within 48 h).`,
-                };
+                  }, and does not herniate. A lesion this size is still at high risk; in practice it is watched closely and decompression is considered (the trials operated within 48 h).`, localized: (contentLang: AdditionalLang) => contentTemplate("Here the swelling the model computes peaks at about ⟪0⟫ mm of midline shift, short of the coma range (8 mm)⟪1⟫, and does not herniate. A lesion this size is still at high risk; in practice it is watched closely and decompression is considered (the trials operated within 48 h).", [contentFragment(peakMm, contentLang), ((peakMm ?? 0) >= STUPOR_SHIFT_MM ? contentFragment(': the patient becomes stuporous', contentLang) : ((peakMm ?? 0) >= DROWSY_SHIFT_MM ? contentFragment(': the patient becomes drowsy', contentLang) : contentFragment(', too little to lower consciousness', contentLang)))], contentLang),
+                });
       // The volumes (Y3-3): the early lesion is the risk criterion; "in the end" is the figure the
       // Outcome tab shows as the final infarct — with the infarcts the herniation adds (the ACA and
       // PCA territories it compresses), when it adds any, which are known only once its effects
@@ -2355,10 +2383,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       const early = earlySupra[s].toFixed(0);
       // (when both swell, the push across is the rule for one swollen hemisphere, which the note on
       // the other then qualifies: V1-4)
-      const rest = {
+      const rest = withLocalized({
         zh: `${bothSwell ? '單側腫脹的半球會把中線推向對側' : '腫脹的半球把中線推向對側'}，意識隨中線偏移變差（Ropper 1986，24 位急性半球占位病人，多為血腫，所以只是大約：松果體偏移 3–4 mm 嗜睡、6–8.5 mm 木僵、8–13 mm 昏迷；模型從 4 mm 起算嗜睡、6 mm 木僵、8 mm 昏迷）。${bilateralNote.zh}惡化多半很早：一個選入 53 位已發生惡化病人的系列中，36% 在 24 小時內、68% 在 48 小時內惡化，死亡最常發生在第 3 天；另一系列在第 2–5 天。${outlook.zh}`,
-        en: ` ${bothSwell ? 'On its own, a swollen hemisphere pushes' : 'The swollen hemisphere pushes'} the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients selected because they deteriorated, 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`,
-      };
+        en: ` ${bothSwell ? 'On its own, a swollen hemisphere pushes' : 'The swollen hemisphere pushes'} the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).${bilateralNote.en} Deterioration usually comes early: in a series of 53 patients selected because they deteriorated, 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ${outlook.en}`, localized: (contentLang: AdditionalLang) => contentTemplate(" ⟪0⟫ the midline across, and consciousness falls with the shift (Ropper 1986, 24 patients with acute hemispheric masses, mostly haematomas, so the bands are approximate: pineal shift 3–4 mm drowsy, 6–8.5 mm stupor, 8–13 mm coma; the model counts drowsiness from 4 mm, stupor from 6 mm and coma from 8 mm).⟪1⟫ Deterioration usually comes early: in a series of 53 patients selected because they deteriorated, 36% deteriorated within 24 h and 68% by 48 h, and deaths peaked on day 3; another series describes days 2–5. ⟪2⟫", [(bothSwell ? contentFragment('On its own, a swollen hemisphere pushes', contentLang) : contentFragment('The swollen hemisphere pushes', contentLang)), localizedContent(bilateralNote, contentLang), localizedContent(outlook, contentLang)], contentLang),
+      });
       const event: CascadeEvent = {
         id: `malignant_edema_${s}`,
         kind: 'secondary',
@@ -2369,8 +2397,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         shiftSymptoms: true,
         title:
           decompression || herniates || central
-            ? { zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema` }
-            : { zh: `${sideZh}大腦半球：惡性腦水腫高風險`, en: `${sideEn === 'right' ? 'Right' : 'Left'} hemisphere: high risk of malignant oedema` },
+            ? withLocalized({ zh: `${sideZh}大腦半球惡性腦水腫`, en: `Malignant ${sideEn}-hemisphere oedema`, localized: (contentLang: AdditionalLang) => contentTemplate("Malignant ⟪0⟫-hemisphere oedema", [contentFragment(sideEn, contentLang)], contentLang) })
+            : withLocalized({ zh: `${sideZh}大腦半球：惡性腦水腫高風險`, en: `${sideEn === 'right' ? 'Right' : 'Left'} hemisphere: high risk of malignant oedema`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ hemisphere: high risk of malignant oedema", [(sideEn === 'right' ? contentFragment('Right', contentLang) : contentFragment('Left', contentLang))], contentLang) }),
         desc: { zh: '', en: '' },
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
       };
@@ -2382,7 +2410,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         const whole = wholeMl.toFixed(0);
         const own = whole !== shown;
         const note = own
-          ? { zh: `（全腦合計約 ${whole} mL，即「最終」頁的最終梗塞）`, en: ` (≈ ${whole} mL in the whole brain, the final infarct on the Outcome tab)` }
+          ? withLocalized({ zh: `（全腦合計約 ${whole} mL，即「最終」頁的最終梗塞）`, en: ` (≈ ${whole} mL in the whole brain, the final infarct on the Outcome tab)`, localized: (contentLang: AdditionalLang) => contentTemplate(" (≈ ⟪0⟫ mL in the whole brain, the final infarct on the Outcome tab)", [contentFragment(whole, contentLang)], contentLang) })
           : { zh: '', en: '' };
         // (a lesion of this hemisphere that began at another time is not this swelling's, U1-2: the
         // figures are this lesion's, with the hemisphere's beside them)
@@ -2391,11 +2419,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         // (the whole brain's figure, without secondary infarcts, inside the same parentheses)
         const merged = apart && own && secondaryMl[s] < 0.5;
         const end: L = apart
-          ? {
+          ? withLocalized({
               zh: `最終約 ${mainFinal[s].toFixed(0)} mL（加上另一次在不同時間開始的梗塞，這一側合計約 ${primary} mL${merged ? `；全腦合計約 ${whole} mL，即「最終」頁的最終梗塞` : ''}）`,
-              en: `≈ ${mainFinal[s].toFixed(0)} mL in the end (≈ ${primary} mL in this hemisphere with an infarct that began at another time${merged ? `; ≈ ${whole} mL in the whole brain, the final infarct on the Outcome tab` : ''})`,
-            }
-          : { zh: `${here.zh}最終約 ${primary} mL`, en: `≈ ${primary} mL${here.en} in the end` };
+              en: `≈ ${mainFinal[s].toFixed(0)} mL in the end (≈ ${primary} mL in this hemisphere with an infarct that began at another time${merged ? `; ≈ ${whole} mL in the whole brain, the final infarct on the Outcome tab` : ''})`, localized: (contentLang: AdditionalLang) => contentTemplate("≈ ⟪0⟫ mL in the end (≈ ⟪1⟫ mL in this hemisphere with an infarct that began at another time⟪2⟫)", [contentFragment(mainFinal[s].toFixed(0), contentLang), contentFragment(primary, contentLang), (merged ? contentTemplate("; ≈ ⟪0⟫ mL in the whole brain, the final infarct on the Outcome tab", [contentFragment(whole, contentLang)], contentLang) : contentFragment('', contentLang))], contentLang),
+            })
+          : withLocalized({ zh: `${here.zh}最終約 ${primary} mL`, en: `≈ ${primary} mL${here.en} in the end`, localized: (contentLang: AdditionalLang) => contentTemplate("≈ ⟪0⟫ mL⟪1⟫ in the end", [contentFragment(primary, contentLang), localizedContent(here, contentLang)], contentLang) });
         // The 145 mL of the criterion is quoted beside this hemisphere's own early volume only when
         // that volume reaches it (Z3-4): a hemisphere at risk by its final volume alone says so, and
         // one at risk only together with the other says that the model counts the MCA infarcts of
@@ -2403,32 +2431,32 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         const prim = secondaryMl[s] >= 0.5;
         const head: L =
           earlySupra[s] > MALIGNANT_EARLY_ML
-            ? {
+            ? withLocalized({
                 zh: `發病 14 小時內的${prim ? '原發' : ''}梗塞已約 ${early} mL（> 145 mL 為惡性水腫高風險），${end.zh}`,
-                en: `${prim ? 'Primary infarct' : 'Infarct'} ≈ ${early} mL within 14 h (> 145 mL carries high risk), ${end.en}`,
-              }
+                en: `${prim ? 'Primary infarct' : 'Infarct'} ≈ ${early} mL within 14 h (> 145 mL carries high risk), ${end.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ ≈ ⟪1⟫ mL within 14 h (> 145 mL carries high risk), ⟪2⟫", [(prim ? contentFragment('Primary infarct', contentLang) : contentFragment('Infarct', contentLang)), contentFragment(early, contentLang), localizedContent(end, contentLang)], contentLang),
+              })
             : ownRisk
-              ? {
+              ? withLocalized({
                   zh: `發病 14 小時內的${prim ? '原發' : ''}梗塞約 ${early} mL，未達早期判斷高風險的 145 mL，但${end.zh}：模型把最終 ${MALIGNANT_FINAL_ML} mL 以上的梗塞也算作惡性`,
-                  en: `${prim ? 'Primary infarct' : 'Infarct'} ≈ ${early} mL within 14 h, under the 145 mL that marks a high risk early on, but ${end.en}, which the model counts as malignant too (${MALIGNANT_FINAL_ML} mL or more)`,
-                }
-              : {
+                  en: `${prim ? 'Primary infarct' : 'Infarct'} ≈ ${early} mL within 14 h, under the 145 mL that marks a high risk early on, but ${end.en}, which the model counts as malignant too (${MALIGNANT_FINAL_ML} mL or more)`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ ≈ ⟪1⟫ mL within 14 h, under the 145 mL that marks a high risk early on, but ⟪2⟫, which the model counts as malignant too (⟪3⟫ mL or more)", [(prim ? contentFragment('Primary infarct', contentLang) : contentFragment('Infarct', contentLang)), contentFragment(early, contentLang), localizedContent(end, contentLang), contentFragment(MALIGNANT_FINAL_ML, contentLang)], contentLang),
+                })
+              : withLocalized({
                   zh: `發病 14 小時內的${prim ? '原發' : ''}梗塞約 ${early} mL，${end.zh}`,
-                  en: `${prim ? 'Primary infarct' : 'Infarct'} ≈ ${early} mL within 14 h, ${end.en}`,
-                };
+                  en: `${prim ? 'Primary infarct' : 'Infarct'} ≈ ${early} mL within 14 h, ${end.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ ≈ ⟪1⟫ mL within 14 h, ⟪2⟫", [(prim ? contentFragment('Primary infarct', contentLang) : contentFragment('Infarct', contentLang)), contentFragment(early, contentLang), localizedContent(end, contentLang)], contentLang),
+                });
         const tail: L = prim
-          ? { zh: `；加上疝脫造成的續發梗塞，${here.zh}最終約 ${withSecondary} mL${note.zh}。`, en: `; with the secondary infarcts from the herniation ≈ ${withSecondary} mL${here.en} in the end${note.en}.` }
+          ? withLocalized({ zh: `；加上疝脫造成的續發梗塞，${here.zh}最終約 ${withSecondary} mL${note.zh}。`, en: `; with the secondary infarcts from the herniation ≈ ${withSecondary} mL${here.en} in the end${note.en}.`, localized: (contentLang: AdditionalLang) => contentTemplate("; with the secondary infarcts from the herniation ≈ ⟪0⟫ mL⟪1⟫ in the end⟪2⟫.", [contentFragment(withSecondary, contentLang), localizedContent(here, contentLang), localizedContent(note, contentLang)], contentLang) })
           : merged
             ? { zh: '。', en: '.' }
-            : { zh: `${note.zh}。`, en: `${note.en}.` };
+            : withLocalized({ zh: `${note.zh}。`, en: `${note.en}.`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫.", [localizedContent(note, contentLang)], contentLang) });
         const joint: L = ownRisk
           ? { zh: '', en: '' }
           : jointMalignant
-            ? {
+            ? withLocalized({
                 zh: `單看這一側，早期的梗塞不到惡性梗塞的 145 mL；但兩側的中大腦動脈區梗塞都大到會腫脹，兩側合計 14 小時內約 ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL、最終約 ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL：模型把兩側合計，拿來和單側惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）比較。`,
-                en: ` On its own this hemisphere's early infarct is under the 145 mL that marks a malignant infarct; but the MCA infarcts of both hemispheres are large enough to swell, ≈ ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL in both hemispheres together within 14 h and ≈ ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL in the end, and the model holds both hemispheres together against the thresholds of one (> 145 mL within 14 h, or a very large final infarct).`,
-              }
-            : {
+                en: ` On its own this hemisphere's early infarct is under the 145 mL that marks a malignant infarct; but the MCA infarcts of both hemispheres are large enough to swell, ≈ ${(mcaEarly.r + mcaEarly.l).toFixed(0)} mL in both hemispheres together within 14 h and ≈ ${(mcaFinal.r + mcaFinal.l).toFixed(0)} mL in the end, and the model holds both hemispheres together against the thresholds of one (> 145 mL within 14 h, or a very large final infarct).`, localized: (contentLang: AdditionalLang) => contentTemplate(" On its own this hemisphere's early infarct is under the 145 mL that marks a malignant infarct; but the MCA infarcts of both hemispheres are large enough to swell, ≈ ⟪0⟫ mL in both hemispheres together within 14 h and ≈ ⟪1⟫ mL in the end, and the model holds both hemispheres together against the thresholds of one (> 145 mL within 14 h, or a very large final infarct).", [contentFragment((mcaEarly.r + mcaEarly.l).toFixed(0), contentLang), contentFragment((mcaFinal.r + mcaFinal.l).toFixed(0), contentLang)], contentLang),
+              })
+            : withLocalized({
                 // (how it herniates: to its own side, downward with the other hemisphere, or not at
                 // all, the herniation coming from the other side: V1-4)
                 zh: `單看大小，這個梗塞未達惡性梗塞的標準（14 小時內 > 145 mL，或最終很大的梗塞）；但${
@@ -2452,9 +2480,9 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
                     : central
                       ? '. A swelling that puts the patient into a coma is a malignant oedema. The two hemispheres swell alike and the midline itself is not pushed into the coma range, so the model lets the brain herniate downward (central herniation): from day 3, while their joint swelling stays in the coma range.'
                       : '.'
-                }`,
-              };
-        event.desc = { zh: `${head.zh}${tail.zh}${joint.zh}${rest.zh}`, en: `${head.en}${tail.en}${joint.en}${rest.en}` };
+                }`, localized: (contentLang: AdditionalLang) => contentTemplate(" By its size alone this infarct does not reach the thresholds of a malignant infarct (> 145 mL within 14 h, or a very large final infarct); but ⟪0⟫⟪1⟫", [(bothSwell && herniates && lateral ? contentTemplate("the swelling the model computes for this hemisphere reaches the coma range on its own (about ⟪0⟫ mm of midline shift alone; the model counts coma from 8 mm)", [contentFragment(ownPeak, contentLang)], contentLang) : contentTemplate("the swelling the model computes⟪0⟫ reaches the coma range (about ⟪1⟫ mm⟪2⟫; the model counts coma from 8 mm)", [(bothSwell ? contentFragment(' together with the other hemisphere’s', contentLang) : contentFragment('', contentLang)), contentFragment(peakMm, contentLang), (bothSwell ? contentFragment(', counted as one side’s midline shift', contentLang) : contentFragment(' of midline shift', contentLang))], contentLang)), (herniates && lateral ? contentFragment('. A swelling that puts the patient into a coma is a malignant oedema, and the model lets it herniate as it does the others: from day 3, while the shift stays in the coma range.', contentLang) : (central ? contentFragment('. A swelling that puts the patient into a coma is a malignant oedema. The two hemispheres swell alike and the midline itself is not pushed into the coma range, so the model lets the brain herniate downward (central herniation): from day 3, while their joint swelling stays in the coma range.', contentLang) : contentFragment('.', contentLang)))], contentLang),
+              });
+        event.desc = withLocalized({ zh: `${head.zh}${tail.zh}${joint.zh}${rest.zh}`, en: `${head.en}${tail.en}${joint.en}${rest.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫⟪1⟫⟪2⟫⟪3⟫", [localizedContent(head, contentLang), localizedContent(tail, contentLang), localizedContent(joint, contentLang), localizedContent(rest, contentLang)], contentLang) });
       });
       events.push(event);
       if (decompression) {
@@ -2510,11 +2538,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           herniationEndH === null
             ? { zh: '', en: '' }
             : indexLesion
-              ? { zh: `（這裡約在發病後 ${Math.round(herniationEndH)} 小時）`, en: ` (here about ${Math.round(herniationEndH)} h after onset)` }
-              : {
+              ? withLocalized({ zh: `（這裡約在發病後 ${Math.round(herniationEndH)} 小時）`, en: ` (here about ${Math.round(herniationEndH)} h after onset)`, localized: (contentLang: AdditionalLang) => contentTemplate(" (here about ⟪0⟫ h after onset)", [contentFragment(Math.round(herniationEndH), contentLang)], contentLang) })
+              : withLocalized({
                   zh: `（這裡約在這一側梗塞開始後 ${Math.round(herniationEndH - sideOnset(s))} 小時）`,
-                  en: ` (here about ${Math.round(herniationEndH - sideOnset(s))} h after this hemisphere's infarct began)`,
-                };
+                  en: ` (here about ${Math.round(herniationEndH - sideOnset(s))} h after this hemisphere's infarct began)`, localized: (contentLang: AdditionalLang) => contentTemplate(" (here about ⟪0⟫ h after this hemisphere's infarct began)", [contentFragment(Math.round(herniationEndH - sideOnset(s)), contentLang)], contentLang),
+                });
         events.push({
           id: `uncal_${s}`,
           kind: 'secondary',
@@ -2523,7 +2551,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           peakH: Math.max(120, uncalH),
           ...(herniationEndH === null ? {} : { endH: herniationEndH }),
           title: { zh: '顳葉鉤迴疝脫 → 壓迫中腦與後大腦動脈', en: 'Uncal (transtentorial) herniation → midbrain & PCA compressed' },
-          desc: {
+          desc: withLocalized({
             zh: `內側顳葉從小腦天幕切跡擠下去：壓迫同側動眼神經（${sideZh}側瞳孔放大）、壓扁中腦（昏迷、去大腦姿勢）、夾住${sideZh}側後大腦動脈造成枕葉續發梗塞；對側大腦腳被頂到天幕邊緣（Kernohan 切跡）會讓「同側」肢體也無力。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。若病人存活，${
               bothSwell
                 ? `疝脫要等這一側的腫脹消退、降到昏迷的範圍以下${endsAt.zh}才緩解，昏迷則要等兩側合計的腫脹降到昏迷範圍（換算 8 mm）以下才逐漸解除`
@@ -2533,8 +2561,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
               bothSwell
                 ? `the herniation eases as this hemisphere's swelling subsides below the coma range${endsAt.en}, and the coma lifts only gradually as the swelling of both hemispheres together falls below it (8 mm, counted as one side’s shift)`
                 : `the coma lifts only gradually as the oedema subsides and the midline shift falls below 8 mm${endsAt.en}`
-            }; the secondary occipital infarct remains.`,
-          },
+            }; the secondary occipital infarct remains.`, localized: (contentLang: AdditionalLang) => contentTemplate("The medial temporal lobe slides through the tentorial notch: it compresses the ⟪0⟫ oculomotor nerve (dilated ⟪1⟫ pupil), squeezes the midbrain (coma, posturing) and kinks the ⟪2⟫ PCA causing a secondary occipital infarct; the opposite peduncle pressed on the tentorium (Kernohan notch) weakens the SAME-side limbs. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal. If the patient survives, ⟪3⟫; the secondary occipital infarct remains.", [contentFragment(sideEn, contentLang), contentFragment(sideEn, contentLang), contentFragment(sideEn, contentLang), (bothSwell ? contentTemplate("the herniation eases as this hemisphere's swelling subsides below the coma range⟪0⟫, and the coma lifts only gradually as the swelling of both hemispheres together falls below it (8 mm, counted as one side’s shift)", [localizedContent(endsAt, contentLang)], contentLang) : contentTemplate("the coma lifts only gradually as the oedema subsides and the midline shift falls below 8 mm⟪0⟫", [localizedContent(endsAt, contentLang)], contentLang))], contentLang),
+          }),
           regions: [...new Set([...pca.map((b) => b.region), ...mid.map((b) => b.region)])],
           symptoms: [
             { id: 'coma', side: null, sev: 3 },
@@ -2558,11 +2586,11 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         peakH: sideOnset(s) + 72,
         endH: sideOnset(s) + 336,
         shiftSymptoms: true,
-        title: { zh: `${sideZh}半球中度占位效應`, en: `Moderate mass effect (${sideEn} hemisphere)` },
-        desc: {
+        title: withLocalized({ zh: `${sideZh}半球中度占位效應`, en: `Moderate mass effect (${sideEn} hemisphere)`, localized: (contentLang: AdditionalLang) => contentTemplate("Moderate mass effect (⟪0⟫ hemisphere)", [contentFragment(sideEn, contentLang)], contentLang) }),
+        desc: withLocalized({
           zh: `梗塞約 ${(v - mainFinal[s] >= 0.5 ? mainFinal[s] : v).toFixed(0)} mL${v - mainFinal[s] >= 0.5 ? `（加上另一次在不同時間開始的梗塞，這一側合計約 ${v.toFixed(0)} mL）` : ''}，水腫可擠壓側腦室並造成數毫米的中線偏移；需密切觀察意識與瞳孔，多數不會形成疝脫。中線偏移達約 4 mm 以上時，模型會讓意識跟著下降（Ropper 1986）。${bilateralNote.zh}`,
-          en: `Infarct ≈ ${(v - mainFinal[s] >= 0.5 ? mainFinal[s] : v).toFixed(0)} mL${v - mainFinal[s] >= 0.5 ? ` (≈ ${v.toFixed(0)} mL in this hemisphere with an infarct that began at another time)` : ''}; oedema can compress the lateral ventricle and shift the midline a few millimetres. Consciousness and pupils need close watching; most patients do not herniate. From a shift of about 4 mm the model lowers consciousness with it (Ropper 1986).${bilateralNote.en}`,
-        },
+          en: `Infarct ≈ ${(v - mainFinal[s] >= 0.5 ? mainFinal[s] : v).toFixed(0)} mL${v - mainFinal[s] >= 0.5 ? ` (≈ ${v.toFixed(0)} mL in this hemisphere with an infarct that began at another time)` : ''}; oedema can compress the lateral ventricle and shift the midline a few millimetres. Consciousness and pupils need close watching; most patients do not herniate. From a shift of about 4 mm the model lowers consciousness with it (Ropper 1986).${bilateralNote.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("Infarct ≈ ⟪0⟫ mL⟪1⟫; oedema can compress the lateral ventricle and shift the midline a few millimetres. Consciousness and pupils need close watching; most patients do not herniate. From a shift of about 4 mm the model lowers consciousness with it (Ropper 1986).⟪2⟫", [contentFragment((v - mainFinal[s] >= 0.5 ? mainFinal[s] : v).toFixed(0), contentLang), (v - mainFinal[s] >= 0.5 ? contentTemplate(" (≈ ⟪0⟫ mL in this hemisphere with an infarct that began at another time)", [contentFragment(v.toFixed(0), contentLang)], contentLang) : contentFragment('', contentLang)), localizedContent(bilateralNote, contentLang)], contentLang),
+        }),
         regions: infarctedRegions.filter((r) => r.endsWith(`_${s}`)),
       });
     }
@@ -2599,20 +2627,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // (a hemisphere that had herniated to its own side before the other caught up with it: U1-0)
     const first = (['r', 'l'] as Side[]).find((sd) => hern[sd].lateral && hern[sd].uncalH < fromH);
     const after: L = first
-      ? {
+      ? withLocalized({
           zh: `這裡${sideZh(first)}側半球先已向自己那一側疝脫（見該側的事件），另一側較晚開始的腫脹趕上之後，腦被往下擠。`,
-          en: ` Here the ${first === 'r' ? 'right' : 'left'} hemisphere had already herniated to its own side (see its events); once the other one's later swelling catches up with it, the brain is pushed down.`,
-        }
+          en: ` Here the ${first === 'r' ? 'right' : 'left'} hemisphere had already herniated to its own side (see its events); once the other one's later swelling catches up with it, the brain is pushed down.`, localized: (contentLang: AdditionalLang) => contentTemplate(" Here the ⟪0⟫ hemisphere had already herniated to its own side (see its events); once the other one's later swelling catches up with it, the brain is pushed down.", [(first === 'r' ? contentFragment('right', contentLang) : contentFragment('left', contentLang))], contentLang),
+        })
       : { zh: '', en: '' };
     const keeps: L = !own.length
       ? {
           zh: '任何天幕切跡疝脫都可能把後大腦動脈壓在天幕邊緣而造成枕葉梗塞；模型在這裡沒有加上這種續發梗塞，因為無法從兩側的腫脹判斷是哪一側、多大。',
           en: ' Any transtentorial herniation can press a posterior cerebral artery against the tentorial edge and infarct the occipital lobe; the model adds no such secondary infarct here, since the swelling of both sides does not tell which side or how much.',
         }
-      : {
+      : withLocalized({
           zh: `${both ? '這裡兩側半球各自的腫脹都已大到足以單獨疝脫' : `這裡${sideZh(own[0])}側半球本身的腫脹就已大到足以單獨疝脫`}，模型保留這種腫脹單獨造成的續發梗塞：後大腦動脈區（壓在天幕邊緣；天幕切跡疝脫可壓住兩側後大腦動脈，疝脫解除後兩眼永久失明、電腦斷層可見枕葉梗塞的病例有記載，包括兩側都有占位病灶時），以及前大腦動脈區（分支壓在大腦鐮上）。後者是模型的選擇：兩側一起腫脹時中線幾乎不動，扣帶迴不會滑到大腦鐮下方，但模型不讓另一側的腫脹替這一側的動脈解圍。`,
-          en: ` ${both ? 'Here each hemisphere swells enough to herniate on its own' : `Here the ${own[0] === 'r' ? 'right' : 'left'} hemisphere swells enough to herniate on its own`}, and the model keeps the secondary infarcts that swelling causes alone: the posterior cerebral territory, pressed against the tentorial edge (tentorial herniation can compress both posterior cerebral arteries, and permanent loss of vision in both eyes, with occipital infarcts on CT, is described after it, also with masses on both sides), and the anterior cerebral territory, its branches pressed against the falx. The latter is a model choice: with both hemispheres swelling the midline stays nearly in place and no cingulate gyrus slides under the falx, but the model does not let the other hemisphere's swelling spare this one's arteries.`,
-        };
+          en: ` ${both ? 'Here each hemisphere swells enough to herniate on its own' : `Here the ${own[0] === 'r' ? 'right' : 'left'} hemisphere swells enough to herniate on its own`}, and the model keeps the secondary infarcts that swelling causes alone: the posterior cerebral territory, pressed against the tentorial edge (tentorial herniation can compress both posterior cerebral arteries, and permanent loss of vision in both eyes, with occipital infarcts on CT, is described after it, also with masses on both sides), and the anterior cerebral territory, its branches pressed against the falx. The latter is a model choice: with both hemispheres swelling the midline stays nearly in place and no cingulate gyrus slides under the falx, but the model does not let the other hemisphere's swelling spare this one's arteries.`, localized: (contentLang: AdditionalLang) => contentTemplate(" ⟪0⟫, and the model keeps the secondary infarcts that swelling causes alone: the posterior cerebral territory, pressed against the tentorial edge (tentorial herniation can compress both posterior cerebral arteries, and permanent loss of vision in both eyes, with occipital infarcts on CT, is described after it, also with masses on both sides), and the anterior cerebral territory, its branches pressed against the falx. The latter is a model choice: with both hemispheres swelling the midline stays nearly in place and no cingulate gyrus slides under the falx, but the model does not let the other hemisphere's swelling spare this one's arteries.", [(both ? contentFragment('Here each hemisphere swells enough to herniate on its own', contentLang) : contentTemplate("Here the ⟪0⟫ hemisphere swells enough to herniate on its own", [(own[0] === 'r' ? contentFragment('right', contentLang) : contentFragment('left', contentLang))], contentLang))], contentLang),
+        });
     const compressionEndH = untilH ?? undefined;
     const mid = BEDS.filter((b) => /^midbrain_/.test(b.region));
     mid.forEach((b) => addEffect(b.id, { kind: 'compressed', onsetH: fromH, endH: compressionEndH, event: 'central_herniation' }));
@@ -2628,10 +2656,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       peakH: Math.max(120, fromH),
       ...(untilH === null ? {} : { endH: untilH }),
       title: { zh: '中央型天幕切跡疝脫 → 間腦與中腦向下受壓', en: 'Central transtentorial herniation → diencephalon & midbrain pushed down' },
-      desc: {
+      desc: withLocalized({
         zh: `兩側大腦半球一起腫脹，把腦往下擠而不是推向一側：間腦、接著中腦與上段橋腦被往下壓進小腦天幕切跡——天幕切跡疝脫分成向一側的（鉤迴）與中央型兩種，這裡是中央型。${after.zh}意識降到昏迷，呼吸可能變成週期性（陳施氏呼吸），瞳孔先是小而有反應、之後固定在中間大小，兩側肢體出現異常姿勢${first ? '' : '；早期不會像鉤迴疝脫那樣一側瞳孔放大，也沒有大腦鐮下疝脫（那需要中線被推向對側）'}。腦幹被往下拉扯可撕裂橋腦穿通動脈（Duret 出血），常致命。${keeps.zh}若病人存活，昏迷要等水腫消退、兩側合計的腫脹降到昏迷範圍（換算 8 mm）以下${untilH === null ? '' : `（這裡約在發病後 ${Math.round(untilH)} 小時）`}才逐漸解除${own.length ? '；續發梗塞會留下來' : ''}。`,
-        en: `Both hemispheres swell together and push the brain down rather than to one side: the diencephalon, then the midbrain and the upper pons are pressed down through the tentorial notch. Transtentorial herniation is lateral (uncal) or central, and this is central.${after.en} Consciousness falls into coma, breathing may become periodic (Cheyne–Stokes), the pupils are first small and reactive and later fixed in mid-position, and both sides posture${first ? '' : '; there is no early one-sided dilated pupil as in an uncal herniation, and no subfalcine herniation, which needs the midline pushed across'}. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal.${keeps.en} If the patient survives, the coma lifts only gradually as the oedema subsides and the swelling of both hemispheres together falls below the coma range (8 mm, counted as one side’s shift)${untilH === null ? '' : ` (here about ${Math.round(untilH)} h after onset)`}${own.length ? '; the secondary infarcts remain' : ''}.`,
-      },
+        en: `Both hemispheres swell together and push the brain down rather than to one side: the diencephalon, then the midbrain and the upper pons are pressed down through the tentorial notch. Transtentorial herniation is lateral (uncal) or central, and this is central.${after.en} Consciousness falls into coma, breathing may become periodic (Cheyne–Stokes), the pupils are first small and reactive and later fixed in mid-position, and both sides posture${first ? '' : '; there is no early one-sided dilated pupil as in an uncal herniation, and no subfalcine herniation, which needs the midline pushed across'}. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal.${keeps.en} If the patient survives, the coma lifts only gradually as the oedema subsides and the swelling of both hemispheres together falls below the coma range (8 mm, counted as one side’s shift)${untilH === null ? '' : ` (here about ${Math.round(untilH)} h after onset)`}${own.length ? '; the secondary infarcts remain' : ''}.`, localized: (contentLang: AdditionalLang) => contentTemplate("Both hemispheres swell together and push the brain down rather than to one side: the diencephalon, then the midbrain and the upper pons are pressed down through the tentorial notch. Transtentorial herniation is lateral (uncal) or central, and this is central.⟪0⟫ Consciousness falls into coma, breathing may become periodic (Cheyne–Stokes), the pupils are first small and reactive and later fixed in mid-position, and both sides posture⟪1⟫. Downward stretch can tear pontine perforators (Duret haemorrhage), often fatal.⟪2⟫ If the patient survives, the coma lifts only gradually as the oedema subsides and the swelling of both hemispheres together falls below the coma range (8 mm, counted as one side’s shift)⟪3⟫⟪4⟫.", [localizedContent(after, contentLang), (first ? contentFragment('', contentLang) : contentFragment('; there is no early one-sided dilated pupil as in an uncal herniation, and no subfalcine herniation, which needs the midline pushed across', contentLang)), localizedContent(keeps, contentLang), (untilH === null ? contentFragment('', contentLang) : contentTemplate(" (here about ⟪0⟫ h after onset)", [contentFragment(Math.round(untilH), contentLang)], contentLang)), (own.length ? contentFragment('; the secondary infarcts remain', contentLang) : contentFragment('', contentLang))], contentLang),
+      }),
       regions: [...new Set([...secondary, ...[...mid, ...pons].map((b) => b.region)])],
       symptoms: [{ id: 'coma', side: null, sev: 3 }],
       symptomsWhileShiftMm: COMA_SHIFT_MM,
@@ -2768,14 +2796,17 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const riskEn = malignant
       ? ` At 38 mL or more, more than half of such space-occupying cerebellar infarcts swelled malignantly in a single-centre series, and the model lets it happen.`
       : ` In one series about a third (35.5%) of space-occupying cerebellar infarcts swelled malignantly, more than half of those of 38 mL or more; the model lets an infarct of this size (under 38 mL) run without malignant swelling, but in reality it needs close watching for days.`;
+ const riskEnLocalized = (contentLang: AdditionalLang) => (malignant ? contentFragment(` At 38 mL or more, more than half of such space-occupying cerebellar infarcts swelled malignantly in a single-centre series, and the model lets it happen.`, contentLang) : contentFragment(` In one series about a third (35.5%) of space-occupying cerebellar infarcts swelled malignantly, more than half of those of 38 mL or more; the model lets an infarct of this size (under 38 mL) run without malignant swelling, but in reality it needs close watching for days.`, contentLang));
     const brainstemZh = brainstemToo ? '同時有腦幹梗塞也與惡性腫脹有關（單變項分析）。' : '';
     const brainstemEn = brainstemToo ? ' A brainstem infarct as well was also associated with malignant swelling (univariate analysis).' : '';
+ const brainstemEnLocalized = (contentLang: AdditionalLang) => (brainstemToo ? contentFragment(' A brainstem infarct as well was also associated with malignant swelling (univariate analysis).', contentLang) : contentFragment('', contentLang));
     const surgeryZh = decompression
       ? '已施行枕下減壓顱骨切除（± 腦室外引流）：多數功能恢復良好，但合併分析的死亡率仍約 20%。'
       : '意識變差時應做枕下減壓顱骨切除（AHA/ASA 2014）。只放腦室外引流而不減壓，可能讓小腦向上經天幕切跡疝脫（向上疝脫），所以引流應合併枕下減壓；沒有惡化、清醒或只是嗜睡的病人，手術並不比內科治療好。';
     const surgeryEn = decompression
       ? ' Suboccipital decompressive craniectomy (± an external ventricular drain) has been performed: most recover well, but pooled mortality is still about 20%.'
       : ' Suboccipital decompressive craniectomy is indicated when consciousness falls (AHA/ASA 2014). A ventricular drain alone, without decompression, can let the cerebellum herniate upward through the tentorial notch, so drainage should be combined with suboccipital decompression; in patients who are awake or only drowsy, surgery was not better than medical care.';
+ const surgeryEnLocalized = (contentLang: AdditionalLang) => (decompression ? contentFragment(' Suboccipital decompressive craniectomy (± an external ventricular drain) has been performed: most recover well, but pooled mortality is still about 20%.', contentLang) : contentFragment(' Suboccipital decompressive craniectomy is indicated when consciousness falls (AHA/ASA 2014). A ventricular drain alone, without decompression, can let the cerebellum herniate upward through the tentorial notch, so drainage should be combined with suboccipital decompression; in patients who are awake or only drowsy, surgery was not better than medical care.', contentLang));
     // (on the clock of the posterior fossa's own lesion, like its swelling: V1-1; of the infarcts
     // that make it this large: T1-0)
     events.push({
@@ -2788,10 +2819,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       title: malignant
         ? { zh: '占位性小腦梗塞：可能惡性腫脹，壓迫第四腦室與腦幹', en: 'Space-occupying cerebellar infarct: malignant swelling likely, compressing the 4th ventricle and brainstem' }
         : { zh: '占位性小腦梗塞：有腫脹風險，需密切觀察', en: 'Space-occupying cerebellar infarct: risk of swelling, watch closely' },
-      desc: {
+      desc: withLocalized({
         zh: `小腦梗塞${joint ? '合計' : ''}約 ${cbMain.toFixed(0)} mL（${joint ? '幾次在不同時間開始、同時腫脹的梗塞；' : ''}${cbTotal >= cbMain + 0.5 ? `加上另一次在不同時間開始的小腦梗塞，合計約 ${cbTotal.toFixed(0)} mL；` : ''}後下與上小腦動脈的梗塞都可能腫脹）。後顱窩空間很小：腫脹會壓住第四腦室造成阻塞性水腦（整個腦室系統擴大、頭痛嘔吐、意識下降），並直接壓迫橋腦與延髓（意識下降、早期角膜反射消失、瞳孔縮小）；嚴重時小腦扁桃體向下疝脫壓迫延髓呼吸中樞。惡化通常在第 2–4 天、第 3 天最多，但一個系列中約 40% 的惡性腫脹發生在第 3 天之後，所以要觀察超過 72 小時。${riskZh}${brainstemZh}${surgeryZh}`,
-        en: `${joint ? `Cerebellar infarcts ≈ ${cbMain.toFixed(0)} mL together (begun at different times, swelling at the same time; ` : `Cerebellar infarct ≈ ${cbMain.toFixed(0)} mL (`}${cbTotal >= cbMain + 0.5 ? `≈ ${cbTotal.toFixed(0)} mL with a cerebellar infarct that began at another time; ` : ''}PICA and SCA infarcts can both swell). The posterior fossa is tight: swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness), and compresses the pons and medulla (falling consciousness, early loss of corneal reflexes, small pupils); tonsillar herniation can then compress the medullary respiratory centre. Deterioration typically comes on days 2–4, most often on day 3, but in one series about 40% of malignant swellings came after day 3, so monitoring has to continue beyond 72 h.${riskEn}${brainstemEn}${surgeryEn}`,
-      },
+        en: `${joint ? `Cerebellar infarcts ≈ ${cbMain.toFixed(0)} mL together (begun at different times, swelling at the same time; ` : `Cerebellar infarct ≈ ${cbMain.toFixed(0)} mL (`}${cbTotal >= cbMain + 0.5 ? `≈ ${cbTotal.toFixed(0)} mL with a cerebellar infarct that began at another time; ` : ''}PICA and SCA infarcts can both swell). The posterior fossa is tight: swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness), and compresses the pons and medulla (falling consciousness, early loss of corneal reflexes, small pupils); tonsillar herniation can then compress the medullary respiratory centre. Deterioration typically comes on days 2–4, most often on day 3, but in one series about 40% of malignant swellings came after day 3, so monitoring has to continue beyond 72 h.${riskEn}${brainstemEn}${surgeryEn}`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫⟪1⟫PICA and SCA infarcts can both swell). The posterior fossa is tight: swelling blocks the 4th ventricle, causing obstructive hydrocephalus (all ventricles enlarge; headache, vomiting, drowsiness), and compresses the pons and medulla (falling consciousness, early loss of corneal reflexes, small pupils); tonsillar herniation can then compress the medullary respiratory centre. Deterioration typically comes on days 2–4, most often on day 3, but in one series about 40% of malignant swellings came after day 3, so monitoring has to continue beyond 72 h.⟪2⟫⟪3⟫⟪4⟫", [(joint ? contentTemplate("Cerebellar infarcts ≈ ⟪0⟫ mL together (begun at different times, swelling at the same time; ", [contentFragment(cbMain.toFixed(0), contentLang)], contentLang) : contentTemplate("Cerebellar infarct ≈ ⟪0⟫ mL (", [contentFragment(cbMain.toFixed(0), contentLang)], contentLang)), (cbTotal >= cbMain + 0.5 ? contentTemplate("≈ ⟪0⟫ mL with a cerebellar infarct that began at another time; ", [contentFragment(cbTotal.toFixed(0), contentLang)], contentLang) : contentFragment('', contentLang)), riskEnLocalized(contentLang), brainstemEnLocalized(contentLang), surgeryEnLocalized(contentLang)], contentLang),
+      }),
       regions: [...new Set(bs.map((b) => b.region))],
     });
     if (malignant && !decompression) {
@@ -2813,10 +2844,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: at(CEREBELLAR_DETERIORATION_H),
         endH: at(drowsyUntilH),
         title: { zh: '小腦腫脹壓迫腦幹', en: 'Swollen cerebellum compresses the brainstem' },
-        desc: {
+        desc: withLocalized({
           zh: `腫脹的小腦直接擠壓橋腦與延髓：意識下降（和水腦無關，即使引流腦脊髓液也會發生）、早期角膜反射消失、兩側瞳孔縮小、同側水平凝視麻痺，並持續嘔吐。未手術時意識隨腫脹變化：第 3 天木僵，腫脹高峰前後（這裡約${cbClock.zh}後 ${h(comaFromH)}–${h(comaUntilH)} 小時）昏迷，之後隨腫脹消退回到木僵、嗜睡，約 ${h(drowsyUntilH)} 小時後清醒（假如病人存活）。小腦腫脹讓病人延遲陷入昏迷是有記載的（一個上小腦動脈梗塞的解剖病理系列中，有小腦與前庭症狀的 9 位中有 6 位）；每個腫脹程度對應哪一種意識程度是模型的選擇，比照大腦半球腫脹時中線偏移的分級。`,
-          en: `The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists. Without surgery consciousness follows the swelling: stupor from day 3, coma around its peak (here about ${h(comaFromH)}–${h(comaUntilH)} h after ${cbClock.en}), then stupor and drowsiness again as it subsides, alert from about ${h(drowsyUntilH)} h if the patient survives. Delayed coma from cerebellar swelling is described (6 of the 9 with cerebellar and vestibular signs in an autopsy series of SCA infarcts); which level goes with how much swelling is a model choice, following the midline-shift bands of a swollen hemisphere.`,
-        },
+          en: `The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists. Without surgery consciousness follows the swelling: stupor from day 3, coma around its peak (here about ${h(comaFromH)}–${h(comaUntilH)} h after ${cbClock.en}), then stupor and drowsiness again as it subsides, alert from about ${h(drowsyUntilH)} h if the patient survives. Delayed coma from cerebellar swelling is described (6 of the 9 with cerebellar and vestibular signs in an autopsy series of SCA infarcts); which level goes with how much swelling is a model choice, following the midline-shift bands of a swollen hemisphere.`, localized: (contentLang: AdditionalLang) => contentTemplate("The swollen cerebellum presses directly on the pons and medulla: consciousness falls (independently of the hydrocephalus, so even when CSF is drained), corneal reflexes are lost early, both pupils become small, horizontal gaze towards the side of the infarct is lost, and vomiting persists. Without surgery consciousness follows the swelling: stupor from day 3, coma around its peak (here about ⟪0⟫–⟪1⟫ h after ⟪2⟫), then stupor and drowsiness again as it subsides, alert from about ⟪3⟫ h if the patient survives. Delayed coma from cerebellar swelling is described (6 of the 9 with cerebellar and vestibular signs in an autopsy series of SCA infarcts); which level goes with how much swelling is a model choice, following the midline-shift bands of a swollen hemisphere.", [contentFragment(h(comaFromH), contentLang), contentFragment(h(comaUntilH), contentLang), localizedContent(cbClock, contentLang), contentFragment(h(drowsyUntilH), contentLang)], contentLang),
+        }),
         regions: [...new Set(bs.map((b) => b.region))],
         symptoms: [
           { id: 'coma', side: null, sev: 2, ...compressed },
@@ -2855,10 +2886,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: at(comaFromH),
         endH: at(comaUntilH),
         title: { zh: '危及生命：腦幹受壓合併昏迷，未減壓', en: 'Life-threatening: brainstem compression with coma, no decompression' },
-        desc: {
+        desc: withLocalized({
           zh: `小腦腫脹讓意識降到昏迷，是後顱窩占位最危險的情況：意識程度是預後最強的預測因子（Jauss 1999）。AHA/ASA 2014 建議對惡化的病人做枕下減壓顱骨切除；昏迷後接受手術的病人約一半有意義地恢復，但沒有未手術的對照組，所以沒有可靠的「不手術死亡率」數字。模型不模擬死亡：之後的病程是「假如病人存活」的情況，昏迷隨腫脹消退而解除（這裡約在${cbClock.zh}後 ${h(comaUntilH)} 小時）。`,
-          en: `Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives, the coma lifting as the swelling subsides (here about ${h(comaUntilH)} h after ${cbClock.en}).`,
-        },
+          en: `Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives, the coma lifting as the swelling subsides (here about ${h(comaUntilH)} h after ${cbClock.en}).`, localized: (contentLang: AdditionalLang) => contentTemplate("Swelling of the cerebellum has brought the patient into coma, the most dangerous situation in the posterior fossa: the level of consciousness is the strongest predictor of outcome (Jauss 1999). The AHA/ASA statement (2014) recommends suboccipital decompressive craniectomy for patients who deteriorate; about half of those operated on in coma recovered meaningfully, but there was no untreated control group, so there is no reliable figure for mortality without surgery. The model does not represent death: the rest of the course shows what happens if the patient survives, the coma lifting as the swelling subsides (here about ⟪0⟫ h after ⟪1⟫).", [contentFragment(h(comaUntilH), contentLang), localizedContent(cbClock, contentLang)], contentLang),
+        }),
         regions: [],
         symptoms: [{ id: 'coma', side: null, sev: 3 }],
       });
@@ -2913,8 +2944,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: lytic ? drugH : 24,
       peakH: lytic ? drugH + 8 : 72,
       endH: 336,
-      title: { zh: `出血轉化風險：${lv.zh}`, en: `Haemorrhagic transformation risk: ${lv.en}` },
-      desc: {
+      title: withLocalized({ zh: `出血轉化風險：${lv.zh}`, en: `Haemorrhagic transformation risk: ${lv.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("Haemorrhagic transformation risk: ⟪0⟫", [localizedContent(lv, contentLang)], contentLang) }),
+      desc: withLocalized({
         zh:
           `壞死組織裡受損的小血管在血流恢復後可能滲血，多發生在 1–7 天內（用了血栓溶解劑會更早）。梗塞越大、再通越晚、使用血栓溶解劑，風險越高。大多沒有症狀（ECASS III 任何顱內出血 27.0% vs 安慰劑 17.6%）；只有第 2 型實質血腫明顯改變病程（ECASS I：早期惡化 OR 32.3、3 個月死亡 OR 18.0）。` +
           `靜脈血栓溶解後的症狀性出血約 2–7%，是在最初 24–36 小時內計算的（Cochrane 定義算到 7 天）。` +
@@ -2926,8 +2957,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           'Symptomatic haemorrhage after IV thrombolysis is roughly 2–7%, counted in the first 24–36 h (up to 7 days with the Cochrane definition).' +
           (lytic
             ? `${methodEn} Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk when flow returns (the time chosen for the treatment), not when the drug is started, and raises its level by one step at most.`
-            : ''),
-      },
+            : ''), localized: (contentLang: AdditionalLang) => ((contentFragment('Damaged small vessels inside dead tissue may bleed once flow returns, usually within 1–7 days (earlier after a thrombolytic). Larger infarcts, late recanalisation and thrombolytics raise the risk. Most of it causes no symptoms (any intracranial haemorrhage in ECASS III: 27.0% vs 17.6% with placebo); only a parenchymal haematoma type 2 clearly changes the course (ECASS I: odds ratio 32.3 for early deterioration, 18.0 for death at 3 months). ', contentLang) + contentFragment('Symptomatic haemorrhage after IV thrombolysis is roughly 2–7%, counted in the first 24–36 h (up to 7 days with the Cochrane definition).', contentLang)) + (lytic ? contentTemplate("⟪0⟫ Symptomatic bleeding after a thrombolytic comes early, at a median of about 8 h after the drug is started, and about half of the patients with a symptomatic bleed die. The model starts this risk when flow returns (the time chosen for the treatment), not when the drug is started, and raises its level by one step at most.", [contentFragment(methodEn, contentLang)], contentLang) : contentFragment('', contentLang))),
+      }),
       regions: infarctedRegions.filter((r) => REGION_BY_ID[r]?.category === 'cortex' || REGION_BY_ID[r]?.category === 'deep'),
     });
   }
@@ -2960,7 +2991,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     if (h === undefined) return { zh: '', en: '' };
     const end = regainedBy(h);
     const atOnce = end - h < 1e-6;
-    return { zh: resolvesZh(formatHours(h, 'zh-TW'), formatHours(end, 'zh-TW'), atOnce), en: resolvesEn(formatHours(h, 'en'), formatHours(end, 'en'), atOnce) };
+    return withLocalized({ zh: resolvesZh(formatHours(h, 'zh-TW'), formatHours(end, 'zh-TW'), atOnce), en: resolvesEn(formatHours(h, 'en'), formatHours(end, 'en'), atOnce), localized: (contentLang: AdditionalLang) => resolvesLocalized(formatHours(h, contentLang), formatHours(end, contentLang), atOnce, contentLang) });
   };
   // the tegmentum (arousal) failing on both sides gives coma (C3-F1): acutely ischaemic at the index
   // onset, or at the onset of a lesion of its own before or after it (Y3-19)
@@ -3056,10 +3087,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 0,
       endH: Math.min(168, until === undefined ? Infinity : regainedBy(until)),
       title: { zh: '雙側延髓受損：呼吸衰竭風險', en: 'Bilateral medulla: risk of respiratory failure' },
-      desc: {
+      desc: withLocalized({
         zh: `延髓的呼吸節律中樞與吞嚥反射受損，可能需要插管與呼吸器。${note.zh}`,
-        en: `Medullary respiratory rhythm and airway reflexes fail; intubation and ventilation may be needed.${note.en}`,
-      },
+        en: `Medullary respiratory rhythm and airway reflexes fail; intubation and ventilation may be needed.${note.en}`, localized: (contentLang: AdditionalLang) => contentTemplate("Medullary respiratory rhythm and airway reflexes fail; intubation and ventilation may be needed.⟪0⟫", [localizedContent(note, contentLang)], contentLang),
+      }),
       regions: MEDULLA.flat().filter((r) => acute(r)),
     });
   }
@@ -3191,7 +3222,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         // brainstem involvement (Sung CY et al., Eur Neurol 2009;62:86–92), so it is shown only as a
         // risk after extensive bilateral tegmental infarction with coma ('central_hyperthermia'
         // above; see the temperature section of anatomy/symptoms.ts)
-        desc: {
+        desc: withLocalized({
           zh:
             (kind === 'drowsy'
               ? '意識變差的病人無法安全吞嚥、也保護不了呼吸道，容易吸入。'
@@ -3205,8 +3236,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
               : kind === 'screen'
                 ? 'This case lists no swallowing problem or reduced consciousness, but the infarct is large. Dysphagia is common after stroke (37–78 % depending on how it is tested) and can be present even where the model lists none, so the swallow is still screened. '
                 : '') +
-            'Aspiration pneumonia is one of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.',
-        },
+            'Aspiration pneumonia is one of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.', localized: (contentLang: AdditionalLang) => ((kind === 'drowsy' ? contentFragment('A patient with reduced consciousness cannot swallow safely or protect the airway, and is prone to aspiration. ', contentLang) : (kind === 'screen' ? contentFragment('This case lists no swallowing problem or reduced consciousness, but the infarct is large. Dysphagia is common after stroke (37–78 % depending on how it is tested) and can be present even where the model lists none, so the swallow is still screened. ', contentLang) : contentFragment('', contentLang))) + contentFragment('Aspiration pneumonia is one of the commonest fatal complications after stroke. A swallow screen is needed before eating; temporary tube feeding may be required. Fever after a stroke means looking for infection first (pneumonia, urinary tract); fever caused by the brain injury itself ("central fever") is rare after an ischaemic stroke (mainly with extensive bilateral damage to the brainstem tegmentum and coma: see "Risk of central hyperthermia") and is considered only once infection has been ruled out.', contentLang)),
+        }),
         regions: kind === 'dysphagia' ? [...new Set(ph.regions)] : [],
       });
     });
@@ -3245,20 +3276,20 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const fromOnset = w.severeFromH <= w.fromH + 1e-6;
     if (state === 'now')
       return fromOnset
-        ? {
+        ? withLocalized({
             zh: `這是嚴重的中風（${w.severeByComa ? '木僵或昏迷' : 'NIHSS 16 分以上'}），風險較高。`,
-            en: ` This is a severe stroke (${w.severeByComa ? 'stupor or coma' : 'an NIHSS of 16 or more'}), which carries a higher risk.`,
-          }
-        : {
+            en: ` This is a severe stroke (${w.severeByComa ? 'stupor or coma' : 'an NIHSS of 16 or more'}), which carries a higher risk.`, localized: (contentLang: AdditionalLang) => contentTemplate(" This is a severe stroke (⟪0⟫), which carries a higher risk.", [(w.severeByComa ? contentFragment('stupor or coma', contentLang) : contentFragment('an NIHSS of 16 or more', contentLang))], contentLang),
+          })
+        : withLocalized({
             zh: `這是嚴重的中風（${w.severeByComa ? '已出現木僵或昏迷' : 'NIHSS 已達 16 分以上'}），風險較高。`,
-            en: ` This is a severe stroke (${w.severeByComa ? 'it has brought stupor or coma' : 'its NIHSS has reached 16 or more'}), which carries a higher risk.`,
-          };
+            en: ` This is a severe stroke (${w.severeByComa ? 'it has brought stupor or coma' : 'its NIHSS has reached 16 or more'}), which carries a higher risk.`, localized: (contentLang: AdditionalLang) => contentTemplate(" This is a severe stroke (⟪0⟫), which carries a higher risk.", [(w.severeByComa ? contentFragment('it has brought stupor or coma', contentLang) : contentFragment('its NIHSS has reached 16 or more', contentLang))], contentLang),
+          });
     return fromOnset
       ? { zh: '這次中風在發作時很嚴重，風險較高。', en: ' The stroke was severe at onset, which carries a higher risk.' }
-      : {
+      : withLocalized({
           zh: `這次中風曾經很嚴重（${w.severeByComa ? '出現過木僵或昏迷' : 'NIHSS 曾達 16 分以上'}），風險較高。`,
-          en: ` The stroke was severe for a time (${w.severeByComa ? 'stupor or coma' : 'an NIHSS of 16 or more'}), which carries a higher risk.`,
-        };
+          en: ` The stroke was severe for a time (${w.severeByComa ? 'stupor or coma' : 'an NIHSS of 16 or more'}), which carries a higher risk.`, localized: (contentLang: AdditionalLang) => contentTemplate(" The stroke was severe for a time (⟪0⟫), which carries a higher risk.", [(w.severeByComa ? contentFragment('stupor or coma', contentLang) : contentFragment('an NIHSS of 16 or more', contentLang))], contentLang),
+        });
   };
   let cardiacN = 0;
   for (const w of cardiacWindows) {
@@ -3282,7 +3313,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: fromH,
         endH,
         title: { zh: '中風後的心臟：心律不整、心肌受損', en: 'The heart after a stroke: arrhythmia, cardiac injury' },
-        desc: {
+        desc: withLocalized({
           zh: `中風後最初幾天常出現心臟併發症（「中風—心臟症候群」）：心律不整、心肌旋轉蛋白（troponin）上升、心臟功能變差。一個 846 人的試驗資料中，19% 在 3 個月內發生嚴重的心臟不良事件、4.1% 死於心臟原因；第一次事件最常在第 2–3 天，心臟死亡最常在第 2 週。預測因子是心衰竭病史、糖尿病、腎功能較差、中風嚴重度與心電圖 QT 延長（該研究沒有分析病灶位置）。所以急性期會監測心電圖；合併入院心電圖、住院與出院後各階段心律監測，一項中風或短暫性腦缺血病人的統合分析估計約 23.7% 新發現心房顫動——這是在找中風的原因，不是中風造成的併發症。${sev.zh}${
             insula.length
               ? `梗塞包含${insula.map(sideZh).join('、')}側島葉：島葉參與心臟的自主神經控制，但哪一側比較重要，證據不一致——右側背前島葉與 troponin 上升有關，左側島葉與之後一年的心臟事件有關。`
@@ -3292,8 +3323,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
             insula.length
               ? ` The infarct involves the ${insula.map(sideEn).join(' and ')} insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.`
               : ''
-          }`,
-        },
+          }`, localized: (contentLang: AdditionalLang) => contentTemplate("Cardiac complications are common in the first days after a stroke (the \"stroke–heart syndrome\"): arrhythmias, a troponin rise, reduced cardiac function. In trial data of 846 patients, 19 % had a serious cardiac adverse event within 3 months and 4.1 % died of cardiac causes; first events peaked on days 2–3 and cardiac deaths in the second week. The predictors were heart failure, diabetes, poorer kidney function, stroke severity and a long QT interval on the ECG (lesion site was not analysed). The heart rhythm is therefore monitored in the acute phase; a meta-analysis estimated 23.7% newly detected atrial fibrillation in patients with stroke or TIA across sequential admission ECG, inpatient and outpatient monitoring — a search for the cause of the stroke, not a complication of it.⟪0⟫⟪1⟫", [localizedContent(sev, contentLang), (insula.length ? contentTemplate(" The infarct involves the ⟪0⟫ insula, which helps control the heart's autonomic tone; the evidence on the side is mixed — the right dorsal anterior insula is linked to a troponin rise, the left insula to cardiac events over the following year.", [insula.map((side) => contentFragment(sideEn(side), contentLang)).join(contentLang === 'zh-CN' ? '和' : contentLang === 'de' ? ' und ' : 'と')], contentLang) : contentFragment('', contentLang))], contentLang),
+        }),
         regions: [...insula],
       });
     }
@@ -3367,10 +3398,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       severity: 'info',
       onsetH: 168,
       title: { zh: '晚發性癲癇與中風後癲癇症', en: 'Late seizures and post-stroke epilepsy' },
-      desc: {
+      desc: withLocalized({
         zh: `一週後的發作來自皮質疤痕，較容易反覆（第一次晚發性發作是日後癲癇症的強力預測因子）。缺血性中風後的晚發性發作約 1 年 4%、5 年 8%，風險在 6 個月後仍持續。SeLECT 評分用五個因子估計 1 年風險（0.7% 到 63%）：中風嚴重度、大動脈粥狀硬化的病因、早發性發作、皮質受損、中大腦動脈區受損。這個病例看得到的有：${predZh}；嚴重度、病因與是否有早發性發作，模型不判定，所以這裡不算分數。`,
-        en: `Seizures after the first week come from the cortical scar and recur more often (a late first seizure strongly predicts epilepsy). After an ischaemic stroke late seizures occur in about 4% at 1 year and 8% at 5 years, and the risk continues past 6 months. The SeLECT score estimates the 1-year risk (0.7% to 63%) from five predictors: stroke severity, large-artery atherosclerotic cause, early seizures, cortical involvement and the territory of the middle cerebral artery. This case shows ${predEn}; the model does not decide severity, cause or whether an early seizure occurred, so no score is given here.`,
-      },
+        en: `Seizures after the first week come from the cortical scar and recur more often (a late first seizure strongly predicts epilepsy). After an ischaemic stroke late seizures occur in about 4% at 1 year and 8% at 5 years, and the risk continues past 6 months. The SeLECT score estimates the 1-year risk (0.7% to 63%) from five predictors: stroke severity, large-artery atherosclerotic cause, early seizures, cortical involvement and the territory of the middle cerebral artery. This case shows ${predEn}; the model does not decide severity, cause or whether an early seizure occurred, so no score is given here.`, localized: (contentLang: AdditionalLang) => contentTemplate("Seizures after the first week come from the cortical scar and recur more often (a late first seizure strongly predicts epilepsy). After an ischaemic stroke late seizures occur in about 4% at 1 year and 8% at 5 years, and the risk continues past 6 months. The SeLECT score estimates the 1-year risk (0.7% to 63%) from five predictors: stroke severity, large-artery atherosclerotic cause, early seizures, cortical involvement and the territory of the middle cerebral artery. This case shows ⟪0⟫; the model does not decide severity, cause or whether an early seizure occurred, so no score is given here.", [contentFragment(predEn, contentLang)], contentLang),
+      }),
       regions: corticalRegions,
     });
   }
@@ -3420,7 +3451,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: fromH,
       endH: 2160,
       title: { zh: '紋狀體內囊梗塞的皮質徵象', en: 'Cortical signs of a striatocapsular infarct' },
-      desc: {
+      desc: withLocalized({
         zh: `${
           fromH > 0
             ? `血流在${left ? '左' : '右'}側大腦皮質壞死之前恢復：梗塞只在深部（${deadZh}）。皮質在接下來數小時逐漸恢復功能，之後留下的仍常是皮質徵象：`
@@ -3438,8 +3469,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
           fromH > 0
             ? 'With the flow back they are attributed to the lost connections between the deep structures and the cortex (diaschisis); while the artery was blocked, the cortex itself was ischaemic.'
             : 'Acutely they are attributed to cortical hypoperfusion (the clot or stenosis at the MCA origin that blocks the lenticulostriate openings can also reduce cortical flow); later to the lost connections between the deep structures and the cortex (diaschisis).'
-        } They often improve over weeks to months, and some remain; the model shows them for the first three months. Patients with arm or arm-and-face weakness alone and no cortical signs usually recover best.`,
-      },
+        } They often improve over weeks to months, and some remain; the model shows them for the first three months. Patients with arm or arm-and-face weakness alone and no cortical signs usually recover best.`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫⟪1⟫. ⟪2⟫ They often improve over weeks to months, and some remain; the model shows them for the first three months. Patients with arm or arm-and-face weakness alone and no cortical signs usually recover best.", [(fromH > 0 ? contentTemplate("Blood came back before the ⟪0⟫ cortex died: the infarct is deep (⟪1⟫). As the cortex regains its function over the following hours, the signs it leaves are often cortical all the same: ", [(left ? contentFragment('left', contentLang) : contentFragment('right', contentLang)), contentList(dead.map(([, name]) => name), contentLang)], contentLang) : contentTemplate("The infarct is deep (⟪0⟫) and the ⟪1⟫ cortex has not died, yet cortical signs are common: ", [contentList(dead.map(([, name]) => name), contentLang), (left ? contentFragment('left', contentLang) : contentFragment('right', contentLang))], contentLang)), (left ? contentFragment('an aphasia with sparse, effortful speech but preserved repetition (a subcortical aphasia, listed here as transcortical motor aphasia) and apraxia', contentLang) : contentFragment('neglect of the left side', contentLang)), (fromH > 0 ? contentFragment('With the flow back they are attributed to the lost connections between the deep structures and the cortex (diaschisis); while the artery was blocked, the cortex itself was ischaemic.', contentLang) : contentFragment('Acutely they are attributed to cortical hypoperfusion (the clot or stenosis at the MCA origin that blocks the lenticulostriate openings can also reduce cortical flow); later to the lost connections between the deep structures and the cortex (diaschisis).', contentLang))], contentLang),
+      }),
       regions: REGIONS.filter((r) => r.side === s && DEEP.some(([ids]) => ids.includes(r.baseId)) && (rf[r.id] ?? 0) >= 0.2).map((r) => r.id),
       symptoms: left
         ? [
@@ -3485,14 +3516,14 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
         onsetH: sideOnset(s) + CCD_ONSET_H,
         title: { zh: '交叉性小腦功能抑制（遠隔效應）', en: 'Crossed cerebellar diaschisis (remote effect)' },
         desc: carotid
-          ? {
+          ? withLocalized({
               zh: `${sz}側大腦的梗塞（內囊，或大範圍的頸動脈供應區的皮質）切斷皮質—橋腦—小腦路徑的輸入，對側（${oz}側）小腦半球的血流與代謝跟著下降。一個頸動脈區中風的 PET 研究中，58% 的檢查看得到；有沒有偏癱都可能出現。小腦本身沒有梗塞、通常沒有症狀。發作後數小時內就可能出現，多半持續數月，有時數天內就消失。`,
-              en: `The ${se} cerebral infarct (the internal capsule, or an extensive stretch of carotid-territory cortex) removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (${oe}) cerebellar hemisphere. In a PET study of carotid-territory strokes it was present in 58% of studies, with or without hemiparesis. The cerebellum is not infarcted and it is usually silent. It can appear within hours of onset and usually persists for months, though sometimes it disappears within days.`,
-            }
-          : {
+              en: `The ${se} cerebral infarct (the internal capsule, or an extensive stretch of carotid-territory cortex) removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (${oe}) cerebellar hemisphere. In a PET study of carotid-territory strokes it was present in 58% of studies, with or without hemiparesis. The cerebellum is not infarcted and it is usually silent. It can appear within hours of onset and usually persists for months, though sometimes it disappears within days.`, localized: (contentLang: AdditionalLang) => contentTemplate("The ⟪0⟫ cerebral infarct (the internal capsule, or an extensive stretch of carotid-territory cortex) removes input through the cortico-ponto-cerebellar pathway, so blood flow and metabolism fall in the opposite (⟪1⟫) cerebellar hemisphere. In a PET study of carotid-territory strokes it was present in 58% of studies, with or without hemiparesis. The cerebellum is not infarcted and it is usually silent. It can appear within hours of onset and usually persists for months, though sometimes it disappears within days.", [contentFragment(se, contentLang), contentFragment(oe, contentLang)], contentLang),
+            })
+          : withLocalized({
               zh: `${sz}側視丘的梗塞（腹外側核，小腦輸出到運動皮質的中繼站）切斷小腦—視丘—皮質的迴路，對側（${oz}側）小腦半球的血流與代謝跟著下降。灌流 MRI 上，急性單純視丘梗塞約五分之一看得到（39 位中 9 位），病灶較大、有構音障礙時較常見。小腦本身沒有梗塞、通常沒有症狀；這個研究在急性期就看到了它。`,
-              en: `The ${se} thalamic infarct (the ventrolateral nucleus, which relays the cerebellar output to the motor cortex) interrupts the cerebello-thalamo-cortical loop, so blood flow and metabolism fall in the opposite (${oe}) cerebellar hemisphere. On perfusion MRI it was seen in about a fifth of acute isolated thalamic infarcts (9 of 39), more often with larger lesions and with dysarthria. The cerebellum is not infarcted and it is usually silent; that study found it in the acute phase.`,
-            },
+              en: `The ${se} thalamic infarct (the ventrolateral nucleus, which relays the cerebellar output to the motor cortex) interrupts the cerebello-thalamo-cortical loop, so blood flow and metabolism fall in the opposite (${oe}) cerebellar hemisphere. On perfusion MRI it was seen in about a fifth of acute isolated thalamic infarcts (9 of 39), more often with larger lesions and with dysarthria. The cerebellum is not infarcted and it is usually silent; that study found it in the acute phase.`, localized: (contentLang: AdditionalLang) => contentTemplate("The ⟪0⟫ thalamic infarct (the ventrolateral nucleus, which relays the cerebellar output to the motor cortex) interrupts the cerebello-thalamo-cortical loop, so blood flow and metabolism fall in the opposite (⟪1⟫) cerebellar hemisphere. On perfusion MRI it was seen in about a fifth of acute isolated thalamic infarcts (9 of 39), more often with larger lesions and with dysarthria. The cerebellum is not infarcted and it is usually silent; that study found it in the acute phase.", [contentFragment(se, contentLang), contentFragment(oe, contentLang)], contentLang),
+            }),
         regions: [...new Set(cb.map((b) => b.region))],
       });
     }
@@ -3659,10 +3690,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 168,
       endH: 4320,
       title: { zh: '神經可塑性與復原', en: 'Neuroplasticity & recovery' },
-      desc: {
+      desc: withLocalized({
         zh: `${fatalRisk.size || survival.size ? (fatalRisk.has('herniation') ? '假如病人存活（未減壓時是少數）：' : '假如病人存活：') : ''}周圍與對側的腦區會重新分工，大部分自發性恢復發生在前 3 個月，之後仍可透過密集復健緩慢進步。死掉的神經元不會再生，恢復靠的是「重新接線」。`,
-        en: `${fatalRisk.size || survival.size ? (fatalRisk.has('herniation') ? 'If the patient survives (a minority without decompression): s' : 'If the patient survives: s') : 'S'}urrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.`,
-      },
+        en: `${fatalRisk.size || survival.size ? (fatalRisk.has('herniation') ? 'If the patient survives (a minority without decompression): s' : 'If the patient survives: s') : 'S'}urrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫urrounding and opposite-side regions take over functions; most spontaneous recovery happens in the first 3 months, with slower gains from intensive rehabilitation afterwards. Dead neurons do not regrow — recovery is re-wiring.", [(fatalRisk.size || survival.size ? (fatalRisk.has('herniation') ? contentFragment('If the patient survives (a minority without decompression): s', contentLang) : contentFragment('If the patient survives: s', contentLang)) : contentFragment('S', contentLang))], contentLang),
+      }),
       regions: [],
     });
   }
@@ -3719,30 +3750,35 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const other = painBody.filter((r) => r.baseId !== 'thalamus_ventrolateral' && r.baseId !== 'medulla_lateral');
     const zh: string[] = ['感覺路徑受損後，原本麻木的地方可能出現燒灼、刺痛或一碰就痛的慢性疼痛。這是可能的後果，不是必然：一項研究中，207 位存活至少 6 個月且能可靠溝通的病人，一年內 16 位（8%）出現。'];
     const en: string[] = ['After sensory pathway damage, the numb area can develop burning, lancinating or touch-evoked chronic pain. It is possible, not certain: in one study, 16 of 207 survivors who lived at least 6 months and could communicate reliably developed it within a year (8 %).'];
+    const localized: ((lang: AdditionalLang) => string)[] = [(contentLang) => contentFragment('After sensory pathway damage, the numb area can develop burning, lancinating or touch-evoked chronic pain. It is possible, not certain: in one study, 16 of 207 survivors who lived at least 6 months and could communicate reliably developed it within a year (8 %).', contentLang)];
     for (const r of thal) {
       const b = bodySide(r, 'contra');
       zh.push(`視丘中風後約七分之一、視丘膝狀體動脈區中風後約四分之一會出現，在身體的對側（這裡是身體的${zhSide(b)}側）；已發表的病例中右側視丘病灶較多（可能有報告偏差），約三分之一在第一週就開始。`);
       en.push(`After a thalamic stroke about 1 in 7 develop it (about 1 in 4 after the geniculothalamic territory), on the opposite side of the body — here the ${enSide(b)} side of the body; among published cases right-sided thalamic lesions are more frequent (possibly reporting bias), and about a third start in the first week.`);
+    localized.push((contentLang: AdditionalLang) => contentTemplate("After a thalamic stroke about 1 in 7 develop it (about 1 in 4 after the geniculothalamic territory), on the opposite side of the body — here the ⟪0⟫ side of the body; among published cases right-sided thalamic lesions are more frequent (possibly reporting bias), and about a third start in the first week.", [contentFragment(enSide(b), contentLang)], contentLang));
     }
     for (const r of lmi) {
       const s0 = r.side as Side;
       zh.push(`延髓外側梗塞後約四分之一在 6 個月內出現，最常在病灶同側（這裡是${zhSide(s0)}側）的眼睛周圍，可以單獨出現，也可以合併對側（${zhSide(opp(s0))}側）手腳的疼痛。`);
       en.push(`After a lateral medullary infarct about 1 in 4 develop it within 6 months, most often around the eye on the side of the infarct (here the ${enSide(s0)}), alone or with pain in the opposite (${enSide(opp(s0))}) arm and leg.`);
+    localized.push((contentLang: AdditionalLang) => contentTemplate("After a lateral medullary infarct about 1 in 4 develop it within 6 months, most often around the eye on the side of the infarct (here the ⟪0⟫), alone or with pain in the opposite (⟪1⟫) arm and leg.", [contentFragment(enSide(s0), contentLang), contentFragment(enSide(opp(s0)), contentLang)], contentLang));
     }
     for (const r of other) {
       const b = bodySide(r, 'contra');
       zh.push(`這個病灶的疼痛會在身體的對側（這裡是身體的${zhSide(b)}側）。`);
       en.push(`From this lesion it would affect the opposite side of the body — here the ${enSide(b)} side of the body.`);
+    localized.push((contentLang: AdditionalLang) => contentTemplate("From this lesion it would affect the opposite side of the body — here the ⟪0⟫ side of the body.", [contentFragment(enSide(b), contentLang)], contentLang));
     }
     zh.push('後島葉與頂葉島蓋內側的病灶也可能造成中樞性疼痛，但很少見（模型沒有把它列為症狀）。');
     en.push('Lesions of the posterior insula and inner parietal operculum can also cause central pain, rarely (not listed as a symptom by the model).');
+    localized.push((contentLang: AdditionalLang) => contentFragment('Lesions of the posterior insula and inner parietal operculum can also cause central pain, rarely (not listed as a symptom by the model).', contentLang));
     events.push({
       id: 'central_pain',
       kind: 'complication',
       severity: 'warn',
       onsetH: symptomOnsetH(SYMPTOM_BY_ID.central_pain),
       title: { zh: '可能出現的中樞性中風後疼痛', en: 'Possible central post-stroke pain' },
-      desc: { zh: zh.join(''), en: en.join(' ') },
+      desc: withLocalized({ zh: zh.join(''), en: en.join(' '), localized: (contentLang: AdditionalLang) => localized.map((piece) => piece(contentLang)).join(' ') }),
       regions: [...new Set([...painBody, ...painFace].map((r) => r.id))],
     });
   }
@@ -3826,7 +3862,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const both = circle.pcommCount > 1;
     const ROUTE: Record<CircleRoute, L> = {
       acomm: { zh: '前交通動脈（從對側）', en: 'through the anterior communicating artery (from the other side)' },
-      pcomm: { zh: both ? '兩側後交通動脈' : '後交通動脈', en: both ? 'through both posterior communicating arteries' : 'through the posterior communicating artery' },
+      pcomm: withLocalized({ zh: both ? '兩側後交通動脈' : '後交通動脈', en: both ? 'through both posterior communicating arteries' : 'through the posterior communicating artery', localized: (contentLang: AdditionalLang) => (both ? contentFragment('through both posterior communicating arteries', contentLang) : contentFragment('through the posterior communicating artery', contentLang)) }),
       ophthalmic: { zh: '眼動脈逆流（從外頸動脈）', en: 'backwards through the ophthalmic artery (from the external carotid)' },
     };
     const names = circle.routes.map((r) => ROUTE[r]);
@@ -3840,7 +3876,7 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       onsetH: 0,
       ...(reopens !== null && reopens > 0 ? { endH: reopens } : {}),
       title: { zh: 'Willis 環側枝代償啟動', en: 'Circle of Willis collaterals switched on' },
-      desc: {
+      desc: withLocalized({
         zh:
           `血液改走${names.map((x) => x.zh).join('、')}，送進阻塞之後的血管，從其他動脈「借血」。` +
           (short
@@ -3858,8 +3894,8 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
               ? reopens !== null
                 ? ' Here it is not enough to keep their territory working while the artery is closed: the deficits come from there, where these routes fall short or cannot reach.'
                 : ' Here it is not enough to keep their territory working: the deficits come from there, where these routes fall short or cannot reach.'
-              : ' Here it is enough to prevent an infarct: this is why a narrowing or an occlusion before or within the circle, even of a whole carotid artery, can cause no symptoms at all.'),
-      },
+              : ' Here it is enough to prevent an infarct: this is why a narrowing or an occlusion before or within the circle, even of a whole carotid artery, can cause no symptoms at all.'), localized: (contentLang: AdditionalLang) => (contentTemplate("Blood reroutes ⟪0⟫ into the arteries beyond the blockage, borrowing from other trunks.", [names.map((name) => localizedContent(name, contentLang)).join(contentLang === 'zh-CN' ? '和' : contentLang === 'de' ? ' und ' : 'と')], contentLang) + (short ? contentTemplate(" Here it is not enough: about ⟪0⟫ mL of their territory still infarcts, where these routes fall short or cannot reach.", [contentFragment(ml, contentLang)], contentLang) : (failed ? (reopens !== null ? contentFragment(' Here it is not enough to keep their territory working while the artery is closed: the deficits come from there, where these routes fall short or cannot reach.', contentLang) : contentFragment(' Here it is not enough to keep their territory working: the deficits come from there, where these routes fall short or cannot reach.', contentLang)) : contentFragment(' Here it is enough to prevent an infarct: this is why a narrowing or an occlusion before or within the circle, even of a whole carotid artery, can cause no symptoms at all.', contentLang)))),
+      }),
       regions: [],
     });
   }
@@ -3959,10 +3995,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     const ml = Math.round(100 * mcaShare('l'));
     const mcaNote: L = whole
       ? { zh: '', en: '' }
-      : {
+      : withLocalized({
           zh: `；兩側的中大腦動脈區分別約 ${mr}% 與 ${ml}% 梗塞，大腦半球深部的白質（放射冠）與內囊有很大一部分由中大腦動脈供應，皮質和視丘之間的連結就經過這裡`,
-          en: `, and about ${mr}% and ${ml}% of their MCA territories; the MCA supplies much of the deep white matter of the hemisphere (the corona radiata) and of the internal capsule, through which the cortex and the thalamus are connected`,
-        };
+          en: `, and about ${mr}% and ${ml}% of their MCA territories; the MCA supplies much of the deep white matter of the hemisphere (the corona radiata) and of the internal capsule, through which the cortex and the thalamus are connected`, localized: (contentLang: AdditionalLang) => contentTemplate(", and about ⟪0⟫% and ⟪1⟫% of their MCA territories; the MCA supplies much of the deep white matter of the hemisphere (the corona radiata) and of the internal capsule, through which the cortex and the thalamus are connected", [contentFragment(mr, contentLang), contentFragment(ml, contentLang)], contentLang),
+        });
     events.push({
       id: 'hemispheres_destroyed',
       kind: 'secondary',
@@ -3971,10 +4007,10 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
       title: whole
         ? { zh: '兩側大腦半球大多梗塞：意識障礙', en: 'Both hemispheres mostly infarcted: a disorder of consciousness' }
         : { zh: '兩側中大腦動脈區大多梗塞：意識障礙', en: 'Most of both MCA territories infarcted: a disorder of consciousness' },
-      desc: {
+      desc: withLocalized({
         zh: `右側大腦半球約 ${pr}%、左側約 ${pl}% 梗塞（有疝脫時包括它造成的續發梗塞）${mcaNote.zh}。覺察需要大腦半球，以及它們和視丘之間的連結：49 位在急性腦損傷後直到死亡都處於植物人狀態的病人，每一位的大腦半球白質或視丘中繼核都嚴重受損，讓仍完好的皮質也無法運作（Adams 2000）。模型將這類存活者描繪為昏迷後仍有意識障礙，可能睜眼、有睡醒週期，卻沒有覺察（無反應覺醒症候群），或只有最小意識。這不是個人預後的確定預測：非外傷性意識障礙在 3 個月後仍可能恢復，應持續評估，不能據此指定固定餘命（AAN 2018）。模型在兩次病灶中較晚的那次發生兩週後（昏迷通常在這時轉為後續的狀態）列出意識障礙，NIHSS 以只有反射反應的病人計分（1a = 3）。以每側三分之二以上${whole ? '' : '（大腦半球，或中大腦動脈區）'}梗塞為界，是模型的選擇：沒有研究依梗塞範圍給出數字。`,
-        en: `About ${pr}% of the right and ${pl}% of the left hemisphere are infarcted (with the secondary infarcts of a herniation, if any)${mcaNote.en}. Awareness needs the cerebral hemispheres and their connections with the thalamus: in 49 patients who remained vegetative until death after an acute brain insult, every brain had profound damage to the white matter of the hemispheres or to the relay nuclei of the thalamus, which leaves any cortex still intact unable to function (Adams 2000). The model portrays a survivor with persistent impaired consciousness after coma: unresponsive wakefulness (eyes open with sleep–wake cycles but no awareness) or a minimally conscious state. This is not a certain individual prognosis: recovery after 3 months remains possible after nontraumatic injury, ongoing assessment is needed, and no fixed life expectancy can be inferred (AAN 2018). The model lists a disorder of consciousness from two weeks after the newer of the two lesions, when a coma gives way to what follows it, and scores the NIHSS as for a patient who responds only with reflexes (1a = 3). The threshold, two-thirds of each hemisphere${whole ? '' : ' (or of each MCA territory)'} infarcted, is a model choice: no series gives the extent.`,
-      },
+        en: `About ${pr}% of the right and ${pl}% of the left hemisphere are infarcted (with the secondary infarcts of a herniation, if any)${mcaNote.en}. Awareness needs the cerebral hemispheres and their connections with the thalamus: in 49 patients who remained vegetative until death after an acute brain insult, every brain had profound damage to the white matter of the hemispheres or to the relay nuclei of the thalamus, which leaves any cortex still intact unable to function (Adams 2000). The model portrays a survivor with persistent impaired consciousness after coma: unresponsive wakefulness (eyes open with sleep–wake cycles but no awareness) or a minimally conscious state. This is not a certain individual prognosis: recovery after 3 months remains possible after nontraumatic injury, ongoing assessment is needed, and no fixed life expectancy can be inferred (AAN 2018). The model lists a disorder of consciousness from two weeks after the newer of the two lesions, when a coma gives way to what follows it, and scores the NIHSS as for a patient who responds only with reflexes (1a = 3). The threshold, two-thirds of each hemisphere${whole ? '' : ' (or of each MCA territory)'} infarcted, is a model choice: no series gives the extent.`, localized: (contentLang: AdditionalLang) => contentTemplate("About ⟪0⟫% of the right and ⟪1⟫% of the left hemisphere are infarcted (with the secondary infarcts of a herniation, if any)⟪2⟫. Awareness needs the cerebral hemispheres and their connections with the thalamus: in 49 patients who remained vegetative until death after an acute brain insult, every brain had profound damage to the white matter of the hemispheres or to the relay nuclei of the thalamus, which leaves any cortex still intact unable to function (Adams 2000). The model portrays a survivor with persistent impaired consciousness after coma: unresponsive wakefulness (eyes open with sleep–wake cycles but no awareness) or a minimally conscious state. This is not a certain individual prognosis: recovery after 3 months remains possible after nontraumatic injury, ongoing assessment is needed, and no fixed life expectancy can be inferred (AAN 2018). The model lists a disorder of consciousness from two weeks after the newer of the two lesions, when a coma gives way to what follows it, and scores the NIHSS as for a patient who responds only with reflexes (1a = 3). The threshold, two-thirds of each hemisphere⟪3⟫ infarcted, is a model choice: no series gives the extent.", [contentFragment(pr, contentLang), contentFragment(pl, contentLang), localizedContent(mcaNote, contentLang), (whole ? contentFragment('', contentLang) : contentFragment(' (or of each MCA territory)', contentLang))], contentLang),
+      }),
       regions: [],
       symptoms: [{ id: 'disorder_of_consciousness', side: null, sev: 3 }],
     });
@@ -3983,27 +4019,27 @@ export function computeCascade(input: CascadeInput): CascadeOutput {
     // (a central herniation adds no secondary infarct when neither hemisphere would herniate on its own: V1-4, U1-0)
     const withSec = anySecondary;
     const extent: L = whole
-      ? {
+      ? withLocalized({
           zh: `兩側大腦半球幾乎整個梗塞（右側約 ${pr}%、左側約 ${pl}%${withSec ? '，包括疝脫造成的續發梗塞' : ''}）`,
-          en: `Both hemispheres are infarcted almost entirely (about ${pr}% of the right and ${pl}% of the left${withSec ? ', with the secondary infarcts of the herniation' : ''})`,
-        }
-      : {
+          en: `Both hemispheres are infarcted almost entirely (about ${pr}% of the right and ${pl}% of the left${withSec ? ', with the secondary infarcts of the herniation' : ''})`, localized: (contentLang: AdditionalLang) => contentTemplate("Both hemispheres are infarcted almost entirely (about ⟪0⟫% of the right and ⟪1⟫% of the left⟪2⟫)", [contentFragment(pr, contentLang), contentFragment(pl, contentLang), (withSec ? contentFragment(', with the secondary infarcts of the herniation', contentLang) : contentFragment('', contentLang))], contentLang),
+        })
+      : withLocalized({
           zh: `兩側中大腦動脈區大多梗塞（右側約 ${mr}%、左側約 ${ml}%；大腦半球分別約 ${pr}% 與 ${pl}%${withSec ? '，包括疝脫造成的續發梗塞' : ''}）`,
-          en: `Most of both MCA territories is infarcted (about ${mr}% of the right and ${ml}% of the left; ${pr}% and ${pl}% of the hemispheres${withSec ? ', with the secondary infarcts of the herniation' : ''})`,
-        };
+          en: `Most of both MCA territories is infarcted (about ${mr}% of the right and ${ml}% of the left; ${pr}% and ${pl}% of the hemispheres${withSec ? ', with the secondary infarcts of the herniation' : ''})`, localized: (contentLang: AdditionalLang) => contentTemplate("Most of both MCA territories is infarcted (about ⟪0⟫% of the right and ⟪1⟫% of the left; ⟪2⟫% and ⟪3⟫% of the hemispheres⟪4⟫)", [contentFragment(mr, contentLang), contentFragment(ml, contentLang), contentFragment(pr, contentLang), contentFragment(pl, contentLang), (withSec ? contentFragment(', with the secondary infarcts of the herniation', contentLang) : contentFragment('', contentLang))], contentLang),
+        });
     const see: L = whole ? { zh: '兩側大腦半球大多梗塞', en: 'Both hemispheres mostly infarcted' } : { zh: '兩側中大腦動脈區大多梗塞', en: 'Most of both MCA territories infarcted' };
     if (hf)
-      hf.desc = {
+      hf.desc = withLocalized({
         zh: `${extent.zh}，又沒有減壓：死亡是通常的結局。單側完整中大腦動脈區梗塞的數字——55 位病人中 78% 因疝脫與腦死而死亡（Hacke 1996）、未手術的一年存活率 29%（Vahedi 2007）——講的是一側，不是兩側；兩側中大腦動脈同時梗塞通常後果嚴重（一篇病例報告與文獻回顧）。模型將兩側大腦半球嚴重受損的存活者描繪為持續有意識障礙；個人預後仍不確定，晚期恢復仍有可能（AAN 2018）（見「${see.zh}」）。模型不模擬死亡：之後的病程、3 個月與 6 個月的 NIHSS，都是這樣一位存活者的情況。`,
-        en: `${extent.en}, without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). The model portrays persistent impaired consciousness in a survivor with severe injury to both hemispheres; individual prognosis remains uncertain and late recovery is possible (AAN 2018) (see "${see.en}"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.`,
-      };
+        en: `${extent.en}, without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). The model portrays persistent impaired consciousness in a survivor with severe injury to both hemispheres; individual prognosis remains uncertain and late recovery is possible (AAN 2018) (see "${see.en}"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫, without decompression: death is the usual end. The figures for complete MCA-territory infarction of one hemisphere — 43 of 55 patients (78%) died of herniation and brain death (Hacke 1996), and 1-year survival without surgery was 29% (Vahedi 2007) — describe one hemisphere, not both; simultaneous infarction of both MCA territories is usually devastating (a case report and a review of the literature). The model portrays persistent impaired consciousness in a survivor with severe injury to both hemispheres; individual prognosis remains uncertain and late recovery is possible (AAN 2018) (see \"⟪1⟫\"). The model does not represent death: the rest of the course and the 3- and 6-month NIHSS show such a survivor.", [localizedContent(extent, contentLang), localizedContent(see, contentLang)], contentLang),
+      });
     // the drowsiness of the first two weeks gives way to it
     const bh = events.find((e) => e.id === 'bilateral_hemispheres');
     if (bh)
-      bh.desc = {
+      bh.desc = withLocalized({
         zh: `${bh.desc.zh}這裡兩側${whole ? '' : '的中大腦動脈區'}最後都大多梗塞：兩週後改列意識障礙（見「${see.zh}」）。`,
-        en: `${bh.desc.en} Here ${whole ? 'both hemispheres end' : 'most of both MCA territories ends'} up ${whole ? 'mostly ' : ''}infarcted: from two weeks on a disorder of consciousness is listed instead (see "${see.en}").`,
-      };
+        en: `${bh.desc.en} Here ${whole ? 'both hemispheres end' : 'most of both MCA territories ends'} up ${whole ? 'mostly ' : ''}infarcted: from two weeks on a disorder of consciousness is listed instead (see "${see.en}").`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ Here ⟪1⟫ up ⟪2⟫infarcted: from two weeks on a disorder of consciousness is listed instead (see \"⟪3⟫\").", [localizedContent(bh.desc, contentLang), (whole ? contentFragment('both hemispheres end', contentLang) : contentFragment('most of both MCA territories ends', contentLang)), (whole ? contentFragment('mostly ', contentLang) : contentFragment('', contentLang)), localizedContent(see, contentLang)], contentLang),
+      });
     events.sort((a, b) => a.onsetH - b.onsetH);
   }
   return {

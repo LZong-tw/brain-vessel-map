@@ -1,3 +1,4 @@
+import { usesLatinSpacing } from '../i18n/locales';
 import { useMemo } from 'react';
 import { formatHours } from '../anatomy/timeline';
 import type { SymptomItem } from '../engine/clinical';
@@ -75,7 +76,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
   const t = useT();
   const lang = useApp((s) => s.lang);
   const rt = RECOVERY_UI[lang];
-  const sep = lang === 'en' ? ' ' : '';
+  const sep = usesLatinSpacing(lang) ? ' ' : '';
   const active = useApp((s) => s.occlusions.length > 0 || s.map < 70);
   const series = useSimSeries();
   const tH = sim.input.tH;
@@ -138,7 +139,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
         cells: series.map((s) => {
           const syms = fromRegion(s, id);
           const lv = syms.reduce((m, x) => Math.max(m, x.sev), 0);
-          const sep = lang === 'en' ? '; ' : '、';
+          const sep = usesLatinSpacing(lang) ? '; ' : '、';
           const names = syms
             .sort((a, b) => b.sev - a.sev)
             .slice(0, 4)
@@ -148,10 +149,10 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
           // a stop at which the region's deficits cannot be examined does not read "no loss" (X1-2)
           const hiddenItems = hiddenFromRegion(s, id);
           const hidden = hiddenItems.map((x) => symptomLabel(x, lang, t));
-          const hiddenText = hidden.length ? `${unexaminableHeading(hiddenItems, lang).label}${lang === 'en' ? ': ' : '：'}${hidden.join(sep)}` : '';
+          const hiddenText = hidden.length ? `${unexaminableHeading(hiddenItems, lang).label}${usesLatinSpacing(lang) ? ': ' : '：'}${hidden.join(sep)}` : '';
           const title = [names.join(sep), hiddenText].filter(Boolean).join(sep) || t.funcNone;
           const color = fill ? (comp ? withHatch(fill) : fill) : hidden.length ? UNEXAMINABLE_FILL : null;
-          return { color, title: comp ? (lang === 'en' ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
+          return { color, title: comp ? (usesLatinSpacing(lang) ? `${title} (${rt.hatchCell})` : `${title}（${rt.hatchCell}）`) : title };
         }),
       },
     ];
@@ -333,7 +334,7 @@ export function RegionNow({ id, sim }: { id: string; sim: SimResult }) {
       </section>
       <section>
         <h3>{t.regionOverTime}</h3>
-        <StopGrid rows={rows} label={t.regionOverTime} labelWidth={lang === 'en' ? 64 : 44} />
+        <StopGrid rows={rows} label={t.regionOverTime} labelWidth={usesLatinSpacing(lang) ? 64 : 44} />
         <p className="muted small">{t.gridHint}</p>
       </section>
     </>
@@ -421,7 +422,7 @@ function RecoveryStatus({
   const lang = useApp((s) => s.lang);
   const edema = rr.silenced - rr.remote >= 0.005;
   const remote = rr.remote >= 0.005;
-  const sep = lang === 'en' ? ' ' : '';
+  const sep = usesLatinSpacing(lang) ? ' ' : '';
   return (
     <div className="rec-status">
       <div className="now-label small muted">{rt.statusTitle}</div>
@@ -492,7 +493,7 @@ function RecoveryStatus({
             <span className="rec-dot" aria-hidden="true" />
             <div>
               <span className="rec-head">{rt.noBackup}</span>
-              <span className="small">{lang === 'en' ? ': ' : '：'}{noBackup.join(lang === 'en' ? '; ' : '、')}</span>
+              <span className="small">{usesLatinSpacing(lang) ? ': ' : '：'}{noBackup.join(usesLatinSpacing(lang) ? '; ' : '、')}</span>
               <div className="muted small">{rt.noBackupNote}</div>
             </div>
           </li>

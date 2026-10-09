@@ -51,4 +51,28 @@ const en: CellDetailStrings = {
   nihss: (total) => `NIHSS estimate ${total}; see "NIHSS estimate" below for the items.`,
 };
 
-export const CELL_DETAIL_UI: Record<Lang, CellDetailStrings> = { 'zh-TW': zh, en };
+const cn: CellDetailStrings = {
+  hint: '点击任意单元格，可查看该时间点的症状、来源脑区及相较于前一时间点的变化。',
+  close: '关闭', none: '该时间点此系统无症状。',
+  change: { new: '新出现', worse: '加重', better: '减轻', same: '与前一时间点相同', again: '可再次检查' },
+  resolved: '已消失', unexaminable: (label) => `${label}（并非消失）`, from: '来源', fromEvent: '病程事件',
+  compensated: (pct) => `已代偿 ${pct}%`, swelling: (mm, ml) => `中线移位 ${mm} mm · 肿胀约 ${ml} mL`,
+  nihss: (total) => `NIHSS 估计 ${total} 分；各项评分见下方“NIHSS 估计”。`,
+};
+const de: CellDetailStrings = {
+  hint: 'Eine Zelle auswählen, um Symptome, betroffene Hirnregionen und Veränderungen gegenüber dem vorherigen Zeitpunkt anzuzeigen.',
+  close: 'Schließen', none: 'Zu diesem Zeitpunkt keine Symptome in diesem System.',
+  change: { new: 'neu', worse: 'verstärkt', better: 'gebessert', same: 'unverändert', again: 'erneut untersuchbar' },
+  resolved: 'Abgeklungen', unexaminable: (label) => `${label} (nicht abgeklungen)`, from: 'Ursprung', fromEvent: 'Ereignis im Verlauf',
+  compensated: (pct) => `${pct}% kompensiert`, swelling: (mm, ml) => `Mittellinienverlagerung ${mm} mm · Schwellung ≈ ${ml} mL`,
+  nihss: (total) => `NIHSS-Schätzung ${total}; Einzelwerte siehe unten unter „NIHSS-Schätzung“.`,
+};
+const ja: CellDetailStrings = {
+  hint: 'セルを選ぶと、その時点の症状、原因となる脳領域、前の時点からの変化を下に表示します。',
+  close: '閉じる', none: 'この時点で、この系統の症状はありません。',
+  change: { new: '新規出現', worse: '増悪', better: '改善', same: '変化なし', again: '再び診察可能' },
+  resolved: '消失', unexaminable: (label) => `${label}（消失ではない）`, from: '原因領域', fromEvent: '経過中のイベント',
+  compensated: (pct) => `${pct}% 代償`, swelling: (mm, ml) => `正中偏位 ${mm} mm · 腫脹 約 ${ml} mL`,
+  nihss: (total) => `NIHSS 推定 ${total} 点；項目別の点数は下の「NIHSS 推定」を参照。`,
+};
+export const CELL_DETAIL_UI: Record<Lang, CellDetailStrings> = { 'zh-TW': zh, en, 'zh-CN': cn, de, ja };

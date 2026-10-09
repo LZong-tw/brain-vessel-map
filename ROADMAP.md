@@ -30,8 +30,8 @@
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
 - 35 個教學範本、單一穿通支阻塞（腔隙性中風，可選落點；內囊警訊症候群）、栓子漂流模擬
   · 35 teaching templates, single-perforator (lacunar) occlusions (with a choice of site; the capsular warning syndrome), embolus drift simulation
-- 3D、Willis 環、腦幹切面三種視圖；繁中／英文；可分享網址；手機版面
-  · 3D, circle-of-Willis and brainstem-section views; Traditional Chinese / English; shareable URLs; phone layout
+- 3D、Willis 環、腦幹切面三種視圖；繁中／簡中／英文／德文／日文；可分享網址；手機版面
+  · 3D, circle-of-Willis and brainstem-section views; Traditional Chinese / Simplified Chinese / English / German / Japanese; shareable URLs; phone layout
 - GitHub Pages 自動部署、CI（lint、型別、單元與元件測試、建置）、完整資料來源與授權聲明
   · GitHub Pages deployment, CI (lint, types, unit and component tests, build), full source and licence notices
 
@@ -75,7 +75,7 @@
   · 2D slice view (infarct overlaid on T1 images, like reading an MRI)
 - [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
   · Accessibility: keyboard control of the 3D scene, a screen-reader summary of the results
-- [ ] 更多語言 · More languages
+- [x] 更多語言：簡體中文、德文、日文 · More languages: Simplified Chinese, German, Japanese
 
 歡迎開 issue 指出醫學內容的錯誤——請附上文獻來源。
 Issues pointing out medical errors are welcome — please include a reference.

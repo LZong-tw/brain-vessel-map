@@ -9,6 +9,7 @@ import type { SimResult } from '../engine/simulate';
 import { OUTCOME_UI } from '../i18n/uiOutcome';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { RISKS_UI } from '../i18n/uiRisks';
+import { usesLatinSpacing } from '../i18n/locales';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { STATE_COLORS } from '../ui/colors';
@@ -183,9 +184,9 @@ export function FinalOutcome() {
           </table>
           <p className="muted small">
             {o.treatmentLabel}
-            {lang === 'en' ? ': ' : '：'}
+            {usesLatinSpacing(lang) ? ': ' : '：'}
             {treatmentLine(st, lang, true)}
-            {lang === 'en' ? '. ' : '。'}
+            {usesLatinSpacing(lang) ? '. ' : '。'}
             {o.compareNote} {o.savedNote}
           </p>
         </section>
@@ -194,9 +195,9 @@ export function FinalOutcome() {
         // or nothing complete occluded then): no treated course to compare (U2-8)
         <p className="muted small outcome-treatment">
           {o.treatmentLabel}
-          {lang === 'en' ? ': ' : '：'}
+          {usesLatinSpacing(lang) ? ': ' : '：'}
           {treatmentLine(st, lang, true)}
-          {lang === 'en' ? '.' : '。'}
+          {usesLatinSpacing(lang) ? '.' : '。'}
         </p>
       ) : (
         <div className="outcome-hint">
@@ -245,10 +246,10 @@ export function FinalOutcome() {
         {shown.syndromes.length > 0 && (
           <p className="outcome-syndromes small">
             {t.syndromes}
-            {lang === 'en' ? ': ' : '：'}
+            {usesLatinSpacing(lang) ? ': ' : '：'}
             {shown.syndromes
-              .map((s) => tr(s.def.name, lang) + (s.silent ? (lang === 'en' ? ` (${t.syndromeSilent})` : `（${t.syndromeSilent}）`) : ''))
-              .join(lang === 'en' ? '; ' : '、')}
+              .map((s) => tr(s.def.name, lang) + (s.silent ? (usesLatinSpacing(lang) ? ` (${t.syndromeSilent})` : `（${t.syndromeSilent}）`) : ''))
+              .join(usesLatinSpacing(lang) ? '; ' : '、')}
           </p>
         )}
         {DEFICIT_GROUPS.filter((g) => deficits[g].length > 0).map((g) => (
@@ -341,7 +342,7 @@ function PostStrokeRisks({ m6 }: { m6: SimResult }) {
   const r = RISKS_UI[lang];
   const groups = useMemo(() => postStrokeRisksFor(m6), [m6]);
   if (!groups.length) return null;
-  const en = lang === 'en';
+  const en = usesLatinSpacing(lang);
   return (
     <section className="outcome-risks" aria-label={r.title}>
       <h3>{r.title}</h3>
@@ -416,7 +417,7 @@ function DeficitItem({ s, qualifiers = [] }: { s: SymptomItem; qualifiers?: stri
       {symptomLabel(s, lang, t)}
       {qualifiers.map((q) => (
         <span key={q} className="muted small">
-          {lang === 'en' ? ` (${q})` : `（${q}）`}
+          {usesLatinSpacing(lang) ? ` (${q})` : `（${q}）`}
         </span>
       ))}
       <span className="muted small"> · {tr(sys, lang)}</span>

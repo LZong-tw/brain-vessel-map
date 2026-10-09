@@ -312,4 +312,224 @@ const en: RecoveryStrings = {
   unexaminableMixedLabel: 'Cannot be examined now',
 };
 
-export const RECOVERY_UI: Record<Lang, RecoveryStrings> = { 'zh-TW': zh, en };
+
+const cnSite = (sites: BottleneckSite[]) => sites.includes('midbrain') && sites.includes('pons') ? '中脑的大脑脚与腹侧脑桥' : sites.includes('midbrain') ? '中脑的大脑脚' : '腹侧脑桥';
+
+const cn: RecoveryStrings = {
+  statusTitle: '功能状态',
+  dead: '坏死',
+  deadNote: '这部分组织已经死亡，不会再长回来。',
+  deadLacuneNote: (lost) => `这部分组织已经死亡，不会再长回来；它虽小（腔隙），却落在神经纤维密集的地方，让这个构造失去约 ${lost} 的功能。`,
+  silenced: '暂时受抑制（水肿／远端抑制）',
+  silencedNote: (edema, remote) =>
+    `组织还活着，只是被${edema && remote ? '周围水肿与远端抑制' : edema ? '周围水肿' : '远端抑制（相连脑区受损后的功能下降）'}暂时关掉；${
+      edema ? '水肿约 1–3 周消退后' : '数周内'
+    }这部分功能会回来。`,
+  regaining: '存活，仍在恢复功能',
+  regainingNote: '这部分组织存活下来，不会坏死，只是还没恢复运作；它会在数小时到数天内逐渐恢复功能，缺血越久越慢。',
+  compensated: '已部分代偿',
+  compensatedNote: (pct) => `其他神经路径已接手约 ${pct} 因坏死而失去的功能；大部分代偿在前 3 个月发生，之后变慢，但仍可能进步。`,
+  compensatedLittle: '预期代偿很有限',
+  compensatedLittleNote: (pct) => (pct ? `其他路径目前只接手约 ${pct}。` : ''),
+  noBackup: '此功能没有备援',
+  noBackupNote: '这些功能只有一条路（例如脑神经核、视觉皮质）；组织坏死后，其他路径无法接手，只能靠策略（例如转头）弥补。',
+  bilateralNote: '同一条路径两侧都受损：原本可以接手的另一侧也坏了，代偿有限。',
+  bottleneckNote: (sites) =>
+    [
+      sites.includes('midbrain')
+        ? '中脑的大脑脚是瓶颈：每一侧的皮质脊髓束与皮质核束都挤在同侧大脑脚里，两侧一起受损时，主要路径和备援一起被截断——所以恢复远比症状相近的半球脑卒中差。'
+        : '',
+      sites.includes('pons') || sites.length === 0
+        ? '腹侧脑桥是瓶颈：两侧的皮质脊髓束、皮质核束与许多皮质网状纤维都挤在这里，主要路径和备援一起被截断——所以闭锁综合征的恢复远比症状相近的半球脑卒中差。'
+        : '',
+    ].join(''),
+  caveat: '恢复曲线只是示意的群体平均，不是预后；真实的恢复因人而异，差异很大。',
+  tagNoBackup: '没有备援',
+  tagCompensated: (pct) => `已代偿 ${pct}`,
+  tagEased: (from, to) => `较最严重时减轻 ${from}→${to}`,
+  tagEasedNoBackup: (from, to) => `较最严重时减轻 ${from}→${to}：是暂时受抑制的组织恢复了，坏死的部分不会再改善`,
+  kindExplain: {
+    bilateral: '双侧支配：另一侧大脑也能驱动这些肌肉或功能，单侧受损通常恢复得不错，两侧都受损就很难。',
+    parallel: '平行路径：网状脊髓束等可以接手近端与粗大动作，但精细动作回不来，并常伴随痉挛与协同动作。',
+    fine: '精细动作（手指独立运动）几乎只靠皮质脊髓束，其他路径难以取代，恢复有限。',
+    partial: '周围或对侧脑区可以重组、部分接手。',
+    fcp: '最后共同路径：脑神经运动核或其纤维是通往肌肉的唯一出口，坏死后没有其他路径能接手。',
+    none: '这个功能只有这一条路（例如视觉皮质、视网膜），坏死后无法由其他路径取代。',
+    exempt: '这是晚期出现的后果或描述，不是可以代偿的功能。',
+  },
+  funcDeadAndSilenced: '已受损：部分组织坏死；周围还活着的组织也被水肿暂时抑制，这部分会恢复',
+  funcSilenced: '暂时受抑制：组织还活着，被水肿或远端抑制暂时关掉，会随之恢复',
+  funcDeadAndRegaining: '已受损：部分组织坏死；其余的组织存活下来，仍在逐渐恢复功能，这部分会恢复',
+  funcRegaining: '暂停中，会恢复：组织存活下来，仍在逐渐恢复功能',
+  funcLostCompensating: '已受损：组织坏死；部分功能正由其他路径代偿',
+  funcCompensatedGone: '已代偿：组织已坏死，但其他路径接手后已不明显',
+  rowSilenced: '抑制',
+  rowSilencedTitle: '暂时受抑制（水肿／远端抑制）',
+  rowCompensated: '代偿',
+  rowCompensatedTitle: '已部分代偿',
+  silencedCell: (pct) => `暂时受抑制 ${pct}`,
+  compensatedCell: (pct) => `其他路径已接手约 ${pct}`,
+  rowNihss: 'NIHSS',
+  nihssCell: (n) => `NIHSS 估计 ${n}`,
+  hatchLegend: '斜线：部分已代偿',
+  hatchCell: '部分已由其他路径代偿',
+  nowSilenced: (ml) =>
+    `水肿让病灶周围约 ${ml} mL 还活着的组织暂时停摆，所以此刻的功能缺损比坏死范围更大；水肿约 1–3 周消退后，这部分功能会回来。`,
+  nowRegaining: (ml) =>
+    `约 ${ml} mL 存活下来的组织仍在恢复功能：血流恢复（或侧支撑住半影区）之后，组织要几小时到几天才重新运作，不是立刻恢复；缺血越久，恢复越慢。`,
+  nowRemote: '与受损区相连的远处脑区（例如对侧小脑）功能也暂时下降（远端抑制），通常没有明显症状，会在数周内淡去。',
+  nowCompensating: (pct) => `其他神经路径正逐渐接手部分失去的功能（典型的代偿进程已走了约 ${pct}）；大部分发生在前 3 个月，之后变慢。`,
+  nowCompensatingLittle: (pct, sites) =>
+    `典型的代偿进程已走了约 ${pct}，但这里两侧的主要运动路径和它们的备援在${cnSite(sites)}一起被截断，能被接手的很少：四肢与说话的功能多半只有很有限的恢复。`,
+  nowNihssTrend: (peak, at, now) => `NIHSS 估计从最高的 ${peak}（${at}）降到 ${now}。`,
+  improvedLabel: (since) => `比 ${since} 改善`,
+  noBackupLabel: '没有备援、不会再改善',
+  goneWord: '消失',
+  unexaminableLabel: '意识下降，目前无法检查',
+  unexaminableTitle:
+    '病灶仍会造成这些缺损，只是病人昏睡、昏迷或处于意识障碍时检查不出来（需要病人清醒、配合或自己说出来），所以暂时不列在症状清单里，也不算改善；能检查时会再列出。',
+  unexaminableBy: {
+    consciousness: {
+      label: '意识下降，目前无法检查',
+      title:
+        '病灶仍会造成这些缺损，只是病人昏睡、昏迷或处于意识障碍时检查不出来（需要病人清醒、配合或自己说出来），所以暂时不列在症状清单里，也不算改善；能检查时会再列出。',
+      tag: '意识下降',
+    },
+    blind: {
+      label: '看不见，目前无法检查',
+      title:
+        '病灶仍会造成这些缺损，但认脸、认物、阅读、看路、伸手拿看到的东西与视觉空间能力，都要先看得见才能检查；病人目前看不见（皮质盲，或两侧半边视野都看不到、中心视力也没保留），所以暂时不列在症状清单里，也不算改善。视力部分恢复时会再列出。',
+      tag: '看不见',
+    },
+    akinetic: {
+      label: '无动性缄默，目前无法检查',
+      title:
+        '病灶仍会造成这些缺损，但病人虽然清醒，却几乎不会自己动、不说话，也不照指令做，所以需要病人动手、回答或自己说出来的检查（失用、异己手、伸手、认物、读写算、记忆、失语的类型等）都做不了；暂时不列在症状清单里，也不算改善。看得到的表现（意志缺失、情绪等）仍会列出。',
+      tag: '无动性缄默',
+    },
+    aphasia: {
+      label: '听不懂话（失语），目前无法检查',
+      title:
+        '病灶仍会造成这些缺损，但病人听不懂话（中度以上的全面性、接受性或混合型经皮质失语），而阅读、书写、计算、说出手指名称、语文记忆、对自身缺损的觉察，以及只能靠病人自己说出来的症状（眩晕、复视、听力、味觉、位置感、疼痛等），都要透过语言才能检查，和失语本身分不开；所以暂时不列在症状清单里，也不算改善。两手的失用症可以请病人模仿检查者的动作来检查，不需要语言，所以仍会列出；但胼胝体断联造成的左手失用与失写，要看左手做不出指令、写不出字而右手可以，这要透过语言，也暂时不列。理解力恢复时会再列出。',
+      tag: '失语',
+    },
+    paralysed: {
+      label: '肢体瘫痪，目前无法检查',
+      title:
+        '病灶仍会造成这些缺损，但肢体共济失调（指鼻、跟膝胫测试）、手臂动作时的颤抖、手指的精细动作与异己手（手自己做出抓握、摸索等动作），都要病人能移动那一侧的手脚才看得出来；胼胝体断联造成的左手症状（左手和右手互相作对；左手的失用与失写，也就是右手做得到的指令动作与写字，左手做不到）要和右手比较，所以两手都要能动。这里需要的手臂无法对抗重力抬起（或腿完全不能动），所以暂时不列在症状清单里，也不算改善（NIHSS 也不计分瘫痪那一侧的共济失调）。步态与躯干不稳要看病人走路、站立与坐直：两腿都无法对抗重力抬起时，病人站不起来，躯干两侧也无力、无法自己坐稳，不稳分不出是失调还是无力，所以也暂时不列（只有一腿无力时仍可让病人坐著检查躯干）。无力本身仍会列出并计分；手脚能动到可以检查时会再列出。',
+      tag: '肢体瘫痪',
+    },
+  },
+  unexaminableMixedLabel: '目前无法检查',
+};
+
+const deSite = (sites: BottleneckSite[]) => sites.includes('midbrain') && sites.includes('pons') ? 'den Hirnschenkeln des Mittelhirns und der ventralen Brücke' : sites.includes('midbrain') ? 'den Hirnschenkeln des Mittelhirns' : 'der ventralen Brücke';
+
+const de: RecoveryStrings = {
+  statusTitle: 'Funktionszustand', dead: 'Abgestorben', deadNote: 'Dieses Gewebe ist abgestorben und wächst nicht nach.',
+  deadLacuneNote: (lost) => `Dieses Gewebe ist abgestorben und wächst nicht nach; obwohl der Infarkt klein ist (eine Lakune), liegt er zwischen dicht gebündelten Fasern und kostet die Struktur etwa ${lost} ihrer Funktion.`,
+  silenced: 'Vorübergehend gehemmt (Ödem / Diaschisis)',
+  silencedNote: (edema, remote) => `Das Gewebe lebt, ist aber durch ${edema && remote ? 'das umgebende Ödem und Diaschisis' : edema ? 'das umgebende Ödem' : 'Diaschisis (Schädigung einer verbundenen Region)'} funktionell ausgeschaltet; die Funktion kehrt ${edema ? 'mit dem Abklingen des Ödems über etwa 1–3 Wochen' : 'im Laufe von Wochen'} zurück.`,
+  regaining: 'Überlebt, Funktion noch in Erholung',
+  regainingNote: 'Dieses Gewebe hat überlebt und wird nicht absterben, arbeitet aber noch nicht; seine Funktion kehrt über Stunden bis Tage zurück, bei längerer Ischämie langsamer.',
+  compensated: 'Teilweise kompensiert',
+  compensatedNote: (pct) => `Andere Nervenbahnen haben etwa ${pct} der durch abgestorbenes Gewebe verlorenen Funktion übernommen; die meiste Kompensation erfolgt in den ersten 3 Monaten, danach langsamer, wobei spätere Fortschritte möglich sind.`,
+  compensatedLittle: 'Nur geringe Kompensation zu erwarten', compensatedLittleNote: (pct) => pct ? `Andere Bahnen haben bisher nur etwa ${pct} übernommen.` : '',
+  noBackup: 'Kein Ersatzweg für diese Funktion',
+  noBackupNote: 'Diese Funktionen haben nur einen Weg (z. B. einen Hirnnervenkern oder den visuellen Kortex); nach dessen Absterben kann keine andere Bahn übernehmen. Nur Strategien wie das Drehen des Kopfes helfen.',
+  bilateralNote: 'Dieselbe Bahn ist beidseitig geschädigt; auch die Seite, die übernehmen könnte, ist betroffen. Die Kompensation ist begrenzt.',
+  bottleneckNote: (sites) => [
+    sites.includes('midbrain') ? 'Die Hirnschenkel des Mittelhirns bilden einen Engpass: Kortikospinale und kortikonukleäre Bahnen jeder Seite verlaufen gemeinsam durch den jeweiligen Hirnschenkel. Bei beidseitiger Schädigung sind Hauptbahn und Ersatzwege zugleich unterbrochen; deshalb ist die Erholung deutlich schlechter als nach einem hemisphärischen Schlaganfall mit ähnlichem Defizit.' : '',
+    sites.includes('pons') || sites.length === 0 ? 'Die ventrale Brücke bildet einen Engpass: Beide kortikospinalen und kortikonukleären Bahnen sowie viele kortikoretikuläre Fasern verlaufen dort gemeinsam. Hauptbahnen und Ersatzwege werden zugleich unterbrochen; deshalb ist die Erholung beim Locked-in-Syndrom deutlich schlechter als nach einem hemisphärischen Schlaganfall mit ähnlichem Defizit.' : '',
+  ].filter(Boolean).join(' '),
+  caveat: 'Die Erholung zeigt nur ein beispielhaftes mittleres Muster, keine Prognose; die tatsächliche Erholung ist individuell sehr unterschiedlich.',
+  tagNoBackup: 'kein Ersatzweg', tagCompensated: (pct) => `${pct} kompensiert`, tagEased: (from, to) => `gegenüber dem schwersten Zustand gebessert ${from}→${to}`,
+  tagEasedNoBackup: (from, to) => `gebessert ${from}→${to}, da gehemmtes Gewebe sich erholt hat; der abgestorbene Anteil bessert sich nicht`,
+  kindExplain: {
+    bilateral: 'Beidseitige Steuerung: Auch die andere Hemisphäre kann diese Muskeln oder Funktionen aktivieren; einseitige Läsionen erholen sich meist gut, beidseitige schlecht.',
+    parallel: 'Parallele Bahnen: Das retikulospinale System kann proximale und grobe Bewegungen übernehmen, aber keine Feinmotorik; häufig bleiben Spastik und Bewegungssynergien.',
+    fine: 'Feinmotorik (unabhängige Fingerbewegungen) beruht fast ausschließlich auf der kortikospinalen Bahn; andere Bahnen können sie kaum ersetzen.',
+    partial: 'Benachbarte oder gegenüberliegende Regionen können sich reorganisieren und einen Teil übernehmen.',
+    fcp: 'Gemeinsame Endstrecke: Der motorische Hirnnervenkern oder seine Fasern sind der einzige Weg zum Muskel; nach ihrem Absterben kann keine andere Bahn übernehmen.',
+    none: 'Diese Funktion hat nur einen Weg (z. B. visueller Kortex oder Netzhaut); nach dessen Absterben kann ihn nichts ersetzen.',
+    exempt: 'Eine Spätfolge oder Beschreibung, keine kompensierbare Funktion.',
+  },
+  funcDeadAndSilenced: 'Beeinträchtigt: Gewebe teilweise abgestorben; überlebendes umgebendes Gewebe ist zusätzlich durch Ödem gehemmt und wird sich erholen',
+  funcSilenced: 'Vorübergehend gehemmt: Das Gewebe lebt, ist durch Ödem oder Diaschisis ausgeschaltet und wird sich erholen',
+  funcDeadAndRegaining: 'Beeinträchtigt: Gewebe teilweise abgestorben; der überlebende Rest gewinnt seine Funktion noch zurück und wird sich erholen',
+  funcRegaining: 'Ausgeschaltet, aber in Erholung: Das Gewebe hat überlebt und gewinnt seine Funktion zurück',
+  funcLostCompensating: 'Beeinträchtigt: Das Gewebe ist abgestorben; andere Bahnen übernehmen einen Teil der Funktion',
+  funcCompensatedGone: 'Kompensiert: Das Gewebe ist abgestorben, aber andere Bahnen haben genug übernommen, sodass das Defizit nicht mehr auffällt',
+  rowSilenced: 'Gehemmt', rowSilencedTitle: 'Vorübergehend gehemmt (Ödem / Diaschisis)', rowCompensated: 'Kompensiert', rowCompensatedTitle: 'Teilweise kompensiert',
+  silencedCell: (pct) => `${pct} vorübergehend gehemmt`, compensatedCell: (pct) => `Andere Bahnen haben etwa ${pct} übernommen`,
+  rowNihss: 'NIHSS', nihssCell: (n) => `NIHSS-Schätzung ${n}`, hatchLegend: 'Schraffiert: teilweise kompensiert', hatchCell: 'teilweise durch andere Bahnen kompensiert',
+  nowSilenced: (ml) => `Das Ödem hat etwa ${ml} mL lebendes Gewebe um die Läsion vorübergehend ausgeschaltet; das Defizit ist daher größer als durch das abgestorbene Gewebe allein. Mit dem Abklingen des Ödems über etwa 1–3 Wochen kehrt diese Funktion zurück.`,
+  nowRegaining: (ml) => `Etwa ${ml} mL überlebendes Gewebe gewinnt seine Funktion noch zurück: Nach Rückkehr des Blutflusses (oder Stabilisierung der Penumbra durch Kollateralen) arbeitet es erst nach Stunden bis Tagen wieder, nicht sofort; bei längerer Ischämie langsamer.`,
+  nowRemote: 'Auch verbundene entfernte Regionen (z. B. das gegenüberliegende Kleinhirn) sind vorübergehend funktionell gehemmt (Diaschisis); dies bleibt meist klinisch unauffällig und klingt über Wochen ab.',
+  nowCompensating: (pct) => `Andere Bahnen übernehmen allmählich einen Teil der verlorenen Funktionen (der typische Kompensationsverlauf ist etwa zu ${pct} abgeschlossen); der größte Anteil erfolgt in den ersten 3 Monaten, danach langsamer.`,
+  nowCompensatingLittle: (pct, sites) => `Der typische Kompensationsverlauf ist etwa zu ${pct} abgeschlossen, doch hier wurden die motorischen Hauptbahnen beider Seiten und ihre Ersatzwege gemeinsam in ${deSite(sites)} unterbrochen. Es kann wenig übernommen werden; Extremitätenbewegungen und Sprechen erholen sich meist nur begrenzt.`,
+  nowNihssTrend: (peak, at, now) => `Die NIHSS-Schätzung ist vom Höchstwert ${peak} (${at}) auf ${now} gesunken.`,
+  improvedLabel: (since) => `Besser als bei ${since}`, noBackupLabel: 'Kein Ersatzweg: keine weitere Besserung', goneWord: 'verschwunden',
+  unexaminableLabel: 'Bei dieser Bewusstseinslage nicht untersuchbar',
+  unexaminableTitle: 'Die Läsion verursacht diese Defizite weiterhin, doch bei Sopor, Koma oder Bewusstseinsstörung lassen sie sich nicht untersuchen (ein wacher, kooperierender Patient oder dessen eigener Bericht ist nötig). Sie fehlen daher vorübergehend in der Symptomliste und gelten nicht als gebessert; sobald sie untersuchbar sind, werden sie wieder aufgeführt.',
+  unexaminableBy: {
+    consciousness: { label: 'Bei dieser Bewusstseinslage nicht untersuchbar', title: 'Die Läsion verursacht diese Defizite weiterhin, doch bei Sopor, Koma oder Bewusstseinsstörung lassen sie sich nicht untersuchen (ein wacher, kooperierender Patient oder dessen eigener Bericht ist nötig). Sie fehlen daher vorübergehend in der Symptomliste und gelten nicht als gebessert; sobald sie untersuchbar sind, werden sie wieder aufgeführt.', tag: 'Bewusstsein vermindert' },
+    blind: { label: 'Nicht prüfbar: Der Patient sieht nicht', title: 'Die Läsion verursacht diese Defizite weiterhin, doch Gesichter- und Objekterkennung, Lesen, Orientierung, Greifen nach gesehenen Objekten und visuell-räumliche Aufgaben setzen Sehvermögen voraus. Der Patient ist derzeit blind (kortikale Blindheit oder Verlust beider Gesichtsfeldhälften ohne erhaltenes zentrales Sehen). Diese Defizite fehlen daher vorübergehend in der Symptomliste und gelten nicht als gebessert; bei teilweiser Rückkehr des Sehvermögens werden sie wieder aufgeführt.', tag: 'blind' },
+    akinetic: { label: 'Nicht untersuchbar: akinetischer Mutismus', title: 'Die Läsion verursacht diese Defizite weiterhin, doch der wache Patient bewegt sich oder spricht kaum und folgt keinen Aufforderungen. Untersuchungen, die Handeln, Antworten oder eigene Angaben erfordern (Praxis, Alien-Hand-Phänomen, Greifen, Erkennen, Lesen, Schreiben, Rechnen, Gedächtnis, Aphasieform usw.), sind nicht möglich. Sie fehlen vorübergehend in der Symptomliste und gelten nicht als gebessert. Beobachtbare Befunde (Abulie, emotionaler Ausdruck) werden weiterhin aufgeführt.', tag: 'akinetischer Mutismus' },
+    aphasia: { label: 'Nicht untersuchbar: fehlendes Sprachverständnis (Aphasie)', title: 'Die Läsion verursacht diese Defizite weiterhin, doch der Patient versteht Sprache nicht (mittelschwere oder schwere globale, Wernicke- oder gemischte transkortikale Aphasie). Lesen, Schreiben, Rechnen, Fingerbenennung, verbales Gedächtnis, Defizitbewusstsein und nur subjektiv berichtbare Symptome (Schwindel, Doppelbilder, Hören, Geschmack, Lagesinn, Schmerz usw.) werden sprachlich geprüft und lassen sich von der Aphasie nicht trennen. Sie fehlen vorübergehend und gelten nicht als gebessert. Beidseitige Handapraxie ist durch Nachahmen von Gesten sprachfrei prüfbar und bleibt aufgeführt. Linksseitige Apraxie und Agraphie durch Balkendiskonnektion erfordern den sprachlichen Vergleich von links nicht ausgeführten Befehlen und Schreibaufgaben mit der rechten Hand und fehlen ebenfalls vorübergehend. Mit besserem Sprachverständnis werden die Befunde wieder aufgeführt.', tag: 'Aphasie' },
+    paralysed: { label: 'Nicht untersuchbar: Extremität gelähmt', title: 'Die Läsion verursacht diese Defizite weiterhin, doch Extremitätenataxie (Finger-Nase- und Knie-Hacke-Versuch), Bewegungstremor des Arms, Fingerfeinmotorik und das Alien-Hand-Phänomen (selbstständiges Greifen und Tasten) sind nur erkennbar, wenn die betreffende Extremität beweglich ist. Linksseitige Zeichen einer Balkendiskonnektion (Gegeneinanderarbeiten der Hände; Apraxie und Agraphie bei Befehlen und Schreibaufgaben, die rechts gelingen) erfordern bewegliche Hände auf beiden Seiten. Hier kann ein benötigter Arm nicht gegen die Schwerkraft bewegt werden (oder das Bein gar nicht); die Befunde fehlen daher vorübergehend und gelten nicht als gebessert (auch der NIHSS bewertet keine Ataxie der gelähmten Seite). Gang- und Rumpfataxie erfordern Gehen, Stehen und aufrechtes Sitzen: Bei beidseitig fehlender Beinbewegung gegen die Schwerkraft kann der Patient nicht stehen und wegen beidseitiger Rumpfschwäche nicht frei sitzen; Unsicherheit ist dann nicht von Schwäche zu trennen und fehlt ebenfalls (bei nur einem schwachen Bein ist der Rumpf im Sitzen prüfbar). Die Schwäche selbst bleibt aufgeführt und bewertet. Sobald genügend Bewegung möglich ist, erscheinen die übrigen Befunde wieder.', tag: 'gelähmte Extremität' },
+  },
+  unexaminableMixedLabel: 'Derzeit nicht untersuchbar',
+};
+
+const jaSite = (sites: BottleneckSite[]) => sites.includes('midbrain') && sites.includes('pons') ? '中脳の大脳脚と橋腹側' : sites.includes('midbrain') ? '中脳の大脳脚' : '橋腹側';
+const ja: RecoveryStrings = {
+  statusTitle: '機能の状態', dead: '壊死', deadNote: 'この組織は死滅しており、再生しません。',
+  deadLacuneNote: (lost) => `この組織は死滅し再生しません。小さい梗塞（ラクナ）でも密集した神経線維に位置し、この構造の機能を約 ${lost}失わせます。`,
+  silenced: '一時的抑制（浮腫／遠隔機能抑制）',
+  silencedNote: (edema, remote) => `組織は生存していますが、${edema && remote ? '周囲の浮腫と遠隔機能抑制' : edema ? '周囲の浮腫' : '遠隔機能抑制（結合する領域の損傷による機能低下）'}で一時的に機能を停止しています。${edema ? '約 1–3 週で浮腫が軽減すると' : '数週のうちに'}機能が回復します。`,
+  regaining: '生存し、機能回復中', regainingNote: '組織は生存し壊死しませんが、まだ機能していません。数時間から数日かけて回復し、虚血が長いほど遅くなります。',
+  compensated: '部分的に代償', compensatedNote: (pct) => `他の神経経路が、壊死によって失われた機能の約 ${pct}を代償しています。代償の大部分は最初の 3 か月に進み、その後は遅くなりますが、さらなる改善もあり得ます。`,
+  compensatedLittle: '代償は限定的と予想', compensatedLittleNote: (pct) => pct ? `他の経路が代償したのは、現在約 ${pct}のみです。` : '',
+  noBackup: 'この機能に代替経路なし', noBackupNote: 'この機能には経路が 1 本しかありません（例：脳神経核、視覚皮質）。壊死すると他の経路では代償できず、頭を回すなどの戦略で補います。',
+  bilateralNote: '同じ経路が両側で損傷し、代償を担う反対側も損傷しているため、代償は限定的です。',
+  bottleneckNote: (sites) => [
+    sites.includes('midbrain') ? '中脳の大脳脚はボトルネックです。各側の皮質脊髄路と皮質核路が同側の大脳脚に密集し、両側損傷では主要経路と代替経路が同時に遮断されます。同程度の障害を伴う半球脳卒中より回復は不良です。' : '',
+    sites.includes('pons') || sites.length === 0 ? '橋腹側はボトルネックです。両側の皮質脊髄路、皮質核路、多くの皮質網様体線維が密集し、主要経路と代替経路が同時に遮断されます。閉じ込め症候群の回復は同程度の障害を伴う半球脳卒中より不良です。' : '',
+  ].filter(Boolean).join(' '),
+  caveat: '回復曲線は模式的な集団平均であり、予後ではありません。実際の回復には大きな個人差があります。',
+  tagNoBackup: '代替経路なし', tagCompensated: (pct) => `${pct} 代償`, tagEased: (from, to) => `最重症時から改善 ${from}→${to}`,
+  tagEasedNoBackup: (from, to) => `最重症時から改善 ${from}→${to}：一時的に抑制された組織が回復したためで、壊死部分は改善しません`,
+  kindExplain: {
+    bilateral: '両側性支配：反対側の半球も筋や機能を制御でき、片側損傷では比較的よく回復しますが、両側では困難です。',
+    parallel: '並行経路：網様体脊髄路などが近位・粗大運動を代償できますが、巧緻運動は戻らず、痙縮や共同運動を伴うことが多いです。',
+    fine: '巧緻運動（指の独立運動）はほぼ皮質脊髄路に依存し、他の経路では代替しにくく、回復は限定的です。',
+    partial: '周囲または反対側の領域が再編成して一部を代償できます。',
+    fcp: '最終共通路：脳神経運動核やその線維が筋への唯一の出口で、壊死すると他の経路は代替できません。',
+    none: 'この機能は経路が 1 本のみです（例：視覚皮質、網膜）。壊死すると他の経路は代替できません。',
+    exempt: 'これは遅発の結果や記述であり、代償できる機能ではありません。',
+  },
+  funcDeadAndSilenced: '障害あり：一部が壊死し、周囲の生存組織も浮腫で一時的に抑制；生存部分は回復',
+  funcSilenced: '一時的抑制：組織は生存し、浮腫や遠隔機能抑制で機能停止；回復します',
+  funcDeadAndRegaining: '障害あり：一部が壊死し、残りは生存して機能回復中；生存部分は回復',
+  funcRegaining: '一時停止、回復します：組織は生存し機能回復中', funcLostCompensating: '障害あり：組織は壊死し、他の経路が一部を代償中',
+  funcCompensatedGone: '代償済み：組織は壊死していますが、他の経路が代償し障害は目立たなくなっています',
+  rowSilenced: '抑制', rowSilencedTitle: '一時的抑制（浮腫／遠隔機能抑制）', rowCompensated: '代償', rowCompensatedTitle: '部分的に代償',
+  silencedCell: (pct) => `${pct} 一時的抑制`, compensatedCell: (pct) => `他の経路が約 ${pct}代償`, rowNihss: 'NIHSS', nihssCell: (n) => `NIHSS 推定 ${n}`,
+  hatchLegend: '斜線：部分的代償', hatchCell: '他の経路が部分的に代償',
+  nowSilenced: (ml) => `浮腫により病変周囲の生存組織約 ${ml} mL が一時的に機能停止し、現在の障害は壊死範囲より大きくなっています。約 1–3 週で浮腫が軽減すると、この機能は回復します。`,
+  nowRegaining: (ml) => `生存組織約 ${ml} mL は機能回復中です。血流回復（または側副血行がペナンブラを維持）後も、機能再開には数時間から数日かかり、直ちには回復しません。虚血が長いほど遅くなります。`,
+  nowRemote: '損傷領域と結合する遠方の領域（例：対側小脳）も一時的に機能低下します（遠隔機能抑制）。通常は明らかな症状なく、数週で軽減します。',
+  nowCompensating: (pct) => `他の神経経路が失われた機能の一部を徐々に代償しています（典型的な代償過程の約 ${pct}まで進行）。大部分は最初の 3 か月に起こり、その後は遅くなります。`,
+  nowCompensatingLittle: (pct, sites) => `典型的な代償過程の約 ${pct}まで進みましたが、両側の主要運動経路と代替経路が${jaSite(sites)}で同時に遮断されています。代償できる機能は少なく、四肢と発話の回復は通常限定的です。`,
+  nowNihssTrend: (peak, at, now) => `NIHSS 推定は最大 ${peak}（${at}）から ${now}に低下。`, improvedLabel: (since) => `${since}より改善`, noBackupLabel: '代替経路なし、さらなる改善なし', goneWord: '消失',
+  unexaminableLabel: '意識低下により現在診察不能', unexaminableTitle: '病変による障害は残っていますが、昏迷・昏睡・意識障害では診察できません（覚醒・協力または本人の訴えが必要）。症状一覧から一時的に除外しますが、改善ではなく、診察可能になると再表示します。',
+  unexaminableBy: {
+    consciousness: { label: '意識低下により現在診察不能', title: '病変による障害は残っていますが、昏迷・昏睡・意識障害では診察できません（覚醒・協力または本人の訴えが必要）。症状一覧から一時的に除外しますが、改善ではなく、診察可能になると再表示します。', tag: '意識低下' },
+    blind: { label: '視覚喪失により現在診察不能', title: '障害は残っていますが、顔・物体認知、読字、道の認識、見た物へのリーチ、視空間機能には視覚が必要です。現在は見えません（皮質盲、または両側の半視野喪失で中心視力も残存せず）。症状一覧から一時的に除外しますが、改善ではなく、視覚が一部回復すると再表示します。', tag: '視覚喪失' },
+    akinetic: { label: '無動性無言により現在診察不能', title: '障害は残っていますが、覚醒していても自発運動・発話がほぼなく、指示に従いません。動作、回答、本人の訴えが必要な検査（失行、他人の手、リーチ、物体認知、読み書き計算、記憶、失語型など）は行えません。一時的に除外しますが改善ではありません。観察可能な所見（無為、情動など）は表示します。', tag: '無動性無言' },
+    aphasia: { label: '言語理解障害（失語）により現在診察不能', title: '障害は残っていますが、言語を理解できません（中等度以上の全失語、感覚性失語、混合型超皮質性失語）。読み書き計算、指の命名、言語性記憶、障害の認識、本人のみが訴える症状（めまい、複視、聴覚、味覚、位置覚、痛みなど）は言語を介するため失語と区別できず、一時的に除外しますが改善ではありません。両手の失行は動作模倣で言語なしに検査できるため表示します。脳梁離断による左手の失行・失書は、右手との指示動作・書字の比較が必要で一時的に除外します。理解が回復すると再表示します。', tag: '失語' },
+    paralysed: { label: '四肢麻痺により現在診察不能', title: '障害は残っていますが、四肢失調（指鼻・踵膝試験）、動作時振戦、指の巧緻運動、他人の手（自発的把握・探索）はその四肢が動かなければ評価できません。脳梁離断による左手の症状（両手の拮抗、右手では可能な指示動作・書字が左手では不可）には両手の運動が必要です。必要な腕が重力に抗して挙上できない（または脚が全く動かない）ため、一時的に除外しますが改善ではありません（NIHSS も麻痺側の失調は評価しません）。歩行・体幹失調は歩行、立位、座位を評価します。両脚を重力に抗して挙上できず立てない場合、両側体幹も弱く自力で座位を保てず、失調と筋力低下を区別できないため除外します（片脚のみの筋力低下なら座位で体幹を評価可能）。筋力低下自体は表示・採点し、運動が回復すると他の所見を再表示します。', tag: '四肢麻痺' },
+  }, unexaminableMixedLabel: '現在診察不能',
+};
+export const RECOVERY_UI: Record<Lang, RecoveryStrings> = { 'zh-TW': zh, en, 'zh-CN': cn, de, ja };
