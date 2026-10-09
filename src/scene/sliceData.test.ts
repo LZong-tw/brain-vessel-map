@@ -14,7 +14,9 @@ const fixture = () => {
   new Uint16Array(buffer, 16, 8).fill(1);
   return parseSlices(manifest, buffer);
 };
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('reference slice data', () => {
   it('decodes each label volume separately and rejects invalid labels and truncated data', () => {
@@ -52,8 +54,10 @@ describe('reference slice data', () => {
     vi.resetModules();
     const raw = new Uint8Array(32);
     const compressed = gzipSync(raw);
+    const compressedBody = new ArrayBuffer(compressed.byteLength);
+    new Uint8Array(compressedBody).set(compressed);
     const gzipManifest = { ...manifest, compression: 'gzip', uncompressedByteLength: 32 };
-    const fetcher = vi.fn(async (url: string) => new Response(url.endsWith('.json') ? JSON.stringify(gzipManifest) : compressed));
+    const fetcher = vi.fn(async (url: string) => new Response(url.endsWith('.json') ? JSON.stringify(gzipManifest) : compressedBody));
     vi.stubGlobal('fetch', fetcher);
     const { loadSlices } = await import('./sliceData');
     expect((await loadSlices()).t1).toHaveLength(8);
