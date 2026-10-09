@@ -5,6 +5,7 @@ import type { CascadeEvent } from '../engine/cascade';
 import type { Occlusion } from '../engine/hemodynamics';
 import { simulate, type SimInput } from '../engine/simulate';
 import { systemCellDetail } from './cellDetail';
+import { severityBySystem } from './format';
 
 const seriesOf = (over: Partial<SimInput> & { occlusions: Occlusion[] }) =>
   TIME_STOPS.map((s) =>
@@ -14,6 +15,19 @@ const at = (h: number) => TIME_STOPS.findIndex((s) => s.h === h);
 
 describe('function heat-map cell detail', () => {
   const lm1 = seriesOf({ occlusions: [{ vessel: 'mca_m1_l', severity: 1 }] });
+  it('compares continuous deficits within an unchanged ordinal category and keeps colour indices ordinal', () => {
+    const symptom = { id: 'arm_weak', side: 'r' as const, sev: 2 as const, sources: [], delayed: false, continuousSeverity: 1.25 };
+    const baseline = { ...lm1[0], symptoms: [symptom], unexaminable: [] };
+    const changed = (strength: number) => ({ ...baseline, symptoms: [{ ...symptom, continuousSeverity: strength }] });
+    const worse = systemCellDetail([baseline, changed(1.5)], 1, 'motor').items[0];
+    expect(worse.change).toBe('worse'); expect(worse.sev).toBe(2); expect(worse.prevSev).toBe(2);
+    expect(worse.continuousSeverity).toBe(1.5); expect(worse.prevContinuousSeverity).toBe(1.25);
+    expect(systemCellDetail([baseline, changed(1.1)], 1, 'motor').items[0].change).toBe('better');
+    expect(systemCellDetail([baseline, changed(1.25)], 1, 'motor').items[0].change).toBe('same');
+    expect(severityBySystem(changed(1.5).symptoms).motor).toBe(1.5);
+    expect(severityBySystem(changed(1.5).symptoms, 'ordinal').motor).toBe(2);
+    expect(severityBySystem([{ ...symptom, continuousSeverity: undefined }]).motor).toBe(2);
+  });
 
   it('lists the symptoms of the system with their side, severity and source regions', () => {
     const d = systemCellDetail(lm1, at(24), 'motor');

@@ -1,3 +1,4 @@
+import {type AdditionalLang, contentTemplate, contentFragment, withLocalized } from '../i18n/content';
 /**
  * Common anatomical variants of the circle of Willis and posterior circulation.
  * Prevalence figures are approximate ranges from MRA / autopsy series
@@ -52,17 +53,17 @@ export const VARIANTS: VariantDef[] = [
   },
   ...perSide((s) => ({
     id: `a1_hypoplastic_${s}`,
-    name: { zh: `${sideZh(s)}側 A1 發育不良`, en: `${sideEn(s)} A1 hypoplasia` },
-    desc: {
+    name: withLocalized({ zh: `${sideZh(s)}側 A1 發育不良`, en: `${sideEn(s)} A1 hypoplasia`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ A1 hypoplasia", [contentFragment(sideEn(s), contentLang)], contentLang) }),
+    desc: withLocalized({
       zh: `${sideZh(s)}側前大腦動脈主要靠對側經前交通動脈供血；對側 A1 或內頸動脈阻塞時，可能雙側前大腦動脈區同時梗塞。`,
-      en: `The ${sideEn(s).toLowerCase()} ACA is fed mainly from the other side through the AComm; if the other A1 or ICA fails, both ACA territories can infarct.`,
-    },
+      en: `The ${sideEn(s).toLowerCase()} ACA is fed mainly from the other side through the AComm; if the other A1 or ICA fails, both ACA territories can infarct.`, localized: (contentLang: AdditionalLang) => contentTemplate("The ⟪0⟫ ACA is fed mainly from the other side through the AComm; if the other A1 or ICA fails, both ACA territories can infarct.", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang),
+    }),
     prevalence: { zh: '約 5–10%', en: '≈5–10%' },
     vesselScale: { [`aca_a1_${s}`]: 0.45 },
   })),
   ...perSide((s) => ({
     id: `pcomm_absent_${s}`,
-    name: { zh: `${sideZh(s)}側後交通動脈缺如`, en: `${sideEn(s)} PComm absent` },
+    name: withLocalized({ zh: `${sideZh(s)}側後交通動脈缺如`, en: `${sideEn(s)} PComm absent`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ PComm absent", [contentFragment(sideEn(s), contentLang)], contentLang) }),
     desc: {
       zh: '前後循環在這一側不相通。MRA 研究中的「缺如」也包含直徑 < 1 mm、可能仍有少量血流的血管；模型則把它完全移除。',
       en: 'The anterior and posterior circulations are not connected on this side. In MRA studies "missing" includes vessels under 1 mm that may still carry some flow; the model removes the vessel completely.',
@@ -73,7 +74,7 @@ export const VARIANTS: VariantDef[] = [
   })),
   ...perSide((s) => ({
     id: `fetal_pca_${s}`,
-    name: { zh: `${sideZh(s)}側胚胎型後大腦動脈`, en: `${sideEn(s)} fetal-type PCA` },
+    name: withLocalized({ zh: `${sideZh(s)}側胚胎型後大腦動脈`, en: `${sideEn(s)} fetal-type PCA`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ fetal-type PCA", [contentFragment(sideEn(s), contentLang)], contentLang) }),
     desc: {
       zh: '後大腦動脈主要由內頸動脈經粗大的後交通動脈供血，P1 很細。內頸動脈的栓子因此可能造成枕葉梗塞。',
       en: 'The PCA is supplied mainly by the ICA through a large PComm with a tiny P1, so carotid emboli can reach the occipital lobe.',
@@ -84,11 +85,11 @@ export const VARIANTS: VariantDef[] = [
   })),
   ...perSide((s) => ({
     id: `va_hypoplastic_${s}`,
-    name: { zh: `${sideZh(s)}側椎動脈發育不良`, en: `${sideEn(s)} vertebral hypoplasia` },
-    desc: {
+    name: withLocalized({ zh: `${sideZh(s)}側椎動脈發育不良`, en: `${sideEn(s)} vertebral hypoplasia`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ vertebral hypoplasia", [contentFragment(sideEn(s), contentLang)], contentLang) }),
+    desc: withLocalized({
       zh: `基底動脈主要靠${o(s) === 'r' ? '右' : '左'}側椎動脈。優勢側阻塞時能否撐住，取決於後交通動脈能否從頸動脈逆向供應基底動脈：Willis 環完整時（本模型的預設，但只是少數人的解剖）可能沒有症狀；兩側後交通動脈都缺如或極細時（約 28% 的人）則可能造成嚴重的腦幹與小腦缺血。近端（頸部）阻塞時，頸部肌肉的側枝常還能部分補充。`,
-      en: `The basilar artery depends mainly on the ${o(s) === 'r' ? 'right' : 'left'} vertebral artery. Whether occlusion of the dominant side is tolerated depends on the PComms filling the basilar artery backwards from the carotids: with a complete circle (the model's default, a minority anatomy) it can be silent; with both PComms missing or hypoplastic (about 28% of people) it can cause severe brainstem and cerebellar ischaemia. A proximal (neck) occlusion is often partly refilled through neck-muscle collaterals.`,
-    },
+      en: `The basilar artery depends mainly on the ${o(s) === 'r' ? 'right' : 'left'} vertebral artery. Whether occlusion of the dominant side is tolerated depends on the PComms filling the basilar artery backwards from the carotids: with a complete circle (the model's default, a minority anatomy) it can be silent; with both PComms missing or hypoplastic (about 28% of people) it can cause severe brainstem and cerebellar ischaemia. A proximal (neck) occlusion is often partly refilled through neck-muscle collaterals.`, localized: (contentLang: AdditionalLang) => contentTemplate("The basilar artery depends mainly on the ⟪0⟫ vertebral artery. Whether occlusion of the dominant side is tolerated depends on the PComms filling the basilar artery backwards from the carotids: with a complete circle (the model's default, a minority anatomy) it can be silent; with both PComms missing or hypoplastic (about 28% of people) it can cause severe brainstem and cerebellar ischaemia. A proximal (neck) occlusion is often partly refilled through neck-muscle collaterals.", [(o(s) === 'r' ? contentFragment('right', contentLang) : contentFragment('left', contentLang))], contentLang),
+    }),
     prevalence: { zh: '約 5–15%', en: '≈5–15%' },
     vesselScale: {
       [`va_extracranial_${s}`]: 0.55,
@@ -100,22 +101,22 @@ export const VARIANTS: VariantDef[] = [
     // Huang W et al. Surg Radiol Anat 2023;45:947–957; Triantafyllou G et al. Neuroradiology
     // 2026;68:1607–1617 (see the vessel in vessels.ts)
     id: `persistent_trigeminal_${s}`,
-    name: { zh: `${sideZh(s)}側永存三叉動脈`, en: `${sideEn(s)} persistent trigeminal artery` },
-    desc: {
+    name: withLocalized({ zh: `${sideZh(s)}側永存三叉動脈`, en: `${sideEn(s)} persistent trigeminal artery`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ persistent trigeminal artery", [contentFragment(sideEn(s), contentLang)], contentLang) }),
+    desc: withLocalized({
       zh: `胚胎時期的頸動脈—基底動脈吻合沒有消失：${sideZh(s)}側海綿竇段內頸動脈直接接上基底動脈中上段，接點以下的基底動脈較細（模型把它縮小）。基底動脈上段因此大多由這條內頸動脈供應，頸動脈的栓子可能經由它造成腦幹或小腦梗塞。`,
-      en: `The embryonic carotid–basilar anastomosis persists: the ${sideEn(s).toLowerCase()} cavernous ICA joins the basilar artery directly, and the basilar artery below the junction is small (the model narrows it). The upper basilar artery is then fed largely by this ICA, and carotid emboli can reach the brainstem or cerebellum through it.`,
-    },
+      en: `The embryonic carotid–basilar anastomosis persists: the ${sideEn(s).toLowerCase()} cavernous ICA joins the basilar artery directly, and the basilar artery below the junction is small (the model narrows it). The upper basilar artery is then fed largely by this ICA, and carotid emboli can reach the brainstem or cerebellum through it.`, localized: (contentLang: AdditionalLang) => contentTemplate("The embryonic carotid–basilar anastomosis persists: the ⟪0⟫ cavernous ICA joins the basilar artery directly, and the basilar artery below the junction is small (the model narrows it). The upper basilar artery is then fed largely by this ICA, and carotid emboli can reach the brainstem or cerebellum through it.", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang),
+    }),
     prevalence: { zh: '約 0.06–0.2%', en: '≈0.06–0.2%' },
     vesselScale: { [`trigeminal_persistent_${s}`]: 1, basilar_lower: 0.7, basilar_mid: 0.7 },
     excludes: [`persistent_trigeminal_${o(s)}`],
   })),
   ...perSide((s) => ({
     id: `asa_unilateral_${s}`,
-    name: { zh: `前脊髓動脈只由${sideZh(s)}側椎動脈發出`, en: `Anterior spinal artery from the ${sideEn(s).toLowerCase()} vertebral only` },
-    desc: {
+    name: withLocalized({ zh: `前脊髓動脈只由${sideZh(s)}側椎動脈發出`, en: `Anterior spinal artery from the ${sideEn(s).toLowerCase()} vertebral only`, localized: (contentLang: AdditionalLang) => contentTemplate("Anterior spinal artery from the ⟪0⟫ vertebral only", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang) }),
+    desc: withLocalized({
       zh: `${o(s) === 'r' ? '右' : '左'}側的前脊髓動脈根部缺如，整條前脊髓動脈只靠${sideZh(s)}側椎動脈。${sideZh(s)}側椎動脈顱內段阻塞時，延髓內側也會跟著梗塞，不只外側；整條前脊髓動脈都靠它時，模型中兩側延髓內側都梗塞（雙側延髓內側梗塞，再加上延髓外側的徵象，四肢無力）。只有同一側的延髓外側與內側（半側延髓／Babinski–Nageotte 症候群，對側偏癱）需要另一側的延髓內側沒事：例如椎動脈連同它自己那一側的前脊髓動脈根部一起阻塞。`,
-      en: `The ${o(s) === 'r' ? 'right' : 'left'} ASA root is missing, so the whole anterior spinal artery hangs on the ${sideEn(s).toLowerCase()} vertebral. Occluding that vertebral then infarcts the medial medulla as well as the lateral one; with the whole ASA hanging on it, the model infarcts the medial medulla on both sides (a bilateral medial medullary infarction with the lateral medullary signs, all four limbs weak). The lateral and medial medulla of one side only (hemimedullary / Babinski–Nageotte syndrome, with a hemiparesis of the opposite side) needs the other medial medulla spared: for example a vertebral occlusion that also takes the ASA root of its own side.`,
-    },
+      en: `The ${o(s) === 'r' ? 'right' : 'left'} ASA root is missing, so the whole anterior spinal artery hangs on the ${sideEn(s).toLowerCase()} vertebral. Occluding that vertebral then infarcts the medial medulla as well as the lateral one; with the whole ASA hanging on it, the model infarcts the medial medulla on both sides (a bilateral medial medullary infarction with the lateral medullary signs, all four limbs weak). The lateral and medial medulla of one side only (hemimedullary / Babinski–Nageotte syndrome, with a hemiparesis of the opposite side) needs the other medial medulla spared: for example a vertebral occlusion that also takes the ASA root of its own side.`, localized: (contentLang: AdditionalLang) => contentTemplate("The ⟪0⟫ ASA root is missing, so the whole anterior spinal artery hangs on the ⟪1⟫ vertebral. Occluding that vertebral then infarcts the medial medulla as well as the lateral one; with the whole ASA hanging on it, the model infarcts the medial medulla on both sides (a bilateral medial medullary infarction with the lateral medullary signs, all four limbs weak). The lateral and medial medulla of one side only (hemimedullary / Babinski–Nageotte syndrome, with a hemiparesis of the opposite side) needs the other medial medulla spared: for example a vertebral occlusion that also takes the ASA root of its own side.", [(o(s) === 'r' ? contentFragment('right', contentLang) : contentFragment('left', contentLang)), contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang),
+    }),
     prevalence: { zh: '常見，但各研究比例差異很大', en: 'Common; reported frequencies vary widely' },
     vesselScale: { [`asa_root_${o(s)}`]: 0 },
     supplyOverride: {
@@ -138,7 +139,7 @@ export const VARIANTS: VariantDef[] = [
   // and can be combined.
   ...perSide((s) => ({
     id: `percheron_${s}`,
-    name: { zh: `Percheron 動脈（起自${sideZh(s)}側 P1）`, en: `Artery of Percheron (from ${sideEn(s).toLowerCase()} P1)` },
+    name: withLocalized({ zh: `Percheron 動脈（起自${sideZh(s)}側 P1）`, en: `Artery of Percheron (from ${sideEn(s).toLowerCase()} P1)`, localized: (contentLang: AdditionalLang) => contentTemplate("Artery of Percheron (from ⟪0⟫ P1)", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang) }),
     desc: {
       zh: '單一條視丘穿通動脈同時供應雙側視丘旁正中；它一旦阻塞就會雙側梗塞，造成嗜睡、記憶障礙與垂直眼動障礙。這是不含中腦的型態；中腦或視丘前部也由它供應時，另見「含中腦」「含視丘前部」兩個變異。',
       en: 'A single thalamoperforating trunk feeds both paramedian thalami; its occlusion causes bilateral infarcts with drowsiness, amnesia and vertical gaze palsy. This is the pattern without the midbrain; when the trunk also feeds the midbrain or the anterior thalami, see the "with midbrain" and "with anterior thalamus" variants.',
@@ -159,10 +160,10 @@ export const VARIANTS: VariantDef[] = [
   })),
   ...perSide((s) => ({
     id: `percheron_mid_${s}`,
-    name: {
+    name: withLocalized({
       zh: `Percheron 動脈含中腦分支（起自${sideZh(s)}側 P1）`,
-      en: `Artery of Percheron with midbrain branches (from ${sideEn(s).toLowerCase()} P1)`,
-    },
+      en: `Artery of Percheron with midbrain branches (from ${sideEn(s).toLowerCase()} P1)`, localized: (contentLang: AdditionalLang) => contentTemplate("Artery of Percheron with midbrain branches (from ⟪0⟫ P1)", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang),
+    }),
     desc: {
       zh: '同一條主幹除了雙側視丘旁正中，也供應兩側中腦上部的旁正中被蓋，是 Percheron 梗塞最常見的型態。阻塞時除了嗜睡、記憶障礙，還有動眼神經麻痺等眼球運動障礙與更深的意識障礙；長期功能良好的比例只有約 25%（不含中腦時約 67%）。可與「含視丘前部」合併。',
       en: 'The same trunk feeds both paramedian thalami and the paramedian tegmentum of the upper midbrain on both sides, the commonest pattern of Percheron infarction. Besides drowsiness and amnesia its occlusion gives oculomotor palsies and other eye-movement disorders and deeper impairment of consciousness; only about 25% do well in the long term (about 67% without the midbrain). Can be combined with "with anterior thalamus".',
@@ -194,10 +195,10 @@ export const VARIANTS: VariantDef[] = [
   })),
   ...perSide((s) => ({
     id: `percheron_ant_${s}`,
-    name: {
+    name: withLocalized({
       zh: `Percheron 動脈含視丘前部（起自${sideZh(s)}側 P1）`,
-      en: `Artery of Percheron with anterior thalamus (from ${sideEn(s).toLowerCase()} P1)`,
-    },
+      en: `Artery of Percheron with anterior thalamus (from ${sideEn(s).toLowerCase()} P1)`, localized: (contentLang: AdditionalLang) => contentTemplate("Artery of Percheron with anterior thalamus (from ⟪0⟫ P1)", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang),
+    }),
     desc: {
       zh: '結節視丘動脈缺如時，由同一條主幹供應雙側視丘前部與旁正中。阻塞時記憶與執行功能受損更廣，可能造成「視丘性失智」。單獨使用是不含中腦的型態；與「含中腦分支」合併則是視丘前部加中腦的型態。',
       en: 'When the tuberothalamic arteries are missing, the same trunk feeds both anterior and both paramedian thalami. Its occlusion damages memory and executive function more widely and can cause "thalamic dementia". On its own this is the pattern without the midbrain; combined with "with midbrain branches" it is the pattern with anterior thalami and midbrain.',
@@ -221,14 +222,14 @@ export const VARIANTS: VariantDef[] = [
   // DM et al. Stroke 2008;39:62–68), so midbrain extension is common.
   ...perSide((s) => ({
     id: `thalamomesencephalic_${s}`,
-    name: {
+    name: withLocalized({
       zh: `${sideZh(s)}側旁正中動脈也供應中腦`,
-      en: `${sideEn(s)} paramedian artery also feeding the midbrain`,
-    },
-    desc: {
+      en: `${sideEn(s)} paramedian artery also feeding the midbrain`, localized: (contentLang: AdditionalLang) => contentTemplate("⟪0⟫ paramedian artery also feeding the midbrain", [contentFragment(sideEn(s), contentLang)], contentLang),
+    }),
+    desc: withLocalized({
       zh: `${sideZh(s)}側視丘穿通動脈除了視丘旁正中，也供應同側中腦上部的旁正中被蓋。阻塞時視丘與中腦一起梗塞（視丘中腦旁正中梗塞）：除了嗜睡與記憶障礙，還有同側動眼神經麻痺與對側運動失調。`,
-      en: `The ${sideEn(s).toLowerCase()} thalamoperforating artery feeds the paramedian tegmentum of the upper midbrain on the same side as well as the paramedian thalamus. Its occlusion infarcts both (a paramedian thalamomesencephalic infarct): drowsiness and amnesia plus a same-side oculomotor palsy and opposite-side ataxia.`,
-    },
+      en: `The ${sideEn(s).toLowerCase()} thalamoperforating artery feeds the paramedian tegmentum of the upper midbrain on the same side as well as the paramedian thalamus. Its occlusion infarcts both (a paramedian thalamomesencephalic infarct): drowsiness and amnesia plus a same-side oculomotor palsy and opposite-side ataxia.`, localized: (contentLang: AdditionalLang) => contentTemplate("The ⟪0⟫ thalamoperforating artery feeds the paramedian tegmentum of the upper midbrain on the same side as well as the paramedian thalamus. Its occlusion infarcts both (a paramedian thalamomesencephalic infarct): drowsiness and amnesia plus a same-side oculomotor palsy and opposite-side ataxia.", [contentFragment(sideEn(s).toLowerCase(), contentLang)], contentLang),
+    }),
     prevalence: {
       zh: '常見：旁正中視丘梗塞約 76% 有眼動障礙（多為垂直眼動）',
       en: 'Common: eye-movement palsies (mostly vertical) in ≈76% of paramedian thalamic strokes',

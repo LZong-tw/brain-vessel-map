@@ -193,6 +193,12 @@ describe('treatment details in the link', () => {
 });
 
 describe('the 3D view falls back to Willis when WebGL is unavailable', () => {
+  it('round-trips the slice view without requiring WebGL', () => {
+    __setWebGLForTests(false);
+    applyHash('#view=slices');
+    expect(useApp.getState().view).toBe('slices');
+    expect(encodeState(useApp.getState())).toContain('view=slices');
+  });
   it('honours an explicit view=willis/brainstem regardless of WebGL', () => {
     __setWebGLForTests(false);
     applyHash('#view=brainstem');

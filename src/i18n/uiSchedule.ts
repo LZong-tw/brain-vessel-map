@@ -93,4 +93,34 @@ const en: ScheduleStrings = {
   markTreatment: 'Treatment',
 };
 
-export const SCHEDULE_UI: Record<Lang, ScheduleStrings> = { 'zh-TW': zh, en };
+const cn: ScheduleStrings = {
+  timing: '时程', timingHint: '时间以时间轴为准（0 = 第一个事件）。治疗仅使当时已存在的完全闭塞再通；狭窄和之后发生的闭塞不受影响。',
+  phase: (k) => `第 ${k} 阶段`, starts: '开始', reopens: '自行再通', never: '不会', after: (d) => `${d}后`,
+  untilNext: '直至下一阶段', severity: '程度', laterOcclusion: '之后完全闭塞的时间', add: '添加', removePhase: '移除此阶段',
+  status: { pending: '尚未发生', active: '进行中', reopened: '已自行再通', treated: '已治疗再通' }, progressed: '已进展',
+  chipFrom: (a) => `从${a}起`, chipRange: (a, b) => `${a}–${b}`,
+  indexOnset: (at) => `脑水肿与后续并发症从 ${at} 起算（导致最大梗死的闭塞开始时）。`,
+  treatAfterFirst: '第一个事件后', treatAfter: (what, at) => `${what}闭塞（${at}）后`, plus: (d) => `+${d}`,
+  markOnset: '闭塞开始', markReopen: '自行再通', markTreatment: '治疗',
+};
+const de: ScheduleStrings = {
+  timing: 'Zeitverlauf', timingHint: 'Die Zeiten beziehen sich auf die Zeitachse (0 = erstes Ereignis). Die Behandlung rekanalisiert nur zu diesem Zeitpunkt bestehende vollständige Verschlüsse; Stenosen und spätere Verschlüsse bleiben bestehen.',
+  phase: (k) => `Phase ${k}`, starts: 'Beginn', reopens: 'Spontane Rekanalisation', never: 'Nie', after: (d) => `nach ${d}`,
+  untilNext: 'Bis zur nächsten Phase', severity: 'Schweregrad', laterOcclusion: 'Späterer vollständiger Verschluss bei', add: 'Hinzufügen', removePhase: 'Diese Phase entfernen',
+  status: { pending: 'noch nicht eingetreten', active: 'bestehend', reopened: 'spontan rekanalisiert', treated: 'durch Behandlung rekanalisiert' },
+  progressed: 'fortgeschritten', chipFrom: (a) => `ab ${a}`, chipRange: (a, b) => `${a}–${b}`,
+  indexOnset: (at) => `Hirnödem und Komplikationen werden ab ${at} berechnet (Beginn des Verschlusses, der den größten Infarkt verursacht).`,
+  treatAfterFirst: 'Nach dem ersten Ereignis', treatAfter: (what, at) => `Nach Verschluss von ${what} (${at})`, plus: (d) => `+${d}`,
+  markOnset: 'Verschlussbeginn', markReopen: 'Spontane Rekanalisation', markTreatment: 'Behandlung',
+};
+const ja: ScheduleStrings = {
+  timing: '時間経過', timingHint: '時間はタイムラインに基づきます（0 = 最初のイベント）。治療はその時点で存在する完全閉塞のみを再開通させ、狭窄や後から生じる閉塞には影響しません。',
+  phase: (k) => `第 ${k} 段階`, starts: '開始', reopens: '自然再開通', never: 'なし', after: (d) => `${d}後`,
+  untilNext: '次の段階まで', severity: '程度', laterOcclusion: '後に完全閉塞となる時点', add: '追加', removePhase: 'この段階を削除',
+  status: { pending: '未発生', active: '持続中', reopened: '自然再開通済み', treated: '治療で再開通済み' }, progressed: '進行済み',
+  chipFrom: (a) => `${a}から`, chipRange: (a, b) => `${a}–${b}`,
+  indexOnset: (at) => `脳浮腫と合併症は ${at} から計算します（最大の梗塞を生じる閉塞の開始時点）。`,
+  treatAfterFirst: '最初のイベント後', treatAfter: (what, at) => `${what}の閉塞（${at}）後`, plus: (d) => `+${d}`,
+  markOnset: '閉塞開始', markReopen: '自然再開通', markTreatment: '治療',
+};
+export const SCHEDULE_UI: Record<Lang, ScheduleStrings> = { 'zh-TW': zh, en, 'zh-CN': cn, de, ja };

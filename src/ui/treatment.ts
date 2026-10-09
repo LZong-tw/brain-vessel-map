@@ -6,6 +6,7 @@
 
 import { VESSEL_BY_ID, tr, vesselName } from '../anatomy';
 import { formatHours } from '../anatomy/timeline';
+import { inlineText } from '../i18n/content';
 import type { Lang } from '../anatomy/types';
 import { siteGroupOf as defaultSiteGroupOf, type EvidenceRange, type RecanalisationEvidence, type SiteGroup } from '../anatomy/recanalisation';
 import type { Occlusion } from '../engine/hemodynamics';
@@ -115,7 +116,7 @@ export function ivtLagForWindow(delayH: number, windowH: number, lang: Lang): st
 /** "3–5 h" / "3–5 小時": the drug start implied by flow returning `delayH` after onset */
 export function ivtStartRange(delayH: number, lang: Lang): string {
   const n = (h: number) => `${+Math.max(0, h).toFixed(1)}`;
-  return `${n(delayH - IVT_LAG_H.max)}–${n(delayH - IVT_LAG_H.min)}${lang === 'en' ? ' h' : ' 小時'}`;
+  return `${n(delayH - IVT_LAG_H.max)}–${n(delayH - IVT_LAG_H.min)}${inlineText(lang, ' 小時', ' h', ' 小时', ' h', ' 時間')}`;
 }
 
 /** medium/distal vessel sites: their own haemorrhage figures and the 2025 trials' warning */

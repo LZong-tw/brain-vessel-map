@@ -5,6 +5,8 @@ import { EDEMA_UI } from '../i18n/uiEdema';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { EDEMA_COLORS, STATE_COLORS, VESSEL_COLORS } from '../ui/colors';
+import { inlineText } from '../i18n/content';
+import { MRA_GEOMETRY } from '../i18n/mraGeometry';
 
 export function Legend() {
   const t = useT();
@@ -41,19 +43,21 @@ export function Legend() {
             ]
           : [];
   const vessels: [string, string][] = [
-    [VESSEL_COLORS.artery, lang === 'en' ? 'Normal flow' : '正常血流'],
+    [VESSEL_COLORS.artery, inlineText(lang, '正常血流', 'Normal flow', '正常血流', 'Normaler Blutfluss', '正常血流')],
     [VESSEL_COLORS.occluded, t.states.occluded],
     [VESSEL_COLORS.noFlow, t.noFlow],
     [VESSEL_COLORS.reversed, t.reversedFlow],
-    [VESSEL_COLORS.collateral, lang === 'en' ? 'Active collateral' : '啟動的側枝'],
+    [VESSEL_COLORS.collateral, inlineText(lang, '啟動的側枝', 'Active collateral', '启用的侧支', 'Aktive Kollaterale', '機能している側副血行')],
   ];
   return (
     <div className={`legend${open ? '' : ' closed'}`}>
       <button className="legend-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
         {t.legend} {open ? '▾' : '▸'}
       </button>
+      <p className="mra-notice small muted">{MRA_GEOMETRY[lang].notice}</p>
       {open && (
         <div className="legend-body">
+          <a href="https://zenodo.org/records/17358162" target="_blank" rel="noreferrer">{MRA_GEOMETRY[lang].source}</a>
           {tissue.length > 0 && (
             <ul>
               {tissue.map(([c, l]) => (

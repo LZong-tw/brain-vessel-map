@@ -8,8 +8,10 @@ import { isQualifier } from '../anatomy/symptoms';
 import { NO_BACKUP_KINDS, redundancyFor, type BottleneckSite, type RedundancyKind } from '../anatomy/redundancy';
 import { PART_OF, type NihssResult, type SymptomItem, type UnexaminableWhy } from '../engine/clinical';
 import type { SimResult } from '../engine/simulate';
+import { continuousSeverity } from '../engine/deficitGrades';
 import type { TissueState } from '../engine/tissue';
 import type { Lang } from '../anatomy/types';
+import { usesLatinSpacing } from '../i18n/locales';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
 import { SEV_FILL, SYSTEM_ORDER, symptomKey, systemOf } from './format';
 
@@ -181,7 +183,7 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
     if (b.delayed || isQualifier(b.id)) continue;
     const n = nowByKey.get(symptomKey(b));
     if (n) {
-      if (n.sev < b.sev) out.push({ s: n, from: b.sev, to: n.sev });
+      if (continuousSeverity(n) < continuousSeverity(b) - Number.EPSILON) out.push({ s: n, from: continuousSeverity(b), to: continuousSeverity(n) });
     } else if (
       !hidden.has(symptomKey(b)) &&
       !(MERGED_INTO[b.id] ?? []).some((id) => nowIds.has(id)) &&
@@ -189,7 +191,7 @@ export function improvedSince(before: SymptomItem[], now: SymptomItem[], unexami
       // a deficit of both sides now listed once per side (Y2-17) has not gone
       !(b.side === 'both' && now.some((x) => x.id === b.id))
     ) {
-      out.push({ s: b, from: b.sev, to: 0 });
+      out.push({ s: b, from: continuousSeverity(b), to: 0 });
     }
   }
   return out.sort((a, b) => b.from - b.to - (a.from - a.to) || b.from - a.from);
@@ -216,7 +218,7 @@ export function unexaminableNow(sim: SimResult): SymptomItem[] {
  */
 export function noBackupNow(sim: SimResult, prev: SimResult | null): SymptomItem[] {
   const better = new Set(prev ? improvedSince(prev.symptoms, sim.symptoms, sim.unexaminable).map((x) => symptomKey(x.s)) : []);
-  return sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s) && (s.deadSev ?? 0) >= s.sev && !better.has(symptomKey(s))).sort((a, b) => b.sev - a.sev);
+  return sim.symptoms.filter((s) => !s.delayed && hasNoBackup(s) && (s.deadContinuousSeverity ?? s.deadSev ?? 0) >= continuousSeverity(s) && !better.has(symptomKey(s))).sort((a, b) => continuousSeverity(b) - continuousSeverity(a));
 }
 
 /**
@@ -233,7 +235,7 @@ export function unexaminableHeading(items: { why?: UnexaminableWhy }[], lang: La
   }
   return {
     label: rt.unexaminableMixedLabel,
-    title: whys.map((w) => `${rt.unexaminableBy[w].tag}${lang === 'en' ? ': ' : '：'}${rt.unexaminableBy[w].title}`).join(lang === 'en' ? ' ' : ''),
+    title: whys.map((w) => `${rt.unexaminableBy[w].tag}${usesLatinSpacing(lang) ? ': ' : '：'}${rt.unexaminableBy[w].title}`).join(usesLatinSpacing(lang) ? ' ' : ''),
     tag: (s) => rt.unexaminableBy[s.why ?? 'consciousness'].tag,
   };
 }

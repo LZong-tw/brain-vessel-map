@@ -6,6 +6,7 @@ import type { SimResult } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { SCALE, vesselCurve } from './coords';
 import { liftOnBeforeCompile, particleLift } from './liftPoints';
+import { visibleWithNeck } from './neckVisibility';
 
 interface Track {
   pts: Float32Array; // sampled polyline (xyz …)
@@ -32,7 +33,7 @@ export function FlowParticles({ sim }: { sim: SimResult }) {
     const phase: number[] = [];
     for (const v of VESSELS) {
       if (v.visualOnly) continue;
-      if (v.group === 'extracranial' && !layers.neck) continue;
+      if (!visibleWithNeck(v, layers.neck)) continue;
       const q = sim.hemo.vesselFlow[v.id] ?? 0;
       if (Math.abs(q) < 0.3) continue;
       const curve = vesselCurve(v);

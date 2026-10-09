@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useApp } from '../state/store';
 import { MobileNav } from './MobileNav';
+import type { Lang } from '../anatomy/types';
 
 beforeEach(() => {
   useApp.getState().resetAll();
@@ -16,6 +17,11 @@ afterEach(() => {
 });
 
 describe('mobile navigation', () => {
+  it.each<[Lang, string]>([['zh-TW', '2D 切片'], ['en', '2D slices'], ['zh-CN', '2D 切片'], ['de', '2D-Schnitte'], ['ja', '2D断面']])('names the slice view in %s', (lang, label) => {
+    useApp.setState({ view: 'slices', lang });
+    render(<MobileNav />);
+    expect(screen.getAllByRole('button')[1].textContent).toBe(label);
+  });
   it('is labelled in Chinese and in English', () => {
     render(<MobileNav />);
     screen.getByRole('navigation', { name: '切換面板' });

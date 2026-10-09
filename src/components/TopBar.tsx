@@ -1,5 +1,7 @@
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
+import { LANGUAGES, LANGUAGE_LABELS, LANGUAGE_NAMES } from '../i18n/locales';
+import type { Lang } from '../anatomy/types';
 
 export function TopBar() {
   const t = useT();
@@ -25,9 +27,9 @@ export function TopBar() {
         <button className="btn ghost" onClick={() => setModal('about')}>
           {t.about}
         </button>
-        <button className="btn ghost" onClick={() => setLang(lang === 'en' ? 'zh-TW' : 'en')} lang={lang === 'en' ? 'zh-TW' : 'en'}>
-          {t.language}
-        </button>
+        <select className="btn ghost" aria-label={LANGUAGE_LABELS[lang]} value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+          {LANGUAGES.map((code) => <option key={code} value={code} lang={code}>{LANGUAGE_NAMES[code]}</option>)}
+        </select>
       </div>
       <div className="disclaimer-strip" role="note">
         {t.disclaimerShort}

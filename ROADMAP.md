@@ -1,3 +1,5 @@
+[繁體中文](ROADMAP.md) · [简体中文](ROADMAP.zh-CN.md) · [English](ROADMAP.md) · [Deutsch](ROADMAP.de.md) · [日本語](ROADMAP.ja.md)
+
 # 路線圖 · Roadmap
 
 ## 已完成 · Done
@@ -30,8 +32,8 @@
   · Case interface: before-onset / occlusion-event / treatment cards, templates that load or add up several arteries; *Now / Outcome / Details* on the right, with treated vs untreated in *Outcome*
 - 35 個教學範本、單一穿通支阻塞（腔隙性中風，可選落點；內囊警訊症候群）、栓子漂流模擬
   · 35 teaching templates, single-perforator (lacunar) occlusions (with a choice of site; the capsular warning syndrome), embolus drift simulation
-- 3D、Willis 環、腦幹切面三種視圖；繁中／英文；可分享網址；手機版面
-  · 3D, circle-of-Willis and brainstem-section views; Traditional Chinese / English; shareable URLs; phone layout
+- 3D、Willis 環、腦幹切面三種視圖；繁中／簡中／英文／德文／日文；可分享網址；手機版面
+  · 3D, circle-of-Willis and brainstem-section views; Traditional Chinese / Simplified Chinese / English / German / Japanese; shareable URLs; phone layout
 - GitHub Pages 自動部署、CI（lint、型別、單元與元件測試、建置）、完整資料來源與授權聲明
   · GitHub Pages deployment, CI (lint, types, unit and component tests, build), full source and licence notices
 
@@ -53,29 +55,51 @@
 
 - [ ] **臨床審閱**：請神經科／神經放射科醫師審閱腦區—症狀對應、症候群規則與時間軸（最重要）
   · **Clinical review** of the region–symptom mapping, syndrome rules and time courses by a neurologist / neuroradiologist (most important)
-- [ ] 以公開資料（例如取栓試驗的最終梗塞體積分佈）做更系統的參數校正，並把校正結果寫進測試；包括跨越兩段的基底動脈阻塞（目前側枝中等或差時再通幾乎救不回橋腦）、側枝中等與差時的血流（讓早期梗塞擴大速度不必靠時間常數來符合實測），以及讓 Willis 環與後顱窩的動脈也左右對稱（目前只有大腦半球表面的動脈對稱，後循環的校正要跟著重做）；還有小腦與延髓的壞死時程（目前沿用側枝供應組織的一般時程）、腔隙自己的時程（目前依它所在組織的時程）、半影區仍算「有風險」的時間（目前 48 小時），以及頂後、顳枕、顳前與顳後動脈的軟腦膜側枝
-  · Systematic calibration against public data (e.g. final infarct volumes in thrombectomy trials), encoded as tests, including basilar occlusions over two segments (with moderate or poor collaterals reopening them saves hardly any of the pons in the model now), the flow of moderate and poor collaterals (so that the early growth of the infarct matches the measured rates without the time constants carrying it), and making the circle of Willis and the posterior-fossa arteries mirror images too (only the arteries over the hemispheres are now; the posterior calibration would have to be redone with them); also the time course of the cerebellum and the medulla (now the general course of tissue that collaterals reach) and of lacunes (now that of the tissue they lie in), how long the penumbra counts as at risk (now 48 h), and the leptomeningeal anastomoses of the posterior parietal, temporo-occipital and temporal arteries
 - [ ] 失語與忽略的代償隨病灶範圍下降的比例（包括韋尼克型失語隨韋尼克區梗塞比例下降的範圍）、腦幹分級的下限（15%）、瓶頸作用的範圍（症狀門檻到兩側 40%）、中腦外側交感纖維的門檻（35%）與「保住 50 mL 算有益」的門檻，以病灶負荷研究（例如 PLORAS、Wilson 2023 的分組資料、Naeser 1987 的韋尼克區分組）校正
   · Calibrate the fall of aphasia and neglect recovery with lesion extent (the range of Wernicke's area over which a Wernicke aphasia's recovery falls included), the brainstem's lower grading limit (15 %), the range of the bottleneck (from the symptom threshold to 40 % of both sides), the lateral-midbrain threshold of the sympathetic fibres (35 %) and the 50 mL benefit threshold against lesion-load data (e.g. PLORAS, the groups of Wilson 2023, the Wernicke's-area groups of Naeser 1987)
-- [ ] 一側的阻塞（最主要是前、後大腦動脈）會讓 Willis 環與基底動脈頂端的壓力稍微升高、另一側的側枝多一點，使另一側的梗塞（多半是中大腦動脈區）變小，大梗塞最多約五分之一、小梗塞更多，少數組合連總梗塞量都變小：讓阻塞給其他分支增加的壓力不再餵給側枝，或在調節血流的動脈處加入自動調節，並把「加上另一側的阻塞不讓這一側的梗塞變小」寫成測試（目前列為限制；這會改變所有受影響的合併病例的體積、腫脹與疝脫）
-  · An occlusion of one side (most of all an ACA or PCA one) slightly raises the pressure in the circle of Willis and the basilar tip and the other side's collaterals with it, so the other side's infarct (mostly an MCA one) is smaller, by up to about a fifth of a large infarct and more of a small one, and in a few pairs the total infarct is smaller too: keep the pressure an occlusion gives the other branches out of the collateral supply, or let the arteries that regulate flow autoregulate, and encode "adding an occlusion of the other side never shrinks this side's infarct" as a test (a limitation for now: this moves the volumes, swelling and herniation of every combined case it touches)
-- [ ] 缺損改成連續分級（或加上遲滯），讓剛好落在兩級交界的極少量組織不會讓肢體從完全癱瘓跳到稍微能動（目前列為限制：中段基底動脈阻塞、側枝差、12 小時取栓只救回 0.2 mL，3 個月 NIHSS 卻是 20 分而不是 24 分；文字已不把這個差距算在再通身上）
-  · Grade deficits continuously (or with hysteresis), so that a sliver of tissue at the edge between two grades cannot turn a plegic limb into one that moves a little (a limitation for now: a mid-basilar occlusion with poor collaterals reopened at 12 h saves 0.2 mL, yet the NIHSS at 3 months is 20 rather than 24; the texts no longer credit the reopening with the difference)
+- [x] 對側阻塞造成額外側枝供血壓力的數值保護；以 MCA 加上對側 ACA/PCA 阻塞、三種側枝分級與低／正常／高血壓的案例驗證，不把數值保護稱為已校正的生理自動調節。
+  · Numerical safeguard against excess collateral pressure from an opposite-side occlusion, tested for MCA plus contralateral ACA/PCA occlusions across three collateral grades and low/normal/high pressure; not calibrated physiological autoregulation.
+  · 實作採已授權的數值保護：限制對側阻塞造成的額外供血壓力，維持實際血流網路的守恆；不是已校正的生理自動調節模型。[來源、範圍與限制](docs/contralateral-pressure.md)。 Implementation uses the authorized numerical safeguard for excess donor pressure, preserving circuit conservation; it is not calibrated physiological autoregulation. [Sources, scope and limitations](docs/contralateral-pressure.md).
+- [x] 缺損保留連續嚴重度，供合併、恢復比較與顯示；運動項目映射到 NIHSS 的整數序位級別，保留中間分級。NIHSS 仍會在級別交界改變，微量組織造成的分數差距仍不算治療效益；不加入遲滯。[分級來源與模型限制](docs/deficit-grading.md)。
+  · Preserve continuous deficit severity through merges, recovery comparisons and display; map motor items to whole ordinal NIHSS grades, including intermediate grades. NIHSS still changes at grade boundaries, and a score difference from a sliver of tissue is not credited as treatment benefit; no hysteresis. [Grading sources and model limits](docs/deficit-grading.md).
 - [ ] 脊髓：下方根髓動脈對上段頸髓的補充（目前兩側椎動脈在脊髓分支之後阻塞時，C1–C3 整段梗塞），以及脊髓梗塞自己的恢復曲線（目前沿用腦的，到 6 個月幾乎不變；Robertson 2012）
   · The spinal cord: the radiculomedullary supply of the upper cervical cord from below (both vertebral arteries blocked beyond their spinal roots now infarct all of C1–C3), and a recovery curve of its own for a spinal cord infarct (now the brain's, which leaves it nearly unchanged at 6 months; Robertson 2012)
 - [ ] 中央型疝脫的續發梗塞：目前單獨就會疝脫的半球保留它的後與前大腦動脈區梗塞（前者有病例記載，後者是模型的選擇），只有兩側合計才達昏迷範圍時不加；也還沒有間腦與中腦本身的缺血或 Duret 出血
   · The secondary infarcts of a central herniation: a hemisphere that would herniate on its own now keeps its posterior and anterior cerebral infarcts (the first described in case series, the second a model choice), and none are added when only both together reach the coma range; nor are ischaemia of the diencephalon and midbrain themselves or Duret haemorrhages modelled yet
-- [ ] 病例卡片可直接改單一階段血管的阻塞程度（目前要到血管詳細資料改）
-  · Change a single-phase vessel's degree of occlusion in the case card (currently only in the vessel details)
-- [ ] 靜脈系統與靜脈竇血栓；出血性中風（目前完全沒有模擬）
-  · Venous system and venous sinus thrombosis; haemorrhagic stroke (not simulated at all yet)
-- [ ] 以 MRA 分割的真實血管樹取代部分手繪的小分支路徑
-  · Replace hand-drawn small-branch paths with vessel trees segmented from MRA
-- [ ] 2D 切片檢視（在 T1 影像上疊加梗塞區，像看 MRI 一樣）
-  · 2D slice view (infarct overlaid on T1 images, like reading an MRI)
-- [ ] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
+- [x] 病例卡片可直接改單一階段血管的阻塞程度
+  · Change a single-phase vessel's degree of occlusion in the case card
+- [x] 簡化靜脈／靜脈竇血栓引流與觀測血腫的壓力效應；獨立研究模型，不改變目前病例。[來源與限制](docs/venous-hemorrhage.md)。
+  · Reduced venous/sinus-thrombosis outflow and observed hematoma pressure effects; independent research models that do not change the current case. [Sources and limits](docs/venous-hemorrhage.md).
+  - [x] 獨立的自發性腦內出血血腫擴大風險計算器：重現 2018 年四因子模型，不生成出血體積或病灶邊界，也不估計治療效果。[公式、適用範圍與尚待查證的來源](docs/ich-expansion.md)。
+    · Separate spontaneous ICH expansion-risk calculator reproducing the 2018 four-predictor model, without generating hemorrhage volumes or lesion boundaries or estimating treatment effects. [Equation, domain and remaining source checks](docs/ich-expansion.md).
+- [x] 以真實 MRA 分割的前交通動脈與雙側後交通動脈曲線取代三條繪圖路徑；僅改顯示形狀，不改模擬參數。放置尚未驗證，遠端分支仍為手繪。[來源與限制](docs/mra-communicating-shapes.md)。
+  · Replace three rendered communicating vessel shapes (ACom and bilateral PCom) with real segmented MRA curves; display only, without changing simulation parameters. Placement is unvalidated and distal branches remain authored. [Sources and limitations](docs/mra-communicating-shapes.md).
+  - [x] 個別 MRA 遠端血管參考模式：以 Bravissima BG0001 的 13,206 個來源體素取代顯示中的手繪血管，保留缺口與孤立點，僅採來源的 ACA／MCA／PCA 血管群標籤；明示放置未驗證、無模擬血流對應。[来源與假設](docs/mra-distal.md)。
+    · Individual MRA distal anatomy mode replaces the authored vessel display with 13,206 source voxels from Bravissima BG0001, preserving gaps and isolated points and using only source arterial-family labels. Unvalidated placement and absent simulated-flow correspondence are visible in the UI. [Sources and assumptions](docs/mra-distal.md).
+- [x] 2D 切片檢視：真實 T1 模板上的 Liu 動脈供血區參考輪廓；梗塞以每個灌流單元的比例熱圖呈現，明示空間近似，並不捏造病灶邊界。圖譜對齊沿用近似轉換；[來源與限制](docs/slices.md)。
+  · 2D slice view: Liu reference arterial territory outlines on the real T1 template; infarction shown as a per-bed fraction heatmap with an explicit spatial fallback, without invented lesion boundaries. Atlas alignment uses the existing approximate transform; [sources and limitations](docs/slices.md).
+- [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
   · Accessibility: keyboard control of the 3D scene, a screen-reader summary of the results
-- [ ] 更多語言 · More languages
+- [x] 更多語言：簡體中文、德文、日文 · More languages: Simplified Chinese, German, Japanese
+
+## 已知限制 · Known limitations
+
+以下項目受限於可取得的公開資料，目前定位為教學示意，不再列為待辦；文件與介面維持「未驗證」標示。取得受控資料或臨床審閱後可重新開啟。
+  · Limited by available public data; these parts are positioned as teaching illustrations rather than open tasks. Docs and UI keep their "unvalidated" labels. They can be reopened once controlled-access data or clinical review is available.
+
+- 以公開資料做更系統的參數校正並寫進測試；前循環的首次 G-only 嘗試未通過，不採用為新側枝分級。[來源、結果與限制](docs/public-calibration.md)。
+  · Systematic public-data parameter calibration encoded as tests; the first anterior G-only attempt is rejected and is not adopted as a new collateral profile. [Sources, results and limits](docs/public-calibration.md).
+  · Additional Wheeler M1 early-growth timing fit also rejected: default-tissue slowing cannot reach the median; global slowing changes regional injury timings without paired evidence. No fitted multiplier is applied. 再次檢查 Wheeler 的早期 M1 增長資料仍未通過：只放慢預設組織無法達到中位數，放慢全部組織則缺乏各區域成對證據；不採用時間倍率。
+  - 實驗性校正診斷工作台：以 MacLellan 的三組梗塞增長中位數檢查單獨右 M1 阻塞；明列相反的候選 G 排序、無法達到的目標與過大的基線核心，固定既有組織參數且不改預設模擬。此項完成只代表可重現的診斷工具，不代表完成校正。
+    · Experimental calibration diagnostic workbench: check isolated right M1 against MacLellan's three growth medians, exposing reversed candidate G ordering, an unreachable target and excessive baseline cores; existing tissue parameters and defaults remain unchanged. Completion means a reproducible diagnostic tool, not successful calibration.
+  - 其餘尚未重新校正或驗證：跨兩段的基底動脈阻塞與後循環側枝血流、小腦與延髓的壞死時程、腔隙自己的時程、48 小時半影假設、Willis 環與後顱窩動脈的左右對稱，以及頂後、顳枕、顳前與顳後動脈的軟腦膜側枝。
+    · Remaining unvalidated calibration domains: two-segment basilar occlusions and posterior collateral flow; the time course of the cerebellum and the medulla; lacunar kinetics; the 48-hour penumbra convention; symmetry of the circle of Willis and posterior-fossa arteries; and posterior-parietal, temporo-occipital and temporal leptomeningeal anastomoses.
+- 耦合空間靜脈／出血性腦病灶、症狀與動態病程。
+  · Coupled spatial venous/hemorrhagic brain lesions, symptoms and dynamics.
+  · Still blocked after source audit: accessible PHE masks label edema regions, not blood or net added water; the old open CT-ICH files are unavailable and current masks have access restrictions. No paired CVST pressure/lesion/time/registration data identified. [Evidence and required inputs](docs/venous-hemorrhage.md#spatial-coupling-source-audit). 來源稽核後仍未完成：可取得的 PHE 標籤是水腫區，不是血液或淨新增水量；尚無成對的靜脈壓力、病灶與時程資料支持空間推算。
+- 以有授權、具解剖對應且完成對齊驗證的 MRA 血管樹取代其餘手繪遠端小分支。
+  · Replace the remaining authored distal small branches with licensed MRA vessel trees with anatomical correspondence and validated alignment.
+  · Named small-branch correspondence and alignment validation remain unavailable; the individual MRA reference mode does not change physiological topology or claim that completion. 小分支解剖對應與對齊驗證仍未完成；個別 MRA 參考模式不更改生理網路，也不代表本項已完成。
 
 歡迎開 issue 指出醫學內容的錯誤——請附上文獻來源。
 Issues pointing out medical errors are welcome — please include a reference.

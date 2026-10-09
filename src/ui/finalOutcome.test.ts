@@ -279,8 +279,8 @@ describe('V3-13: called unsettled only when the infarct or the deficits still ch
     deficits: [
       `NIHSS ${r.nihss.total}`,
       ...r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
-      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
-      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${x.why}`),
+      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}:${(x.continuousSeverity ?? x.sev).toFixed(2)}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
+      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${(x.continuousSeverity ?? x.sev).toFixed(2)}:${x.why}`),
     ].sort(),
   });
   const LATE: [string, OutcomeInput][] = [

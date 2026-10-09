@@ -6,12 +6,14 @@
 import bedsJson from './generated/beds.json';
 import vesselPaths from './generated/vesselPaths.json';
 import vesselRenderPaths from './generated/vesselRenderPaths.json';
+import mraCommunicatingPaths from './generated/mraCommunicatingPaths.json';
 import { expandSupply, expandVessels, regionSides, vid } from './expand';
 import { REGION_DEFS } from './regions';
 import { bedSupply } from './territories';
 import type { Bed, L, Lang, Region, RegionDef, SideOrMid, TerritoryCode, Vec3, Vessel } from './types';
 import { VESSEL_DEFS } from './vessels';
 import { indexById } from './indexById';
+import { localizedContent } from '../i18n/content';
 
 export * from './types';
 
@@ -30,7 +32,7 @@ interface RawBed {
 export const TARGET_BRAIN_VOLUME = 1250;
 
 const paths = vesselPaths as unknown as Record<string, Vec3[]>;
-const renderPaths = vesselRenderPaths as unknown as Record<string, Vec3[]>;
+const renderPaths = { ...vesselRenderPaths, ...mraCommunicatingPaths } as unknown as Record<string, Vec3[]>;
 
 export const VESSELS: Vessel[] = expandVessels(VESSEL_DEFS).map((v) => ({
   ...v,
@@ -128,11 +130,14 @@ export const REGIONS: Region[] = buildRegions();
 export const REGION_BY_ID: Record<string, Region> = indexById(REGIONS, (r) => r.id);
 
 /** Localised text helper. */
-export const tr = (l: L, lang: Lang): string => (lang === 'en' ? l.en : l.zh);
+export const tr = (l: L, lang: Lang): string => localizedContent(l, lang);
 
 export const sideLabel = (side: SideOrMid, lang: Lang): string => {
   if (side === 'm') return '';
   if (lang === 'en') return side === 'r' ? 'Right' : 'Left';
+  if (lang === 'de') return side === 'r' ? 'Rechts' : 'Links';
+  if (lang === 'ja') return side === 'r' ? '右' : '左';
+  if (lang === 'zh-CN') return side === 'r' ? '右侧' : '左侧';
   return side === 'r' ? '右側' : '左側';
 };
 
@@ -143,14 +148,14 @@ const lowerFirst = (n: string) => (/^[A-Z][a-z]/.test(n) ? n.charAt(0).toLowerCa
 export function regionName(r: Region, lang: Lang): string {
   const n = tr(r.name, lang);
   if (r.side === 'm' || r.sideInName) return n;
-  return lang === 'en' ? `${sideLabel(r.side, lang)} ${lowerFirst(n)}` : `${sideLabel(r.side, lang)}${n}`;
+  return lang === 'de' ? `${sideLabel(r.side, lang)}: ${n}` : lang === 'en' ? `${sideLabel(r.side, lang)} ${lowerFirst(n)}` : `${sideLabel(r.side, lang)}${n}`;
 }
 
 /** Vessel display name including side. */
 export function vesselName(v: Vessel, lang: Lang): string {
   const n = tr(v.name, lang);
   if (v.side === 'm') return n;
-  return lang === 'en' ? `${sideLabel(v.side, lang)} ${lowerFirst(n)}` : `${sideLabel(v.side, lang)}${n}`;
+  return lang === 'de' ? `${sideLabel(v.side, lang)}: ${n}` : lang === 'en' ? `${sideLabel(v.side, lang)} ${lowerFirst(n)}` : `${sideLabel(v.side, lang)}${n}`;
 }
 
 /** Sanity checks used by tests. */

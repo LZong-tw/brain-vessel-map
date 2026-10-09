@@ -1,3 +1,7 @@
+import { DeficitSeverity } from './DeficitSeverity';
+import { HemorrhageRisk } from './HemorrhageRisk';
+import { PublicCalibration } from './PublicCalibration';
+import { VascularPathologies } from './VascularPathologies';
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
 import { canBeLacunar, lacuneSiteOf, lacuneSitesOf } from '../anatomy/lacunes';
@@ -11,6 +15,8 @@ import { progressed } from '../engine/schedule';
 import { isOccludable, simulate, type SimResult } from '../engine/simulate';
 import type { Strings } from '../i18n/ui';
 import { SCHEDULE_UI } from '../i18n/uiSchedule';
+import { inlineText } from '../i18n/content';
+import { usesLatinSpacing } from '../i18n/locales';
 import { formatClock, occlusionWindow } from '../ui/scheduleFormat';
 import { useT } from '../state/hooks';
 import { useApp, type RightTab } from '../state/store';
@@ -68,7 +74,7 @@ export function RightPanel({ sim }: { sim: SimResult }) {
           </button>
         ))}
       </nav>
-      <div className="panel-body">{tab === 'details' ? <Details sim={sim} /> : tab === 'final' ? <FinalOutcome /> : <Results sim={sim} />}</div>
+      <div className="panel-body">{tab === 'details' ? <><Details sim={sim} /><HemorrhageRisk lang={lang} /><PublicCalibration lang={lang} /><VascularPathologies lang={lang} /></> : tab === 'final' ? <FinalOutcome /> : <Results sim={sim} />}</div>
     </aside>
   );
 }
@@ -95,35 +101,31 @@ function Details({ sim }: { sim: SimResult }) {
 
 function VentricleDetails({ sim }: { sim: SimResult }) {
   const lang = useApp((s) => s.lang);
-  const en = lang === 'en';
   const t = useT();
   const onset = sim.cascade.hydrocephalusOnsetH;
   const event = sim.cascade.events.find((e) => e.id === 'hydrocephalus');
   const vc = sim.edema.ventricleChange;
   return (
     <div className="details">
-      <div className="kicker">{en ? 'Structure' : '構造'}</div>
-      <h2>{en ? 'Ventricles' : '腦室系統'}</h2>
+      <div className="kicker">{inlineText(lang, '構造', 'Structure', '结构', 'Struktur', '構造')}</div>
+      <h2>{inlineText(lang, '腦室系統', 'Ventricles', '脑室系统', 'Ventrikelsystem', '脳室系')}</h2>
       <p>
-        {en
-          ? 'Fluid-filled cavities (two lateral ventricles, third and fourth ventricle) that make and drain cerebrospinal fluid. They have no arterial territory of their own, so they are shown for orientation only; the fluid leaves through the narrow aqueduct and the 4th ventricle, which a swollen cerebellum can block.'
-          : '充滿腦脊髓液的腔室（左右側腦室、第三與第四腦室），負責製造與引流腦脊髓液。它們本身沒有動脈供血區，這裡只作為定位參考；腦脊髓液要經過狹窄的中腦導水管與第四腦室流出，小腦腫脹時可能被堵住。'}
+        {inlineText(lang,
+          '充滿腦脊髓液的腔室（左右側腦室、第三與第四腦室），負責製造與引流腦脊髓液。它們本身沒有動脈供血區，這裡只作為定位參考；腦脊髓液要經過狹窄的中腦導水管與第四腦室流出，小腦腫脹時可能被堵住。',
+          'Fluid-filled cavities (two lateral ventricles, third and fourth ventricle) that make and drain cerebrospinal fluid. They have no arterial territory of their own, so they are shown for orientation only; the fluid leaves through the narrow aqueduct and the 4th ventricle, which a swollen cerebellum can block.',
+          '充满脑脊液的腔隙（左右侧脑室、第三及第四脑室），参与脑脊液的生成与引流。其本身没有动脉供血区，此处仅用于定位；脑脊液经狭窄的中脑水管和第四脑室流出，小脑肿胀可将其阻塞。',
+          'Liquorgefüllte Hohlräume (zwei Seitenventrikel, dritter und vierter Ventrikel), die Liquor bilden und ableiten. Sie besitzen kein eigenes arterielles Versorgungsgebiet und dienen hier nur der Orientierung. Der Liquor fließt durch den engen Aquädukt und den 4. Ventrikel ab; ein geschwollenes Kleinhirn kann den Abfluss blockieren.',
+          '髄液で満たされた腔（左右側脳室、第 3・第 4 脳室）で、髄液を産生・排出します。独自の動脈領域がなく、位置の参考として表示します。髄液は狭い中脳水道と第 4 脳室を通り、腫脹した小脳が閉塞することがあります。')}
       </p>
       <div className="stat-row">
         <div className="stat">
-          <div className="stat-label">{en ? 'State' : '狀態'}</div>
+          <div className="stat-label">{inlineText(lang, '狀態', 'State', '状态', 'Zustand', '状態')}</div>
           <div className="stat-value small" style={{ color: sim.hydrocephalus ? STATE_COLORS.core : undefined }}>
             {sim.hydrocephalus
-              ? en
-                ? 'Enlarged (obstructive hydrocephalus)'
-                : '擴大（阻塞性水腦）'
+              ? inlineText(lang, '擴大（阻塞性水腦）', 'Enlarged (obstructive hydrocephalus)', '扩大（梗阻性脑积水）', 'Erweitert (obstruktiver Hydrozephalus)', '拡大（閉塞性水頭症）')
               : onset !== null
-                ? en
-                  ? `Expected to enlarge from ${formatHours(onset, lang)}`
-                  : `預計 ${formatHours(onset, lang)} 起擴大`
-                : en
-                  ? 'Normal'
-                  : '正常'}
+                ? inlineText(lang, `預計 ${formatHours(onset, lang)} 起擴大`, `Expected to enlarge from ${formatHours(onset, lang)}`, `预计从 ${formatHours(onset, lang)} 起扩大`, `Voraussichtliche Erweiterung ab ${formatHours(onset, lang)}`, `${formatHours(onset, lang)}から拡大の見込み`)
+                : inlineText(lang, '正常', 'Normal', '正常', 'Normal', '正常')}
           </div>
         </div>
         {Math.abs(vc) >= 0.01 && (
@@ -324,7 +326,7 @@ function VesselDetails({ id, sim }: { id: string; sim: SimResult }) {
                   .sort((a, b) => b.sev - a.sev)
                   .slice(0, 6)
                   .map((s) => (
-                    <li key={s.id + s.side}>{symptomLabel(s, lang, t)}</li>
+                    <li key={s.id + s.side}>{symptomLabel(s, lang, t)}<DeficitSeverity symptom={s} lang={lang} /></li>
                   ))}
               </ul>
               <button className="btn block" onClick={() => st.toggleOcclusion(id)}>
@@ -470,9 +472,9 @@ function RegionDetails({ id, sim }: { id: string; sim: SimResult }) {
               return (
                 <li key={d.s + i}>
                   {symptomLabel({ id: d.s, side, sev: d.sev ?? 2, sources: [], delayed: !!sym?.delayed }, lang, t)}
-                  {d.bilateralOnly && <span className="muted"> {lang === 'en' ? '(if both sides)' : '（雙側受損時）'}</span>}
-                  {d.minLevel && <span className="muted"> {lang === 'en' ? '(if extensive)' : '（大範圍受損時）'}</span>}
-                  {border && <span className="muted"> {lang === 'en' ? '(border zone alone)' : '（只有分水嶺區受損時）'}</span>}
+                  {d.bilateralOnly && <span className="muted"> {inlineText(lang, '（雙側受損時）', '(if both sides)', '（双侧受损时）', '(bei beidseitiger Schädigung)', '（両側損傷時）')}</span>}
+                  {d.minLevel && <span className="muted"> {inlineText(lang, '（大範圍受損時）', '(if extensive)', '（大范围受损时）', '(bei ausgedehnter Schädigung)', '（広範損傷時）')}</span>}
+                  {border && <span className="muted"> {inlineText(lang, '（只有分水嶺區受損時）', '(border zone alone)', '（仅分水岭区受损时）', '(nur Grenzzone)', '（分水嶺領域のみ損傷時）')}</span>}
                   {sym?.delayed && <span className="tag">{t.delayedTag}</span>}
                 </li>
               );
@@ -563,7 +565,7 @@ function Results({ sim }: { sim: SimResult }) {
               {status === 'pending' && <span className="badge">{sched.status.pending}</span>}
               <button
                 className="x"
-                aria-label={`${lang === 'en' ? 'Remove' : '移除'} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
+                aria-label={`${inlineText(lang, '移除', 'Remove', '移除', 'Entfernen', '削除')} ${vesselName(VESSEL_BY_ID[o.vessel], lang)}`}
                 onClick={() => removeOcclusionAt(i)}
               >
                 ×
@@ -575,7 +577,7 @@ function Results({ sim }: { sim: SimResult }) {
       {txSummary && (
         <p className="tx-summary small">
           {TREATMENT_UI[lang].summaryLabel}
-          {lang === 'en' ? ': ' : '：'}
+          {usesLatinSpacing(lang) ? ': ' : '：'}
           {txSummary}
         </p>
       )}
@@ -658,7 +660,7 @@ function Results({ sim }: { sim: SimResult }) {
           {sim.syndromes.map((s) => (
             <details key={s.def.id + (s.side ?? '')} className="syndrome" open={sim.syndromes.length <= 2}>
               <summary>
-                {s.side && <span className="side-tag">{s.side === 'r' ? (lang === 'en' ? 'R' : '右') : lang === 'en' ? 'L' : '左'}</span>}
+                {s.side && <span className="side-tag">{s.side === 'r' ? (usesLatinSpacing(lang) ? 'R' : '右') : usesLatinSpacing(lang) ? 'L' : '左'}</span>}
                 {tr(s.def.name, lang)}
                 {s.silent && (
                   <span className="tag" title={t.syndromeSilentHint}>
@@ -677,7 +679,7 @@ function Results({ sim }: { sim: SimResult }) {
         {sim.symptoms.length === 0 && <p className="muted">{t.noSymptoms}</p>}
         {SYSTEM_ORDER.filter((s) => bySystem.has(s)).map((sys) => (
           <div key={sys} className="sym-group">
-            <h4>{lang === 'en' ? SYSTEM_LABEL[sys].en : SYSTEM_LABEL[sys].zh}</h4>
+            <h4>{tr(SYSTEM_LABEL[sys], lang)}</h4>
             <ul className="bullets">
               {bySystem
                 .get(sys)!
@@ -686,6 +688,7 @@ function Results({ sim }: { sim: SimResult }) {
                   <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
                     <span className={`sev sev${s.sev}`} aria-hidden="true" />
                     {symptomLabel(s, lang, t)}
+                    <DeficitSeverity symptom={s} lang={lang} />
                     {s.delayed && <span className="tag">{t.delayedTag}</span>}
                   </li>
                 ))}
@@ -702,6 +705,7 @@ function Results({ sim }: { sim: SimResult }) {
                 <li key={s.id + s.side} title={tr(SYMPTOM_BY_ID[s.id].desc, lang)}>
                   <span className={`sev sev${s.sev}`} aria-hidden="true" />
                   {symptomLabel(s, lang, t)}
+                  <DeficitSeverity symptom={s} lang={lang} unexaminable />
                   {unexaminableHead.tag(s) && <span className="muted small"> · {unexaminableHead.tag(s)}</span>}
                 </li>
               ))}

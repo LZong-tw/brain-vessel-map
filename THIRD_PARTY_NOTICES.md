@@ -1,3 +1,5 @@
+[繁體中文](THIRD_PARTY_NOTICES.zh-TW.md) · [简体中文](THIRD_PARTY_NOTICES.zh-CN.md) · [English](THIRD_PARTY_NOTICES.md) · [Deutsch](THIRD_PARTY_NOTICES.de.md) · [日本語](THIRD_PARTY_NOTICES.ja.md)
+
 # Third-party notices · 第三方授權聲明
 
 This project's **source code** is released under the MIT licence (see `LICENSE`).
@@ -14,6 +16,12 @@ Their licences and required notices are listed below. The same list is shown in 
 
 Files: `public/data/brain.json`, `public/data/brain.bin`, `src/anatomy/generated/beds.json`,
 `src/anatomy/generated/vesselPaths.json` (and the copies bundled into `dist/` at build time).
+
+The T1 slice data and sampled arterial labels (`public/data/slices.json` and
+`public/data/slices.bin.gz`) use the same data licence and notices. T1 intensities are
+quantized for display; Liu labels use the project's approximate atlas-to-template mapping.
+See [slice provenance and limitations](docs/slices.md). These labels describe reference
+territories; they do not locate an individual simulated lesion.
 
 These files are **adapted material** of the atlases in section 2 — in particular of the
 *Digital 3D Brain MRI Arterial Territories Atlas*, which is licensed CC BY-SA 4.0. They are therefore
@@ -120,11 +128,52 @@ Licence: **CC0 1.0** (public domain dedication). Attribution given as a courtesy
 | [neuroaxis-atlas](https://github.com/linkbag/neuroaxis-atlas) | MIT | Its brainstem-syndrome cards and attribution practice informed our presentation. |
 | [brain-game](https://github.com/Rickaym/brain-game) | MIT (code); model CC BY-SA 2.1 JP | Region–artery mapping and stroke-simulator ideas. Its 3D model is **not** used here. |
 
-All anatomy, rules and code in this repository were written for this project.
+The authored anatomy definitions, rules and application code were written for this project;
+generated atlas data and the MRA-derived communicating vessel shapes below are third-party exceptions.
+
+### TopCoW MRA-derived communicating vessel shapes
+
+`src/anatomy/generated/mraCommunicatingPaths.json` and `mraCommunicatingAudit.json`
+contain source and modified data from Musio et al., *Circle of Willis Centerline Graphs:
+A Dataset and Baseline Algorithm* (2025 preprint, arXiv:2510.13720),
+TopCoW dataset released 2025-10-15, MRA case 008.
+Source: <https://zenodo.org/records/17358162>.
+
+These source and derivative data are **CC BY-NC 4.0**, separately from the MIT software
+and the CC BY-SA atlas assets: <https://creativecommons.org/licenses/by-nc/4.0/>.
+Attribution is required; commercial use needs separate permission. No endorsement is implied.
+The original source graph and node metadata are retained in the audit file.
+
+Changes: extracted right/left PCom and the main ACom path; excluded the third-A2 side branch;
+applied proper rotations, translations and uniform scales to existing model attachment points.
+The included tuberothalamic connectors are authored render geometry with updated initial points.
+Placement is unvalidated, distal branches remain authored, and simulation geometry and parameters
+are unchanged. See [source-specific assumptions](docs/mra-communicating-shapes.md) and
+`src/anatomy/generated/MRA_LICENSE.txt`.
 
 ---
 
 ## 4. Runtime libraries bundled into the site · 打包進網站的函式庫
+
+### Additional individual distal MRA reference data
+
+`public/data/mra-distal.json` derives from Bravissima BG0001, SPM-normalized
+individual BraVa arterial data. The [source README](https://www.nitrc.org/docman/view.php/1266/78741/Readme43)
+specifies Attribution without a Creative Commons version; exact terms are retained
+in `public/data/MRA_DISTAL_LICENSE.txt`. This data license is separate from MIT code.
+
+Herron TJ, Dronkers N, Turken AU, *BraVa cerebral artery database converted to NIFTI
+MRI format*, 2017 poster, [DOI10.7490/f1000research.1114378.1](https://doi.org/10.7490/f1000research.1114378.1).
+Original BraVa: Wright et al., *Digital reconstruction and morphometric analysis of
+human brain arterial vasculature from magnetic resonance angiography*, NeuroImage82,
+170–181 (2013), [DOI10.1016/j.neuroimage.2013.05.089](https://doi.org/10.1016/j.neuroimage.2013.05.089),
+[BraVa](http://cng.gmu.edu/brava), [Bravissima](https://www.nitrc.org/projects/bravissima/).
+
+Changes: retained all finite family-labeled source voxel centers, applied the source
+affine, and connected immediate 26-neighbors for display. This adjacency assumption
+is not the original parent graph. Gaps are retained; no named distal-branch mapping
+or physiological parameter changes are inferred. Registration to this brain is
+unvalidated. See [source-specific assumptions](docs/mra-distal.md).
 
 | Package | Licence |
 |---|---|

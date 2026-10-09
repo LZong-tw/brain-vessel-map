@@ -6,6 +6,7 @@ import { SYNDROMES, haemodynamicSetting, type SymptomQuery } from '../anatomy/sy
 import { REPERFUSION_STOPS, TIME_STOPS } from '../anatomy/timeline';
 import { consciousnessFromShift, symptomsAddedAt } from './cascade';
 import { AKINETIC_OBSERVED, NEEDS_AWAKE, NEEDS_SIGHT, PART_OF, SPEECH_SIGNS, aggregateSymptoms, estimateNihss, isBlind } from './clinical';
+import { deficitOrdinalMotorPoints } from './deficitGrades';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { isOccludable, simulate, type SimInput, type SimResult } from './simulate';
 import { endOf, progressed, startOf, successorOf } from './schedule';
@@ -871,8 +872,8 @@ describe('syndromes and events agree with the symptoms', () => {
   it.each(CASES)('%s: no limb ataxia, tremor or clumsy hand listed in a limb too weak to show it (V2-10)', (name) => {
     series(name).forEach((r, i) => {
       for (const side of ['r', 'l'] as const) {
-        const pts = (id: string, scale: number[]) =>
-          r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, scale[s.sev - 1]), 0);
+        const pts = (id: string, scale: [number, number, number]) =>
+          r.symptoms.filter((s) => s.id === id && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, deficitOrdinalMotorPoints(s, scale)), 0);
         const hand = pts('arm_weak', [1, 3, 4]);
         const arm = Math.max(hand, pts('arm_weak_proximal', [1, 2, 3]));
         const listed = (id: string) => r.symptoms.some((s) => s.id === id && s.side === side);
@@ -887,7 +888,7 @@ describe('syndromes and events agree with the symptoms', () => {
       // U3-12: nor a gait or truncal ataxia while neither leg can move against gravity (the patient
       // can neither stand nor sit unsupported); it is named apart, and only then
       const legs = (['r', 'l'] as const).map((side) =>
-        r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, [1, 3, 4][s.sev - 1]), 0),
+        r.symptoms.filter((s) => s.id === 'leg_weak' && !s.delayed && (s.side === side || s.side === 'both')).reduce((m, s) => Math.max(m, deficitOrdinalMotorPoints(s, [1, 3, 4])), 0),
       );
       const where = `${name} ${STOPS[i]} h`;
       if (Math.min(...legs) >= 3) expect(r.symptoms.some((s) => s.id === 'ataxia_gait'), where).toBe(false);
@@ -1181,8 +1182,8 @@ describe('syndromes and events agree with the symptoms', () => {
     deficits: [
       `NIHSS ${r.nihss.total}`,
       ...r.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
-      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
-      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${x.why}`),
+      ...r.symptoms.map((x) => `${x.id}/${x.side ?? ''}:${x.sev}:${(x.continuousSeverity ?? x.sev).toFixed(2)}${x.delayed ? 'd' : ''}:${deficitGroup(x)}`),
+      ...r.unexaminable.map((x) => `?${x.id}/${x.side ?? ''}:${x.sev}:${(x.continuousSeverity ?? x.sev).toFixed(2)}:${x.why}`),
     ]
       .sort()
       .join('|'),

@@ -3,6 +3,7 @@ import { formatHours } from '../anatomy/timeline';
 import type { CascadeEvent } from '../engine/cascade';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
+import { inlineText } from '../i18n/content';
 
 /** One cascade event: when it starts (a button that jumps there), what it is, the regions involved. */
 export function EventItem({ e, tH, onJump, onRegion }: { e: CascadeEvent; tH: number; onJump: () => void; onRegion: (id: string) => void }) {
@@ -12,7 +13,7 @@ export function EventItem({ e, tH, onJump, onRegion }: { e: CascadeEvent; tH: nu
   const past = (e.endH ?? Infinity) <= tH;
   return (
     <li className={`event ev-${e.severity}${active ? ' active' : past ? ' past' : ' future'}`}>
-      <button className="ev-time" onClick={onJump} title={lang === 'en' ? 'Jump to this time' : '跳到這個時間'}>
+      <button className="ev-time" onClick={onJump} title={inlineText(lang, '跳到這個時間', 'Jump to this time', '跳到此时间', 'Zu diesem Zeitpunkt springen', 'この時点に移動')}>
         {formatHours(e.onsetH, lang)}
       </button>
       <div className="ev-body">

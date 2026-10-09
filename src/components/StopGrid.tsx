@@ -1,3 +1,4 @@
+import { usesLatinSpacing } from '../i18n/locales';
 import { Fragment } from 'react';
 import { tr } from '../anatomy';
 import { PHASE_LABEL, TIME_STOPS, phaseOf, type Phase } from '../anatomy/timeline';
@@ -51,7 +52,7 @@ export function StopGrid({
     setPlaying(false);
     setTIndex(i);
   };
-  const sep = lang === 'en' ? ': ' : '：';
+  const sep = usesLatinSpacing(lang) ? ': ' : '：';
   const phases: { phase: Phase; from: number; to: number }[] = [];
   TIME_STOPS.forEach((s, i) => {
     const p = phaseOf(s.h);

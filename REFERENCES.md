@@ -1,3 +1,5 @@
+[繁體中文](REFERENCES.zh-TW.md) · [简体中文](REFERENCES.zh-CN.md) · [English](REFERENCES.md) · [Deutsch](REFERENCES.de.md) · [日本語](REFERENCES.ja.md)
+
 # 參考文獻與相關專案 · References
 
 The same lists are shown in the app ("Sources & licences") and maintained in `src/anatomy/sources.ts`.

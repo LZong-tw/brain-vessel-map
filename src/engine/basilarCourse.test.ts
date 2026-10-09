@@ -48,11 +48,23 @@ describe('X2-9: the swelling of the first days does not bring back a deficit tha
   // one-sided one, within weeks
   it('a rescued upper basilar occlusion (poor collaterals, 1 h) recovers within a day to the mild deficit of its small infarcts, without a locked-in label, and is not worse again', () => {
     expect(one('basilar_upper', 12, { collateral: 'poor', reperfusionH: 1 }).nihss.total).toBeLessThan(one('basilar_upper', 1, { collateral: 'poor', reperfusionH: 1 }).nihss.total);
-    let prev = Infinity;
+    // Raw mild weakness can now reach the intermediate motor grade 2: four limbs give 8,
+    // plus face 1, ataxia 2 and dysarthria 1. Preserve the course, not the old skipped grade.
+    expect(one('basilar_upper', 24, { collateral: 'poor', reperfusionH: 1 }).nihss.items).toEqual({ '4': 1, '7': 2, '10': 1, '5l': 2, '6l': 2, '5r': 2, '6r': 2 });
+    let prev = 12;
+    const priorMotor = new Map<string, number>();
     for (const tH of STOPS.filter((h) => h >= 24)) {
       const r = one('basilar_upper', tH, { collateral: 'poor', reperfusionH: 1 });
-      expect(r.nihss.total, `${tH} h`).toBeLessThanOrEqual(Math.min(prev, 10));
+      expect(r.nihss.total, `${tH} h`).toBeLessThanOrEqual(prev);
       prev = r.nihss.total;
+      for (const symptom of r.symptoms.filter((s) => ['arm_weak', 'leg_weak'].includes(s.id))) {
+        const key = `${symptom.id}|${symptom.side}`;
+        const magnitude = symptom.continuousSeverity ?? symptom.sev;
+        expect(symptom.sev, `${tH} h ${key}`).toBe(1);
+        expect(magnitude, `${tH} h ${key}`).toBeLessThan(1.5);
+        expect(magnitude, `${tH} h ${key}`).toBeLessThanOrEqual(priorMotor.get(key) ?? Infinity);
+        priorMotor.set(key, magnitude);
+      }
       expect(labels(r).filter((id) => id.startsWith('locked_in')), `${tH} h`).toEqual([]);
     }
     const week = one('basilar_upper', 168, { collateral: 'poor', reperfusionH: 1 });
@@ -64,11 +76,21 @@ describe('X2-9: the swelling of the first days does not bring back a deficit tha
   });
 
   it('with moderate collaterals reopened at 1.5 h the same within about 3 days: no incomplete locked-in syndrome on days 3–14', () => {
-    let prev = Infinity;
+    expect(one('basilar_upper', 72, { collateral: 'moderate', reperfusionH: 1.5 }).nihss.items).toEqual({ '4': 1, '7': 2, '10': 1, '5l': 2, '6l': 2, '5r': 2, '6r': 2 });
+    let prev = 12;
+    const priorMotor = new Map<string, number>();
     for (const tH of [72, 120, 168, 240, 336]) {
       const r = one('basilar_upper', tH, { collateral: 'moderate', reperfusionH: 1.5 });
-      expect(r.nihss.total, `${tH} h`).toBeLessThanOrEqual(Math.min(prev, 8));
+      expect(r.nihss.total, `${tH} h`).toBeLessThanOrEqual(prev);
       prev = r.nihss.total;
+      for (const symptom of r.symptoms.filter((s) => ['arm_weak', 'leg_weak'].includes(s.id))) {
+        const key = `${symptom.id}|${symptom.side}`;
+        const magnitude = symptom.continuousSeverity ?? symptom.sev;
+        expect(symptom.sev, `${tH} h ${key}`).toBe(1);
+        expect(magnitude, `${tH} h ${key}`).toBeLessThan(1.5);
+        expect(magnitude, `${tH} h ${key}`).toBeLessThanOrEqual(priorMotor.get(key) ?? Infinity);
+        priorMotor.set(key, magnitude);
+      }
       expect(labels(r), `${tH} h`).not.toContain('locked_in_incomplete');
       expect(keys(r), `${tH} h`).not.toContain('anarthria|null');
     }

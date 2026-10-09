@@ -1,0 +1,708 @@
+{
+  "version": 1,
+  "dimensions": [
+    193,
+    229,
+    193
+  ],
+  "spacingMm": [
+    1,
+    1,
+    1
+  ],
+  "originMm": [
+    -96.0,
+    -132.0,
+    -78.0
+  ],
+  "ordering": "x-fastest",
+  "space": "MNI152NLin2009cAsym RAS mm",
+  "compression": "gzip",
+  "uncompressedByteLength": 34120084,
+  "compressedByteLength": 5986910,
+  "sha256": "5a9760d8dfe720c66f9c25d402381ff16f3b92ba3a084d9b1ad39c6219fb5c63",
+  "t1": {
+    "offset": 0,
+    "type": "u8",
+    "sourceIntensityMax": 10000.0
+  },
+  "territory": {
+    "offset": 8530021,
+    "type": "u8"
+  },
+  "bed": {
+    "offset": 17060042,
+    "type": "u16",
+    "byteOrder": "little-endian"
+  },
+  "beds": [
+    "temporal_lateral_l__MCAT",
+    "superior_temporal_posterior_l__MCAT",
+    "supramarginal_l__MCAP",
+    "superior_temporal_posterior_l__MCAP",
+    "postcentral_face_arm_l__MCAP",
+    "supramarginal_l__MCAT",
+    "postcentral_face_arm_l__MCAF",
+    "precentral_face_arm_l__MCAF",
+    "precentral_face_arm_l__MCAP",
+    "temporal_lateral_l__MCAO",
+    "angular_l__MCAT",
+    "angular_l__MCAP",
+    "temporal_lateral_l__MCAT-PCAO",
+    "temporal_pole_l__MCAT",
+    "broca_l__MCAF",
+    "temporal_lateral_l__MCAO-PCAO",
+    "temporal_lateral_l__MCAT-PCAT",
+    "lateral_occipital_l__MCAO",
+    "lateral_occipital_l__MCAT",
+    "angular_l__MCAO",
+    "prefrontal_dorsolateral_l__MCAF",
+    "cerebellum_posterior_inferior_l",
+    "lateral_occipital_l__MCAO-PCAO",
+    "cerebellum_anterior_inferior_l",
+    "orbitofrontal_lateral_l__MCAF",
+    "inferior_temporal_fusiform_l__MCAO-PCAO",
+    "inferior_temporal_fusiform_l__PCAO",
+    "inferior_temporal_fusiform_l__PCAT",
+    "inferior_temporal_fusiform_l__MCAT-PCAT",
+    "lateral_occipital_l__PCAO",
+    "superior_parietal_l__MCAP",
+    "cerebellum_superior_l",
+    "inferior_temporal_fusiform_l__MCAT",
+    "insula_l__MCAT",
+    "insula_l__MCAF",
+    "insula_l__MCAI",
+    "parahippocampal_l__MCAT-PCAT",
+    "frontopolar_orbital_medial_l__MCAF",
+    "parahippocampal_l__MCAT",
+    "orbitofrontal_lateral_l__MCAT",
+    "occipital_pole_l__MCAO-PCAO",
+    "occipital_pole_l__PCAO",
+    "corona_radiata_l__ACTP",
+    "parahippocampal_l__PCAT",
+    "hippocampus_l",
+    "insula_l__LLS-MCAT",
+    "insula_l__LLS-MCAI",
+    "angular_l__MCAO-PCAO",
+    "lingual_l__MCAO-PCAO",
+    "parahippocampal_l__ACTP",
+    "insula_l__LLS-MCAP",
+    "insula_l__LLS-MCAF",
+    "putamen_l",
+    "precuneus_l__MCAO-PCAO",
+    "lingual_l__PCAO",
+    "precuneus_l__MCAT-PCAO",
+    "corona_radiata_l__LLS-MCAT",
+    "corona_radiata_l__LLS-MCAI",
+    "amygdala_l",
+    "angular_l__MCAP-PCAO",
+    "prefrontal_dorsolateral_l__LLS-MCAF",
+    "ic_posterior_limb_l",
+    "corona_radiata_l__LLS-MCAP",
+    "corona_radiata_l__LLS-MCAF",
+    "medial_frontal_l__MCAF",
+    "orbitofrontal_lateral_l__LLS-MCAT",
+    "cuneus_l__MCAO-PCAO",
+    "superior_parietal_l__MCAO-PCAO",
+    "superior_parietal_l__MCAP-PCAO",
+    "postcentral_face_arm_l__ACA-MCAP",
+    "precentral_face_arm_l__ACA-MCAP",
+    "precentral_face_arm_l__ACA-MCAF",
+    "corona_radiata_l__LLS",
+    "medial_frontal_l__ACA-MCAF",
+    "prefrontal_dorsolateral_l__ACA-MCAF",
+    "angular_l__ACA-MCAP",
+    "superior_parietal_l__ACA-MCAP",
+    "supramarginal_l__ACA-MCAP",
+    "globus_pallidus_l",
+    "orbitofrontal_lateral_l__ACA-MCAF",
+    "frontopolar_orbital_medial_l__ACA-MCAF",
+    "precuneus_l__PCAO",
+    "precuneus_l__ACA-MCAP",
+    "corona_radiata_l__PCTP",
+    "orbitofrontal_lateral_l__LLS-MCAF",
+    "broca_l__ACA-MCAF",
+    "thalamus_posterior_l",
+    "cingulate_l__ACA-MCAP",
+    "paracentral_l__ACA-MCAP",
+    "medial_frontal_l__ACA",
+    "ic_anterior_limb_l",
+    "cuneus_l__PCAO",
+    "ic_genu_l",
+    "superior_parietal_l__PCAO",
+    "postcentral_face_arm_l__ACA",
+    "thalamus_ventrolateral_l",
+    "cingulate_l__ACA-MCAF",
+    "precuneus_l__ACA-PCAO",
+    "cingulate_l__PCAO",
+    "superior_parietal_l__ACA-PCAO",
+    "superior_parietal_l__ACA",
+    "precentral_face_arm_l__ACA",
+    "paracentral_l__ACA",
+    "cingulate_l__ACA",
+    "orbitofrontal_lateral_l__ACA",
+    "frontopolar_orbital_medial_l__ACA",
+    "precuneus_l__ACA",
+    "dentate_l",
+    "cingulate_l__ACA-PCAO",
+    "caudate_body_l",
+    "corona_radiata_l__MLS",
+    "pons_caudal_lateral_l",
+    "pons_rostral_lateral_l",
+    "caudate_head_l",
+    "midbrain_peduncle_l",
+    "thalamus_anterior_l",
+    "pons_rostral_basis_l",
+    "pons_caudal_basis_l",
+    "midbrain_lateral_l",
+    "thalamus_paramedian_l",
+    "medulla_lateral_l",
+    "midbrain_tectum_l",
+    "splenium_l",
+    "corpus_callosum_l",
+    "vermis_inferior_l",
+    "vermis_superior_l",
+    "pons_caudal_tegmentum_l",
+    "pons_rostral_tegmentum_l",
+    "midbrain_paramedian_l",
+    "medulla_medial_l",
+    "medulla_medial_r",
+    "pons_caudal_tegmentum_r",
+    "pons_rostral_tegmentum_r",
+    "midbrain_tectum_r",
+    "pons_caudal_basis_r",
+    "midbrain_paramedian_r",
+    "pons_rostral_basis_r",
+    "occipital_pole_r__PCAO",
+    "cuneus_r__PCAO",
+    "lingual_r__PCAO",
+    "vermis_inferior_r",
+    "vermis_superior_r",
+    "precuneus_r__PCAO",
+    "precuneus_r__ACA-PCAO",
+    "precuneus_r__ACA",
+    "cingulate_r__ACA-PCAO",
+    "cingulate_r__ACA",
+    "cingulate_r__PCAO",
+    "splenium_r",
+    "paracentral_r__ACA",
+    "corpus_callosum_r",
+    "thalamus_paramedian_r",
+    "medial_frontal_r__ACA",
+    "thalamus_anterior_r",
+    "corona_radiata_r__PCTP",
+    "corona_radiata_r__LLS",
+    "frontopolar_orbital_medial_r__ACA",
+    "corona_radiata_r__MLS",
+    "frontopolar_orbital_medial_r__ACA-MCAF",
+    "thalamus_posterior_r",
+    "thalamus_ventrolateral_r",
+    "superior_parietal_r__ACA-PCAO",
+    "caudate_head_r",
+    "superior_parietal_r__ACA",
+    "medulla_lateral_r",
+    "midbrain_peduncle_r",
+    "orbitofrontal_lateral_r__ACA",
+    "midbrain_lateral_r",
+    "superior_parietal_r__PCAO",
+    "cerebellum_posterior_inferior_r",
+    "lateral_occipital_r__PCAO",
+    "cerebellum_superior_r",
+    "cerebellum_anterior_inferior_r",
+    "pons_caudal_lateral_r",
+    "pons_rostral_lateral_r",
+    "corona_radiata_r__LLS-MCAF",
+    "dentate_r",
+    "corona_radiata_r__LLS-MCAT",
+    "ic_posterior_limb_r",
+    "ic_genu_r",
+    "ic_anterior_limb_r",
+    "cingulate_r__ACA-MCAF",
+    "caudate_body_r",
+    "orbitofrontal_lateral_r__ACA-MCAF",
+    "hippocampus_r",
+    "amygdala_r",
+    "parahippocampal_r__PCAT",
+    "globus_pallidus_r",
+    "orbitofrontal_lateral_r__LLS-MCAF",
+    "orbitofrontal_lateral_r__MCAF",
+    "parahippocampal_r__ACTP",
+    "putamen_r",
+    "medial_frontal_r__ACA-MCAF",
+    "cingulate_r__ACA-MCAP",
+    "parahippocampal_r__MCAT",
+    "corona_radiata_r__ACTP",
+    "insula_r__LLS-MCAF",
+    "postcentral_face_arm_r__ACA",
+    "precentral_face_arm_r__ACA",
+    "broca_r__LLS-MCAF",
+    "precuneus_r__ACA-MCAP",
+    "corona_radiata_r__LLS-MCAP",
+    "paracentral_r__ACA-MCAP",
+    "inferior_temporal_fusiform_r__MCAT",
+    "temporal_pole_r__MCAT",
+    "insula_r__MCAF",
+    "broca_r__ACA-MCAF",
+    "broca_r__MCAF",
+    "precuneus_r__MCAT-PCAO",
+    "insula_r__LLS-MCAP",
+    "insula_r__LLS-MCAT",
+    "prefrontal_dorsolateral_r__ACA-MCAF",
+    "inferior_temporal_fusiform_r__PCAO",
+    "superior_parietal_r__MCAP-PCAO",
+    "precuneus_r__MCAP-PCAO",
+    "supramarginal_r__ACA-MCAP",
+    "temporal_lateral_r__MCAT",
+    "lateral_occipital_r__MCAO-PCAO",
+    "superior_parietal_r__MCAO-PCAO",
+    "superior_parietal_r__ACA-MCAP",
+    "precuneus_r__MCAO-PCAO",
+    "postcentral_face_arm_r__ACA-MCAP",
+    "lingual_r__MCAT-PCAO",
+    "inferior_temporal_fusiform_r__PCAT",
+    "precentral_face_arm_r__ACA-MCAF",
+    "prefrontal_dorsolateral_r__LLS-MCAF",
+    "precentral_face_arm_r__ACA-MCAP",
+    "supramarginal_r__LLS-MCAP",
+    "parahippocampal_r__MCAT-PCAT",
+    "occipital_pole_r__MCAO-PCAO",
+    "angular_r__ACA-MCAP",
+    "supramarginal_r__MCAP",
+    "insula_r__MCAT",
+    "insula_r__LLS-MCAI",
+    "corona_radiata_r__LLS-MCAI",
+    "prefrontal_dorsolateral_r__MCAF",
+    "supramarginal_r__MCAT",
+    "angular_r__MCAO-PCAO",
+    "precentral_face_arm_r__MCAP",
+    "insula_r__MCAI",
+    "inferior_temporal_fusiform_r__MCAT-PCAT",
+    "medial_frontal_r__MCAF",
+    "inferior_temporal_fusiform_r__MCAO-PCAO",
+    "superior_parietal_r__MCAP",
+    "superior_temporal_posterior_r__MCAT",
+    "precentral_face_arm_r__MCAF",
+    "frontopolar_orbital_medial_r__MCAF",
+    "lateral_occipital_r__MCAO",
+    "angular_r__MCAO",
+    "angular_r__MCAP",
+    "postcentral_face_arm_r__MCAP",
+    "postcentral_face_arm_r__MCAF",
+    "angular_r__MCAT",
+    "superior_temporal_posterior_r__MCAP",
+    "temporal_lateral_r__MCAT-PCAT",
+    "temporal_lateral_r__MCAO",
+    "temporal_lateral_r__PCAT"
+  ],
+  "territories": [
+    {
+      "id": 1,
+      "name": "Left Anterior cerebral artery",
+      "code": "ACA",
+      "side": "l",
+      "color": [
+        230,
+        130,
+        75
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Right Anterior cerebral artery",
+      "code": "ACA",
+      "side": "r",
+      "color": [
+        230,
+        130,
+        75
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Left Medial lenticulostriate",
+      "code": "MLS",
+      "side": "l",
+      "color": [
+        185,
+        115,
+        225
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Right Medial lenticulostriate",
+      "code": "MLS",
+      "side": "r",
+      "color": [
+        185,
+        115,
+        225
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Left Lateral lenticulostriate",
+      "code": "LLS",
+      "side": "l",
+      "color": [
+        225,
+        100,
+        155
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Right Lateral lenticulostriate",
+      "code": "LLS",
+      "side": "r",
+      "color": [
+        225,
+        100,
+        155
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Left MCA frontal",
+      "code": "MCAF",
+      "side": "l",
+      "color": [
+        90,
+        160,
+        230
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Right MCA frontal",
+      "code": "MCAF",
+      "side": "r",
+      "color": [
+        90,
+        160,
+        230
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Left MCA parietal",
+      "code": "MCAP",
+      "side": "l",
+      "color": [
+        80,
+        185,
+        160
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Right MCA parietal",
+      "code": "MCAP",
+      "side": "r",
+      "color": [
+        80,
+        185,
+        160
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Left MCA temporal",
+      "code": "MCAT",
+      "side": "l",
+      "color": [
+        90,
+        175,
+        215
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Right MCA temporal",
+      "code": "MCAT",
+      "side": "r",
+      "color": [
+        90,
+        175,
+        215
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Left MCA occipital",
+      "code": "MCAO",
+      "side": "l",
+      "color": [
+        105,
+        145,
+        225
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Right MCA occipital",
+      "code": "MCAO",
+      "side": "r",
+      "color": [
+        105,
+        145,
+        225
+      ]
+    },
+    {
+      "id": 15,
+      "name": "Left MCA insular",
+      "code": "MCAI",
+      "side": "l",
+      "color": [
+        90,
+        205,
+        190
+      ]
+    },
+    {
+      "id": 16,
+      "name": "Right MCA insular",
+      "code": "MCAI",
+      "side": "r",
+      "color": [
+        90,
+        205,
+        190
+      ]
+    },
+    {
+      "id": 17,
+      "name": "Left PCA temporal",
+      "code": "PCAT",
+      "side": "l",
+      "color": [
+        205,
+        180,
+        75
+      ]
+    },
+    {
+      "id": 18,
+      "name": "Right PCA temporal",
+      "code": "PCAT",
+      "side": "r",
+      "color": [
+        205,
+        180,
+        75
+      ]
+    },
+    {
+      "id": 19,
+      "name": "Left PCA occipital",
+      "code": "PCAO",
+      "side": "l",
+      "color": [
+        230,
+        200,
+        75
+      ]
+    },
+    {
+      "id": 20,
+      "name": "Right PCA occipital",
+      "code": "PCAO",
+      "side": "r",
+      "color": [
+        230,
+        200,
+        75
+      ]
+    },
+    {
+      "id": 21,
+      "name": "Left Posterior choroidal and thalamoperforating",
+      "code": "PCTP",
+      "side": "l",
+      "color": [
+        200,
+        155,
+        90
+      ]
+    },
+    {
+      "id": 22,
+      "name": "Right Posterior choroidal and thalamoperforating",
+      "code": "PCTP",
+      "side": "r",
+      "color": [
+        200,
+        155,
+        90
+      ]
+    },
+    {
+      "id": 23,
+      "name": "Left Anterior choroidal and thalamoperforating",
+      "code": "ACTP",
+      "side": "l",
+      "color": [
+        220,
+        145,
+        110
+      ]
+    },
+    {
+      "id": 24,
+      "name": "Right Anterior choroidal and thalamoperforating",
+      "code": "ACTP",
+      "side": "r",
+      "color": [
+        220,
+        145,
+        110
+      ]
+    },
+    {
+      "id": 25,
+      "name": "Left Basilar artery",
+      "code": "BA",
+      "side": "l",
+      "color": [
+        160,
+        130,
+        210
+      ]
+    },
+    {
+      "id": 26,
+      "name": "Right Basilar artery",
+      "code": "BA",
+      "side": "r",
+      "color": [
+        160,
+        130,
+        210
+      ]
+    },
+    {
+      "id": 27,
+      "name": "Left Superior cerebellar",
+      "code": "SC",
+      "side": "l",
+      "color": [
+        130,
+        190,
+        120
+      ]
+    },
+    {
+      "id": 28,
+      "name": "Right Superior cerebellar",
+      "code": "SC",
+      "side": "r",
+      "color": [
+        130,
+        190,
+        120
+      ]
+    },
+    {
+      "id": 29,
+      "name": "Left Inferior cerebellar",
+      "code": "IC",
+      "side": "l",
+      "color": [
+        100,
+        170,
+        125
+      ]
+    },
+    {
+      "id": 30,
+      "name": "Right Inferior cerebellar",
+      "code": "IC",
+      "side": "r",
+      "color": [
+        100,
+        170,
+        125
+      ]
+    }
+  ],
+  "bedMapping": "existing-voxel-bed-assignment",
+  "alignment": {
+    "method": "existing-project-transform",
+    "approximate": true,
+    "worldToAtlasVoxel": [
+      [
+        -1,
+        0,
+        0,
+        89
+      ],
+      [
+        0,
+        1,
+        0,
+        126
+      ],
+      [
+        0,
+        0,
+        1,
+        72
+      ]
+    ],
+    "note": "Approximate Liu atlas-to-template alignment; reference territories are not patient lesion boundaries.",
+    "sampling": "nearest-neighbour; source label IDs preserved"
+  },
+  "validation": {
+    "leftLabelMeanXmm": -28.80488103402796,
+    "rightLabelMeanXmm": 29.820796610601644,
+    "atlasVoxelCount": 1889038,
+    "atlasWithinAsegFraction": 0.8965394025953951,
+    "asegCoveredByAtlasFraction": 0.963964533145731,
+    "bedVoxelCount": 1720162,
+    "verifiedBedCount": 257
+  },
+  "sourceFiles": {
+    "aseg": {
+      "url": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_seg-aseg_dseg.nii.gz",
+      "sha256": "0bb033414fbbd6df626d063b73801a14c71fb33b83204585f2aa1fbb4aef60dd"
+    },
+    "gm": {
+      "url": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_label-GM_probseg.nii.gz",
+      "sha256": "662b18e83dddc554b19c621d9750af3454b54d4e103df03633eacced3884805a"
+    },
+    "wm": {
+      "url": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_label-WM_probseg.nii.gz",
+      "sha256": "b2f80e29f5a1ef55325215d1716ef611f5b1a3cd97b4a49ef4e9564e9564e945"
+    },
+    "dkt": {
+      "url": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-02_desc-DKT31_dseg.nii.gz",
+      "sha256": "866defe588d565ad74a52ec31a6f84d10a6592a3082be62c4884d326e13b6fe7"
+    },
+    "liu": {
+      "url": "https://raw.githubusercontent.com/Chin-Fu-Liu/Arterial_Atlas/eb9839d16a060f287a7d8a1e7a481d049a3401a9/data/Atlas/ArterialAtlas.nii",
+      "sha256": "78ecdefd9e25e6831e24d2a0e703c984914308f5a9f1efb529bf3f7f5c4012de"
+    },
+    "mial": {
+      "url": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_atlas-MIAL67ThalamicNuclei_dseg.nii.gz",
+      "sha256": "d3be50ff04dc8e5d2355ee965a1b942354d8e5371428d081f85328eb8c27b6dd"
+    },
+    "t1": {
+      "url": "https://templateflow.s3.amazonaws.com/tpl-MNI152NLin2009cAsym/tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz",
+      "sha256": "1f27aabea9f7183dc0c69dafa71e1787b921ca778d655d9c1bf302b273d5627a"
+    }
+  },
+  "sources": [
+    {
+      "title": "ICBM 152 nonlinear asymmetric template 2009c (Fonov et al.)",
+      "url": "https://github.com/templateflow/tpl-MNI152NLin2009cAsym",
+      "license": "MNI copyright and permission notice; see docs/slices.md"
+    },
+    {
+      "title": "Arterial territory atlas (Liu et al., 2023)",
+      "url": "https://github.com/Chin-Fu-Liu/Arterial_Atlas",
+      "revision": "eb9839d16a060f287a7d8a1e7a481d049a3401a9",
+      "license": "CC-BY-SA-4.0"
+    }
+  ]
+}

@@ -10,12 +10,15 @@ import { MCA_CORTEX, SYNDROMES, type SymptomQuery, type SyndromeCtx, type Syndro
 import { indexById } from '../anatomy/indexById';
 import { COMPACT_FROM, NOTICEABLE, corticospinalLoss, gradeFactor, initialSeverity, isCompact, lesionSides, symptomCompensation, tapers as tapersBelow } from './recovery';
 import type { SymptomRecovery } from './recoveryTypes';
+import { continuousSeverity, deficitOrdinalMotorPoints } from './deficitGrades';
 
 export interface SymptomItem {
   id: string;
   /** body side ('r'/'l'), both sides, or null for non-lateralised symptoms */
   side: Side | 'both' | null;
   sev: 1 | 2 | 3;
+  /** Continuous educational model severity (0–3), before ordinal presentation. */
+  continuousSeverity?: number;
   sources: string[];
   delayed: boolean;
   /** how far spared pathways have taken this deficit over (from its dominant source), if it comes from a region */
@@ -29,6 +32,17 @@ export interface SymptomItem {
    * once the passing part has gone; one of a function without backup does not improve below it.
    */
   deadSev?: 0 | 1 | 2 | 3;
+  /** Continuous severity from dead tissue alone, on the same model scale. */
+  deadContinuousSeverity?: number;
+}
+
+/** Item grade estimate; the lesion-to-grade mapping is illustrative, not a bedside test. */
+export function symptomNihssPoints(s: SymptomItem): number | null {
+  const mapping = SYMPTOM_BY_ID[s.id]?.nihss;
+  if (!mapping) return null;
+  return mapping.item === '5' || mapping.item === '6'
+    ? deficitOrdinalMotorPoints(s, mapping.pts)
+    : mapping.pts[s.sev - 1];
 }
 
 /**
@@ -455,7 +469,7 @@ const NEEDS_LEGS = ['ataxia_gait'];
 const weaknessPts = (symptoms: SymptomItem[], ids: string[], side: Side) =>
   symptoms.reduce((m, s) => {
     const n = SYMPTOM_BY_ID[s.id]?.nihss;
-    return !s.delayed && n && ids.includes(s.id) && (s.side === side || s.side === 'both') ? Math.max(m, n.pts[s.sev - 1]) : m;
+    return !s.delayed && n && ids.includes(s.id) && (s.side === side || s.side === 'both') ? Math.max(m, symptomNihssPoints(s) ?? 0) : m;
   }, 0);
 /**
  * the limb that a sign of NEEDS_MOVEMENT on body side `side` needs is too weak to make the movement:
@@ -588,15 +602,17 @@ export function lesionSymptoms(
   const add = (id: string, side: SymptomItem['side'], sev: number, src: string, delayed: boolean, recovery?: SymptomRecovery) => {
     const key = `${id}|${side ?? ''}`;
     const s = Math.max(1, Math.min(3, Math.round(sev))) as 1 | 2 | 3;
+    const strength = continuousSeverity({ sev, continuousSeverity: sev });
     const prev = map.get(key);
     if (prev) {
       // the outlook follows the source that sets the severity (on a tie, the less compensated one)
-      if (recovery && (!prev.recovery || s > prev.sev || (s === prev.sev && recovery.compensated < prev.recovery.compensated)))
+      if (recovery && (!prev.recovery || strength > continuousSeverity(prev) || (strength === continuousSeverity(prev) && recovery.compensated < prev.recovery.compensated)))
         prev.recovery = recovery;
+      prev.continuousSeverity = Math.max(continuousSeverity(prev), strength);
       prev.sev = Math.max(prev.sev, s) as 1 | 2 | 3;
       if (!prev.sources.includes(src)) prev.sources.push(src);
     } else {
-      map.set(key, recovery ? { id, side, sev: s, sources: [src], delayed, recovery } : { id, side, sev: s, sources: [src], delayed });
+      map.set(key, recovery ? { id, side, sev: s, continuousSeverity: strength, sources: [src], delayed, recovery } : { id, side, sev: s, continuousSeverity: strength, sources: [src], delayed });
     }
   };
   // which sides have dead tissue serving each function: a one-sided loss compensates better
@@ -737,7 +753,7 @@ export function lesionSymptoms(
       add(id, side, sevEff, r.id, shownDelayed, rec);
     }
   }
-  for (const e of extra) add(e.id, e.side, e.sev, e.sources[0] ?? '', e.delayed);
+  for (const e of extra) add(e.id, e.side, continuousSeverity(e), e.sources[0] ?? '', e.delayed);
 
   // merges
   const get = (id: string, side: SymptomItem['side']) => map.get(`${id}|${side ?? ''}`);
@@ -753,10 +769,11 @@ export function lesionSymptoms(
         map.set(`${both.id}|${fs}`, { ...both, side: fs, sources: [...both.sources] });
         continue;
       }
-      if (both.sev > one.sev) {
-        one.sev = both.sev;
+      if (continuousSeverity(both) > continuousSeverity(one)) {
         if (both.recovery) one.recovery = both.recovery;
       }
+      one.continuousSeverity = Math.max(continuousSeverity(one), continuousSeverity(both));
+      one.sev = Math.max(one.sev, both.sev) as 1 | 2 | 3;
       for (const src of both.sources) if (!one.sources.includes(src)) one.sources.push(src);
     }
     del(both.id, 'both');
@@ -776,7 +793,7 @@ export function lesionSymptoms(
     const sources = [...new Set([...hi.sources, ...lo.sources])];
     del('gaze_deviation', 'r');
     del('gaze_deviation', 'l');
-    if (hi.sev > lo.sev) map.set(`gaze_deviation|${hi.side}`, { ...hi, sev: (hi.sev - lo.sev) as 1 | 2 | 3, sources });
+    if (hi.sev > lo.sev) map.set(`gaze_deviation|${hi.side}`, { ...hi, sev: (hi.sev - lo.sev) as 1 | 2 | 3, continuousSeverity: Math.abs(continuousSeverity(hi) - continuousSeverity(lo)), sources });
     else map.set('gaze_paresis_bilateral|', { ...hi, id: 'gaze_paresis_bilateral', side: null, sources });
   }
   // a part of a broader deficit of the same side, no more severe than it, is that deficit (U3-7)
@@ -785,6 +802,8 @@ export function lesionSymptoms(
       const p = get(part, fs);
       const w = get(whole, fs);
       if (!p || !w || p.sev > w.sev || p.delayed !== w.delayed) continue;
+      if (continuousSeverity(p) > continuousSeverity(w)) w.recovery = p.recovery;
+      w.continuousSeverity = Math.max(continuousSeverity(w), continuousSeverity(p));
       for (const src of p.sources) if (!w.sources.includes(src)) w.sources.push(src);
       del(part, fs);
     }
@@ -799,7 +818,7 @@ export function lesionSymptoms(
     const sup = get('quadrant_sup', fs);
     const inf = get('quadrant_inf', fs);
     if (sup && inf) {
-      add('hemianopia', fs, Math.max(sup.sev, inf.sev, 2), sup.sources[0], false);
+      add('hemianopia', fs, Math.max(continuousSeverity(sup), continuousSeverity(inf), 2), sup.sources[0], false);
       const h = get('hemianopia', fs)!;
       for (const src of inf.sources) if (!h.sources.includes(src)) h.sources.push(src);
       del('quadrant_sup', fs);
@@ -838,7 +857,10 @@ export function lesionSymptoms(
   // spasticity is mild unless that side had a severe weakness or a hemisensory loss early (C10-F1)
   for (const fs of ['r', 'l'] as Side[]) {
     const sp = get('spasticity', fs);
-    if (sp && sp.sev > 1 && earlyParesis[fs] < 2.5 - 1e-9 && !earlySensory[fs]) sp.sev = 1;
+    if (sp && sp.sev > 1 && earlyParesis[fs] < 2.5 - 1e-9 && !earlySensory[fs]) {
+      sp.sev = 1;
+      sp.continuousSeverity = Math.min(1, continuousSeverity(sp));
+    }
   }
   // colour lost in the whole field takes in the half-field loss (C1-F8)
   if (map.has('achromatopsia|')) for (const fs of ['r', 'l'] as Side[]) del('hemiachromatopsia', fs);
@@ -861,7 +883,8 @@ export function lesionSymptoms(
     const aosOverFading = !!aos && components.every((s) => s.sev < 2 && !APHASIA_FEATURES[s.id].nonfluent && fading(s));
     let type = aphasiaType(aosOverFading ? { ...features(components), nonfluent: true } : features(components));
     let sev = Math.max(...components.map((s) => s.sev));
-    let recovery = components.find((s) => s.sev === sev)?.recovery;
+    let strength = Math.max(...components.map(continuousSeverity));
+    let recovery = components.find((s) => continuousSeverity(s) === strength)?.recovery;
     if (type === 'aphasia_global') {
       // graded from its components, without a fixed step up, and compensated as a global
       // aphasia (the poorest outlook), so that it can become a Broca or Wernicke type later; the
@@ -879,7 +902,10 @@ export function lesionSymptoms(
           recovery = rec;
         }
       }
-      if (best > 0) sev = Math.max(1, Math.min(3, Math.round(best))) as 1 | 2 | 3;
+      if (best > 0) {
+        strength = continuousSeverity({ sev: best, continuousSeverity: best });
+        sev = Math.max(1, Math.min(3, Math.round(best))) as 1 | 2 | 3;
+      }
       // Global aphasia is the most severe type by definition (Kertesz & Poole), so a mild one
       // is no longer global. In the first year the type always changed to a less severe form, and
       // a fluent aphasia never became non-fluent (global to Wernicke's, Broca's to anomic;
@@ -918,12 +944,13 @@ export function lesionSymptoms(
         const shares = (s: SymptomItem) => (Object.keys(APHASIA_FEATURES[s.id]) as (keyof (typeof APHASIA_FEATURES)[string])[]).some((f) => APHASIA_FEATURES[type][f]);
         const kept = strongType !== 'aphasia_global' ? strong : components.filter(shares);
         sev = Math.max(...kept.map((s) => s.sev)) as 1 | 2 | 3;
+        strength = Math.max(...kept.map(continuousSeverity));
         recovery = kept.reduce((a, b) => (now(b) > now(a) ? b : a)).recovery;
       }
     }
     const sources = [...new Set(components.flatMap((s) => s.sources))];
     for (const s of components) del(s.id, null);
-    map.set(`${type}|`, recovery ? { id: type, side: null, sev: sev as 1 | 2 | 3, sources, delayed: false, recovery } : { id: type, side: null, sev: sev as 1 | 2 | 3, sources, delayed: false });
+    map.set(`${type}|`, recovery ? { id: type, side: null, sev: sev as 1 | 2 | 3, continuousSeverity: strength, sources, delayed: false, recovery } : { id: type, side: null, sev: sev as 1 | 2 | 3, continuousSeverity: strength, sources, delayed: false });
     // apraxia of speech is a non-fluent motor-speech disorder: a fluent aphasia type contradicts it
     if (!APHASIA_FEATURES[type].nonfluent) del('apraxia_of_speech', null);
     // the word-finding difficulty of a thalamic aphasia (C9-F4) is part of the cortical type
@@ -935,7 +962,10 @@ export function lesionSymptoms(
   const dysphagia = get('dysphagia', null);
   if (dysphagia && dysphagia.sev < 2) {
     const sides = new Set(dysphagia.sources.map((src) => REGION_BY_ID[src]?.side));
-    if (sides.has('r') && sides.has('l')) dysphagia.sev = 2;
+    if (sides.has('r') && sides.has('l')) {
+      dysphagia.sev = 2;
+      dysphagia.continuousSeverity = Math.max(2, continuousSeverity(dysphagia));
+    }
   }
   // bilateral ventral pons: anarthria (no speech at all) replaces, rather than adds to, the
   // milder unilateral dysarthria picture
@@ -999,10 +1029,6 @@ export function aggregateSymptoms(...args: Parameters<typeof lesionSymptoms>): S
 export function estimateNihss(symptoms: SymptomItem[], posteriorCirculation = false): NihssResult {
   const items: Record<string, number> = {};
   const set = (k: string, v: number, cap: number) => (items[k] = Math.min(cap, Math.max(items[k] ?? 0, v)));
-  const pts = (id: string, sev: number) => {
-    const n = SYMPTOM_BY_ID[id]?.nihss;
-    return n ? n.pts[sev - 1] : 0;
-  };
   const armSide = { r: 0, l: 0 };
   const legSide = { r: 0, l: 0 };
   const ataxia = { r: 0, l: 0 };
@@ -1016,7 +1042,7 @@ export function estimateNihss(symptoms: SymptomItem[], posteriorCirculation = fa
     if (akinetic >= 2 && APHASIA_TYPES.includes(s.id)) continue;
     const n = SYMPTOM_BY_ID[s.id]?.nihss;
     if (!n) continue;
-    const p = pts(s.id, s.sev);
+    const p = symptomNihssPoints(s) ?? 0;
     const sides: Side[] = s.side === 'both' ? ['r', 'l'] : s.side === 'r' || s.side === 'l' ? [s.side] : [];
     switch (n.item as NihssItem) {
       case '5':

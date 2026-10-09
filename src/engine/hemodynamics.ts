@@ -62,6 +62,11 @@ export interface HemoInput {
   collateral: CollateralGrade;
 }
 
+interface SolverInput extends HemoInput {
+  /** Research-only factor for all named collateral vessels, including extracranial and cerebellar links; preserves hidden brainstem pial grade. */
+  collateralFactor?: number;
+}
+
 /** Part of a bed supplied by one artery. */
 export interface Unit {
   id: string;
@@ -75,6 +80,10 @@ export interface Unit {
 }
 
 export interface HemoResult {
+  /** Edges limited by the numerical donor-pressure safeguard, not measured autoregulation. */
+  collateralPressureGuard?: string[];
+  /** Total circuit inflow, including undrawn arch-to-arm links, for safeguard conservation checks. */
+  boundaryInflow?: number;
   /** mL/min, positive = nominal direction (from → to) */
   vesselFlow: Record<string, number>;
   baselineFlow: Record<string, number>;
@@ -470,8 +479,13 @@ export function absentVessels(variants: readonly string[]): Set<string> {
   return new Set([...scale].filter(([, f]) => f === 0).map(([id]) => id));
 }
 
-function buildConfig(variants: string[], collateral: CollateralGrade): Config {
-  const key = `${[...variants].sort().join(',')}|${collateral}`;
+function validateCollateralFactor(factor?: number): void {
+  if (factor !== undefined && (!Number.isFinite(factor) || factor <= 0)) throw new RangeError('collateralFactor must be finite and positive');
+}
+
+function buildConfig(variants: string[], collateral: CollateralGrade, collateralFactor?: number): Config {
+  validateCollateralFactor(collateralFactor);
+  const key = `${[...variants].sort().join(',')}|${collateral}|${collateralFactor ?? 'default'}`;
   const cached = configCache.get(key);
   if (cached) return cached;
 
@@ -496,7 +510,7 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
     }
     if (v.kind === 'collateral') {
       const fref = (ownerFlow(v.from, sub) + ownerFlow(v.to, sub)) / 2;
-      vesselG.set(v.id, (v.collStrength ?? 1) * COLL_GRADE[collateral] * Math.max(fref, 5) * COLL_SCALE);
+      vesselG.set(v.id, (v.collStrength ?? 1) * (collateralFactor ?? COLL_GRADE[collateral]) * Math.max(fref, 5) * COLL_SCALE);
     } else {
       const r = v.r * f;
       vesselG.set(v.id, (K_POISEUILLE * (KIND_FACTOR[v.kind] ?? 1) * (v.n ?? 1) * r ** 4) / flowLength(v));
@@ -710,14 +724,22 @@ function stenosedG(v: Vessel, g0: number, severity: number, radiusScale: number)
 
 // ── public API ───────────────────────────────────────────────────
 const resultCache = new Map<string, HemoResult>();
+const pressureCache = new Map<string, Record<string, number>>();
+const HEMISPHERIC_FAMILIES = new Set(['ICA', 'ACA', 'MCA', 'LSA', 'AChA', 'PCA', 'THAL']);
+const nodeSide = (node: string): 'l' | 'r' | undefined => node.match(/_([lr])(?:@mid)?$/)?.[1] as 'l' | 'r' | undefined;
+const hemisphereOf = (o: Occlusion) => {
+  const vessel = VESSEL_BY_ID[o.vessel];
+  return vessel && HEMISPHERIC_FAMILIES.has(vessel.family) ? nodeSide(o.vessel) : undefined;
+};
 
-export function hemoKey(input: HemoInput): string {
+export function hemoKey(input: SolverInput): string {
+  validateCollateralFactor(input.collateralFactor);
   const occ = input.occlusions
     .filter((o) => !o.branch)
     .sort((a, b) => a.vessel.localeCompare(b.vessel))
     .map((o) => `${o.vessel}:${o.severity}`)
     .join(',');
-  return `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}`;
+  return `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}|${input.collateralFactor ?? 'default'}`;
 }
 
 /** Units of the current configuration (for tissue-state bookkeeping). */
@@ -726,11 +748,39 @@ export function getUnits(variants: string[], collateral: CollateralGrade): Unit[
 }
 
 export function simulateHemodynamics(input: HemoInput): HemoResult {
-  const key = hemoKey(input);
+  const { occlusions, variants, map, collateral } = input;
+  return runHemodynamics({ occlusions, variants, map, collateral });
+}
+
+/** Separate research entry point; never changes the clinical simulation input or defaults. */
+export function simulateResearchHemodynamics(input: HemoInput, collateralFactor: number): HemoResult {
+  validateCollateralFactor(collateralFactor);
+  const { occlusions, variants, map, collateral } = input;
+  return runHemodynamics({ occlusions, variants, map, collateral, collateralFactor });
+}
+
+function runHemodynamics(input: SolverInput): HemoResult {
+  const sides = new Set(input.occlusions.filter((o) => !o.branch && o.severity > 0).map(hemisphereOf));
+  if (!sides.has('l') || !sides.has('r')) return solveHemodynamics(input);
+  const cached = resultCache.get(`${hemoKey(input)}|pressure-guard`);
+  if (cached) return cached;
+  const references: Partial<Record<'l' | 'r', Record<string, number>>> = {};
+  for (const side of ['l', 'r'] as const) {
+    // Keep shared vertebrobasilar/neck supply lesions; remove only the other
+    // hemisphere's native arterial lesions. This is a numerical counterfactual.
+    const isolated = { ...input, occlusions: input.occlusions.filter((o) => !hemisphereOf(o) || hemisphereOf(o) === side) };
+    solveHemodynamics(isolated);
+    references[side] = pressureCache.get(hemoKey(isolated));
+  }
+  return solveHemodynamics(input, references);
+}
+
+function solveHemodynamics(input: SolverInput, references?: Partial<Record<'l' | 'r', Record<string, number>>>): HemoResult {
+  const key = `${hemoKey(input)}${references ? '|pressure-guard' : ''}`;
   const hit = resultCache.get(key);
   if (hit) return hit;
 
-  const cfg = buildConfig(input.variants, input.collateral);
+  const cfg = buildConfig(input.variants, input.collateral, input.collateralFactor);
   const { scale } = variantOverrides(input.variants);
   const gOverride = new Map<string, number>();
   const dead = new Set<string>();
@@ -753,6 +803,7 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   const live = cfg.units.filter((u) => !dead.has(u.node));
   const asm = assemble(edges, live);
   const base = Float64Array.from(asm.sys.a);
+  const originalG = edges.map((e) => e.g);
   const { idx } = asm;
 
   const dil = new Map<string, number>();
@@ -760,7 +811,7 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   const unitFlow: Record<string, number> = {};
   let p: Float64Array = new Float64Array(0);
   let iterations = 0;
-  for (let it = 0; it < 40; it++) {
+  for (let it = 0; it < (references ? 160 : 40); it++) {
     iterations = it + 1;
     asm.sys.a.set(base);
     setArch(asm, input.map);
@@ -782,7 +833,49 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
       maxChange = Math.max(maxChange, Math.abs(nd - d) / d);
       dil.set(u.id, nd);
     }
-    if (maxChange < 0.002) break;
+    if (references) {
+      const P = (node: string) => node === FIXED ? input.map : p[idx.get(node)!];
+      edges.forEach((edge, j) => {
+        const vessel = VESSEL_BY_ID[edge.vessel];
+        const collateral = vessel?.kind === 'collateral' || vessel?.kind === 'communicating' || edge.vessel.startsWith('pial:');
+        if (!collateral && (!vessel || !HEMISPHERIC_FAMILIES.has(vessel.family))) return;
+        const [donor, recipient] = P(edge.a) >= P(edge.b) ? [edge.a, edge.b] : [edge.b, edge.a];
+        const side = nodeSide(recipient);
+        const reference = side ? references[side] : undefined;
+        const ceiling = reference?.[donor];
+        const recipientCeiling = reference?.[recipient];
+        const delta = P(donor) - P(recipient);
+        // A newly recruited or reversed route has no reference-forward pressure
+        // contribution to limit. Its original conductance stays available.
+        if (ceiling === undefined || recipientCeiling === undefined || delta <= 0) return;
+        const target = ceiling <= recipientCeiling ? originalG[j] : collateral
+          ? originalG[j] * Math.max(0, Math.min(1, (Math.min(P(donor), ceiling) - P(recipient)) / delta))
+          : P(donor) > recipientCeiling
+            ? Math.min(originalG[j], edge.g * delta / (P(donor) - recipientCeiling))
+            : originalG[j];
+        // Under-relaxation and tolerances are numerical solver controls, not physiology.
+        const next = (edge.g + target) / 2;
+        maxChange = Math.max(maxChange, Math.abs(next - edge.g) / Math.max(originalG[j], G_LEAK));
+        edge.g = next;
+      });
+      if (maxChange < 1e-8) break;
+      base.set(assemble(edges, live).sys.a);
+    } else if (maxChange < 0.002) break;
+  }
+
+  if (references) {
+    // Report one consistent circuit state, including when the iteration limit is reached.
+    asm.sys.a.set(assemble(edges, live).sys.a);
+    setArch(asm, input.map);
+    for (const u of live) {
+      const i = idx.get(u.node);
+      if (i !== undefined) asm.sys.addFixed(i, unitG(cfg, u, dil.get(u.id)!), P_OUT);
+    }
+    p = asm.sys.solve();
+    for (const u of live) {
+      const i = idx.get(u.node);
+      unitFlow[u.id] = i === undefined ? 0 : Math.max(0, unitG(cfg, u, dil.get(u.id)!) * (p[i] - P_OUT));
+    }
   }
 
   const vesselFlow = edgeFlows(asm, p, input.map);
@@ -828,8 +921,13 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
     totalCbf,
     baselineCbf: cfg.baselineCbf,
     iterations,
+    ...(references ? {
+      collateralPressureGuard: [...new Set(edges.filter((e, j) => e.g < originalG[j] * (1 - 1e-7)).map((e) => e.vessel))],
+      boundaryInflow: edges.reduce((sum, e) => sum + (e.a === FIXED ? e.g * (input.map - p[idx.get(e.b)!]) : e.b === FIXED ? e.g * (input.map - p[idx.get(e.a)!]) : 0), 0),
+    } : {}),
   };
-  if (resultCache.size > 300) resultCache.clear();
+  if (resultCache.size > 300) { resultCache.clear(); pressureCache.clear(); }
+  pressureCache.set(key, Object.fromEntries([...idx].map(([node, i]) => [node, p[i]])));
   resultCache.set(key, result);
   return result;
 }

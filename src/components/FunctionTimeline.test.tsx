@@ -11,6 +11,7 @@ import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { FunctionTimeline } from './FunctionTimeline';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
+import { DEFICIT_SEVERITY } from '../i18n/deficitSeverity';
 
 afterEach(() => {
   cleanup();
@@ -22,6 +23,20 @@ const series = TIME_STOPS.map((s) =>
 const i24 = TIME_STOPS.findIndex((s) => s.h === 24);
 
 describe('function heat-map cell detail', () => {
+  it('shows within-category changes and continuous meters without losing ordinal timeline fills', () => {
+    const symptom = { id: 'arm_weak', side: 'r' as const, sev: 2 as const, sources: [], delayed: false, continuousSeverity: 1.25 };
+    const courses = series.map((sim, index) => ({ ...sim, symptoms: [{ ...symptom, continuousSeverity: index >= i24 ? 1.5 : 1.25 }], unexaminable: [] }));
+    useApp.setState({ lang: 'en', tIndex: 0 });
+    const { container } = render(<FunctionTimeline series={courses} />);
+    const cell = screen.getByRole('button', { name: /^Motor · 1 day/ });
+    expect(cell.title).toContain('1.50/3');
+    fireEvent.click(cell);
+    const box = container.querySelector('.cell-detail') as HTMLElement;
+    const meter = within(box).getByRole('meter', { name: DEFICIT_SEVERITY.en.model });
+    expect(meter.getAttribute('value')).toBe('1.5');
+    expect(box.querySelector('.cd-worse')).not.toBeNull();
+    expect(box.querySelector('.sw')?.getAttribute('style')).toContain('240, 161, 50');
+  });
   it('shows the symptoms, their side and source regions for the clicked cell, and opens a region', () => {
     useApp.setState({ lang: 'zh-TW', tIndex: 0, selected: null, rightTab: 'now' });
     const { container } = render(<FunctionTimeline series={series} />);

@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { VESSEL_BY_ID, vesselName } from '../anatomy';
+import { lacuneSitesOf } from '../anatomy/lacunes';
 import { simulate } from '../engine/simulate';
 import { useApp } from '../state/store';
 import { LeftPanel } from './LeftPanel';
@@ -140,7 +141,7 @@ describe('events card', () => {
     const events = card('阻塞事件');
     const items = within(events).getAllByRole('listitem');
     expect(items.map((li) => within(li).getAllByRole('button')[0].textContent)).toEqual([BA, PICA]);
-    within(items[1]).getByText('完全阻塞');
+    within(items[1]).getByText('完全阻塞', { selector: '.badge' });
     // each vessel has its own timing editor
     expect(within(events).getAllByLabelText('開始')).toHaveLength(2);
 
@@ -174,6 +175,66 @@ describe('events card', () => {
     fireEvent.change(within(card('阻塞事件')).getByLabelText('開始'), { target: { value: '72' } });
     expect(useApp.getState().occlusions).toEqual([{ vessel: 'pica_r', severity: 1, fromH: 72 }]);
     expect(summaryOf('阻塞事件')).toBe(`${PICA}（3 天起）`);
+  });
+
+  it('edits a single-phase degree without changing another vessel', () => {
+    stack();
+    renderPanel();
+    const items = within(card('阻塞事件')).getAllByRole('listitem');
+    const degree = within(items[0]).getByRole('combobox', { name: '程度' });
+    fireEvent.change(degree, { target: { value: '0.7' } });
+    expect(useApp.getState().occlusions).toEqual([
+      { vessel: 'basilar_mid', severity: 0.7 },
+      { vessel: 'pica_r', severity: 1 },
+    ]);
+    expect(summaryOf('阻塞事件')).toContain('70%');
+    fireEvent.change(degree, { target: { value: '1' } });
+    expect(summaryOf('阻塞事件')).toBe(`${BA} + ${PICA}`);
+  });
+
+  it('preserves a single phase timing and displays a custom degree', () => {
+    useApp.setState({ occlusions: [{ vessel: 'pica_r', severity: 0.75, fromH: 72, toH: 73 }] });
+    renderPanel();
+    const degree = within(card('阻塞事件')).getByRole('combobox', { name: '程度' }) as HTMLSelectElement;
+    expect(degree.value).toBe('0.75');
+    fireEvent.change(degree, { target: { value: '0.9' } });
+    expect(useApp.getState().occlusions).toEqual([{ vessel: 'pica_r', severity: 0.9, fromH: 72, toH: 73 }]);
+    expect(summaryOf('阻塞事件')).toContain('90%');
+  });
+
+  it('converts a lacunar branch to a whole-vessel stenosis without retaining its site', () => {
+    const lacuneSite = lacuneSitesOf('lenticulostriate')[1].id;
+    useApp.setState({ occlusions: [{ vessel: 'lenticulostriate_l', severity: 1, branch: true, lacuneSite }] });
+    renderPanel();
+    const degree = within(card('阻塞事件')).getByRole('combobox', { name: '程度' }) as HTMLSelectElement;
+    expect(degree.value).toBe('b');
+    fireEvent.change(degree, { target: { value: '0.7' } });
+    expect(useApp.getState().occlusions).toEqual([{ vessel: 'lenticulostriate_l', severity: 0.7 }]);
+    fireEvent.change(degree, { target: { value: 'b' } });
+    expect(useApp.getState().occlusions).toEqual([{ vessel: 'lenticulostriate_l', severity: 1, branch: true }]);
+  });
+
+  it('continues to edit only the chosen stage of a staged vessel', () => {
+    useApp.setState({ occlusions: [
+      { vessel: 'basilar_mid', severity: 0.9, toH: 72 },
+      { vessel: 'basilar_mid', severity: 1, fromH: 72 },
+    ] });
+    renderPanel();
+    const degrees = within(card('阻塞事件')).getAllByRole('combobox', { name: '程度' });
+    fireEvent.change(degrees[1], { target: { value: '0.7' } });
+    expect(useApp.getState().occlusions).toEqual([
+      { vessel: 'basilar_mid', severity: 0.9, toH: 72 },
+      { vessel: 'basilar_mid', severity: 0.7, fromH: 72 },
+    ]);
+  });
+
+  it('offers single-phase degree editing in English without a lacunar option for a large artery', () => {
+    useApp.setState({ lang: 'en', occlusions: [{ vessel: 'basilar_mid', severity: 1 }] });
+    renderPanel();
+    const degree = within(card('Occlusion events')).getByRole('combobox', { name: 'Degree' }) as HTMLSelectElement;
+    expect([...degree.options].map((o) => o.value)).toEqual(['0.5', '0.7', '0.9', '1']);
+    fireEvent.change(degree, { target: { value: '0.5' } });
+    expect(useApp.getState().occlusions).toEqual([{ vessel: 'basilar_mid', severity: 0.5 }]);
   });
 
   it('empty: offers to start from a template or from the vessel list', () => {

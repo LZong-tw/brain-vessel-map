@@ -62,6 +62,9 @@ export function formatPrevalence(p: PostStrokeRisk['prevalence'], lang: Lang): s
   const v = pctText(p.value);
   const ci = p.low !== undefined && p.high !== undefined ? `${pctText(p.low)}–${pctText(p.high)}` : null;
   if (lang === 'en') return ci ? `about ${v} % (95% CI ${ci} %)` : `about ${v} %`;
+  if (lang === 'de') return ci ? `etwa ${v} % (95%-KI ${ci} %)` : `etwa ${v} %`;
+  if (lang === 'ja') return ci ? `約 ${v} %（95%信頼区間 ${ci} %）` : `約 ${v} %`;
+  if (lang === 'zh-CN') return ci ? `约 ${v} %（95% CI ${ci} %）` : `约 ${v} %`;
   return ci ? `約 ${v}%（95% CI ${ci}%）` : `約 ${v}%`;
 }
 

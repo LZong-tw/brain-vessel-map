@@ -9,6 +9,7 @@ import type { Lang } from '../anatomy/types';
 import type { Occlusion } from '../engine/hemodynamics';
 import { endOf, startOf } from '../engine/schedule';
 import type { ScheduleStrings } from '../i18n/uiSchedule';
+import { inlineText } from '../i18n/content';
 
 /** how long a transient occlusion may last before it reopens by itself (h) */
 export const REOPEN_AFTER_H = [1 / 12, 1 / 6, 0.25, 0.5, 1, 2, 6, 12, 24, 72, 168];
@@ -20,21 +21,20 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
  * "1 小時 5 分鐘", "3 天", "3 天 6 小時", "1 週". Times that are timeline stops use its labels.
  */
 export function formatClock(h: number, lang: Lang): string {
-  const zh = lang !== 'en';
   if (h <= 0) return '0';
   const stop = TIME_STOPS.find((s) => near(s.h, h));
   if (stop && stop.h >= 1) return tr(stop.label, lang);
   const totalMin = Math.round(h * 60);
-  if (totalMin < 60) return zh ? `${totalMin} 分鐘` : `${totalMin} min`;
+  if (totalMin < 60) return inlineText(lang, `${totalMin} 分鐘`, `${totalMin} min`, `${totalMin} 分钟`, `${totalMin} min`, `${totalMin} 分`);
   if (h < 24) {
-    if (near(h * 2, Math.round(h * 2))) return zh ? `${+h.toFixed(1)} 小時` : `${+h.toFixed(1)} h`;
+    if (near(h * 2, Math.round(h * 2))) return inlineText(lang, `${+h.toFixed(1)} 小時`, `${+h.toFixed(1)} h`, `${+h.toFixed(1)} 小时`, `${+h.toFixed(1)} h`, `${+h.toFixed(1)} 時間`);
     const hh = Math.floor(totalMin / 60);
     const mm = totalMin - hh * 60;
-    return zh ? `${hh} 小時 ${mm} 分鐘` : `${hh} h ${mm} min`;
+    return inlineText(lang, `${hh} 小時 ${mm} 分鐘`, `${hh} h ${mm} min`, `${hh} 小时 ${mm} 分钟`, `${hh} h ${mm} min`, `${hh} 時間 ${mm} 分`);
   }
   const d = Math.floor((totalMin + 0.5) / 1440);
   const restMin = totalMin - d * 1440;
-  const days = zh ? `${d} 天` : `${d} ${d === 1 ? 'day' : 'days'}`;
+  const days = inlineText(lang, `${d} 天`, `${d} ${d === 1 ? 'day' : 'days'}`, `${d} 天`, `${d} ${d === 1 ? 'Tag' : 'Tage'}`, `${d} 日`);
   return restMin < 1 ? days : `${days} ${formatClock(restMin / 60, lang)}`;
 }
 

@@ -11,6 +11,7 @@ import { TIME_STOPS, phaseOf } from '../anatomy/timeline';
 import { SYMPTOM_BY_ID, isQualifier } from '../anatomy/symptoms';
 import type { CascadeEvent, FatalRisk, SurvivalCaveat } from '../engine/cascade';
 import type { SymptomItem } from '../engine/clinical';
+import { continuousSeverity } from '../engine/deficitGrades';
 import { simulate, type SimInput, type SimResult } from '../engine/simulate';
 import { fmtMl, pctShare } from './format';
 
@@ -216,8 +217,8 @@ function shownAt(sim: SimResult): { infarct: string; deficits: string } {
   const deficits = [
     `NIHSS ${sim.nihss.total}`,
     ...sim.syndromes.map((m) => `${m.def.id}_${m.side ?? ''}${m.silent ? '*' : ''}`),
-    ...sim.symptoms.map((s) => `${s.id}/${s.side ?? ''}:${s.sev}${s.delayed ? 'd' : ''}:${deficitGroup(s)}`),
-    ...sim.unexaminable.map((s) => `?${s.id}/${s.side ?? ''}:${s.sev}:${s.why}`),
+    ...sim.symptoms.map((s) => `${s.id}/${s.side ?? ''}:${s.sev}:${continuousSeverity(s).toFixed(2)}${s.delayed ? 'd' : ''}:${deficitGroup(s)}`),
+    ...sim.unexaminable.map((s) => `?${s.id}/${s.side ?? ''}:${s.sev}:${continuousSeverity(s).toFixed(2)}:${s.why}`),
   ].sort();
   return { infarct: infarct.join('|'), deficits: deficits.join('|') };
 }

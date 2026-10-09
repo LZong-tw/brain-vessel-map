@@ -156,7 +156,7 @@ function EventsCard({ sim }: { sim: SimResult }) {
                     ×
                   </button>
                 </div>
-                <ScheduleEditor vessel={id} sim={sim} />
+                <ScheduleEditor vessel={id} sim={sim} editSinglePhase />
               </li>
             );
           })}

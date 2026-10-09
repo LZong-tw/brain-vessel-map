@@ -13,8 +13,10 @@ import { WillisDiagram } from './components/diagrams/WillisDiagram';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, vesselName } from './anatomy';
 import { useSimulation, useT } from './state/hooks';
 import { useApp, type ViewMode } from './state/store';
+import { inlineText } from './i18n/content';
 
 const Scene3D = lazy(() => import('./scene/Scene3D').then((m) => ({ default: m.Scene3D })));
+const SliceView = lazy(() => import('./components/SliceView').then((m) => ({ default: m.SliceView })));
 
 function HoverTip() {
   const hovered = useApp((s) => s.hovered);
@@ -25,9 +27,7 @@ function HoverTip() {
     hovered.kind === 'vessel'
       ? VESSEL_BY_ID[hovered.id] && vesselName(VESSEL_BY_ID[hovered.id], lang)
       : hovered.kind === 'structure'
-        ? lang === 'en'
-          ? 'Ventricles (cerebrospinal fluid)'
-          : '腦室（腦脊髓液）'
+        ? inlineText(lang, '腦室（腦脊髓液）', 'Ventricles (cerebrospinal fluid)', '脑室（脑脊液）', 'Ventrikel (Liquor cerebrospinalis)', '脳室（脳脊髄液）')
         : REGION_BY_ID[hovered.id] && regionName(REGION_BY_ID[hovered.id], lang);
   if (!label) return null;
   return (
@@ -52,13 +52,14 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.lang = lang;
-    document.title = `${t.appTitle} · ${lang === 'en' ? 'Brain Vessel Map' : 'Brain Vessel Map'}`;
+    document.title = `${t.appTitle} · Brain Vessel Map`;
   }, [lang, t.appTitle]);
 
   const views: [ViewMode, string][] = [
     ['3d', t.view3d],
     ['willis', t.viewWillis],
     ['brainstem', t.viewBrainstem],
+    ['slices', inlineText(lang, '2D 切片', '2D slices', '2D 切片', '2D-Schnitte', '2D断面')],
   ];
 
   return (
@@ -83,7 +84,7 @@ export default function App() {
                     <div className="scene-message error">
                       {t.webglUnavailable}{' '}
                       <button className="btn small" onClick={() => window.location.reload()}>
-                        {lang === 'en' ? 'Reload' : '重新載入'}
+                        {inlineText(lang, '重新載入', 'Reload', '重新加载', 'Neu laden', '再読み込み')}
                       </button>
                     </div>
                   )}
@@ -96,8 +97,13 @@ export default function App() {
             )}
             {view === 'willis' && <WillisDiagram sim={sim} />}
             {view === 'brainstem' && <BrainstemSections sim={sim} />}
+            {view === 'slices' && (
+              <Suspense fallback={<div className="scene-message loading">{t.loading}</div>}>
+                <SliceView lang={lang} sim={sim} />
+              </Suspense>
+            )}
             <HoverTip />
-            <Legend />
+            {view !== 'slices' && <Legend />}
           </div>
           <CaseSummary />
           <Timeline sim={sim} />

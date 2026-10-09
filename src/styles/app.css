@@ -52,6 +52,34 @@ button {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+.deficit-severity { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); margin-left: 6px; }
+.deficit-severity meter { width: 4rem; height: 0.6rem; }
+.deficit-severity-note, .deficit-severity-points { font-size: 11px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+.scene-keyboard {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 30;
+  max-width: min(340px, calc(100% - 16px));
+  padding: 8px;
+  background: #171c29;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+
+.scene-keyboard summary { cursor: pointer; }
+.mra-distal-controls { position: absolute; left: 8px; top: 8px; z-index: 30; max-width: min(300px, calc(100% - 16px)); max-height: 45%; overflow: auto; padding: 8px; background: #171c29; border: 1px solid var(--line-2); border-radius: 6px; font-size: 12px; }
+.mra-distal-controls summary { cursor: pointer; }
+.mra-distal-controls [role='group'] { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin: 6px 0; }
+.mra-distal-controls button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mra-distal-badge { position: absolute; right: 0; left: 0; top: 0; z-index: 30; margin: 0; padding: 6px 8px; font-size: 11px; background: #171c29; border-bottom: 1px solid var(--line-2); pointer-events: none; }
+.mra-reference-active .mra-distal-controls { top: 60px; }
+.scene-keyboard p { font-size: 12px; margin: 6px 0; }
+.scene-structure-list { max-height: 160px; overflow: auto; padding: 4px; }
+.scene-structure-list button { display: block; width: 100%; text-align: left; margin: 3px 0; }
+.scene-structure-list button:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 h1,
 h2,
@@ -202,6 +230,7 @@ p {
 .view-tabs {
   flex: none;
   background: var(--bg);
+  overflow-x: auto;
 }
 .view-tabs button {
   flex: 0 0 auto;
@@ -221,6 +250,22 @@ p {
 .scene-slot[hidden] {
   display: none;
 }
+.slice-view {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 12px;
+  overscroll-behavior: contain;
+}
+.slice-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.slice-controls label { display: flex; align-items: center; gap: 6px; }
+.slice-image { display: block; width: 100%; max-width: 650px; height: auto; margin: 8px auto; image-rendering: pixelated; }
+.slice-image canvas { width: 100%; height: auto; }
+.slice-orientation { display: flex; justify-content: space-between; max-width: 650px; margin: auto; }
+.slice-limitation { padding: 10px; border: 1px solid var(--warn); border-radius: 6px; background: var(--bg-2); }
+.slice-gradient { height: 12px; max-width: 300px; background: linear-gradient(to right, #777, #e83b3b); }
+.slice-territories { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
+.slice-territories span { display: inline-block; width: 10px; height: 10px; margin-right: 4px; }
 .scene-message {
   position: absolute;
   inset: 0;
@@ -860,6 +905,7 @@ details.syndrome summary {
   display: grid;
   gap: 6px;
 }
+.legend .mra-notice { margin: 0; padding: 0 10px 8px; }
 .legend ul {
   list-style: none;
   margin: 0;
@@ -2618,3 +2664,24 @@ select.sched-sev {
 }
 
 /* (end of outcome panel section) */
+
+.hemorrhage-risk { margin-top: 16px; overflow-wrap: anywhere; }
+.hemorrhage-risk summary { cursor: pointer; color: var(--accent); }
+.hemorrhage-risk form { display: grid; gap: 12px; }
+.hemorrhage-risk label { display: block; }
+.hemorrhage-risk input[type='number'],
+.hemorrhage-risk select { display: block; width: 100%; min-width: 0; margin-top: 4px; }
+.hemorrhage-risk input[type='checkbox'] { margin-right: 6px; }
+
+.public-calibration { margin-top: 16px; overflow-wrap: anywhere; }
+.public-calibration summary { cursor: pointer; color: var(--accent); }
+.public-calibration dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 12px; }
+.public-calibration dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.pathology-models { margin-top: 16px; overflow-wrap: anywhere; }
+.pathology-models summary { cursor: pointer; color: var(--accent); }
+.pathology-models form, .pathology-models fieldset { display: grid; gap: 10px; min-width: 0; }
+.pathology-models label { display: block; }
+.pathology-models input { display: block; width: 100%; min-width: 0; margin-top: 4px; }
+.pathology-models dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 12px; }
+.pathology-models dd { margin: 0; font-variant-numeric: tabular-nums; }

@@ -1,3 +1,5 @@
+[繁體中文](MEDICAL_VALUES_AUDIT.zh-TW.md) · [简体中文](MEDICAL_VALUES_AUDIT.zh-CN.md) · [English](MEDICAL_VALUES_AUDIT.md) · [Deutsch](MEDICAL_VALUES_AUDIT.de.md) · [日本語](MEDICAL_VALUES_AUDIT.ja.md)
+
 # Engine medical values audit
 
 Independently rechecked 2026-10-08 against commit `9fcab3287f9881f4f82309410631ce7feaef2a80`, its parent diff, and cited primary sources (web search, abstracts, and available full text). Scope: production `src/engine/*.ts`, including numerical statements in comments and both narrative languages. Tests are fixtures/assertions, not additional clinical evidence. Related constants in anatomy are traced where the engine imports them. Repeated values with the same meaning are grouped. Mathematical identities, loop indices, floating-point epsilons and sampling resolutions are excluded except where they could be mistaken for a clinical threshold.

@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "subject": "BG0001",
+  "modality": "MRA-derived individual arterial reconstruction",
+  "project": "https://www.nitrc.org/projects/bravissima/",
+  "download": "https://www.nitrc.org/frs/download.php/10589/OHBM2017Spm.zip/?i_agree=1&download_now=1",
+  "release": "OHBM 2017 SPM-normalized 43 subjects, distributed 2018-04-19",
+  "license": "Attribution (source does not specify a Creative Commons version)",
+  "licenseSource": "https://www.nitrc.org/docman/view.php/1266/78741/Readme43",
+  "licenseText": "License: Attribution\n\nOur work is derivative of that of the BraVa database that requires you to reference \nit in two ways:\n\nhttp://cng.gmu.edu/brava\n\nSusan N. Wright, Peter Kochunov, Fernando Mut Maurizio Bergamino, Kerry M. Brown, \nJohn C. Mazziotta, Arthur W. Toga, Juan R. Cebral, Giorgio A. Ascoli. Digital \nreconstruction and morphometric analysis of human brain arterial vasculature \nfrom magnetic resonance angiography. NeuroImage, 82, 170-181, (2013). \nhttp://dx.doi.org/10.1016/j.neuroimage.2013.05.089\n\nIt would be swell if you could also reference our project as well: \nnitrc.org/projects/bravissima\n\nThanks,\n\nTimothy Herron\ntjherron at ebire dot org\n\nAll opinions contained herein are those of the authors and not of the \nUS Department of Veterans Affairs nor of the United States Government.",
+  "citation": "Herron TJ, Dronkers N, Turken AU. BraVa cerebral artery database converted to NIFTI MRI format (2017 poster; not peer reviewed). DOI10.7490/f1000research.1114378.1",
+  "originalCitation": "Wright et al. Digital reconstruction and morphometric analysis of human brain arterial vasculature from magnetic resonance angiography. NeuroImage82(2013)170-181. DOI10.1016/j.neuroimage.2013.05.089; http://cng.gmu.edu/brava",
+  "archive": {
+    "name": "OHBM2017Spm.zip",
+    "sha256": "a90f65a08fa141973d94edf55a03c630b9dafe45d03fb3ffee0292b373898a79",
+    "outerZipCrcVerified": true
+  },
+  "sourceVolume": {
+    "entry": "Brava43Subs.zip/srcgBG0001.nii",
+    "sha256": "6349b4dc25ab9a860d11f02c45ce40da35d073bffd82485a03712db5cd456e9a",
+    "crc32": 1957472390
+  },
+  "normalizationScriptSha256": "afa8bdeaa06331447f022c6a38540420bfcf2c6c9e354ad43831897fe990c1f6",
+  "sourceReadmeSha256": "868ee696f0661064156bf667983b08551fd339054b5fb0d81867a17c23d78d50",
+  "sourceReadme": "Readme.txt for SPM-normalized subjects OHBM 2017 edition\n\nThe is the Bravissima human brain major artery database in NIFTI-1 format.\n\nEnclosed are both the individual and group files for 43 out of the 61 subjects\nfrom the original BraVa database. \n\nTo read more about how these were generated, see OHBM poster\nDOI: 10.7490/f1000research.1114378.1\n\n--------------------------\n\nDatabase files included\n\n1) Group Files - Approximate MNI-152 space\n\n a) BravaDist43.nii.gz - all 58 subject artery locations marked out by intersubject mean \n                        (i.e. how many subjects have an artrey at a voxel) distance for Left\n                        and Right (lh & rh) Hemispheres for the Anterior, Middle, \n                        and Posterior Cerebral Arteries (ACA, MCA, PCA).\n b) BravaSplit43.nii.gz - marks artery branch points for all 43 subjects.\n c) BravaInferior43.nii.gz - marks out the Circle of Willis (CoW) and carotid.\n d) BravaLocSide43.nii.gz - where Side = \"rh\" or \"lh\", \n                                   and Loc is \"ACA\", \"MCA\" or \"PCA\"\n                            marks the approximate distance in mm along the artery starting\n                            at the Circle of Willis. \n\n\n2) Individual Files: in Brava43Subs.zip in MNI-152 space\n\na) srcb*.nii - artery branching code for an individual\nb) srcd*.nii - distance along artery from the Circle of Willis\nc) srcg*.nii - artery locations coded by group (LH or RH ; ACA, MCA, or PCA)\nd) srcr*.nii - artery radius at voxel location\ne) srcs*.nii - artery branching locations\n\n-------------------------------\n\nMatlab/Octave scripts included\n\nThe norman.m script is the primary script by which NIFTI Brava files from the hand\nnormalization version were normalized using MRA images to MNI_152 space.  There is\na link to the MRA images at the BraVa website http://cng.gmu.edu/brava\n\nYou also need to obtain Jimmy Shen's NIFTI toolbox for Matlab to read in the files\n(https://www.mathworks.com/matlabcentral/fileexchange/8797-tools-for-nifti-and-analyze-image)\nif you wish to execute \"norman.m\".\n\nYou also need a gzip program to zip the files and the SPM8 toolbox to do the normalization.\n\n--------------------------------\n\nLicense: Attribution\n\nOur work is derivative of that of the BraVa database that requires you to reference \nit in two ways:\n\nhttp://cng.gmu.edu/brava\n\nSusan N. Wright, Peter Kochunov, Fernando Mut Maurizio Bergamino, Kerry M. Brown, \nJohn C. Mazziotta, Arthur W. Toga, Juan R. Cebral, Giorgio A. Ascoli. Digital \nreconstruction and morphometric analysis of human brain arterial vasculature \nfrom magnetic resonance angiography. NeuroImage, 82, 170-181, (2013). \nhttp://dx.doi.org/10.1016/j.neuroimage.2013.05.089\n\nIt would be swell if you could also reference our project as well: \nnitrc.org/projects/bravissima\n\nThanks,\n\nTimothy Herron\ntjherron at ebire dot org\n\nAll opinions contained herein are those of the authors and not of the \nUS Department of Veterans Affairs nor of the United States Government.\n",
+  "assetSha256": "cbc7fe7c9ccdff2ec048732db9eea633311e7bba737a5b8e132bea61c10cd009",
+  "decoding": {
+    "dimensions": [
+      181,
+      217,
+      181
+    ],
+    "affine": [
+      [
+        -1.0,
+        0.0,
+        0.0,
+        90.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        -126.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        -72.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "voxelAxes": [
+      "L",
+      "A",
+      "S"
+    ],
+    "qformCode": 2,
+    "sformCode": 2,
+    "dtype": "float64",
+    "nanVoxelCount": 904961,
+    "infiniteVoxelCount": 0,
+    "selection": "isfinite(groupVolume) AND groupVolume in {1,2,3,4,5,6,7}; zero, NaN and infinity excluded",
+    "pointOrder": "lexicographic voxel indices x, then y, then z (numpy.argwhere)",
+    "worldCoordinates": "NIfTI affine multiplied by zero-based voxel-center [i,j,k,1]; no additional transform",
+    "adjacency": "undirected 26-neighbor existing selected voxel pairs, emitted once; no gap filling",
+    "adjacencyLimitation": "Rendering adjacency assumption, not original SWC parent topology; touching vessels can create extra edges or cycles",
+    "isolatedPoints": "All selected points retained even when no neighboring selected voxel exists"
+  },
+  "groupMapping": "norman.m outputs BravaACAlh43 group2, MCAlh group3, MCArh group4, ACArh group5, PCAlh group6, PCArh group7; BG0001 is not a subject marked for lateral flip",
+  "placement": "Source SPM8-normalized MNI152 coordinates retained. Alignment to this project's 2009c template is unvalidated; no registration is claimed.",
+  "namedBranchMapping": false,
+  "simulationParametersChanged": false,
+  "changes": "Selected all finite family-labeled voxel centers and generated adjacent-voxel display segments; no smoothing, thinning, resampling, gap repair or invented connections",
+  "summary": {
+    "voxelCount": 13206,
+    "segmentCount": 37122,
+    "isolatedVoxelCount": 5,
+    "componentCount": 63,
+    "componentSizes": [
+      9410,
+      711,
+      421,
+      283,
+      212,
+      187,
+      173,
+      140,
+      105,
+      94,
+      93,
+      77,
+      77,
+      71,
+      70,
+      66,
+      65,
+      63,
+      59,
+      57,
+      55,
+      52,
+      40,
+      38,
+      37,
+      36,
+      35,
+      35,
+      34,
+      32,
+      30,
+      28,
+      26,
+      25,
+      25,
+      24,
+      20,
+      20,
+      19,
+      17,
+      16,
+      14,
+      13,
+      10,
+      9,
+      9,
+      9,
+      8,
+      8,
+      8,
+      7,
+      7,
+      6,
+      5,
+      3,
+      3,
+      2,
+      2,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "boundsMm": [
+      [
+        -72.0,
+        -98.0,
+        -64.0
+      ],
+      [
+        74.0,
+        73.0,
+        84.0
+      ]
+    ]
+  }
+}

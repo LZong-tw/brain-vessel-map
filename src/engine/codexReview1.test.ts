@@ -15,14 +15,35 @@ const bilateralQuote = (occ: unknown[], decompression: boolean) => {
 /** largest midline shift while both hemispheres' own shifts exceed 0.05 mm, from `from` until one stops */
 const bothSwellMax = (occ: unknown[], decompression: boolean, from: number, to: number, step = 1) => {
   let shown = 0;
+  let peakTime = from;
   let both = false;
   for (let t = from; t <= to; t += step) {
     const e = sim(occ, t, decompression).edema;
     const swelling = e.ownShiftMm.r > 0.05 && e.ownShiftMm.l > 0.05;
     if (swelling) {
+      if (!both && t > from) {
+        // Independently locate the first instant both sides cross the displayed
+        // swelling threshold; a regular sample grid can miss the boundary peak.
+        let lo = t - step;
+        let hi = t;
+        for (let iteration = 0; iteration < 24; iteration++) {
+          const mid = (lo + hi) / 2;
+          const edge = sim(occ, mid, decompression).edema;
+          if (edge.ownShiftMm.r > 0.05 && edge.ownShiftMm.l > 0.05) hi = mid;
+          else lo = mid;
+        }
+        const boundaryPeak = sim(occ, hi, decompression).edema.midlineShiftMm;
+        if (boundaryPeak > shown) [shown, peakTime] = [boundaryPeak, hi];
+      }
       both = true;
-      shown = Math.max(shown, e.midlineShiftMm);
+      if (e.midlineShiftMm > shown) [shown, peakTime] = [e.midlineShiftMm, t];
     } else if (both) break;
+  }
+  // Resolve a peak just before a treatment discontinuity as well as the first
+  // swelling boundary; use the displayed simulation rather than its quoted value.
+  for (let t = Math.max(from, peakTime - step); t <= Math.min(to, peakTime + step); t += 0.001) {
+    const e = sim(occ, t, decompression).edema;
+    if (e.ownShiftMm.r > 0.05 && e.ownShiftMm.l > 0.05) shown = Math.max(shown, e.midlineShiftMm);
   }
   return { shown, both };
 };
