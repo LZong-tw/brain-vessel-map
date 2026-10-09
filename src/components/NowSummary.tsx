@@ -6,6 +6,7 @@ import type { SymptomItem } from '../engine/clinical';
 import { startOf } from '../engine/schedule';
 import type { SimResult } from '../engine/simulate';
 import { RECOVERY_UI } from '../i18n/uiRecovery';
+import { COLLATERAL_PRESSURE_GUARD } from '../i18n/collateralPressureGuard';
 import { useT } from '../state/hooks';
 import { useApp } from '../state/store';
 import { fmtMl, midlineShiftOf, pct, shortTitle, stopIndexAtOrAfter, stopTime, symptomLabel } from '../ui/format';
@@ -234,6 +235,10 @@ export function NowSummary({ sim, series }: { sim: SimResult; series: SimResult[
       <div className="kicker">{t.nowTitle}</div>
       <div className="now-phase">{t.nowPhase(tH === 0 ? null : stopTime(tIndex, lang), tr(PHASE_LABEL[phaseOf(tH)], lang))}</div>
       <p>{sentences.join(usesLatinSpacing(lang) ? ' ' : '')}</p>
+      {!!sim.hemo.collateralPressureGuard?.length && <aside className="collateral-pressure-guard rec-caveat small" role="status" aria-label={COLLATERAL_PRESSURE_GUARD[lang].title}>
+        <strong>{COLLATERAL_PRESSURE_GUARD[lang].title}</strong>
+        <p>{COLLATERAL_PRESSURE_GUARD[lang].body}</p>
+      </aside>}
       {improved.length > 0 && (
         <SymptomLine
           label={rt.improvedLabel(stopTime(tIndex - 1, lang))}

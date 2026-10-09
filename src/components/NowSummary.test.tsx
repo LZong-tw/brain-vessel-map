@@ -17,6 +17,7 @@ import { simulate, type SimResult } from '../engine/simulate';
 import type { TreatmentOptions } from '../engine/treatment';
 import { useApp } from '../state/store';
 import { UI } from '../i18n/ui';
+import { COLLATERAL_PRESSURE_GUARD } from '../i18n/collateralPressureGuard';
 import { symptomLabel } from '../ui/format';
 import { unexaminableNow } from '../ui/recoveryFormat';
 import { NowSummary } from './NowSummary';
@@ -41,6 +42,33 @@ const seriesOf = (id: string, collateral: 'good' | 'moderate' | 'poor'): SimResu
 };
 const at = (h: number) => TIME_STOPS.findIndex((s) => s.h === h);
 const name = (id: string, lang: Lang) => tr(SYMPTOM_BY_ID[id].name, lang);
+
+describe('visible collateral pressure numerical safeguard', () => {
+  const course = seriesOf('l_m1', 'good');
+  it.each(['zh-TW', 'en', 'zh-CN', 'de', 'ja'] as Lang[])('%s: discloses an active safeguard with a fully translated accessible notice', (lang) => {
+    useApp.setState({ lang, tIndex: at(24) });
+    const original = course[at(24)];
+    const sim = { ...original, hemo: { ...original.hemo, collateralPressureGuard: ['fixture-edge'] } };
+    const { container } = render(<NowSummary sim={sim} series={course} />);
+    const notice = container.querySelector('[role="status"]');
+    expect(notice?.getAttribute('aria-label')).toBe(COLLATERAL_PRESSURE_GUARD[lang].title);
+    expect(notice?.textContent).toContain(COLLATERAL_PRESSURE_GUARD[lang].body);
+    expect(Object.keys(COLLATERAL_PRESSURE_GUARD[lang]).sort()).toEqual(Object.keys(COLLATERAL_PRESSURE_GUARD.en).sort());
+    for (const key of ['title', 'body'] as const) {
+      expect(COLLATERAL_PRESSURE_GUARD[lang][key].trim()).not.toBe('');
+      if (lang !== 'en') expect(COLLATERAL_PRESSURE_GUARD[lang][key]).not.toBe(COLLATERAL_PRESSURE_GUARD.en[key]);
+    }
+    expect(notice?.textContent).not.toContain('fixture-edge');
+  });
+  it('omits the notice when no collateral edges were limited', () => {
+    useApp.setState({ lang: 'en', tIndex: at(24) });
+    const original = course[at(24)];
+    const view = render(<NowSummary sim={{ ...original, hemo: { ...original.hemo, collateralPressureGuard: undefined } }} series={course} />);
+    expect(view.container.querySelector('.collateral-pressure-guard')).toBeNull();
+    view.rerender(<NowSummary sim={{ ...original, hemo: { ...original.hemo, collateralPressureGuard: [] } }} series={course} />);
+    expect(view.container.querySelector('.collateral-pressure-guard')).toBeNull();
+  });
+});
 
 describe('"what is happening now" when the patient falls into a coma (X1-2)', () => {
   // the left M1 infarct of the template, with moderate collaterals: awake at 1 day, comatose from

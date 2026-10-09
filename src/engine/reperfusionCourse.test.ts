@@ -6,6 +6,7 @@
  * recent infarct that counts against IV thrombolysis (T2-8).
  */
 import { describe, expect, it } from 'vitest';
+import { BEDS, REGION_BY_ID } from '../anatomy';
 import { SCENARIOS } from '../anatomy/scenarios';
 import type { CollateralGrade, Occlusion } from './hemodynamics';
 import { simulate, type SimInput, type SimResult } from './simulate';
@@ -97,16 +98,22 @@ describe('T2-4: the circle of Willis is enough only where its territory stays wo
 
 describe('T2-8: a second occlusion is decided on its own core, and a recent infarct counts against IV thrombolysis', () => {
   const window = (r: SimResult, fromH: number) => r.cascade.events.find((e) => e.id === 'treatment_window' && Math.abs(e.onsetH - fromH) < 1e-6);
-  const single = window(at(input([o('mca_m1_r')]), 6), 0)!;
 
   it.each([48, 720])('a right M1 that closes %s h after a left M1 infarct: the right side\'s own core, and IV thrombolysis not standard', (t) => {
     const r = at(input([o('mca_m1_l'), o('mca_m1_r', { fromH: t })]), t + 6);
     const w = window(r, t)!;
     expect(w).toBeDefined();
-    // the core of the right M1 itself (about 70 mL at 6 h, as alone), not the 155-166 mL old left infarct
-    const quoted = Number(/Large core \(about (\d+) mL/.exec(w.desc.en)?.[1] ?? 0);
-    const own = Number(/Large core \(about (\d+) mL/.exec(single.desc.en)?.[1] ?? 0);
-    expect(quoted).toBe(own);
+    // The remaining donor circulation changes this new core relative to an isolated M1.
+    // Its actual right-sided infarct is quoted, without the old left-sided infarct.
+    const quoted = /Large core \(about (\d+) mL/.exec(w.desc.en);
+    expect(quoted).not.toBeNull();
+    const coreOn = (side: 'l' | 'r') => BEDS.filter((bed) => REGION_BY_ID[bed.region].side === side)
+      .reduce((sum, bed) => sum + bed.volume * r.beds[bed.id].infarct, 0);
+    const own = coreOn('r');
+    const old = coreOn('l');
+    expect(old).toBeGreaterThan(0);
+    expect(Number(quoted![1])).toBe(Math.round(own));
+    expect(Number(quoted![1])).not.toBe(Math.round(own + old));
     expect(w.desc.en).not.toMatch(/larger than in most of these trials/);
     // an ischaemic stroke within 3 months: IV thrombolysis is not offered as standard
     expect(w.desc.en).not.toMatch(/standard when started within 4\.5 h/);
