@@ -1,3 +1,5 @@
+[繁體中文](terminology.zh-TW.md) · [简体中文](terminology.zh-CN.md) · [English](terminology.md) · [Deutsch](terminology.de.md) · [日本語](terminology.ja.md)
+
 # Translation terminology
 
 The Simplified Chinese, German and Japanese translations cover interface text,
