@@ -77,5 +77,5 @@ function HemorrhageModel({ lang }: { lang: Lang }) {
 
 export function VascularPathologies({ lang }: { lang: Lang }) {
   const s = PATHOLOGY_UI[lang];
-  return <details className="pathology-models"><summary>{s.title}</summary><p>{s.caseUnchanged}</p><VenousModel lang={lang} /><HemorrhageModel lang={lang} /></details>;
+  return <details className="pathology-models"><summary>{s.title}</summary><p>{s.caseUnchanged}</p><p className="rec-caveat small">{s.spatialUnavailable}</p><VenousModel lang={lang} /><HemorrhageModel lang={lang} /></details>;
 }

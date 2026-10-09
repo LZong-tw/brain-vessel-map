@@ -44,7 +44,8 @@ const CATALOG = {
     "venousCaveat": "簡化固定流量穩態模型尚未針對腦靜脈竇血栓驗證；未納入岩竇、枕竇、椎靜脈側枝、自動調節與血流崩潰，不預測病灶或結局。",
     "outletNote": "來源的零出口壓力是參考壓力，不是患者中心靜脈壓；此處使用輸入的共同壓力邊界。",
     "ratioCaveat": "G/G₀=r⁴ 假設圓形管腔；r 不是量測的血栓負荷百分比。",
-    "pressureNote": "負的腦灌流壓僅代表壓力梯度，不代表負血流；不預測腦疝或治療門檻。"
+    "pressureNote": "負的腦灌流壓僅代表壓力梯度，不代表負血流；不預測腦疝或治療門檻。",
+    "spatialUnavailable": "空間靜脈與出血病灶的耦合尚未實作；引流壓力無法單獨決定受損體素或病灶邊界。"
   },
   "en": {
     "title": "Venous and hemorrhage research models",
@@ -88,7 +89,8 @@ const CATALOG = {
     "venousCaveat": "The reduced steady imposed-flow model is unvalidated for cerebral venous sinus thrombosis; petrosal, occipital and vertebral collaterals, autoregulation and flow collapse are omitted. It predicts neither lesions nor outcomes.",
     "outletNote": "The source zero outlet pressure is a gauge reference, not patient central venous pressure; this calculation uses the entered common pressure boundary.",
     "ratioCaveat": "G/G₀=r⁴ assumes a circular lumen; r is not a measured clot-burden percentage.",
-    "pressureNote": "Negative cerebral perfusion pressure denotes a pressure gradient only, not negative flow; herniation and treatment thresholds are not predicted."
+    "pressureNote": "Negative cerebral perfusion pressure denotes a pressure gradient only, not negative flow; herniation and treatment thresholds are not predicted.",
+    "spatialUnavailable": "Coupling to spatial venous and hemorrhagic lesions is not implemented; drainage pressure alone cannot determine injured voxels or lesion boundaries."
   },
   "zh-CN": {
     "title": "静脉与出血研究模型",
@@ -132,7 +134,8 @@ const CATALOG = {
     "venousCaveat": "简化固定流量稳态模型尚未针对脑静脉窦血栓验证；未纳入岩窦、枕窦、椎静脉侧支、自动调节与血流崩溃，不预测病灶或结局。",
     "outletNote": "来源的零出口压力是参考压力，不是患者中心静脉压；此处使用输入的共同压力边界。",
     "ratioCaveat": "G/G₀=r⁴假设圆形管腔；r不是测量的血栓负荷百分比。",
-    "pressureNote": "负的脑灌注压仅代表压力梯度，不代表负血流；不预测脑疝或治疗阈值。"
+    "pressureNote": "负的脑灌注压仅代表压力梯度，不代表负血流；不预测脑疝或治疗阈值。",
+    "spatialUnavailable": "空间静脉与出血病灶的耦合尚未实现；引流压力无法单独决定受损体素或病灶边界。"
   },
   "de": {
     "title": "Forschungsmodelle für venösen Abfluss und Blutung",
@@ -176,7 +179,8 @@ const CATALOG = {
     "venousCaveat": "Das reduzierte stationäre Modell mit vorgegebenem Fluss ist für Sinusvenenthrombosen nicht validiert. Petrosale, okzipitale und vertebrale Kollateralen, Autoregulation und Flusskollaps fehlen; Läsionen und Ergebnisse werden nicht vorhergesagt.",
     "outletNote": "Der Auslassdruck null der Quelle ist ein Bezugsdruck, kein zentraler Venendruck eines Patienten; hier gilt die eingegebene gemeinsame Druckrandbedingung.",
     "ratioCaveat": "G/G₀=r⁴ setzt ein kreisförmiges Lumen voraus; r ist kein gemessener prozentualer Thrombusanteil.",
-    "pressureNote": "Ein negativer zerebraler Perfusionsdruck bezeichnet nur einen Druckgradienten, keinen negativen Blutfluss; Herniationen und Behandlungsschwellen werden nicht vorhergesagt."
+    "pressureNote": "Ein negativer zerebraler Perfusionsdruck bezeichnet nur einen Druckgradienten, keinen negativen Blutfluss; Herniationen und Behandlungsschwellen werden nicht vorhergesagt.",
+    "spatialUnavailable": "Die Kopplung mit räumlichen venösen und hämorrhagischen Läsionen ist nicht implementiert; der Abflussdruck allein bestimmt weder geschädigte Voxel noch Läsionsgrenzen."
   },
   "ja": {
     "title": "静脈・出血の研究モデル",
@@ -220,7 +224,8 @@ const CATALOG = {
     "venousCaveat": "流量を指定する簡略化した定常モデルは脳静脈洞血栓症に対して未検証です。錐体静脈洞、後頭静脈洞、椎骨静脈の側副経路、自動調節、血流の破綻を含まず、病変や転帰を予測しません。",
     "outletNote": "出典の流出口圧ゼロは基準圧であり、患者の中心静脈圧ではありません。入力した共通の圧境界条件を使用します。",
     "ratioCaveat": "G/G₀=r⁴は円形内腔を仮定します。rは測定された血栓量の百分率ではありません。",
-    "pressureNote": "負の脳灌流圧は圧較差のみを示し、負の血流を意味しません。脳ヘルニアや治療の閾値を予測しません。"
+    "pressureNote": "負の脳灌流圧は圧較差のみを示し、負の血流を意味しません。脳ヘルニアや治療の閾値を予測しません。",
+    "spatialUnavailable": "静脈性・出血性病変の空間的な連成は未実装です。還流圧だけでは損傷したボクセルや病変の境界を決定できません。"
   }
 } as const;
 

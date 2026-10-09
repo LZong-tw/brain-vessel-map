@@ -77,6 +77,7 @@
   · Reduced venous/sinus-thrombosis outflow and observed hematoma pressure effects; independent research models that do not change the current case. [Sources and limits](docs/venous-hemorrhage.md).
   - [ ] 耦合空間靜脈／出血性腦病灶、症狀與動態病程。
     · Coupled spatial venous/hemorrhagic brain lesions, symptoms and dynamics.
+    · Still blocked after source audit: accessible PHE masks label edema regions, not blood or net added water; the old open CT-ICH files are unavailable and current masks have access restrictions. No paired CVST pressure/lesion/time/registration data identified. [Evidence and required inputs](docs/venous-hemorrhage.md#spatial-coupling-source-audit). 來源稽核後仍未完成：可取得的 PHE 標籤是水腫區，不是血液或淨新增水量；尚無成對的靜脈壓力、病灶與時程資料支持空間推算。
   - [x] 獨立的自發性腦內出血血腫擴大風險計算器：重現 2018 年四因子模型，不生成出血體積或病灶邊界，也不估計治療效果。[公式、適用範圍與尚待查證的來源](docs/ich-expansion.md)。
     · Separate spontaneous ICH expansion-risk calculator reproducing the 2018 four-predictor model, without generating hemorrhage volumes or lesion boundaries or estimating treatment effects. [Equation, domain and remaining source checks](docs/ich-expansion.md).
 - [x] 以真實 MRA 分割的前交通動脈與雙側後交通動脈曲線取代三條繪圖路徑；僅改顯示形狀，不改模擬參數。放置尚未驗證，遠端分支仍為手繪。[來源與限制](docs/mra-communicating-shapes.md)。

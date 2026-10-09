@@ -24,7 +24,7 @@ it.each(['en', 'zh-TW', 'zh-CN', 'de', 'ja'] as Lang[])('translates every key in
   render(<VascularPathologies lang={lang} />);
   expect(screen.getByText(catalog.title).closest('details')?.open).toBe(false);
   fireEvent.click(screen.getByText(catalog.title));
-  for (const key of ['caseUnchanged', 'venousCaveat', 'outletNote', 'ratioCaveat', 'caveat', 'pressureNote'] as const) expect(screen.getByText(catalog[key])).toBeTruthy();
+  for (const key of ['caseUnchanged', 'spatialUnavailable', 'venousCaveat', 'outletNote', 'ratioCaveat', 'caveat', 'pressureNote'] as const) expect(screen.getByText(catalog[key])).toBeTruthy();
   expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['https://doi.org/10.1186/s12883-015-0352-y', 'https://doi.org/10.3171/jns.1978.48.3.0332']);
 });
 it('starts with no invented clinical inputs and only normalized radius references', () => {
