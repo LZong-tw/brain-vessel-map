@@ -100,13 +100,13 @@ export function KeyboardFocus({ position }: { position: Vector3 | null }) {
   return <mesh position={position} renderOrder={1000}><sphereGeometry args={[0.35, 16, 12]} /><meshBasicMaterial color="#ffe38a" wireframe depthTest={false} /></mesh>;
 }
 
-export function SceneKeyboard({ data, sim, events, onFocus }: {
-  data: BrainData | null; sim: SimResult; events: EventTarget; onFocus: (position: Vector3 | null) => void;
+export function SceneKeyboard({ data, sim, events, onFocus, includeVessels = true }: {
+  data: BrainData | null; sim: SimResult; events: EventTarget; onFocus: (position: Vector3 | null) => void; includeVessels?: boolean;
 }) {
   const state = useApp();
   const { layers, hemis, lang, clip, colorMode, variants } = state;
   const [open, setOpen] = useState(false);
-  const targets = useMemo(() => open ? keyboardTargets(data, sim, { layers, hemis, lang, clip, colorMode, variants }) : [], [open, data, sim, layers, hemis, lang, clip, colorMode, variants]);
+  const targets = useMemo(() => open ? keyboardTargets(data, sim, { layers: includeVessels ? layers : { ...layers, vessels: false }, hemis, lang, clip, colorMode, variants }) : [], [open, data, sim, layers, hemis, lang, clip, colorMode, variants, includeVessels]);
   const [focused, setFocused] = useState<string | null>(null);
   useEffect(() => {
     if (focused && !targets.some((t) => `${t.selection.kind}:${t.selection.id}` === focused)) {

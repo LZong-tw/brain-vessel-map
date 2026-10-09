@@ -84,6 +84,9 @@
   · Replace three rendered communicating vessel shapes (ACom and bilateral PCom) with real segmented MRA curves; display only, without changing simulation parameters. Placement is unvalidated and distal branches remain authored. [Sources and limitations](docs/mra-communicating-shapes.md).
   - [ ] 以有授權、具解剖對應且完成對齊驗證的 MRA 血管樹取代其餘手繪遠端小分支。
     · Replace the remaining authored distal small branches with licensed MRA vessel trees with anatomical correspondence and validated alignment.
+    · Named small-branch correspondence and alignment validation remain unavailable; the reference below does not change physiological topology or claim that completion. 小分支解剖對應與對齊驗證仍未完成；下列參考模式不更改生理網路，也不代表本項已完成。
+  - [x] 個別 MRA 遠端血管參考模式：以 Bravissima BG0001 的 13,206 個來源體素取代顯示中的手繪血管，保留缺口與孤立點，僅採來源的 ACA／MCA／PCA 血管群標籤；明示放置未驗證、無模擬血流對應。[来源與假設](docs/mra-distal.md)。
+    · Individual MRA distal anatomy mode replaces the authored vessel display with 13,206 source voxels from Bravissima BG0001, preserving gaps and isolated points and using only source arterial-family labels. Unvalidated placement and absent simulated-flow correspondence are visible in the UI. [Sources and assumptions](docs/mra-distal.md).
 - [x] 2D 切片檢視：真實 T1 模板上的 Liu 動脈供血區參考輪廓；梗塞以每個灌流單元的比例熱圖呈現，明示空間近似，並不捏造病灶邊界。圖譜對齊沿用近似轉換；[來源與限制](docs/slices.md)。
   · 2D slice view: Liu reference arterial territory outlines on the real T1 template; infarction shown as a per-bed fraction heatmap with an explicit spatial fallback, without invented lesion boundaries. Atlas alignment uses the existing approximate transform; [sources and limitations](docs/slices.md).
 - [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要

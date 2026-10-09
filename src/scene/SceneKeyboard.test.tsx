@@ -14,6 +14,13 @@ beforeEach(() => useApp.setState({ ...initial, lang: 'en', selected: null, hover
 afterEach(cleanup);
 
 describe('3D keyboard navigation', () => {
+  it('omits model vessel targets when reference anatomy has no named branch mapping', () => {
+    render(<SceneKeyboard data={null} sim={sim} events={new EventTarget()} onFocus={vi.fn()} includeVessels={false} />);
+    fireEvent.click(screen.getByText('Keyboard navigation'));
+    const buttons = within(screen.getByRole('group', { name: 'Anatomical structures' })).getAllByRole('button');
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: vesselName(VESSEL_BY_ID.basilar_mid, 'en') })).toBeNull();
+  });
   it('focuses labeled structures with arrows, selects and clears without changing the simulation', () => {
     const focus = vi.fn();
     render(<SceneKeyboard data={null} sim={sim} events={new EventTarget()} onFocus={focus} />);

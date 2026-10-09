@@ -153,6 +153,26 @@ are unchanged. See [source-specific assumptions](docs/mra-communicating-shapes.m
 
 ## 4. Runtime libraries bundled into the site · 打包進網站的函式庫
 
+### Additional individual distal MRA reference data
+
+`public/data/mra-distal.json` derives from Bravissima BG0001, SPM-normalized
+individual BraVa arterial data. The [source README](https://www.nitrc.org/docman/view.php/1266/78741/Readme43)
+specifies Attribution without a Creative Commons version; exact terms are retained
+in `public/data/MRA_DISTAL_LICENSE.txt`. This data license is separate from MIT code.
+
+Herron TJ, Dronkers N, Turken AU, *BraVa cerebral artery database converted to NIFTI
+MRI format*, 2017 poster, [DOI10.7490/f1000research.1114378.1](https://doi.org/10.7490/f1000research.1114378.1).
+Original BraVa: Wright et al., *Digital reconstruction and morphometric analysis of
+human brain arterial vasculature from magnetic resonance angiography*, NeuroImage82,
+170–181 (2013), [DOI10.1016/j.neuroimage.2013.05.089](https://doi.org/10.1016/j.neuroimage.2013.05.089),
+[BraVa](http://cng.gmu.edu/brava), [Bravissima](https://www.nitrc.org/projects/bravissima/).
+
+Changes: retained all finite family-labeled source voxel centers, applied the source
+affine, and connected immediate 26-neighbors for display. This adjacency assumption
+is not the original parent graph. Gaps are retained; no named distal-branch mapping
+or physiological parameter changes are inferred. Registration to this brain is
+unvalidated. See [source-specific assumptions](docs/mra-distal.md).
+
 | Package | Licence |
 |---|---|
 | react, react-dom | MIT |

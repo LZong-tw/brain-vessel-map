@@ -1,0 +1,37 @@
+Bravissima BG0001 individual MRA-derived reference geometry
+
+Source: https://www.nitrc.org/projects/bravissima/
+OHBM 2017 SPM-normalized 43 subjects, distributed 2018-04-19.
+Applies to mra-distal.json and mra-distal-provenance.json.
+These data are separately licensed from application software and TopCoW assets.
+The source specifies Attribution without identifying a Creative Commons version.
+
+Source license and required attribution:
+
+License: Attribution
+
+Our work is derivative of that of the BraVa database that requires you to reference
+it in two ways:
+
+http://cng.gmu.edu/brava
+Susan N. Wright, Peter Kochunov, Fernando Mut Maurizio Bergamino, Kerry M. Brown,
+John C. Mazziotta, Arthur W. Toga, Juan R. Cebral, Giorgio A. Ascoli. Digital
+reconstruction and morphometric analysis of human brain arterial vasculature
+from magnetic resonance angiography. NeuroImage, 82, 170-181, (2013).
+http://dx.doi.org/10.1016/j.neuroimage.2013.05.089
+
+It would be swell if you could also reference our project as well:
+nitrc.org/projects/bravissima
+
+Additional citation: Herron TJ, Dronkers N, Turken AU. BraVa cerebral artery
+database converted to NIFTI MRI format (2017 poster; not peer reviewed).
+DOI10.7490/f1000research.1114378.1.
+
+Changes: retained finite family-labeled voxel centers, transformed by the original
+NIfTI affine; generated display segments only between existing 26-neighbor voxels.
+No named distal branch correspondence, original SWC topology or validated
+registration to the application brain is claimed. No source-author endorsement
+is implied. No physiological simulation parameters are changed.
+
+All opinions contained herein are those of the authors and not of the
+US Department of Veterans Affairs nor of the United States Government.
