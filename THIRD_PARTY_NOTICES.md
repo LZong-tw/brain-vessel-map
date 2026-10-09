@@ -1,3 +1,5 @@
+[繁體中文](THIRD_PARTY_NOTICES.zh-TW.md) · [简体中文](THIRD_PARTY_NOTICES.zh-CN.md) · [English](THIRD_PARTY_NOTICES.md) · [Deutsch](THIRD_PARTY_NOTICES.de.md) · [日本語](THIRD_PARTY_NOTICES.ja.md)
+
 # Third-party notices · 第三方授權聲明
 
 This project's **source code** is released under the MIT licence (see `LICENSE`).
