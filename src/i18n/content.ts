@@ -38,9 +38,9 @@ export function contentTemplate(key: string, values: readonly string[], lang: Ad
 /** For numbers, units, sides and generated vessel labels used inside legacy clinical prose. */
 export function contentFragment(value: string | number, lang: AdditionalLang): string {
   const text = String(value);
-  if (!text || /^[\d\s.,%≈~+−–—/<>():;\-]+$/.test(text)) return text;
+  if (!text || /^[\d\s.,%≈~+−–—/<>():;-]+$/.test(text)) return text;
   if (/^(?:0|1|2a|2b50|2b67|2c|3)$/.test(text)) return text;
-  if (/^[\d\s.,≈~+−–—/<>\-]+(?:mL|mm|h|min|%|mmHg)$/.test(text)) return text;
+  if (/^[\d\s.,≈~+−–—/<>-]+(?:mL|mm|h|min|%|mmHg)$/.test(text)) return text;
   if (CONTENT_TRANSLATIONS[text]) return contentText(text, lang);
   const firstUpper = text.charAt(0).toUpperCase() + text.slice(1);
   if (CONTENT_TRANSLATIONS[firstUpper]) return contentText(firstUpper, lang);

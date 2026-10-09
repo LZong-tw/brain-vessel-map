@@ -108,13 +108,14 @@ export function SceneKeyboard({ data, sim, events, onFocus, includeVessels = tru
   const [open, setOpen] = useState(false);
   const targets = useMemo(() => open ? keyboardTargets(data, sim, { layers: includeVessels ? layers : { ...layers, vessels: false }, hemis, lang, clip, colorMode, variants }) : [], [open, data, sim, layers, hemis, lang, clip, colorMode, variants, includeVessels]);
   const [focused, setFocused] = useState<string | null>(null);
+  const { hover } = state;
   useEffect(() => {
     if (focused && !targets.some((t) => `${t.selection.kind}:${t.selection.id}` === focused)) {
       setFocused(null);
       onFocus(null);
-      state.hover(null);
+      hover(null);
     }
-  }, [focused, targets, onFocus, state.hover]);
+  }, [focused, targets, onFocus, hover]);
   return <details className="scene-keyboard" open={open} onKeyDown={(e) => {
     if (e.key === 'Escape') { e.preventDefault(); state.select(null); }
   }} onBlur={(e) => {

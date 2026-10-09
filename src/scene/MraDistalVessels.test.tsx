@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { Color } from 'three';
 import { describe, expect, it } from 'vitest';
-import { buildMraDistalGeometry, MRA_FAMILY_COLORS } from './MraDistalVessels';
+import { buildMraDistalGeometry, MRA_FAMILY_COLORS } from './mraDistalGeometry';
 import { parseMraDistalData } from './mraDistalData';
 import { toThreeArr } from './coords';
 

@@ -191,8 +191,8 @@ describe('all supported documentation languages', () => {
     }
   });
 
-  it.each(localizedDocuments.filter(({ file, family, lang }) => file !== `${family}.md` && !(family === 'README' && (lang === 'zh-TW' || lang === 'en'))))
-    ('$file retains source citations, structure and a source revision guard', ({ family, lang, file }) => {
+  const sourceCheckedDocuments = localizedDocuments.filter(({ file, family, lang }) => file !== `${family}.md` && !(family === 'README' && (lang === 'zh-TW' || lang === 'en')));
+  it.each(sourceCheckedDocuments)('$file retains source citations, structure and a source revision guard', ({ family, lang, file }) => {
       const sourceFile = family === 'README' ? lang === 'zh-CN' ? 'README.md' : 'README.en.md' : `${family}.md`;
       const source = documents[sourceFile], text = documents[file];
       const hash = createHash('sha256').update(new TextEncoder().encode(docBody(source))).digest('hex');
@@ -219,7 +219,7 @@ describe('all supported documentation languages', () => {
       if (family === 'ROADMAP') expect([...text.matchAll(/^-\s*\[([ x])\]/gm)].map(match => match[1]))
         .toEqual([...source.matchAll(/^-\s*\[([ x])\]/gm)].map(match => match[1]));
       if (family === 'REFERENCES') {
-        for (const match of source.matchAll(/^- ([^\[*].+? \d{4};\d+(?::[A-Za-z]?\d+(?:[–-][A-Za-z]?\d+)?)?)(?=[. (])/gm)) expect(text.includes(match[1]), `citation changed: ${match[1]}`).toBe(true);
+        for (const match of source.matchAll(/^- ([^[*].+? \d{4};\d+(?::[A-Za-z]?\d+(?:[–-][A-Za-z]?\d+)?)?)(?=[. (])/gm)) expect(text.includes(match[1]), `citation changed: ${match[1]}`).toBe(true);
       }
       if (family === 'MEDICAL_VALUES_AUDIT') {
         const definitions = (md: string) => [...md.matchAll(/^\[[^\]]+\]: .+$/gm)].map(match => match[0]);
@@ -240,8 +240,8 @@ const rejectionWords: Record<Lang, RegExp> = {
   en: /reject|not adopted/i, de: /verworfen|abgelehnt|nicht übernommen/i, ja: /棄却|却下|採用しない|不採用/,
 };
 describe('technical translations retain safety and model meaning', () => {
-  it.each(localizedDocuments.filter(({ family }) => ['docs/mra-distal', 'docs/mra-communicating-shapes', 'docs/public-calibration', 'docs/venous-hemorrhage', 'MEDICAL_VALUES_AUDIT'].includes(family)))
-    ('$file keeps explicit unvalidated limitations', ({ file, lang }) => expect(docBody(documents[file])).toMatch(limitationWords[lang]));
+  const limitationDocuments = localizedDocuments.filter(({ family }) => ['docs/mra-distal', 'docs/mra-communicating-shapes', 'docs/public-calibration', 'docs/venous-hemorrhage', 'MEDICAL_VALUES_AUDIT'].includes(family));
+  it.each(limitationDocuments)('$file keeps explicit unvalidated limitations', ({ file, lang }) => expect(docBody(documents[file])).toMatch(limitationWords[lang]));
   it.each(LANGUAGES)('%s keeps the rejected calibration and both unsupported timing fits', lang => {
     const text = documents[docPath('docs/public-calibration', lang)];
     expect(text).toMatch(rejectionWords[lang]);
