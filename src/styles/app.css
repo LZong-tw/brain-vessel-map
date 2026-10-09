@@ -2657,3 +2657,11 @@ select.sched-sev {
 }
 
 /* (end of outcome panel section) */
+
+.hemorrhage-risk { margin-top: 16px; overflow-wrap: anywhere; }
+.hemorrhage-risk summary { cursor: pointer; color: var(--accent); }
+.hemorrhage-risk form { display: grid; gap: 12px; }
+.hemorrhage-risk label { display: block; }
+.hemorrhage-risk input[type='number'],
+.hemorrhage-risk select { display: block; width: 100%; min-width: 0; margin-top: 4px; }
+.hemorrhage-risk input[type='checkbox'] { margin-right: 6px; }
