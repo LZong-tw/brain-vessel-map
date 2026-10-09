@@ -1,6 +1,7 @@
+[繁體中文](README.md) · [简体中文](README.zh-CN.md) · [English](README.en.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
+
 # 腦血管互動地圖 · Brain Vessel Interactive Map
 
-**繁體中文** · [English](README.en.md)
 
 [![CI](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/ci.yml/badge.svg)](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/ci.yml)
 [![Deploy](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/deploy.yml/badge.svg)](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/deploy.yml)
@@ -134,7 +135,7 @@ src/
   components/  面板（病例、範本、血管、此刻、最終、詳細）、時間軸、Willis 環與腦幹切面示意圖
   ui/          介面用的純函式（病例摘要、最終結果、治療選項、格式化），各有單元測試
   state/       zustand store、網址同步
-  i18n/        介面字串（繁中／英文），依功能分檔
+  i18n/        介面字串（繁中／簡中／英文／德文／日文），依功能分檔
 tools/         資產管線（Python）與解剖資料匯出
 public/data/   大腦網格（二進位）
 docs/          截圖
@@ -147,5 +148,5 @@ docs/          截圖
 - 使用的公開資料：MNI ICBM152 2009c 模板（McGill 版權聲明）、Mindboggle DKT31 皮質分區（CC BY 4.0）、MIAL67 視丘核圖譜（CC BY 4.0）、Liu 等人動脈分區圖譜（CC BY-SA 4.0）、Mouches & Forkert 腦動脈統計圖譜（CC0）。
 - 參考但**未複製程式碼**的開源專案：openBF、WillisWorks（GPL-3.0，只參考概念）、neuroaxis-atlas、brain-game。
 
-完整聲明、引用格式與修改說明見 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)，文獻見 [`REFERENCES.md`](REFERENCES.md)，
+完整聲明、引用格式與修改說明見 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.zh-TW.md)，文獻見 [`REFERENCES.md`](REFERENCES.zh-TW.md)，
 接下來的計畫與已完成項目見 [`ROADMAP.md`](ROADMAP.md)。App 內的「資料來源與授權」視窗也列出同樣的內容。

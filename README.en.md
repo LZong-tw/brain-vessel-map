@@ -1,6 +1,7 @@
+[繁體中文](README.md) · [简体中文](README.zh-CN.md) · [English](README.en.md) · [Deutsch](README.de.md) · [日本語](README.ja.md)
+
 # Brain Vessel Interactive Map · 腦血管互動地圖
 
-[繁體中文](README.md) · **English**
 
 [![CI](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/ci.yml/badge.svg)](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/ci.yml)
 [![Deploy](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/deploy.yml/badge.svg)](https://github.com/LZong-tw/brain-vessel-map/actions/workflows/deploy.yml)
@@ -135,7 +136,7 @@ src/
   components/  panels (case, templates, vessels, now, outcome, details), timeline, circle-of-Willis and brainstem diagrams
   ui/          pure functions for the interface (case summary, outcome, treatment options, formatting), each unit-tested
   state/       zustand store, URL sync
-  i18n/        interface strings (Traditional Chinese / English), one file per feature
+  i18n/        interface strings (Traditional Chinese / Simplified Chinese / English / German / Japanese), one file per feature
 tools/         asset pipeline (Python) and anatomy export
 public/data/   brain meshes (binary)
 docs/          screenshots
