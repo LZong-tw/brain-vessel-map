@@ -1,3 +1,5 @@
+[繁體中文](mra-communicating-shapes.zh-TW.md) · [简体中文](mra-communicating-shapes.zh-CN.md) · [English](mra-communicating-shapes.md) · [Deutsch](mra-communicating-shapes.de.md) · [日本語](mra-communicating-shapes.ja.md)
+
 # MRA-derived communicating vessel shapes
 
 Three communicating vessel render curves derive from actual segmented MRA
