@@ -1,3 +1,5 @@
+[繁體中文](ich-expansion.zh-TW.md) · [简体中文](ich-expansion.zh-CN.md) · [English](ich-expansion.md) · [Deutsch](ich-expansion.de.md) · [日本語](ich-expansion.ja.md)
+
 # Intracerebral hemorrhage expansion risk
 
 This separate educational calculator reproduces the four-predictor model in
