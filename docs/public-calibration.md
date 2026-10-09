@@ -1,3 +1,5 @@
+[繁體中文](public-calibration.zh-TW.md) · [简体中文](public-calibration.zh-CN.md) · [English](public-calibration.md) · [Deutsch](public-calibration.de.md) · [日本語](public-calibration.ja.md)
+
 # Experimental public-data calibration
 
 The Details calibration workbench attempts an illustrative anterior-circulation fit to published aggregate infarct-growth observations. **The attempted calibration is rejected:** its fitted factors reverse the expected collateral-quality ordering, one growth target is unreachable, and all baseline volumes disagree markedly with the independent reference. The workbench is an experimental diagnostic, not a new valid collateral profile. Its candidate factors remain separate from the default simulation.
