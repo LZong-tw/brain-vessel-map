@@ -1,3 +1,5 @@
+[繁體中文](slices.zh-TW.md) · [简体中文](slices.zh-CN.md) · [English](slices.md) · [Deutsch](slices.de.md) · [日本語](slices.ja.md)
+
 # MRI slices and territory references
 
 The slice background is the real 1 mm ICBM 152 nonlinear asymmetric 2009c T1
