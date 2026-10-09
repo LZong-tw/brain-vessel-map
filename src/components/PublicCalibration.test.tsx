@@ -27,6 +27,8 @@ describe('public calibration diagnostic', () => {
     expect(screen.getByText(PUBLIC_CALIBRATION[lang].title).closest('details')?.open).toBe(false);
     fireEvent.click(screen.getByText(PUBLIC_CALIBRATION[lang].title));
     expect(screen.getByText(PUBLIC_CALIBRATION[lang].warning)).toBeTruthy();
+    expect(screen.getByText(PUBLIC_CALIBRATION[lang].earlyRejection)).toBeTruthy();
+    expect(screen.getByRole('link', { name: PUBLIC_CALIBRATION[lang].earlySource }).getAttribute('href')).toContain('PMC4478123');
     expect(screen.getByRole('link', { name: PUBLIC_CALIBRATION[lang].source }).getAttribute('href')).toContain('106208');
   });
   it('runs outside the UI thread and reports failed fit and baseline mismatch without promoting factors', () => {

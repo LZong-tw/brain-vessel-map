@@ -55,6 +55,7 @@
   · **Clinical review** of the region–symptom mapping, syndrome rules and time courses by a neurologist / neuroradiologist (most important)
 - [ ] 以公開資料做更系統的參數校正並寫進測試；前循環的首次 G-only 嘗試未通過，不採用為新側枝分級。[來源、結果與限制](docs/public-calibration.md)。
   · Systematic public-data parameter calibration encoded as tests; the first anterior G-only attempt is rejected and is not adopted as a new collateral profile. [Sources, results and limits](docs/public-calibration.md).
+  · Additional Wheeler M1 early-growth timing fit also rejected: default-tissue slowing cannot reach the median; global slowing changes regional injury timings without paired evidence. No fitted multiplier is applied. 再次檢查 Wheeler 的早期 M1 增長資料仍未通過：只放慢預設組織無法達到中位數，放慢全部組織則缺乏各區域成對證據；不採用時間倍率。
   - [x] 實驗性校正診斷工作台：以 MacLellan 的三組梗塞增長中位數檢查單獨右 M1 阻塞；明列相反的候選 G 排序、無法達到的目標與過大的基線核心，固定既有組織參數且不改預設模擬。此項完成只代表可重現的診斷工具，不代表完成校正。
     · Experimental calibration diagnostic workbench: check isolated right M1 against MacLellan's three growth medians, exposing reversed candidate G ordering, an unreachable target and excessive baseline cores; existing tissue parameters and defaults remain unchanged. Completion means a reproducible diagnostic tool, not successful calibration.
   - [ ] 其餘尚未重新校正或驗證：跨兩段的基底動脈阻塞與後循環側枝血流、小腦與延髓的壞死時程、腔隙自己的時程、48 小時半影假設、Willis 環與後顱窩動脈的左右對稱，以及頂後、顳枕、顳前與顳後動脈的軟腦膜側枝。

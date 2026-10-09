@@ -30,6 +30,8 @@ export function PublicCalibration({ lang }: { lang: Lang }) {
     <p>{s.intro}</p>
     <p className="rec-caveat small">{s.warning}</p>
     <p className="small">{s.timing}</p>
+    <p className="rec-caveat small">{s.earlyRejection}</p>
+    <p><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4478123/" target="_blank" rel="noreferrer">{s.earlySource}</a></p>
     <button onClick={run} disabled={state === 'running'}>{s.run}</button>
     <p role="status">{state === 'running' ? s.running : state === 'error' ? s.error : result ? s.rejected : ''}</p>
     {result && <>

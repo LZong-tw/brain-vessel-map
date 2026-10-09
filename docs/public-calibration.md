@@ -45,3 +45,40 @@ A fitted point is not a uniquely identified physiological conductance. Occlusion
 ## Remaining calibration scope
 
 This experiment does not recalibrate posterior circulation or two-segment basilar occlusions; cerebellar or medullary injury kinetics; lacunar injury kinetics; the 48-hour penumbra convention; anatomical symmetry of the circle of Willis and posterior-fossa arteries; or the separate posterior-parietal, temporo-occipital and temporal leptomeningeal anastomoses. Those domains remain unvalidated and retain their existing assumptions. Extending the fit requires explicit additional evidence and tests, rather than transferring an anterior aggregate fit as though it validated them.
+
+## Additional early-growth attempt: not adopted
+
+[Wheeler et al. (2015)](https://pmc.ncbi.nlm.nih.gov/articles/PMC4478123/)
+reports initial growth as baseline infarct volume divided by onset-to-imaging
+time, rather than an instantaneous derivative. Its M1 subgroup (33 patients)
+has median 2.9 mL/h, IQR 1.3–7.6. This is a closer anatomical comparison than
+the late, mixed-population DEFUSE 3 targets, but it still lacks public paired
+M1-specific clocks, complete trajectories and regional tissue injury measurements.
+
+The reproducible `diagnoseEarlyGrowthCalibration()` experiment assumes a
+3.7-hour whole-cohort clock for that subgroup, isolated right M1, moderate
+collaterals, MAP 93 mmHg and no variants. None of those representative settings
+is inferred as a patient-level joint distribution. It searches a shared
+multiplier of lag and tissue time constants; the search interval 0.001–10,000
+and 80 iterations are numerical choices, not clinical parameter ranges.
+
+| Experiment | Result | Decision |
+|---|---|---|
+| Existing model | 24.728457 mL/h at the assumed clock | Disagreement remains visible |
+| Multiply every tissue's times | 10.284395× gives 2.9 mL/h, 10.73 mL at 3.7 h | Reject transfer across tissue classes |
+| Slow only default tissue indefinitely | Unchanged deep/perforator injury leaves 3.779299 mL/h | Target cannot be reached |
+
+The numerical match would shift the internal-capsule lag from 2.5 to about
+25.7 hours and its time constant from 1.75 to about 18.0 hours. Those changes
+have no supporting regional measurements and conflict with the much earlier
+capsular injury discussed in `tissueParams.ts`; an aggregate volume match
+does not validate them. The existing regional curves themselves retain their
+documented probability-to-tissue-fraction assumptions.
+
+ICA and representative superior-M2 comparisons give 4.433152 and 0.097242
+mL/h versus published aggregate medians 6.2 and 0.4. The published subtypes
+are not the exact model occlusions, and their clocks are not independently
+paired; these comparisons are not validation. No timing multiplier is applied
+to the model. Tests reproduce both rejections and confirm unchanged ordinary
+simulation results and regional parameters. Calibration stays unchecked until
+anatomically and temporally paired data can support a defensible applied fit.
