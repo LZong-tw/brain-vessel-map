@@ -1,3 +1,5 @@
+[繁體中文](deficit-grading.zh-TW.md) · [简体中文](deficit-grading.zh-CN.md) · [English](deficit-grading.md) · [Deutsch](deficit-grading.de.md) · [日本語](deficit-grading.ja.md)
+
 # Continuous model deficits and ordinal examination grades
 
 The model preserves its compensated deficit magnitude as
