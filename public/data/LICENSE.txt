@@ -1,7 +1,7 @@
 Brain Vessel Map — derived anatomy data
 =======================================
 
-Files in this folder (brain.json, brain.bin) and in src/anatomy/generated/ are adapted from:
+Files in this folder (brain.json, brain.bin, slices.json, slices.bin.gz) and in src/anatomy/generated/ are adapted from:
 
   * MNI ICBM 152 Nonlinear Asymmetric 2009c template (TemplateFlow)
       Copyright (C) 1993–2004 Louis Collins, McConnell Brain Imaging Centre,
@@ -22,6 +22,10 @@ Files in this folder (brain.json, brain.bin) and in src/anatomy/generated/ are a
 Changes: resampled/registered to MNI152NLin2009cAsym, surfaces extracted (marching cubes),
 decimated and smoothed; labels combined into functional regions x arterial territories;
 vessel centrelines snapped to the vessel atlas and draped on the brain surface.
+
+Slice data: T1 intensities quantized for display; Liu territory labels sampled with the
+project's approximate atlas-to-template transform; model perfusion-bed labels retained for
+fraction heatmaps. Territory outlines are reference anatomy, not simulated lesion boundaries.
 
 Because they adapt a CC BY-SA 4.0 work, these derived data files are licensed under the
 Creative Commons Attribution-ShareAlike 4.0 International licence:

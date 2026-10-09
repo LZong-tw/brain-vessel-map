@@ -17,7 +17,7 @@ import { preferredLanguage } from '../i18n/locales';
 
 /** 'structure' = non-perfused anatomy shown for orientation (currently the ventricles) */
 export type Selection = { kind: 'vessel' | 'region' | 'structure'; id: string } | null;
-export type ViewMode = '3d' | 'willis' | 'brainstem';
+export type ViewMode = '3d' | 'willis' | 'brainstem' | 'slices';
 export type ColorMode = 'state' | 'territory' | 'anatomy' | 'edema';
 /** display multiplier for swelling / midline shift in 3D: 1 = true scale, 3 and 5 exaggerate for teaching */
 export type EdemaScale = 1 | 3 | 5;

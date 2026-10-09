@@ -204,7 +204,7 @@ export function applyHash(hash: string) {
   if (patch.reperfusionH !== null && patch.reperfusionH !== undefined) patch.treatment = parseTreatment(q, patch.occlusions ?? []);
   if (q.get('d') === '1') patch.decompression = true;
   const view = q.get('view');
-  if (view === '3d' || view === 'willis' || view === 'brainstem') patch.view = view;
+  if (view === '3d' || view === 'willis' || view === 'brainstem' || view === 'slices') patch.view = view;
   // honour an explicit (or scenario-default) 3D view, but not onto a blank canvas
   if (patch.view === '3d' && !hasWebGL()) patch.view = 'willis';
   // a shared case opens on the case and on what is happening at the linked time

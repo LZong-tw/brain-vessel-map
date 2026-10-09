@@ -71,8 +71,8 @@
   · Venous system and venous sinus thrombosis; haemorrhagic stroke (not simulated at all yet)
 - [ ] 以 MRA 分割的真實血管樹取代部分手繪的小分支路徑
   · Replace hand-drawn small-branch paths with vessel trees segmented from MRA
-- [ ] 2D 切片檢視（在 T1 影像上疊加梗塞區，像看 MRI 一樣）
-  · 2D slice view (infarct overlaid on T1 images, like reading an MRI)
+- [x] 2D 切片檢視：真實 T1 模板上的 Liu 動脈供血區參考輪廓；梗塞以每個灌流單元的比例熱圖呈現，明示空間近似，並不捏造病灶邊界。圖譜對齊沿用近似轉換；[來源與限制](docs/slices.md)。
+  · 2D slice view: Liu reference arterial territory outlines on the real T1 template; infarction shown as a per-bed fraction heatmap with an explicit spatial fallback, without invented lesion boundaries. Atlas alignment uses the existing approximate transform; [sources and limitations](docs/slices.md).
 - [x] 無障礙：鍵盤操作 3D 場景、螢幕報讀的結果摘要
   · Accessibility: keyboard control of the 3D scene, a screen-reader summary of the results
 - [x] 更多語言：簡體中文、德文、日文 · More languages: Simplified Chinese, German, Japanese

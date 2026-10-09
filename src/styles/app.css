@@ -220,6 +220,7 @@ p {
 .view-tabs {
   flex: none;
   background: var(--bg);
+  overflow-x: auto;
 }
 .view-tabs button {
   flex: 0 0 auto;
@@ -239,6 +240,22 @@ p {
 .scene-slot[hidden] {
   display: none;
 }
+.slice-view {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 12px;
+  overscroll-behavior: contain;
+}
+.slice-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.slice-controls label { display: flex; align-items: center; gap: 6px; }
+.slice-image { display: block; width: 100%; max-width: 650px; height: auto; margin: 8px auto; image-rendering: pixelated; }
+.slice-image canvas { width: 100%; height: auto; }
+.slice-orientation { display: flex; justify-content: space-between; max-width: 650px; margin: auto; }
+.slice-limitation { padding: 10px; border: 1px solid var(--warn); border-radius: 6px; background: var(--bg-2); }
+.slice-gradient { height: 12px; max-width: 300px; background: linear-gradient(to right, #777, #e83b3b); }
+.slice-territories { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; }
+.slice-territories span { display: inline-block; width: 10px; height: 10px; margin-right: 4px; }
 .scene-message {
   position: absolute;
   inset: 0;

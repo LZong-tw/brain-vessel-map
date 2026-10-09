@@ -16,6 +16,7 @@ import { useApp, type ViewMode } from './state/store';
 import { inlineText } from './i18n/content';
 
 const Scene3D = lazy(() => import('./scene/Scene3D').then((m) => ({ default: m.Scene3D })));
+const SliceView = lazy(() => import('./components/SliceView').then((m) => ({ default: m.SliceView })));
 
 function HoverTip() {
   const hovered = useApp((s) => s.hovered);
@@ -58,6 +59,7 @@ export default function App() {
     ['3d', t.view3d],
     ['willis', t.viewWillis],
     ['brainstem', t.viewBrainstem],
+    ['slices', inlineText(lang, '2D 切片', '2D slices', '2D 切片', '2D-Schnitte', '2D断面')],
   ];
 
   return (
@@ -95,8 +97,13 @@ export default function App() {
             )}
             {view === 'willis' && <WillisDiagram sim={sim} />}
             {view === 'brainstem' && <BrainstemSections sim={sim} />}
+            {view === 'slices' && (
+              <Suspense fallback={<div className="scene-message loading">{t.loading}</div>}>
+                <SliceView lang={lang} sim={sim} />
+              </Suspense>
+            )}
             <HoverTip />
-            <Legend />
+            {view !== 'slices' && <Legend />}
           </div>
           <CaseSummary />
           <Timeline sim={sim} />

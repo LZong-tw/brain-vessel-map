@@ -15,6 +15,12 @@ Their licences and required notices are listed below. The same list is shown in 
 Files: `public/data/brain.json`, `public/data/brain.bin`, `src/anatomy/generated/beds.json`,
 `src/anatomy/generated/vesselPaths.json` (and the copies bundled into `dist/` at build time).
 
+The T1 slice data and sampled arterial labels (`public/data/slices.json` and
+`public/data/slices.bin.gz`) use the same data licence and notices. T1 intensities are
+quantized for display; Liu labels use the project's approximate atlas-to-template mapping.
+See [slice provenance and limitations](docs/slices.md). These labels describe reference
+territories; they do not locate an individual simulated lesion.
+
 These files are **adapted material** of the atlases in section 2 — in particular of the
 *Digital 3D Brain MRI Arterial Territories Atlas*, which is licensed CC BY-SA 4.0. They are therefore
 distributed under the **Creative Commons Attribution-ShareAlike 4.0 International** licence
