@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { SimResult } from '../engine/simulate';
+import type { BedTimeState, SimResult } from '../engine/simulate';
 import { SLICES } from '../i18n/slices';
 import type { Lang } from '../anatomy/types';
 import { loadSlices, type SliceData } from '../scene/sliceData';
@@ -14,7 +14,12 @@ const data: SliceData = {
     beds: ['fixture'], territories: [{ id: 1, name: 'Left MCA frontal', code: 'MCAF', side: 'l', color: [0, 180, 255] }], sources: [{ title: 'Liu atlas', url: 'https://example.com/atlas-fixture' }], bedMapping: 'existing-voxel-bed-assignment' },
   t1: new Uint8Array(24).fill(100), territory: new Uint8Array(24).fill(1), bed: new Uint16Array(24).fill(1),
 };
-const sim = { beds: { fixture: { infarct: 0.25 } } } as Pick<SimResult, 'beds'>;
+const fixtureBed: BedTimeState = {
+  rel: 1,
+  frac: { normal: 0.75, oligemia: 0, penumbra: 0, core: 0.25, salvaged: 0 },
+  regaining: 0, holding: 0, infarct: 0.25, atRisk: 0, noFlow: 0, dys: 0.25, effect: null,
+};
+const sim: Pick<SimResult, 'beds'> = { beds: { fixture: fixtureBed } };
 const putImageData = vi.fn();
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ createImageData: (width: number, height: number) => ({ data: new Uint8ClampedArray(width * height * 4) }), putImageData } as unknown as CanvasRenderingContext2D);
@@ -48,7 +53,7 @@ describe('accessible reference slice view', () => {
   it('toggles outlines independently from the continuous fraction heatmap and responds to new simulation fractions', () => {
     const view = render(<SliceView lang="en" sim={sim} data={data} />);
     fireEvent.click(screen.getByRole('checkbox', { name: SLICES.en.outlines }));
-    view.rerender(<SliceView lang="en" sim={{ beds: { fixture: { infarct: 0.01 } } } as Pick<SimResult, 'beds'>} data={data} />);
+    view.rerender(<SliceView lang="en" sim={{ beds: { fixture: { ...fixtureBed, infarct: 0.01, dys: 0.01, frac: { ...fixtureBed.frac, normal: 0.99, core: 0.01 } } } }} data={data} />);
     expect(screen.getByText('1.0%')).toBeTruthy();
     fireEvent.click(screen.getByRole('checkbox', { name: SLICES.en.heatmap }));
     expect(putImageData).toHaveBeenCalled();

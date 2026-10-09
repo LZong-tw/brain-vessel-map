@@ -21,7 +21,7 @@ afterEach(() => {
 const name = (id: string, lang: Lang) => tr(SYMPTOM_BY_ID[id].name, lang);
 
 describe('region details while the patient is comatose (X1-2)', () => {
-  it.each(['zh-TW', 'en'] as Lang[])('%s: the reading loss of the left angular gyrus cannot be examined in the herniation coma; it has not recovered', (lang) => {
+  it.each(['zh-TW', 'en'] as const)('%s: the reading loss of the left angular gyrus cannot be examined in the herniation coma; it has not recovered', (lang) => {
     const { occlusions } = SCENARIO_BY_ID.l_m1;
     const i = TIME_STOPS.findIndex((s) => s.h === 48);
     const input = { occlusions, variants: [], map: 93, collateral: 'moderate' as const, reperfusionH: null, decompression: false };
@@ -64,7 +64,7 @@ describe('region details: tissue that survived and is still regaining its functi
     // reopened at 3 h: little died, the rest regains its function over hours
     ['the left M1 reopened at 3 h, at 4.5 h', 3, 4.5, 'broca_l'],
   ];
-  it.each((['zh-TW', 'en'] as Lang[]).flatMap((lang) => cases.map((c) => [lang, ...c] as const)))(
+  it.each((['zh-TW', 'en'] as const).flatMap((lang) => cases.map((c) => [lang, ...c] as const)))(
     '%s: %s, the deficits of the region are told as recovering, not as those of dead tissue',
     (lang, _name, reperfusionH, tH, region) => {
       const input = { occlusions: SCENARIO_BY_ID.l_m1.occlusions, variants: [], map: 93, collateral: 'good' as const, reperfusionH, decompression: false };
@@ -86,7 +86,7 @@ describe('region details: tissue that survived and is still regaining its functi
 // W3-5: a lacune is shown at its own share of the structure (the corona radiata lacune is about
 // 0.8 of its 12.4 mL), and the details say why so small a share costs most of the function
 describe('region details of a lacune (W3-5)', () => {
-  it.each(['zh-TW', 'en'] as Lang[])('%s: the dead share is the lacune’s own, and the note says what it costs', (lang) => {
+  it.each(['zh-TW', 'en'] as const)('%s: the dead share is the lacune’s own, and the note says what it costs', (lang) => {
     const { occlusions } = SCENARIO_BY_ID.l_cr_lacune;
     const i = TIME_STOPS.findIndex((s) => s.h === 2160);
     const input = { occlusions, variants: [], map: 93, collateral: 'good' as const, reperfusionH: null, decompression: false };

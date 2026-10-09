@@ -13,7 +13,7 @@ class FakeWorker {
   terminate = vi.fn();
   constructor() { FakeWorker.last = this; }
 }
-beforeEach(() => vi.stubGlobal('Worker', FakeWorker));
+beforeEach(() => { vi.stubGlobal('Worker', FakeWorker); });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe('public calibration diagnostic', () => {
