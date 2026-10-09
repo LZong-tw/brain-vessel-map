@@ -62,6 +62,11 @@ export interface HemoInput {
   collateral: CollateralGrade;
 }
 
+interface SolverInput extends HemoInput {
+  /** Research-only factor for all named collateral vessels, including extracranial and cerebellar links; preserves hidden brainstem pial grade. */
+  collateralFactor?: number;
+}
+
 /** Part of a bed supplied by one artery. */
 export interface Unit {
   id: string;
@@ -474,8 +479,13 @@ export function absentVessels(variants: readonly string[]): Set<string> {
   return new Set([...scale].filter(([, f]) => f === 0).map(([id]) => id));
 }
 
-function buildConfig(variants: string[], collateral: CollateralGrade): Config {
-  const key = `${[...variants].sort().join(',')}|${collateral}`;
+function validateCollateralFactor(factor?: number): void {
+  if (factor !== undefined && (!Number.isFinite(factor) || factor <= 0)) throw new RangeError('collateralFactor must be finite and positive');
+}
+
+function buildConfig(variants: string[], collateral: CollateralGrade, collateralFactor?: number): Config {
+  validateCollateralFactor(collateralFactor);
+  const key = `${[...variants].sort().join(',')}|${collateral}|${collateralFactor ?? 'default'}`;
   const cached = configCache.get(key);
   if (cached) return cached;
 
@@ -500,7 +510,7 @@ function buildConfig(variants: string[], collateral: CollateralGrade): Config {
     }
     if (v.kind === 'collateral') {
       const fref = (ownerFlow(v.from, sub) + ownerFlow(v.to, sub)) / 2;
-      vesselG.set(v.id, (v.collStrength ?? 1) * COLL_GRADE[collateral] * Math.max(fref, 5) * COLL_SCALE);
+      vesselG.set(v.id, (v.collStrength ?? 1) * (collateralFactor ?? COLL_GRADE[collateral]) * Math.max(fref, 5) * COLL_SCALE);
     } else {
       const r = v.r * f;
       vesselG.set(v.id, (K_POISEUILLE * (KIND_FACTOR[v.kind] ?? 1) * (v.n ?? 1) * r ** 4) / flowLength(v));
@@ -722,13 +732,14 @@ const hemisphereOf = (o: Occlusion) => {
   return vessel && HEMISPHERIC_FAMILIES.has(vessel.family) ? nodeSide(o.vessel) : undefined;
 };
 
-export function hemoKey(input: HemoInput): string {
+export function hemoKey(input: SolverInput): string {
+  validateCollateralFactor(input.collateralFactor);
   const occ = input.occlusions
     .filter((o) => !o.branch)
     .sort((a, b) => a.vessel.localeCompare(b.vessel))
     .map((o) => `${o.vessel}:${o.severity}`)
     .join(',');
-  return `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}`;
+  return `${occ}|${[...input.variants].sort().join(',')}|${input.map}|${input.collateral}|${input.collateralFactor ?? 'default'}`;
 }
 
 /** Units of the current configuration (for tissue-state bookkeeping). */
@@ -737,6 +748,18 @@ export function getUnits(variants: string[], collateral: CollateralGrade): Unit[
 }
 
 export function simulateHemodynamics(input: HemoInput): HemoResult {
+  const { occlusions, variants, map, collateral } = input;
+  return runHemodynamics({ occlusions, variants, map, collateral });
+}
+
+/** Separate research entry point; never changes the clinical simulation input or defaults. */
+export function simulateResearchHemodynamics(input: HemoInput, collateralFactor: number): HemoResult {
+  validateCollateralFactor(collateralFactor);
+  const { occlusions, variants, map, collateral } = input;
+  return runHemodynamics({ occlusions, variants, map, collateral, collateralFactor });
+}
+
+function runHemodynamics(input: SolverInput): HemoResult {
   const sides = new Set(input.occlusions.filter((o) => !o.branch && o.severity > 0).map(hemisphereOf));
   if (!sides.has('l') || !sides.has('r')) return solveHemodynamics(input);
   const cached = resultCache.get(`${hemoKey(input)}|pressure-guard`);
@@ -752,12 +775,12 @@ export function simulateHemodynamics(input: HemoInput): HemoResult {
   return solveHemodynamics(input, references);
 }
 
-function solveHemodynamics(input: HemoInput, references?: Partial<Record<'l' | 'r', Record<string, number>>>): HemoResult {
+function solveHemodynamics(input: SolverInput, references?: Partial<Record<'l' | 'r', Record<string, number>>>): HemoResult {
   const key = `${hemoKey(input)}${references ? '|pressure-guard' : ''}`;
   const hit = resultCache.get(key);
   if (hit) return hit;
 
-  const cfg = buildConfig(input.variants, input.collateral);
+  const cfg = buildConfig(input.variants, input.collateral, input.collateralFactor);
   const { scale } = variantOverrides(input.variants);
   const gOverride = new Map<string, number>();
   const dead = new Set<string>();

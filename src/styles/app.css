@@ -2665,3 +2665,8 @@ select.sched-sev {
 .hemorrhage-risk input[type='number'],
 .hemorrhage-risk select { display: block; width: 100%; min-width: 0; margin-top: 4px; }
 .hemorrhage-risk input[type='checkbox'] { margin-right: 6px; }
+
+.public-calibration { margin-top: 16px; overflow-wrap: anywhere; }
+.public-calibration summary { cursor: pointer; color: var(--accent); }
+.public-calibration dl { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 12px; }
+.public-calibration dd { margin: 0; font-variant-numeric: tabular-nums; }

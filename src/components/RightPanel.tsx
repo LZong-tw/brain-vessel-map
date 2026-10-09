@@ -1,5 +1,6 @@
 import { DeficitSeverity } from './DeficitSeverity';
 import { HemorrhageRisk } from './HemorrhageRisk';
+import { PublicCalibration } from './PublicCalibration';
 import { useMemo, useState } from 'react';
 import { REGION_BY_ID, VESSEL_BY_ID, regionName, tr, vesselName } from '../anatomy';
 import { canBeLacunar, lacuneSiteOf, lacuneSitesOf } from '../anatomy/lacunes';
@@ -72,7 +73,7 @@ export function RightPanel({ sim }: { sim: SimResult }) {
           </button>
         ))}
       </nav>
-      <div className="panel-body">{tab === 'details' ? <><Details sim={sim} /><HemorrhageRisk lang={lang} /></> : tab === 'final' ? <FinalOutcome /> : <Results sim={sim} />}</div>
+      <div className="panel-body">{tab === 'details' ? <><Details sim={sim} /><HemorrhageRisk lang={lang} /><PublicCalibration lang={lang} /></> : tab === 'final' ? <FinalOutcome /> : <Results sim={sim} />}</div>
     </aside>
   );
 }
